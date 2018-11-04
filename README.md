@@ -68,7 +68,7 @@ config | 配置文件路径
 {
   "Server": {
     "ip": "123.206.77.88",
-    "tcp": 8224,
+    "tcp": 8284,
     "vkey": "DKibZF5TXvic1g3kY",
     "num": 10
   },
