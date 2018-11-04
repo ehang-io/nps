@@ -29,7 +29,7 @@
 - 服务端 
 
 ```
-./rproxy -mode server -vkey DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+./easyProxy -mode server -vkey DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
 ```
 
 名称 | 含义
@@ -48,7 +48,7 @@ httpport | 代理的http端口（与nginx配合使用）
 
 
 ```
-./rproxy -config config.json  
+./easyProxy -config config.json  
 ```
 
 
