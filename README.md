@@ -51,12 +51,16 @@ httpport | 代理的http端口（与nginx配合使用）
 ./rproxy -config config.json  
 ```
 
-- 详细说明
 
-https://github.com/cnlh/easyProxy/wiki/%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B
  名称 | 含义
 ---|---
 config | 配置文件路径
+
+- 详细说明
+
+[详细教程](https://github.com/cnlh/easyProxy/wiki/%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)
+
+
 
 ## 配置文件config.json
 
