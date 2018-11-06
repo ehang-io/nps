@@ -55,13 +55,6 @@ httpport | 代理的http端口（与nginx配合使用）
  名称 | 含义
 ---|---
 config | 配置文件路径
-
-- 详细说明
-
-[详细教程](https://github.com/cnlh/easyProxy/wiki/%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)
-
-
-
 ## 配置文件config.json
 
 ```
@@ -74,12 +67,12 @@ config | 配置文件路径
   },
   "SiteList": [
     {
-      "host": "a.server.ourcauc.com",
+      "host": "server1.ourcauc.com",
       "url": "10.1.50.203",
       "port": 80
     },
     {
-      "host": "b.server.ourcauc.com",
+      "host": "server2.ourcauc.com",
       "url": "10.1.50.196",
       "port": 4000
     }
@@ -118,11 +111,11 @@ upstream nodejs {
 }
 server {
     listen 80;
-    server_name *.server.ourcauc.com;
+    server_name server1.ourcauc.com server2.ourcauc.com;
     location / {
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header Host  $http_host:8224;
+            proxy_set_header Host  $http_host:8024;
             proxy_set_header X-Nginx-Proxy true;
             proxy_set_header Connection "";
             proxy_pass      http://nodejs;
@@ -130,11 +123,14 @@ server {
 }
 ```
 ## 域名配置示例
-> -server	    A	    123.206.77.88
-
-> *.server	CNAME	server.ourcauc.com.
- 
+> -server1	    A	    123.206.77.88
+> -server2	    A	    123.206.77.88
 
 ## 操作系统支持  
-支持Windows、Linux、MacOSX等，无第三方依赖库。  
+支持Windows、Linux、MacOSX等，无第三方依赖库。
+
+## 二级域名泛解析配置详细教程
+
+[详细教程](https://github.com/cnlh/easyProxy/wiki/%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)
+
 
