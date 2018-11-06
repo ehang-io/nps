@@ -93,6 +93,7 @@ func (c *TRPClient) deal(conn net.Conn) error {
 	if nlen <= 0 {
 		log.Println("数据长度错误。")
 		c.werror(conn)
+		return errors.New("数据长度错误")
 	}
 	raw := make([]byte, nlen)
 	n, err := conn.Read(raw)
@@ -102,11 +103,13 @@ func (c *TRPClient) deal(conn net.Conn) error {
 	if n != int(nlen) {
 		log.Printf("读取服务端数据长度错误，已经读取%dbyte，总长度%d字节\n", n, nlen)
 		c.werror(conn)
+		return errors.New("读取服务端数据长度错误")
 	}
 	req, err := DecodeRequest(raw)
 	if err != nil {
 		log.Println("DecodeRequest错误：", err)
 		c.werror(conn)
+		return err
 	}
 	rawQuery := ""
 	if req.URL.RawQuery != "" {
@@ -122,6 +125,7 @@ func (c *TRPClient) deal(conn net.Conn) error {
 	if err != nil && !disRedirect {
 		log.Println("请求本地客户端错误：", err)
 		c.werror(conn)
+		return err
 	}
 	if !disRedirect {
 		defer resp.Body.Close()
@@ -133,10 +137,12 @@ func (c *TRPClient) deal(conn net.Conn) error {
 	if err != nil {
 		log.Println("EncodeResponse错误：", err)
 		c.werror(conn)
+		return err
 	}
 	n, err = conn.Write(respBytes)
 	if err != nil {
 		log.Println("发送数据错误，错误：", err)
+		return err
 	}
 	if n != len(respBytes) {
 		log.Printf("发送数据长度错误，已经发送：%dbyte，总字节长：%dbyte\n", n, len(respBytes))
