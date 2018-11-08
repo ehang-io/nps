@@ -23,6 +23,7 @@ type Site struct {
 type Config struct {
 	Server   Server
 	SiteList []Site
+	Replace  int
 }
 type JsonStruct struct {
 }

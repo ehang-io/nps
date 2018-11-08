@@ -69,7 +69,9 @@ func EncodeResponse(r *http.Response) ([]byte, error) {
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte("sign"))
 	respBytes, err := httputil.DumpResponse(r, true)
-	respBytes = replaceHost(respBytes)
+	if config.Replace == 1 {
+		respBytes = replaceHost(respBytes)
+	}
 	if err != nil {
 		return nil, err
 	}
