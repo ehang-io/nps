@@ -104,7 +104,7 @@ func getHost(str string) (string, error) {
 func replaceHost(resp []byte) []byte {
 	str := string(resp)
 	for _, v := range config.SiteList {
-		str = strings.Replace(str, v.Url+":"+string(v.Port), v.Host, -1)
+		str = strings.Replace(str, v.Url+":"+strconv.Itoa(v.Port), v.Host, -1)
 		str = strings.Replace(str, v.Url, v.Host, -1)
 	}
 	return []byte(str)
