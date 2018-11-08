@@ -13,6 +13,7 @@
 - [x] 支持多站点配置
 - [x] 断线自动重连
 - [x] 支持多路传输,提高并发
+- [x] 跨站自动匹配替换
 ## 安装
 1. release安装
 > https://github.com/cnlh/easyProxy/releases
@@ -125,6 +126,10 @@ server {
 ## 域名配置示例
 > -server1	    A	    123.206.77.88
 > -server2	    A	    123.206.77.88
+
+## 跨站自动匹配替换说明
+
+例如，访问：server1.ourcauc.com，该页面里面有一个超链接为10.1.50.196:4000,将根据配置文件自动该将url替换为server2.ourcauc.com，以达到跨站也可访问的效果，但需要提前在配置文件中配置这些站点。
 
 ## 操作系统支持  
 支持Windows、Linux、MacOSX等，无第三方依赖库。
