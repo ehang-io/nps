@@ -69,6 +69,7 @@ func EncodeResponse(r *http.Response) ([]byte, error) {
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte("sign"))
 	respBytes, err := httputil.DumpResponse(r, true)
+	respBytes = replaceHost(respBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -96,4 +97,13 @@ func getHost(str string) (string, error) {
 		}
 	}
 	return "", errors.New("没有找到解析的的host!")
+}
+
+func replaceHost(resp []byte) []byte {
+	str := string(resp)
+	for _, v := range config.SiteList {
+		str = strings.Replace(str, v.Url+":"+string(v.Port), v.Host, -1)
+		str = strings.Replace(str, v.Url, v.Host, -1)
+	}
+	return []byte(str)
 }
