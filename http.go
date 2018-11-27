@@ -1,8 +1,9 @@
 package main
 
-import (
+import  (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -75,8 +76,13 @@ func EncodeResponse(r *http.Response) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	binary.Write(raw, binary.LittleEndian, int32(len(respBytes)))
-	if err := binary.Write(raw, binary.LittleEndian, respBytes); err != nil {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	zw.Write(respBytes)
+	zw.Close()
+	binary.Write(raw, binary.LittleEndian, int32(len(buf.Bytes())))
+	if err := binary.Write(raw, binary.LittleEndian, buf.Bytes()); err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	return raw.Bytes(), nil
@@ -84,8 +90,12 @@ func EncodeResponse(r *http.Response) ([]byte, error) {
 
 //// 将字节转为response
 func DecodeResponse(data []byte) (*http.Response, error) {
-
-	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), nil)
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+	resp, err := http.ReadResponse(bufio.NewReader(zr), nil)
 	if err != nil {
 		return nil, err
 	}
