@@ -5,12 +5,12 @@
 
 ## 目录
 
-1. [背景](/README.md#背景)
-2. [安装](/README.md#安装)
-2. [http代理请求](/README.md#http代理请求)
-3. [tcp隧道模式](/README.md#tcp隧道模式)
-4. [sock5代理模式](/README.md#sock5代理模式)
-5. [操作系统支持](/README.md#操作系统支持)
+1. [背景](https://github.com/cnlh/easyProxy/README.md#背景)
+2. [安装](https://github.com/cnlh/easyProxy/README.md#安装)
+2. [http代理请求](https://github.com/cnlh/easyProxy/README.md#http代理请求)
+3. [tcp隧道模式](https://github.com/cnlh/easyProxy/README.md#tcp隧道模式)
+4. [sock5代理模式](https://github.com/cnlh/easyProxy/README.md#sock5代理模式)
+5. [操作系统支持](https://github.com/cnlh/easyProxy/README.md#操作系统支持)
 
 ## 背景	  
 我有一个小程序的需求，但是小程序的数据源必须从内网才能抓取到，但是又苦于内网服务器没有公网ip，所以只能内网穿透了。
