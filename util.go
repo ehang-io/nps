@@ -7,6 +7,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -145,4 +148,11 @@ func replaceHost(resp []byte) []byte {
 		str = strings.Replace(str, v.Url, v.Host, -1)
 	}
 	return []byte(str)
+}
+
+func relay(in, out net.Conn) {
+	if _, err := io.Copy(in, out); err != nil {
+		log.Println("copy error:", err)
+	}
+	in.Close() //
 }

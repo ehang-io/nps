@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"sync"
@@ -107,8 +106,8 @@ func (s *TRPClient) dealChan() error {
 		return err
 	}
 	//创建成功后io.copy
-	go io.Copy(server, c)
-	io.Copy(c, server)
+	go relay(server, c.conn)
+	relay(c.conn, server)
 	return nil
 }
 

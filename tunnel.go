@@ -62,6 +62,7 @@ func (s *Tunnel) cliProcess(c *Conn) error {
 		s.verifyError(c)
 		return err
 	}
+	c.conn.(*net.TCPConn).SetReadDeadline(time.Time{})
 	//做一个判断 添加到对应的channel里面以供使用
 	flag, err := c.ReadFlag()
 	if err != nil {

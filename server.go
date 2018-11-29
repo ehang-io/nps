@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -179,7 +178,7 @@ retry:
 	if _, err := link.WriteHost(s.tunnelTarget); err != nil {
 		goto retry
 	}
-	go io.Copy(link, c)
-	io.Copy(c, link.conn)
+	go relay(link.conn, c.conn)
+	relay(c.conn, link.conn)
 	return nil
 }
