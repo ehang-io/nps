@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -21,14 +20,9 @@ var (
 	disabledRedirect = errors.New("disabled redirect.")
 )
 
-
-
-
 func BadRequest(w http.ResponseWriter) {
 	http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 }
-
-
 
 //发送请求并转为bytes
 func GetEncodeResponse(req *http.Request) ([]byte, error) {
@@ -51,7 +45,6 @@ func GetEncodeResponse(req *http.Request) ([]byte, error) {
 	respBytes, err = EncodeResponse(resp)
 	return respBytes, nil
 }
-
 
 // 将request 的处理
 func EncodeRequest(r *http.Request) ([]byte, error) {
@@ -91,6 +84,7 @@ func DecodeRequest(data []byte) (*http.Request, error) {
 		scheme = "https"
 	}
 	req.URL, _ = url.Parse(fmt.Sprintf("%s://%s%s", scheme, req.Host, req.RequestURI))
+	fmt.Println(req.URL)
 	req.RequestURI = ""
 	return req, nil
 }
@@ -151,8 +145,6 @@ func replaceHost(resp []byte) []byte {
 }
 
 func relay(in, out net.Conn) {
-	if _, err := io.Copy(in, out); err != nil {
-		log.Println("copy error:", err)
-	}
-	in.Close() //
+	io.Copy(in, out);
+	in.Close()
 }

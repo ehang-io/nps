@@ -47,12 +47,13 @@ func main() {
 				log.Fatalln(err)
 			}
 		} else if *rpMode == "tunnelServer" {
-			svr := NewTunnelModeServer(*tcpPort, *httpPort, *tunnelTarget)
-			if err := svr.Start(); err != nil {
-				log.Fatalln(err)
-			}
+			svr := NewTunnelModeServer(*tcpPort, *httpPort, *tunnelTarget, ProcessTunnel)
+			svr.Start()
 		} else if *rpMode == "sock5Server" {
 			svr := NewSock5ModeServer(*tcpPort, *httpPort)
+			svr.Start()
+		} else if *rpMode == "httpProxyServer" {
+			svr := NewTunnelModeServer(*tcpPort, *httpPort, *tunnelTarget, ProcessHttp)
 			svr.Start()
 		}
 	}

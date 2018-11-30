@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -93,6 +96,38 @@ func (s *Conn) SetAlive() {
 	conn.SetReadDeadline(time.Time{})
 	conn.SetKeepAlive(true)
 	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
+}
+
+//从tcp报文中解析出host
+func (s *Conn) GetHost() (method, address string, rb []byte, err error) {
+	var b [2048]byte
+	var n int
+	var host string
+	if n, err = s.Read(b[:]); err != nil {
+		return
+	}
+	rb = b[:n]
+	//TODO：某些不规范报文可能会有问题
+	fmt.Sscanf(string(b[:n]), "%s", &method)
+	reg, err := regexp.Compile(`(\w+:\/\/)([^/:]+)(:\d*)?`)
+	if err != nil {
+		return
+	}
+	host = string(reg.Find(b[:]))
+	hostPortURL, err := url.Parse(host)
+	if err != nil {
+		return
+	}
+	if hostPortURL.Opaque == "443" { //https访问
+		address = hostPortURL.Scheme + ":443"
+	} else { //http访问
+		if strings.Index(hostPortURL.Host, ":") == -1 { //host不带端口， 默认80
+			address = hostPortURL.Host + ":80"
+		} else {
+			address = hostPortURL.Host
+		}
+	}
+	return
 }
 
 func (s *Conn) Close() error {

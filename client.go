@@ -103,6 +103,7 @@ func (s *TRPClient) dealChan() error {
 	//与目标建立连接
 	server, err := net.Dial("tcp", host)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	//创建成功后io.copy

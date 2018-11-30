@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -91,8 +90,15 @@ retry:
 	connPass := <-s.signalList
 	_, err := connPass.conn.Write([]byte("chan"))
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		goto retry
 	}
 	s.signalList <- connPass
+}
+
+func (s *Tunnel) GetTunnel() *Conn {
+	if len(s.tunnelList) < 10 { //新建通道
+		go s.newChan()
+	}
+	return <-s.tunnelList
 }

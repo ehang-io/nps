@@ -125,19 +125,22 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 	return nil
 }
 
+type process func(c *Conn, s *TunnelModeServer) error
 type TunnelModeServer struct {
 	Tunnel
 	httpPort     int
 	tunnelTarget string
+	process      process
 }
 
-func NewTunnelModeServer(tcpPort, httpPort int, tunnelTarget string) *TunnelModeServer {
+func NewTunnelModeServer(tcpPort, httpPort int, tunnelTarget string, process process) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.tunnelPort = tcpPort
 	s.httpPort = httpPort
 	s.tunnelTarget = tunnelTarget
 	s.tunnelList = make(chan *Conn, 1000)
 	s.signalList = make(chan *Conn, 10)
+	s.process = process
 	return s
 }
 
@@ -164,19 +167,41 @@ func (s *TunnelModeServer) startTunnelServer() {
 			log.Println(err)
 			continue
 		}
-		go s.process(NewConn(conn))
+		go s.process(NewConn(conn), s)
 	}
 }
 
-//监听连接处理
-func (s *TunnelModeServer) process(c *Conn) error {
+//TODO：这种实现方式……
+//tcp隧道模式
+func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
 retry:
-	if len(s.tunnelList) < 10 { //新建通道
-		go s.newChan()
-	}
-	link := <-s.tunnelList
+	link := s.GetTunnel()
 	if _, err := link.WriteHost(s.tunnelTarget); err != nil {
+		link.Close()
 		goto retry
+	}
+	go relay(link.conn, c.conn)
+	relay(c.conn, link.conn)
+	return nil
+}
+
+//http代理模式
+func ProcessHttp(c *Conn, s *TunnelModeServer) error {
+	method, addr, rb, err := c.GetHost()
+	if err != nil {
+		c.Close()
+		return err
+	}
+retry:
+	link := s.GetTunnel()
+	if _, err := link.WriteHost(addr); err != nil {
+		link.Close()
+		goto retry
+	}
+	if method == "CONNECT" {
+		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
+	} else {
+		link.Write(rb)
 	}
 	go relay(link.conn, c.conn)
 	relay(c.conn, link.conn)
