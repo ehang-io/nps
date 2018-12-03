@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/golang/snappy"
 	"io"
+	"log"
 	"net"
 	"net/url"
 	"regexp"
@@ -47,7 +50,7 @@ func (s *Conn) ReadLen(len int) ([]byte, error) {
 //获取长度
 func (s *Conn) GetLen() (int, error) {
 	val := make([]byte, 4)
-	_, err := s.conn.Read(val)
+	_, err := s.Read(val)
 	if err != nil {
 		return 0, err
 	}
@@ -56,6 +59,21 @@ func (s *Conn) GetLen() (int, error) {
 		return 0, errors.New("数据长度错误")
 	}
 	return int(nlen), nil
+}
+
+//写入长度
+func (s *Conn) WriteLen(buf []byte) (int, error) {
+	raw := bytes.NewBuffer([]byte{})
+
+	if err := binary.Write(raw, binary.LittleEndian, int32(len(buf))); err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	if err = binary.Write(raw, binary.LittleEndian, buf); err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	return s.Write(raw.Bytes())
 }
 
 //读取flag
@@ -69,22 +87,30 @@ func (s *Conn) ReadFlag() (string, error) {
 }
 
 //读取host
-func (s *Conn) GetHostFromConn() (string, error) {
+func (s *Conn) GetHostFromConn() (typeStr string, host string, err error) {
+	ltype := make([]byte, 3)
+	_, err = s.Read(ltype)
+	if err != nil {
+		return
+	}
+	typeStr = string(ltype)
 	len, err := s.GetLen()
 	if err != nil {
-		return "", err
+		return
 	}
 	hostByte := make([]byte, len)
 	_, err = s.conn.Read(hostByte)
 	if err != nil {
-		return "", err
+		return
 	}
-	return string(hostByte), nil
+	host = string(hostByte)
+	return
 }
 
-//获取host
-func (s *Conn) WriteHost(host string) (int, error) {
+//写tcp host
+func (s *Conn) WriteHost(ltype string, host string) (int, error) {
 	raw := bytes.NewBuffer([]byte{})
+	binary.Write(raw, binary.LittleEndian, []byte(ltype))
 	binary.Write(raw, binary.LittleEndian, int32(len([]byte(host))))
 	binary.Write(raw, binary.LittleEndian, []byte(host))
 	return s.Write(raw.Bytes())
@@ -139,9 +165,46 @@ func (s *Conn) Write(b []byte) (int, error) {
 func (s *Conn) Read(b []byte) (int, error) {
 	return s.conn.Read(b)
 }
+func (s *Conn) ReadFromCompress(b []byte, compress int) (int, error) {
+	switch compress {
+	case COMPRESS_GZIP_DECODE:
+		r, err := gzip.NewReader(s)
+		if err != nil {
+			return 0, err
+		}
+		return r.Read(b)
+	case COMPRESS_SNAPY_DECODE:
+		r := snappy.NewReader(s)
+		return r.Read(b)
+	case COMPRESS_NONE:
+		return s.Read(b)
+	}
+	return 0, nil
+}
+
+func (s *Conn) WriteCompress(b []byte, compress int) (n int, err error) {
+	switch compress {
+	case COMPRESS_GZIP_ENCODE:
+		w := gzip.NewWriter(s)
+		if n, err = w.Write(b); err == nil {
+			w.Flush()
+		}
+	case COMPRESS_SNAPY_ENCODE:
+		w := snappy.NewBufferedWriter(s)
+		if n, err = w.Write(b); err == nil {
+			w.Flush()
+		}
+	case COMPRESS_NONE:
+		n, err = s.Write(b)
+	}
+	return
+}
 
 func (s *Conn) wError() {
 	s.conn.Write([]byte(RES_MSG))
+}
+func (s *Conn) wSign() {
+	s.conn.Write([]byte(RES_SIGN))
 }
 
 func (s *Conn) wMain() {

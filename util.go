@@ -7,8 +7,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/golang/snappy"
 	"io"
-	"net"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -18,6 +19,14 @@ import (
 
 var (
 	disabledRedirect = errors.New("disabled redirect.")
+)
+
+const (
+	COMPRESS_NONE = iota
+	COMPRESS_SNAPY_ENCODE
+	COMPRESS_SNAPY_DECODE
+	COMPRESS_GZIP_ENCODE
+	COMPRESS_GZIP_DECODE
 )
 
 func BadRequest(w http.ResponseWriter) {
@@ -46,30 +55,20 @@ func GetEncodeResponse(req *http.Request) ([]byte, error) {
 	return respBytes, nil
 }
 
-// 将request 的处理
+// 将request转为bytes
 func EncodeRequest(r *http.Request) ([]byte, error) {
 	raw := bytes.NewBuffer([]byte{})
-	// 写签名
-	binary.Write(raw, binary.LittleEndian, []byte("sign"))
 	reqBytes, err := httputil.DumpRequest(r, true)
 	if err != nil {
 		return nil, err
 	}
-	// 写body数据长度 + 1
-	binary.Write(raw, binary.LittleEndian, int32(len(reqBytes)+1))
-	// 判断是否为http或者https的标识1字节
 	binary.Write(raw, binary.LittleEndian, bool(r.URL.Scheme == "https"))
-	if err := binary.Write(raw, binary.LittleEndian, reqBytes); err != nil {
-		return nil, err
-	}
+	binary.Write(raw, binary.LittleEndian, reqBytes)
 	return raw.Bytes(), nil
 }
 
 // 将字节转为request
 func DecodeRequest(data []byte) (*http.Request, error) {
-	if len(data) <= 100 {
-		return nil, errors.New("待解码的字节长度太小")
-	}
 	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(data[1:])))
 	if err != nil {
 		return nil, err
@@ -84,42 +83,25 @@ func DecodeRequest(data []byte) (*http.Request, error) {
 		scheme = "https"
 	}
 	req.URL, _ = url.Parse(fmt.Sprintf("%s://%s%s", scheme, req.Host, req.RequestURI))
-	fmt.Println(req.URL)
 	req.RequestURI = ""
 	return req, nil
 }
 
 //// 将response转为字节
 func EncodeResponse(r *http.Response) ([]byte, error) {
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, []byte(RES_SIGN))
 	respBytes, err := httputil.DumpResponse(r, true)
-	if config.Replace == 1 {
-		respBytes = replaceHost(respBytes)
-	}
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	zw := gzip.NewWriter(&buf)
-	zw.Write(respBytes)
-	zw.Close()
-	binary.Write(raw, binary.LittleEndian, int32(len(buf.Bytes())))
-	if err := binary.Write(raw, binary.LittleEndian, buf.Bytes()); err != nil {
-		fmt.Println(err)
-		return nil, err
+	if config.Replace == 1 {
+		respBytes = replaceHost(respBytes)
 	}
-	return raw.Bytes(), nil
+	return respBytes, nil
 }
 
 // 将字节转为response
 func DecodeResponse(data []byte) (*http.Response, error) {
-	zr, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer zr.Close()
-	resp, err := http.ReadResponse(bufio.NewReader(zr), nil)
+	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(data)), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +126,52 @@ func replaceHost(resp []byte) []byte {
 	return []byte(str)
 }
 
-func relay(in, out net.Conn) {
-	io.Copy(in, out);
-	in.Close()
+func relay(in, out *Conn, compressType int) {
+	buf := make([]byte, 32*1024)
+	switch compressType {
+	case COMPRESS_GZIP_ENCODE:
+		w := gzip.NewWriter(in)
+		for {
+			n, err := out.Read(buf)
+			if err != nil || err == io.EOF {
+				break
+			}
+			if _, err = w.Write(buf[:n]); err != nil {
+				break
+			}
+			if err = w.Flush(); err != nil {
+				log.Println(err)
+				break
+			}
+		}
+		w.Close()
+	case COMPRESS_SNAPY_ENCODE:
+		w := snappy.NewBufferedWriter(in)
+		for {
+			n, err := out.Read(buf)
+			if err != nil || err == io.EOF {
+				break
+			}
+			if _, err = w.Write(buf[:n]); err != nil {
+				break
+			}
+			if err = w.Flush(); err != nil {
+				log.Println(err)
+				break
+			}
+		}
+		w.Close()
+	case COMPRESS_GZIP_DECODE:
+		r, err := gzip.NewReader(out)
+		if err != nil {
+			return
+		}
+		io.Copy(in, r)
+	case COMPRESS_SNAPY_DECODE:
+		r := snappy.NewReader(out)
+		io.Copy(in, r)
+	default:
+		io.Copy(in, out)
+	}
+	out.Close()
 }

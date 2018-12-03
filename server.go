@@ -74,7 +74,8 @@ func (s *HttpModeServer) writeRequest(r *http.Request, conn *Conn) error {
 	if err != nil {
 		return err
 	}
-	c, err := conn.Write(raw)
+	conn.wSign()
+	c, err := conn.WriteCompress(raw, DataEncode)
 	if err != nil {
 		return err
 	}
@@ -92,15 +93,12 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 	}
 	switch flags {
 	case RES_SIGN:
-		nlen, err := c.GetLen()
+		buf := make([]byte, 1024*32)
+		n, err := c.ReadFromCompress(buf, DataDecode)
 		if err != nil {
 			return err
 		}
-		raw, err := c.ReadLen(nlen)
-		if err != nil {
-			return err
-		}
-		resp, err := DecodeResponse(raw)
+		resp, err := DecodeResponse(buf[:n])
 		if err != nil {
 			return err
 		}
@@ -176,12 +174,12 @@ func (s *TunnelModeServer) startTunnelServer() {
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
 retry:
 	link := s.GetTunnel()
-	if _, err := link.WriteHost(s.tunnelTarget); err != nil {
+	if _, err := link.WriteHost("tcp", s.tunnelTarget); err != nil {
 		link.Close()
 		goto retry
 	}
-	go relay(link.conn, c.conn)
-	relay(c.conn, link.conn)
+	go relay(link, c, DataEncode)
+	relay(c, link, DataDecode)
 	return nil
 }
 
@@ -194,16 +192,16 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 	}
 retry:
 	link := s.GetTunnel()
-	if _, err := link.WriteHost(addr); err != nil {
+	if _, err := link.WriteHost("tcp", addr); err != nil {
 		link.Close()
 		goto retry
 	}
 	if method == "CONNECT" {
 		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
 	} else {
-		link.Write(rb)
+		link.WriteCompress(rb, DataEncode)
 	}
-	go relay(link.conn, c.conn)
-	relay(c.conn, link.conn)
+	go relay(link, c, DataEncode)
+	relay(c, link, DataDecode)
 	return nil
 }

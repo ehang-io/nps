@@ -70,7 +70,7 @@ func (s *TRPClient) process(c *Conn) error {
 				return err
 			}
 		case WORK_CHAN: //隧道模式，每次开启10个，加快连接速度
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 100; i++ {
 				go s.dealChan()
 			}
 		case RES_MSG:
@@ -86,6 +86,9 @@ func (s *TRPClient) process(c *Conn) error {
 func (s *TRPClient) dealChan() error {
 	//创建一个tcp连接
 	conn, err := net.Dial("tcp", s.svrAddr)
+	if err != nil {
+		return err
+	}
 	//验证
 	if _, err := conn.Write(getverifyval()); err != nil {
 		return err
@@ -95,36 +98,31 @@ func (s *TRPClient) dealChan() error {
 	c.SetAlive()
 	//写标志
 	c.wChan()
-	//获取连接的host
-	host, err := c.GetHostFromConn()
+	//获取连接的host type(tcp or udp)
+	typeStr, host, err := c.GetHostFromConn()
 	if err != nil {
 		return err
 	}
 	//与目标建立连接
-	server, err := net.Dial("tcp", host)
+	server, err := net.Dial(typeStr, host)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
-	//创建成功后io.copy
-	go relay(server, c.conn)
-	relay(c.conn, server)
+	go relay(NewConn(server), c, DataDecode)
+	relay(c, NewConn(server), DataEncode)
 	return nil
 }
 
 //http模式处理
 func (s *TRPClient) dealHttp(c *Conn) error {
-	nlen, err := c.GetLen()
+	buf := make([]byte, 1024*32)
+	n, err := c.ReadFromCompress(buf, DataDecode)
 	if err != nil {
 		c.wError()
 		return err
 	}
-	raw, err := c.ReadLen(int(nlen))
-	if err != nil {
-		c.wError()
-		return err
-	}
-	req, err := DecodeRequest(raw)
+	req, err := DecodeRequest(buf[:n])
 	if err != nil {
 		c.wError()
 		return err
@@ -134,7 +132,8 @@ func (s *TRPClient) dealHttp(c *Conn) error {
 		c.wError()
 		return err
 	}
-	n, err := c.Write(respBytes)
+	c.wSign()
+	n, err = c.WriteCompress(respBytes, DataEncode)
 	if err != nil {
 		return err
 	}

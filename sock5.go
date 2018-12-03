@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	ipV4       = 1
-	domainName = 3
-	ipV6       = 4
+	ipV4            = 1
+	domainName      = 3
+	ipV6            = 4
 	connectMethod   = 1
 	bindMethod      = 2
 	associateMethod = 3
@@ -35,9 +35,19 @@ const (
 	addrTypeNotSupported
 )
 
+const (
+	UserPassAuth    = uint8(2)
+	userAuthVersion = uint8(1)
+	authSuccess     = uint8(0)
+	authFailure     = uint8(1)
+)
+
 type Sock5ModeServer struct {
 	Tunnel
 	httpPort int
+	u        string //用户名
+	p        string //密码
+	isVerify bool
 }
 
 func (s *Sock5ModeServer) handleRequest(c net.Conn) {
@@ -119,37 +129,31 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 
 	var port uint16
 	binary.Read(c, binary.BigEndian, &port)
-
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
-	//取出一个连接
-	if len(s.tunnelList) < 10 { //新建通道
-		go s.newChan()
-	}
-	client := <-s.tunnelList
+	client := s.GetTunnel()
 	s.sendReply(c, succeeded)
-	_, err = client.WriteHost(addr)
+	var ltype string
+	if command == associateMethod {
+		ltype = "udp"
+	} else {
+		ltype = "tcp"
+	}
+	_, err = client.WriteHost(ltype, addr)
 	return client, nil
 }
 
 func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	proxyConn, err := s.doConnect(c, connectMethod)
 	if err != nil {
+		log.Println(err)
 		c.Close()
 	} else {
-		go io.Copy(c, proxyConn)
-		go io.Copy(proxyConn, c)
+		go relay(proxyConn, NewConn(c), DataEncode)
+		go relay(NewConn(c), proxyConn, DataDecode)
 	}
 
 }
-
-func (s *Sock5ModeServer) relay(in, out net.Conn) {
-	if _, err := io.Copy(in, out); err != nil {
-		log.Println("copy error", err)
-	}
-	in.Close() // will trigger an error in the other relay, then call out.Close()
-}
-
 // passive mode
 func (s *Sock5ModeServer) handleBind(c net.Conn) {
 }
@@ -177,8 +181,8 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		go io.Copy(c, proxyConn)
-		go io.Copy(proxyConn, c)
+		go relay(proxyConn, NewConn(c), DataEncode)
+		go relay(NewConn(c), proxyConn, DataDecode)
 	}
 }
 
@@ -203,12 +207,54 @@ func (s *Sock5ModeServer) handleNewConn(c net.Conn) {
 		c.Close()
 		return
 	}
-	// no authentication required for now
-	buf[1] = 0
-	// send a METHOD selection message
-	c.Write(buf)
-
+	if s.isVerify {
+		buf[1] = UserPassAuth
+		c.Write(buf)
+		if err := s.Auth(c); err != nil {
+			c.Close()
+			log.Println("验证失败：", err)
+			return
+		}
+	} else {
+		buf[1] = 0
+		c.Write(buf)
+	}
 	s.handleRequest(c)
+}
+
+func (s *Sock5ModeServer) Auth(c net.Conn) error {
+	header := []byte{0, 0}
+	if _, err := io.ReadAtLeast(c, header, 2); err != nil {
+		return err
+	}
+	if header[0] != userAuthVersion {
+		return errors.New("验证方式不被支持")
+	}
+	userLen := int(header[1])
+	user := make([]byte, userLen)
+	if _, err := io.ReadAtLeast(c, user, userLen); err != nil {
+		return err
+	}
+	if _, err := c.Read(header[:1]); err != nil {
+		return errors.New("密码长度获取错误")
+	}
+	passLen := int(header[0])
+	pass := make([]byte, passLen)
+	if _, err := io.ReadAtLeast(c, pass, passLen); err != nil {
+		return err
+	}
+	if string(pass) == s.p && string(user) == s.u {
+		if _, err := c.Write([]byte{userAuthVersion, authSuccess}); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		if _, err := c.Write([]byte{userAuthVersion, authFailure}); err != nil {
+			return err
+		}
+		return errors.New("验证不通过")
+	}
+	return errors.New("未知错误")
 }
 
 func (s *Sock5ModeServer) Start() {
@@ -226,11 +272,18 @@ func (s *Sock5ModeServer) Start() {
 	}
 }
 
-func NewSock5ModeServer(tcpPort, httpPort int) *Sock5ModeServer {
+func NewSock5ModeServer(tcpPort, httpPort int, u, p string) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.tunnelPort = tcpPort
 	s.httpPort = httpPort
 	s.tunnelList = make(chan *Conn, 1000)
 	s.signalList = make(chan *Conn, 10)
+	if u != "" && p != "" {
+		s.isVerify = true
+		s.u = u
+		s.p = p
+	} else {
+		s.isVerify = false
+	}
 	return s
 }
