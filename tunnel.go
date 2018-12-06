@@ -100,5 +100,12 @@ func (s *Tunnel) GetTunnel() *Conn {
 	if len(s.tunnelList) < 10 { //新建通道
 		go s.newChan()
 	}
-	return <-s.tunnelList
+retry:
+	c := <-s.tunnelList
+	_, err := c.wTest()
+	if err != nil {
+		c.Close()
+		goto retry
+	}
+	return c
 }

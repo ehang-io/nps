@@ -10,12 +10,12 @@ var (
 	configPath   = flag.String("config", "config.json", "配置文件路径")
 	tcpPort      = flag.Int("tcpport", 8284, "Socket连接或者监听的端口")
 	httpPort     = flag.Int("httpport", 8024, "当mode为server时为服务端监听端口，当为mode为client时为转发至本地客户端的端口")
-	rpMode       = flag.String("mode", "client", "启动模式，可选为client、server")
+	rpMode       = flag.String("mode", "client", "启动模式，可选为client|server")
 	tunnelTarget = flag.String("target", "10.1.50.203:80", "远程目标")
 	verifyKey    = flag.String("vkey", "", "验证密钥")
-	u            = flag.String("u", "", "sock5验证用户名")
-	p            = flag.String("p", "", "sock5验证密码")
-	compress     = flag.String("compress", "", "数据压缩（gizp|snappy）")
+	u            = flag.String("u", "", "socks5验证用户名")
+	p            = flag.String("p", "", "socks5验证密码")
+	compress     = flag.String("compress", "", "数据压缩（gzip|snappy）")
 	config       Config
 	err          error
 	DataEncode   int

@@ -56,7 +56,10 @@ func (s *UdpModeServer) startTunnelServer() {
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 	conn := s.GetTunnel()
-	conn.WriteHost("udp", s.tunnelTarget)
+	if _, err := conn.WriteHost(CONN_UDP, s.tunnelTarget);err!=nil{
+		conn.Close()
+		return
+	}
 	go func() {
 		for {
 			buf := make([]byte, 1024)

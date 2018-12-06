@@ -15,6 +15,9 @@ const (
 	WORK_CHAN  = "chan"
 	RES_SIGN   = "sign"
 	RES_MSG    = "msg0"
+	TEST_FLAG  = "tst"
+	CONN_TCP   = "tcp"
+	CONN_UDP   = "udp"
 )
 
 type HttpModeServer struct {
@@ -172,11 +175,12 @@ func (s *TunnelModeServer) startTunnelServer() {
 //TODO：这种实现方式……
 //tcp隧道模式
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
-retry:
 	link := s.GetTunnel()
-	if _, err := link.WriteHost("tcp", s.tunnelTarget); err != nil {
+	if _, err := link.WriteHost(CONN_TCP, s.tunnelTarget); err != nil {
 		link.Close()
-		goto retry
+		c.Close()
+		log.Println(err)
+		return err
 	}
 	go relay(link, c, DataEncode)
 	relay(c, link, DataDecode)
@@ -190,11 +194,12 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 		c.Close()
 		return err
 	}
-retry:
 	link := s.GetTunnel()
 	if _, err := link.WriteHost("tcp", addr); err != nil {
+		c.Close()
 		link.Close()
-		goto retry
+		log.Println(err)
+		return err
 	}
 	if method == "CONNECT" {
 		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")

@@ -88,12 +88,16 @@ func (s *Conn) ReadFlag() (string, error) {
 
 //读取host
 func (s *Conn) GetHostFromConn() (typeStr string, host string, err error) {
+retry:
 	ltype := make([]byte, 3)
 	_, err = s.Read(ltype)
 	if err != nil {
 		return
 	}
 	typeStr = string(ltype)
+	if typeStr == TEST_FLAG {
+		goto retry
+	}
 	len, err := s.GetLen()
 	if err != nil {
 		return
@@ -200,17 +204,21 @@ func (s *Conn) WriteCompress(b []byte, compress int) (n int, err error) {
 	return
 }
 
-func (s *Conn) wError() {
-	s.conn.Write([]byte(RES_MSG))
+func (s *Conn) wError() (int, error) {
+	return s.conn.Write([]byte(RES_MSG))
 }
-func (s *Conn) wSign() {
-	s.conn.Write([]byte(RES_SIGN))
-}
-
-func (s *Conn) wMain() {
-	s.conn.Write([]byte(WORK_MAIN))
+func (s *Conn) wSign() (int, error) {
+	return s.conn.Write([]byte(RES_SIGN))
 }
 
-func (s *Conn) wChan() {
-	s.conn.Write([]byte(WORK_CHAN))
+func (s *Conn) wMain() (int, error) {
+	return s.conn.Write([]byte(WORK_MAIN))
+}
+
+func (s *Conn) wChan() (int, error) {
+	return s.conn.Write([]byte(WORK_CHAN))
+}
+
+func (s *Conn) wTest() (int, error) {
+	return s.conn.Write([]byte(TEST_FLAG))
 }

@@ -135,9 +135,9 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	s.sendReply(c, succeeded)
 	var ltype string
 	if command == associateMethod {
-		ltype = "udp"
+		ltype = CONN_UDP
 	} else {
-		ltype = "tcp"
+		ltype = CONN_TCP
 	}
 	_, err = client.WriteHost(ltype, addr)
 	return client, nil
@@ -154,6 +154,7 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	}
 
 }
+
 // passive mode
 func (s *Sock5ModeServer) handleBind(c net.Conn) {
 }
