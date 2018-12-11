@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" href="/static/img/favicon.ico">
+    <!-- Main CSS-->
+    <link rel="stylesheet" type="text/css" href="/static/css/main.css">
+    <!-- Font-icon css-->
+    <link rel="stylesheet" type="text/css" href="/static/css/font-awesome.min.css">
+    <title>easyProxy内网穿透</title>
+</head>
+<body>
+<section class="material-half-bg">
+    <div class="cover"></div>
+</section>
+<section class="login-content">
+    <div class="logo">
+        <h1></h1>
+    </div>
+    <div class="login-box">
+        <form class="login-form" onsubmit="return false">
+            <h3 class="login-head"><i class="fa fa-lg fa-fw fa-user"></i>内网穿透管理登陆</h3>
+            <div class="form-group">
+                <label class="control-label">密码</label>
+                <input class="form-control" name="psd" type="password" placeholder="" autofocus>
+            </div>
+            <div class="form-group btn-container">
+                <button onclick="login()" class="btn btn-primary btn-block"><i class="fa fa-sign-in fa-lg fa-fw"></i>登陆
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script type="text/javascript" src="/static/js/pdfmake.min.js"></script>
+<script type="text/javascript" src="/static/js/vfs_fonts.js"></script>
+<script type="text/javascript" src="/static/js/datatables.min.js"></script>
+<script src="/static/js/main.js"></script>
+<script type="text/javascript">
+    // Login Page Flipbox control
+    function login() {
+        $.ajax({
+            type: "POST",
+            url: "/login/verify",
+            data: $("form").serializeArray(),
+            success: function (res) {
+                if (res.status) {
+                    window.location.href = "/index/index"
+                } else {
+                    alert(res.msg)
+                }
+            }
+        })
+        return false
+    }
+</script>
+</body>
+</html>

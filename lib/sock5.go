@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"encoding/binary"
@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -43,11 +44,15 @@ const (
 )
 
 type Sock5ModeServer struct {
-	Tunnel
-	httpPort int
-	u        string //用户名
-	p        string //密码
-	isVerify bool
+	bridge     *Tunnel
+	httpPort   int
+	u          string //用户名
+	p          string //密码
+	enCompress int
+	deCompress int
+	isVerify   bool
+	listener   net.Listener
+	vKey       string
 }
 
 func (s *Sock5ModeServer) handleRequest(c net.Conn) {
@@ -131,7 +136,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	binary.Read(c, binary.BigEndian, &port)
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
-	client := s.GetTunnel()
+	client := s.bridge.GetTunnel(getverifyval(s.vKey),s.enCompress,s.deCompress)
 	s.sendReply(c, succeeded)
 	var ltype string
 	if command == associateMethod {
@@ -149,8 +154,8 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 		log.Println(err)
 		c.Close()
 	} else {
-		go relay(proxyConn, NewConn(c), DataEncode)
-		go relay(NewConn(c), proxyConn, DataDecode)
+		go relay(proxyConn, NewConn(c), s.enCompress)
+		go relay(NewConn(c), proxyConn, s.deCompress)
 	}
 
 }
@@ -182,8 +187,8 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		go relay(proxyConn, NewConn(c), DataEncode)
-		go relay(NewConn(c), proxyConn, DataDecode)
+		go relay(proxyConn, NewConn(c), s.enCompress)
+		go relay(NewConn(c), proxyConn, s.deCompress)
 	}
 }
 
@@ -258,27 +263,32 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	return errors.New("未知错误")
 }
 
-func (s *Sock5ModeServer) Start() {
-	l, err := net.Listen("tcp", ":"+strconv.Itoa(s.httpPort))
+func (s *Sock5ModeServer) Start() error {
+	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.httpPort))
 	if err != nil {
-		log.Fatal("listen error: ", err)
+		return err
 	}
-	s.StartTunnel()
 	for {
-		conn, err := l.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				break
+			}
 			log.Fatal("accept error: ", err)
 		}
 		go s.handleNewConn(conn)
 	}
+	return nil
 }
 
-func NewSock5ModeServer(tcpPort, httpPort int, u, p string) *Sock5ModeServer {
+func (s *Sock5ModeServer) Close() error {
+	return s.listener.Close()
+}
+
+func NewSock5ModeServer(httpPort int, u, p string, brige *Tunnel, enCompress int, deCompress int, vKey string) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
-	s.tunnelPort = tcpPort
 	s.httpPort = httpPort
-	s.tunnelList = make(chan *Conn, 1000)
-	s.signalList = make(chan *Conn, 10)
+	s.bridge = brige
 	if u != "" && p != "" {
 		s.isVerify = true
 		s.u = u
@@ -286,5 +296,8 @@ func NewSock5ModeServer(tcpPort, httpPort int, u, p string) *Sock5ModeServer {
 	} else {
 		s.isVerify = false
 	}
+	s.enCompress = enCompress
+	s.deCompress = deCompress
+	s.vKey = vKey
 	return s
 }

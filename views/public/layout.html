@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="description"
+          content="Vali is a responsive and free admin theme built with Bootstrap 4, SASS and PUG.js. It's fully customizable and modular.">
+    <link rel="shortcut icon" href="/static/img/favicon.ico">
+    <title>easyProxy内网穿透</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Font-icon css-->
+    <link rel="stylesheet" type="text/css" href="/static/css/font-awesome.min.css">
+    <!-- Main CSS-->
+    <link rel="stylesheet" type="text/css" href="/static/css/main.css">
+</head>
+<body class="app sidebar-mini rtl">
+<!-- Navbar-->
+<header class="app-header">
+    <a class="app-header__logo" href="/"></a>
+    <!-- Sidebar toggle button--><a class="app-sidebar__toggle" href="#" data-toggle="sidebar"
+                                    aria-label="Hide Sidebar"></a>
+    <ul class="app-nav">
+        <!--Notification Menu-->
+        <!-- User Menu-->
+        <li class="dropdown"><a class="app-nav__item" href="/login/out" data-toggle="dropdown"
+                                aria-label="Open Profile Menu"><i class="fa fa-sign-out fa-lg"></i>退出登陆</a>
+
+        </li>
+    </ul>
+</header>
+<!-- Sidebar menu-->
+<div class="app-sidebar__overlay" data-toggle="sidebar"></div>
+<aside class="app-sidebar">
+    <div class="app-sidebar__user"><img class="app-sidebar__user-avatar"
+                                        src="/static/img/48.jpg"
+                                        alt="User Image">
+        <div>
+            <p class="app-sidebar__user-name">System</p>
+            <p class="app-sidebar__user-designation">欢迎使用</p>
+        </div>
+    </div>
+    <ul class="app-menu">
+        <li><a class="app-menu__item {{if eq "index" .menu}}active{{end}}" href="/"><i
+                class="app-menu__icon fa fa-dashboard"></i><span class="app-menu__label">使用说明</span></a></li>
+        <li><a class="app-menu__item {{if eq "host" .menu}}active{{end}}" href="/index/host"><i
+                class="app-menu__icon fa fa-lemon-o"></i><span class="app-menu__label">域名代理</span></a></li>
+        <li><a class="app-menu__item {{if eq "tcp" .menu}}active{{end}}" href="/index/tcp"><i
+                class="app-menu__icon fa fa-life-buoy"></i><span class="app-menu__label">tcp隧道管理</span></a></li>
+        <li><a class="app-menu__item {{if eq "udp" .menu}}active{{end}}" href="/index/udp"><i
+                class="app-menu__icon fa fa-laptop"></i><span class="app-menu__label">udp隧道管理</span></a></li>
+        <li><a class="app-menu__item {{if eq "socks5" .menu}}active{{end}}" href="/index/socks5"><i
+                class="app-menu__icon fa fa-lightbulb-o"></i><span class="app-menu__label">socks5代理</span></a></li>
+        <li><a class="app-menu__item {{if eq "http" .menu}}active{{end}}" href="/index/http"><i
+                class="app-menu__icon fa fa-magic"></i><span class="app-menu__label">http代理</span></a></li>
+
+    </ul>
+</aside>
+
+<script type="text/javascript" src="/static/js/datatables.min.js"></script>
+<script src="/static/js/main.js"></script>
+<main class="app-content">
+    <div class="app-title">
+        <div>
+            <h1><i class="fa fa-th-list"></i> {{.name}}</h1>
+            <a href="javascript:history.back(-1);"><i class="fa fa-mail-reply"></i>返回</a>
+        </div>
+
+    </div>
+{{.LayoutContent}}
+
+</body>
+</html>

@@ -1,0 +1,99 @@
+<div class="row tile">
+    <div class="col-lg-12">
+        <div class="bs-component">
+            <div class="alert alert-dismissible alert-success">
+                <button class="close" type="button" data-dismiss="alert">×</button>
+                <span id="info"></span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-md-auto">
+        <div>
+            <h3 class="tile-title">添加</h3>
+            <div class="tile-body">
+                <form>
+                    <div class="form-group">
+                        <label class="control-label">模式</label>
+                        <select class="form-control" name="type" id="type">
+                            <option {{if eq "tunnelServer" .type}}selected{{end}} value="tunnelServer">tcp隧道</option>
+                            <option {{if eq "udpServer" .type}}selected{{end}} value="udpServer">udp隧道</option>
+                            <option {{if eq "sock5Server" .type}}selected{{end}} value="sock5Server">socks5代理</option>
+                            <option {{if eq "httpProxyServer" .type}}selected{{end}} value="httpProxyServer">http代理
+                            <option {{if eq "hostServer" .type}}selected{{end}} value="hostServer">host客户端</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="port">
+                        <label class="control-label">监听的端口</label>
+                        <input class="form-control" type="text" name="port" placeholder="公网服务器对外访问端口，例如8024">
+                    </div>
+                    <div class="form-group" id="target">
+                        <label class="control-label">内网目标(ip:端口)</label>
+                        <input class="form-control" type="text" name="target" placeholder="内网代理地址，例如10.1.50.203:22">
+                    </div>
+                    <div class="form-group" id="compress">
+                        <label class="control-label">数据压缩方式</label>
+                        <select class="form-control" name="compress">
+                            <option value="">不压缩</option>
+                            <option value="gzip">gzip压缩</option>
+                            <option value="snappy">snappy</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="u">
+                        <label class="control-label">socks5代理模式验证用户名</label>
+                        <input class="form-control" type="text" name="u" placeholder="不填则无需验证">
+                    </div>
+                    <div class="form-group" id="p">
+                        <label class="control-label">socks5代理模式验证密码</label>
+                        <input class="form-control" type="text" name="p" placeholder="不填则无需验证">
+                    </div>
+                </form>
+            </div>
+            <div class="tile-footer">
+                &nbsp;&nbsp;<button class="btn btn-success" href="#" id="add"><i
+                    class="fa fa-fw fa-lg fa-eye"></i>添加
+            </button>
+            </div>
+        </div>
+    </div>
+</div>
+</main>
+<script>
+    var arr = []
+    arr["all"] = ["type", "port", "compress", "u", "p", "target"]
+    arr["tunnelServer"] = ["type", "port", "target", "compress", "tcp隧道模式，提供一条tcp隧道，适用于ssh、远程桌面等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的目标端口"]
+    arr["udpServer"] = ["type", "port", "target", "compress", "udp隧道模式，提供一条udp隧道，适用于dns、内网dns访问等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的udp目标端口"]
+    arr["sock5Server"] = ["type", "port", "compress", "u", "p", "socks5代理模式，内网socks5代理，配合proxifer，可如同使用vpn一样访问内网设备或资源，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置socks5代理，即访问内网设备或者资源 "]
+    arr["httpProxyServer"] = ["type", "port", "compress", " http代理模式，内网http代理，可访问内网网站，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置http代理，即访问内网站点"]
+    arr["hostServer"] = ["type", "compress", "域名分发模式，使用域名代理内网服务，适用于小程序开发、公众号开发、站点演示等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，使用nginx将请求反向代理到本程序，再进行域名配置，即可解析"]
+
+        function resetForm() {
+            for (var i = 0; i < arr["all"].length; i++) {
+                $("#" + arr["all"][i]).css("display", "none")
+            }
+            o = $("#type option:selected").val()
+            for (var i = 0; i < arr[o].length - 1; i++) {
+                $("#" + arr[o][i]).css("display", "block")
+            }
+            $("#info").html(arr[o][arr[o].length - 1])
+        }
+
+        $(function () {
+            resetForm()
+            $("#type").on("change", function () {
+                resetForm()
+            })
+            $("#add").on("click", function () {
+                $.ajax({
+                    type: "POST",
+                    url: "/index/add",
+                    data: $("form").serializeArray(),
+                    success: function (res) {
+                        alert(res.msg)
+                        if (res.status) {
+                            history.back(-1)
+                        }
+                    }
+                })
+            })
+        })
+</script>

@@ -1,0 +1,174 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="tile">
+            <div class="tile-body">
+                <table class="table table-hover table-bordered" id="sampleTable">
+                    <thead>
+                    <tr>
+                    {{/*<th>模式</th>*/}}
+                        <th>监听端口</th>
+                        <th>内网目标</th>
+                        <th>多客户端模式客户端执行命令</th>
+                        <th>压缩方式</th>
+                        <th>用户名</th>
+                        <th>密码</th>
+                        <th>客户端状态</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</main>
+
+<script type="text/javascript">
+    function del(vKey) {
+        if (confirm("确定要删除数据吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/index/del",
+                data: {"vKey": vKey},
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        document.location.reload();
+                    }
+                }
+            })
+        }
+    }
+
+    function start(vKey) {
+        if (confirm("确定要开始任务吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/index/start",
+                data: {"vKey": vKey},
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        document.location.reload();
+                    }
+                }
+            })
+        }
+    }
+
+    function stop(vKey) {
+        if (confirm("确定要暂停吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/index/stop",
+                data: {"vKey": vKey},
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        document.location.reload();
+                    }
+                }
+            })
+        }
+    }
+
+    function edit(vKey) {
+        window.location.href = "/index/edit?vKey=" + vKey
+    }
+
+    function add() {
+        window.location.href = "/index/add?type=" +{{.type}}
+    }
+
+    function hostList(vkey) {
+        window.location.href = "/index/hostlist?vkey=" + vkey
+    }
+
+    $(document).ready(function () {
+        var table = $('#sampleTable').DataTable({
+            dom: 'Bfrtip',
+            processing: true,
+            serverSide: true,
+            autoWidth: false,
+            ordering: false,
+            ajax: {
+                url: '/index/gettasklist?type={{.type}}',
+                type: 'POST'
+            },
+            dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
+            columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
+                // {data: 'Mode'},
+                {data: 'TcpPort'},
+                {data: 'Target'},
+                {data: 'VerifyKey'},
+                {data: 'Compress'},
+                {data: 'U'},
+                {data: 'P'},
+                {data: 'ClientStatus'},
+                {data: 'IsRun'},
+                {data: "Id"}
+            ],
+            bFilter: false,
+            columnDefs: [{
+                targets: -1,
+                render: function (data, type, row, meta) {
+                    if (row.IsRun == 1) {
+                        btn = "<button onclick=\"stop('" + row.VerifyKey + "')\" class=\"btn btn-secondary btn-sm\" type=\"button\">关闭</button>"
+                    } else {
+                        btn = "<button onclick=\"start('" + row.VerifyKey + "')\" class=\"btn btn-success btn-sm\" type=\"button\">打开</button>"
+                    }
+                    btn_edit = '<button onclick="edit(\'' + row.VerifyKey + '\')" type="button"   class="btn btn-primary btn-sm">查看编辑</button> '
+                    if ({{.type}} == "hostServer"
+                )
+                    {
+                        btn_host = '<button onclick="hostList(\'' + row.VerifyKey + '\')" type="button"   class="btn btn-info btn-sm">域名管理</button> '
+                    }
+                else
+                    {
+                        btn_host = ""
+                    }
+                    return '<div class="btn-group" role="group" aria-label="..."> ' +
+                            '<button onclick="del(\'' + row.VerifyKey + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
+                            btn_edit + btn + btn_host + ' </div>'
+                }
+            },
+                {
+                    targets: -2,
+                    render: function (data, type, row, meta) {
+                        if (data == 0) {
+                            return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
+                        } else {
+                            return "<span class=\"badge badge-pill badge-success\">正常</span>"
+                        }
+                    }
+                },
+                {
+                    targets: 2,
+                    render: function (data, type, row, meta) {
+                        return "./easyProxy -server={{.ip}}:{{.p}} -vkey=" + data
+                        // return data
+                    }
+                },
+                {
+                    targets: -3,
+                    render: function (data, type, row, meta) {
+                        if (data == 0) {
+                            return "<span class=\"badge badge-pill badge-secondary\">离线</span>"
+                        } else {
+                            return "<span class=\"badge badge-pill badge-success\">在线</span>"
+                        }
+                    }
+                }
+            ],
+            buttons: []
+        });
+        $("#sampleTable_length").html('<button class="btn btn-primary" onclick="add()" type="button">新增</button>')
+    })
+    ;
+
+
+</script>

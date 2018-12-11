@@ -1,0 +1,81 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="tile">
+            <div class="tile-body">
+                <table class="table table-hover table-bordered" id="sampleTable">
+                    <thead>
+                    <tr>
+                        <th>客户端key</th>
+                        <th>host</th>
+                        <th>内网目标</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</main>
+
+<script type="text/javascript">
+    function del(host) {
+        if (confirm("确定要删除数据吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/index/delhost",
+                data: {"host": host},
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        document.location.reload();
+                    }
+                }
+            })
+        }
+    }
+
+    function add() {
+        window.location.href = "/index/addhost?vkey={{.vkey}}"
+    }
+
+    $(document).ready(function () {
+        var table = $('#sampleTable').DataTable({
+            dom: 'Bfrtip',
+            processing: true,
+            serverSide: true,
+            autoWidth: false,
+            ordering: false,
+            ajax: {
+                url: window.location,
+                type: 'POST'
+            },
+            dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
+            columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
+                {data: 'Vkey'},
+                {data: 'Host'},
+                {data: 'Target'},
+                {data: 'Target'},
+            ],
+            bFilter: false,
+            columnDefs: [{
+                targets: -1,
+                render: function (data, type, row, meta) {
+
+                    return '<div class="btn-group" role="group" aria-label="..."> ' +
+                            '<button onclick="del(\'' + row.Host + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
+                            ' </div>'
+                }
+            }
+            ],
+            buttons: []
+        });
+        $("#sampleTable_length").html('<button class="btn btn-primary" onclick="add()" type="button">新增</button>')
+    })
+    ;
+
+
+</script>

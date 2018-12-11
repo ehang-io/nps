@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"errors"
@@ -13,21 +13,20 @@ type TRPClient struct {
 	svrAddr string
 	tcpNum  int
 	sync.Mutex
+	vKey string
 }
 
-func NewRPClient(svraddr string, tcpNum int) *TRPClient {
+func NewRPClient(svraddr string, tcpNum int, vKey string) *TRPClient {
 	c := new(TRPClient)
 	c.svrAddr = svraddr
 	c.tcpNum = tcpNum
+	c.vKey = vKey
 	return c
 }
 
 func (s *TRPClient) Start() error {
 	for i := 0; i < s.tcpNum; i++ {
 		go s.newConn()
-	}
-	for {
-		time.Sleep(time.Second * 5)
 	}
 	return nil
 }
@@ -49,7 +48,7 @@ func (s *TRPClient) newConn() error {
 
 func (s *TRPClient) process(c *Conn) error {
 	c.SetAlive()
-	if _, err := c.Write(getverifyval()); err != nil {
+	if _, err := c.Write([]byte(getverifyval(s.vKey))); err != nil {
 		return err
 	}
 	c.wMain()
@@ -63,20 +62,20 @@ func (s *TRPClient) process(c *Conn) error {
 		}
 		switch flags {
 		case VERIFY_EER:
-			log.Fatal("vkey不正确,请检查配置文件")
+			log.Fatalln("vkey:", s.vKey, "不正确,服务端拒绝连接,请检查")
 		case RES_SIGN: //代理请求模式
 			if err := s.dealHttp(c); err != nil {
 				log.Println(err)
 				return err
 			}
 		case WORK_CHAN: //隧道模式，每次开启10个，加快连接速度
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 10; i++ {
 				go s.dealChan()
 			}
 		case RES_MSG:
 			log.Println("服务端返回错误。")
 		default:
-			log.Println("无法解析该错误。")
+			log.Println("无法解析该错误。", flags)
 		}
 	}
 	return nil
@@ -90,7 +89,7 @@ func (s *TRPClient) dealChan() error {
 		return err
 	}
 	//验证
-	if _, err := conn.Write(getverifyval()); err != nil {
+	if _, err := conn.Write([]byte(getverifyval(s.vKey))); err != nil {
 		return err
 	}
 	//默认长连接保持
@@ -99,7 +98,7 @@ func (s *TRPClient) dealChan() error {
 	//写标志
 	c.wChan()
 	//获取连接的host type(tcp or udp)
-	typeStr, host, err := c.GetHostFromConn()
+	typeStr, host, en, de, err := c.GetHostFromConn()
 	if err != nil {
 		return err
 	}
@@ -109,15 +108,16 @@ func (s *TRPClient) dealChan() error {
 		log.Println(err)
 		return err
 	}
-	go relay(NewConn(server), c, DataDecode)
-	relay(c, NewConn(server), DataEncode)
+	go relay(NewConn(server), c, de)
+	relay(c, NewConn(server), en)
 	return nil
 }
 
 //http模式处理
 func (s *TRPClient) dealHttp(c *Conn) error {
 	buf := make([]byte, 1024*32)
-	n, err := c.ReadFromCompress(buf, DataDecode)
+	en, de := c.GetCompressTypeFromConn()
+	n, err := c.ReadFromCompress(buf, de)
 	if err != nil {
 		c.wError()
 		return err
@@ -133,7 +133,7 @@ func (s *TRPClient) dealHttp(c *Conn) error {
 		return err
 	}
 	c.wSign()
-	n, err = c.WriteCompress(respBytes, DataEncode)
+	n, err = c.WriteCompress(respBytes, en)
 	if err != nil {
 		return err
 	}
