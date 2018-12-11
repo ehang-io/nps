@@ -67,7 +67,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/web2.png?raw=true)
 ### 介绍
 
-可在网页上配置和管理各个tcp、udp隧道、内网站点代理等等，功能极为强大，操作也非常方便。
+可在网页上配置和管理各个tcp、udp隧道、内网站点代理等等，功能极为强大，操作也非常方便。[演示地址](http://123.206.77.88:8081) 密码：123
 ### 使用
 
 **有两种模式：**
