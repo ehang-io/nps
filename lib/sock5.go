@@ -136,7 +136,12 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	binary.Read(c, binary.BigEndian, &port)
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
-	client := s.bridge.GetTunnel(getverifyval(s.vKey),s.enCompress,s.deCompress)
+	client, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	if err != nil {
+		log.Println(err)
+		client.Close()
+		return
+	}
 	s.sendReply(c, succeeded)
 	var ltype string
 	if command == associateMethod {

@@ -3,6 +3,7 @@ package lib
 import (
 	"errors"
 	"flag"
+	"github.com/astaxie/beego"
 	"log"
 	"reflect"
 	"strings"
@@ -42,7 +43,7 @@ func InitMode() {
 		stop := make(chan int)
 		for _, v := range strings.Split(*verifyKey, ",") {
 			log.Println("客户端启动，连接：", *serverAddr, " 验证令牌：", v)
-			go NewRPClient(*serverAddr, 2, v).Start()
+			go NewRPClient(*serverAddr, 3, v).Start()
 		}
 		<-stop
 	} else {
@@ -71,15 +72,19 @@ func InitFromCsv() {
 }
 
 func newMode(mode string, bridge *Tunnel, httpPort int, tunnelTarget string, u string, p string, enCompress int, deCompress int, vkey string) interface{} {
+	if u == "" || p == "" { //如果web管理中设置了用户名和密码，则覆盖配置文件
+		u = beego.AppConfig.String("auth.user")
+		p = beego.AppConfig.String("auth.password")
+	}
 	switch mode {
 	case "httpServer":
 		return NewHttpModeServer(httpPort, bridge, enCompress, deCompress, vkey)
 	case "tunnelServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessTunnel, bridge, enCompress, deCompress, vkey)
+		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessTunnel, bridge, enCompress, deCompress, vkey, u, p)
 	case "sock5Server":
 		return NewSock5ModeServer(httpPort, u, p, bridge, enCompress, deCompress, vkey)
 	case "httpProxyServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHttp, bridge, enCompress, deCompress, vkey)
+		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHttp, bridge, enCompress, deCompress, vkey, u, p)
 	case "udpServer":
 		return NewUdpModeServer(httpPort, tunnelTarget, bridge, enCompress, deCompress, vkey)
 	case "webServer":
@@ -88,7 +93,7 @@ func newMode(mode string, bridge *Tunnel, httpPort int, tunnelTarget string, u s
 	case "hostServer":
 		return NewHostServer()
 	case "httpHostServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHost, bridge, enCompress, deCompress, vkey)
+		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHost, bridge, enCompress, deCompress, vkey, u, p)
 	}
 	return nil
 }
@@ -97,17 +102,9 @@ func StopServer(cFlag string) error {
 	if v, ok := RunList[cFlag]; ok {
 		reflect.ValueOf(v).MethodByName("Close").Call(nil)
 		delete(RunList, cFlag)
-		if t := bridge.signalList[getverifyval(cFlag)]; t != nil {
-			if *verifyKey == "" { //多客户端模式重启相关隧道
-				for {
-					if t.Len() <= 0 {
-						break
-					}
-					t.Pop().Close()
-				}
-				delete(bridge.signalList, getverifyval(cFlag))
-				delete(bridge.tunnelList, getverifyval(cFlag))
-			}
+		if *verifyKey == "" { //多客户端模式关闭相关隧道
+			bridge.DelClientSignal(cFlag)
+			bridge.DelClientTunnel(cFlag)
 		}
 		if t, err := CsvDb.GetTask(cFlag); err != nil {
 			return err

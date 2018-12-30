@@ -83,7 +83,6 @@ func (s *Tunnel) cliProcess(c *Conn) error {
 		c.conn.Close()
 		return err
 	}
-	//TODO:暂时取消
 	if !verify(string(vval)) {
 		log.Println("当前客户端连接校验错误，关闭此客户端:", c.conn.RemoteAddr())
 		s.verifyError(c)
@@ -126,8 +125,10 @@ func (s *Tunnel) addList(m map[string]*list, c *Conn, cFlag string) {
 }
 
 //新建隧道
-func (s *Tunnel) newChan(cFlag string) {
-	s.wait(s.signalList, cFlag)
+func (s *Tunnel) newChan(cFlag string) error {
+	if err := s.wait(s.signalList, cFlag); err != nil {
+		return err
+	}
 retry:
 	connPass := s.signalList[cFlag].Pop()
 	_, err := connPass.conn.Write([]byte("chan"))
@@ -136,22 +137,25 @@ retry:
 		goto retry
 	}
 	s.signalList[cFlag].Add(connPass)
+	return nil
 }
 
 //得到一个tcp隧道
-func (s *Tunnel) GetTunnel(cFlag string, en, de int) *Conn {
+func (s *Tunnel) GetTunnel(cFlag string, en, de int) (c *Conn, err error) {
 	if v, ok := s.tunnelList[cFlag]; !ok || v.Len() < 10 { //新建通道
 		go s.newChan(cFlag)
 	}
 retry:
-	s.wait(s.tunnelList, cFlag)
-	c := s.tunnelList[cFlag].Pop()
+	if err = s.wait(s.tunnelList, cFlag); err != nil {
+		return
+	}
+	c = s.tunnelList[cFlag].Pop()
 	if _, err := c.wTest(); err != nil {
 		c.Close()
 		goto retry
 	}
 	c.WriteCompressType(en, de)
-	return c
+	return
 }
 
 //得到一个通信通道
@@ -171,14 +175,43 @@ func (s *Tunnel) ReturnSignal(conn *Conn, cFlag string) {
 	}
 }
 
+//删除通信通道
+func (s *Tunnel) DelClientSignal(cFlag string) {
+	s.delClient(cFlag, s.signalList)
+}
+
+//删除隧道
+func (s *Tunnel) DelClientTunnel(cFlag string) {
+	s.delClient(cFlag, s.tunnelList)
+}
+
+func (s *Tunnel) delClient(cFlag string, l map[string]*list) {
+	if t := l[getverifyval(cFlag)]; t != nil {
+		for {
+			if t.Len() <= 0 {
+				break
+			}
+			t.Pop().Close()
+		}
+		delete(l, getverifyval(cFlag))
+	}
+}
+
 //等待
-func (s *Tunnel) wait(m map[string]*list, cFlag string) {
+func (s *Tunnel) wait(m map[string]*list, cFlag string) error {
 	ticker := time.NewTicker(time.Millisecond * 100)
+	stop := time.After(time.Second * 10)
+loop:
 	for {
-		<-ticker.C
-		if _, ok := m[cFlag]; ok {
-			ticker.Stop()
-			break
+		select {
+		case <-ticker.C:
+			if _, ok := m[cFlag]; ok {
+				ticker.Stop()
+				break loop
+			}
+		case <-stop:
+			return errors.New("client key: " + cFlag + ",err: get client conn timeout")
 		}
 	}
+	return nil
 }

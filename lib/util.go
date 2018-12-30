@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -219,12 +220,12 @@ func getverifyval(vkey string) string {
 }
 
 func verify(verifyKeyMd5 string) bool {
-	if getverifyval(*verifyKey) == verifyKeyMd5 {
+	if *verifyKey != "" && getverifyval(*verifyKey) == verifyKeyMd5 {
 		return true
 	}
 	if *verifyKey == "" {
-		for _, v := range CsvDb.Tasks {
-			if _, ok := RunList[v.VerifyKey]; getverifyval(v.VerifyKey) == verifyKeyMd5 && ok {
+		for k := range RunList {
+			if getverifyval(k) == verifyKeyMd5 {
 				return true
 			}
 		}
@@ -237,9 +238,6 @@ func getKeyByHost(host string) (h *HostList, t *TaskList, err error) {
 		if strings.Contains(host, v.Host) {
 			h = v
 			t, err = CsvDb.GetTask(v.Vkey)
-			if err != nil {
-				return
-			}
 			return
 		}
 	}
@@ -266,6 +264,7 @@ func GetRandomString(l int) string {
 	return string(result)
 }
 
+//通过host获取对应的ip地址
 func Gethostbyname(hostname string) string {
 	if !DomainCheck(hostname) {
 		return hostname
@@ -281,6 +280,7 @@ func Gethostbyname(hostname string) string {
 	return ""
 }
 
+//检查是否是域名
 func DomainCheck(domain string) bool {
 	var match bool
 	IsLine := "^((http://)|(https://))?([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,6}(/)"
@@ -290,4 +290,23 @@ func DomainCheck(domain string) bool {
 		match, _ = regexp.MatchString(NotLine, domain)
 	}
 	return match
+}
+
+//检查basic认证
+func checkAuth(r *http.Request, user, passwd string) bool {
+	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+	if len(s) != 2 {
+		return false
+	}
+
+	b, err := base64.StdEncoding.DecodeString(s[1])
+	if err != nil {
+		return false
+	}
+
+	pair := strings.SplitN(string(b), ":", 2)
+	if len(pair) != 2 {
+		return false
+	}
+	return pair[0] == user && pair[1] == passwd
 }

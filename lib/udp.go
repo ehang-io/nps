@@ -57,7 +57,11 @@ func (s *UdpModeServer) Start() error {
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 	fmt.Println(addr.String())
 	fmt.Println(string(data))
-	conn := s.bridge.GetTunnel(getverifyval(s.vKey),s.enCompress,s.deCompress)
+	conn, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	if _, err := conn.WriteHost(CONN_UDP, s.tunnelTarget); err != nil {
 		conn.Close()
 		return

@@ -178,14 +178,14 @@ func (s *Conn) SetAlive() {
 }
 
 //从tcp报文中解析出host
-func (s *Conn) GetHost() (method, address string, rb []byte, err error) {
+func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
 	var b [32 * 1024]byte
 	var n int
 	if n, err = s.Read(b[:]); err != nil {
 		return
 	}
 	rb = b[:n]
-	r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(rb)))
+	r, err = http.ReadRequest(bufio.NewReader(bytes.NewReader(rb)))
 	if err != nil {
 		log.Println("解析host出错：", err)
 		return

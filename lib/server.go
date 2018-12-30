@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/session"
 	"io/ioutil"
 	"log"
 	"net"
@@ -11,15 +12,22 @@ import (
 	"strings"
 )
 
+var GlobalHostSessions *session.Manager
+
 const (
-	VERIFY_EER = "vkey"
-	WORK_MAIN  = "main"
-	WORK_CHAN  = "chan"
-	RES_SIGN   = "sign"
-	RES_MSG    = "msg0"
-	TEST_FLAG  = "tst"
-	CONN_TCP   = "tcp"
-	CONN_UDP   = "udp"
+	VERIFY_EER         = "vkey"
+	WORK_MAIN          = "main"
+	WORK_CHAN          = "chan"
+	RES_SIGN           = "sign"
+	RES_MSG            = "msg0"
+	TEST_FLAG          = "tst"
+	CONN_TCP           = "tcp"
+	CONN_UDP           = "udp"
+	Unauthorized_BYTES = `HTTP/1.1 401 Unauthorized
+Content-Type: text/plain; charset=utf-8
+WWW-Authenticate: Basic realm="easyProxy"
+
+401 Unauthorized`
 )
 
 type HttpModeServer struct {
@@ -44,19 +52,28 @@ func NewHttpModeServer(httpPort int, bridge *Tunnel, enCompress int, deCompress 
 func (s *HttpModeServer) Start() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 	retry:
+		u := beego.AppConfig.String("basic.user")
+		p := beego.AppConfig.String("basic.password")
+		if u != "" && p != "" && !checkAuth(r, u, p) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="easyProxy""`)
+			w.WriteHeader(401)
+			w.Write([]byte("401 Unauthorized\n"))
+			return
+		}
 		err, conn := s.bridge.GetSignal(getverifyval(s.vKey))
 		if err != nil {
 			BadRequest(w)
+			return
 		}
 		if err := s.writeRequest(r, conn); err != nil {
-			log.Println(err)
+			log.Println("write request to client error:", err)
 			conn.Close()
 			goto retry
 			return
 		}
 		err = s.writeResponse(w, conn)
 		if err != nil {
-			log.Println(err)
+			log.Println("write response error:", err)
 			conn.Close()
 			goto retry
 			return
@@ -92,7 +109,7 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 	}
 	switch flags {
 	case RES_SIGN:
-		buf := make([]byte, 1024*32)
+		buf := make([]byte, 1024*1024*32)
 		n, err := c.ReadFromCompress(buf, s.deCompress)
 		if err != nil {
 			return err
@@ -125,17 +142,19 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 type process func(c *Conn, s *TunnelModeServer) error
 
 type TunnelModeServer struct {
-	httpPort     int
-	tunnelTarget string
-	process      process
-	bridge       *Tunnel
-	listener     *net.TCPListener
-	enCompress   int
-	deCompress   int
-	vKey         string
+	httpPort      int
+	tunnelTarget  string
+	process       process
+	bridge        *Tunnel
+	listener      *net.TCPListener
+	enCompress    int
+	deCompress    int
+	basicUser     string
+	basicPassword string
+	vKey          string
 }
 
-func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bridge *Tunnel, enCompress int, deCompress int, vKey string) *TunnelModeServer {
+func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bridge *Tunnel, enCompress, deCompress int, vKey, basicUser, basicPasswd string) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.httpPort = httpPort
 	s.bridge = bridge
@@ -144,6 +163,8 @@ func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bri
 	s.enCompress = enCompress
 	s.deCompress = deCompress
 	s.vKey = vKey
+	s.basicUser = basicUser
+	s.basicPassword = basicPasswd
 	return s
 }
 
@@ -166,6 +187,14 @@ func (s *TunnelModeServer) Start() error {
 	}
 	return nil
 }
+func (s *TunnelModeServer) auth(r *http.Request, c *Conn) error {
+	if s.basicUser != "" && s.basicPassword != "" && !checkAuth(r, s.basicUser, s.basicPassword) {
+		c.Write([]byte(Unauthorized_BYTES))
+		c.Close()
+		return errors.New("401 Unauthorized")
+	}
+	return nil
+}
 
 func (s *TunnelModeServer) Close() error {
 	return s.listener.Close()
@@ -173,7 +202,12 @@ func (s *TunnelModeServer) Close() error {
 
 //tcp隧道模式
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
-	link := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	if err != nil {
+		log.Println(err)
+		c.Close()
+		return err
+	}
 	if _, err := link.WriteHost(CONN_TCP, s.tunnelTarget); err != nil {
 		link.Close()
 		c.Close()
@@ -187,12 +221,20 @@ func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
 
 //http代理模式
 func ProcessHttp(c *Conn, s *TunnelModeServer) error {
-	method, addr, rb, err := c.GetHost()
+	method, addr, rb, err, r := c.GetHost()
 	if err != nil {
 		c.Close()
 		return err
 	}
-	link := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	if err := s.auth(r, c); err != nil {
+		return err
+	}
+	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	if err != nil {
+		log.Println(err)
+		c.Close()
+		return err
+	}
 	if _, err := link.WriteHost(CONN_TCP, addr); err != nil {
 		c.Close()
 		link.Close()
@@ -211,9 +253,12 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 
 //多客户端域名代理
 func ProcessHost(c *Conn, s *TunnelModeServer) error {
-	method, addr, rb, err := c.GetHost()
+	method, addr, rb, err, r := c.GetHost()
 	if err != nil {
 		c.Close()
+		return err
+	}
+	if err := s.auth(r, c); err != nil {
 		return err
 	}
 	host, task, err := getKeyByHost(addr)
@@ -222,7 +267,12 @@ func ProcessHost(c *Conn, s *TunnelModeServer) error {
 		return err
 	}
 	de, en := getCompressType(task.Compress)
-	link := s.bridge.GetTunnel(getverifyval(host.Vkey), en, de)
+	link, err := s.bridge.GetTunnel(getverifyval(host.Vkey), en, de)
+	if err != nil {
+		log.Println(err)
+		c.Close()
+		return err
+	}
 	if _, err := link.WriteHost(CONN_TCP, host.Target); err != nil {
 		c.Close()
 		link.Close()
@@ -262,7 +312,7 @@ func (s *WebServer) Start() {
 	}
 	AddTask(t)
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	log.Println("web管理启动，访问端口为",beego.AppConfig.String("httpport"))
+	log.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
 	beego.Run()
 }
 
@@ -280,6 +330,8 @@ type HostServer struct {
 func (s *HostServer) Start() error {
 	return nil
 }
+
+//TODO：host模式的客户端，无需指定和监听端口等，此处有待优化
 func NewHostServer() *HostServer {
 	s := new(HostServer)
 	return s
