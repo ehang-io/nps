@@ -149,7 +149,7 @@ tcpport | 服务端与客户端通信端口
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 外部访问端口
@@ -160,6 +160,22 @@ target | 目标地址，格式如上
 
 ```
 ./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+```
+
+- 与nginx配合实现访问a.ourcauc.com等同访问10.1.50.203:80效果，将该域名解析道云服务器，nginx配置
+```
+server {
+    listen 80;
+    server_name a.ourcauc.com;
+    location / {
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host  $http_host;
+            proxy_set_header X-Nginx-Proxy true;
+            proxy_set_header Connection "";
+            proxy_pass http://127.0.0.1:8024;
+        }
+}
 ```
 ## udp隧道模式
 
@@ -187,7 +203,7 @@ target | 目标地址，格式如上
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 公网vps的访问端口
@@ -225,7 +241,7 @@ target | 目标地址，格式如上
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 代理的http端口（与nginx配合使用）
@@ -280,10 +296,6 @@ Replace | 是否自动匹配替换[（查看场景）](https://github.com/cnlh/e
 
 ### nginx代理配置示例
 ```
-upstream nodejs {
-    server 127.0.0.1:8024;
-    keepalive 64;
-}
 server {
     listen 80;
     server_name a.ourcauc.com b.ourcauc.com c.ourcauc.com ;
@@ -293,7 +305,7 @@ server {
             proxy_set_header Host  $http_host;
             proxy_set_header X-Nginx-Proxy true;
             proxy_set_header Connection "";
-            proxy_pass      http://nodejs;
+            proxy_pass http://127.0.0.1:8024;
         }
 }
 ```
@@ -334,7 +346,7 @@ server {
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 代理的http端口（socks5连接端口）
@@ -343,13 +355,14 @@ p | 验证的密码
 
 **说明**：用户名和密码验证模式，仅部分socks5客户端支持，例如proxifer。
 
-默认验证的用户名和密码为/conf/app.conf中的用户名和密码
+默认验证的用户名和密码为/conf/app.conf中的用户名和密码，为空则不验证
 
-如需不同，可在服务端命令后加上，将会覆盖/conf/app.conf中的配置
+如需不同，可在服务端命令后加上
+
 ```
 -u=user -p=password
 ```
-即可
+即可，将会覆盖/conf/app.conf中的配置
 
 - 客户端
 
@@ -361,9 +374,9 @@ p | 验证的密码
 - 需要使用内网代理的机器
 
 ```
-配置sock5代理即可，ip为外网服务器ip，端口为httpport，即可在外网环境使用内网啦！也可使用proxifer等全局代理软件。
+配置socks5代理即可，ip为外网服务器ip，端口为httpport，即可在外网环境使用内网啦！也可使用proxifer等全局代理软件。
 ```
-如果设置了用户名和密码，记得填上用户名和密码
+如果设置了用户名和密码，记得填上用户名和密码(仅部分客户端支持密码验证)
 
 
 
@@ -383,7 +396,7 @@ p | 验证的密码
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | http代理连接端口
