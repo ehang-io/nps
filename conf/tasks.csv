@@ -1,8 +1,1 @@
-8021,tunnelServer,10.1.50.203:80,um80bbyvcaiw7n17,,,,1
-8001,tunnelServer,10.1.50.101:22,h8vcpciko9lczxmb,,,gzip,0
-8022,tunnelServer,10.1.50.196:4000,vcerzo01q16cdn9n,,,snappy,1
-8002,udpServer,10.1.50.102:53,zcbsx5kp53cg5yqv,,,,0
-8003,sock5Server,,9mq856pqq3jq05qv,,,snappy,1
-8010,sock5Server,,0aj2xfec0mbkann5,test,test,gzip,0
-8004,httpProxyServer,,y72zj8t074lslln0,,,gzip,0
-0,hostServer,,o2430bnq22jgnmcl,,,,1
+8001,tunnelServer,10.1.50.196:4000,jq5i7n0sjs1h0jje,,,,1,1

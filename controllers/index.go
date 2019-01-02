@@ -64,6 +64,7 @@ func (s *IndexController) Add() {
 			U:         s.GetString("u"),
 			P:         s.GetString("p"),
 			Compress:  s.GetString("compress"),
+			Crypt:     s.GetString("crypt"),
 			IsRun:     0,
 		}
 		lib.CsvDb.NewTask(t)
@@ -96,6 +97,7 @@ func (s *IndexController) Edit() {
 			t.U = s.GetString("u")
 			t.P = s.GetString("p")
 			t.Compress = s.GetString("compress")
+			t.Crypt = s.GetString("crypt")
 			lib.CsvDb.UpdateTask(t)
 			lib.StopServer(t.VerifyKey)
 			lib.StartTask(t.VerifyKey)

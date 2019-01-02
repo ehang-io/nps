@@ -18,9 +18,10 @@ type UdpModeServer struct {
 	enCompress   int
 	deCompress   int
 	vKey         string
+	crypt        bool
 }
 
-func NewUdpModeServer(udpPort int, tunnelTarget string, bridge *Tunnel, enCompress int, deCompress int, vKey string) *UdpModeServer {
+func NewUdpModeServer(udpPort int, tunnelTarget string, bridge *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *UdpModeServer {
 	s := new(UdpModeServer)
 	s.udpPort = udpPort
 	s.tunnelTarget = tunnelTarget
@@ -29,6 +30,7 @@ func NewUdpModeServer(udpPort int, tunnelTarget string, bridge *Tunnel, enCompre
 	s.enCompress = enCompress
 	s.deCompress = deCompress
 	s.vKey = vKey
+	s.crypt = crypt
 	return s
 }
 
@@ -57,7 +59,7 @@ func (s *UdpModeServer) Start() error {
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 	fmt.Println(addr.String())
 	fmt.Println(string(data))
-	conn, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	conn, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
 	if err != nil {
 		log.Println(err)
 		return

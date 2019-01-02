@@ -36,15 +36,17 @@ type HttpModeServer struct {
 	enCompress int
 	deCompress int
 	vKey       string
+	crypt      bool
 }
 
-func NewHttpModeServer(httpPort int, bridge *Tunnel, enCompress int, deCompress int, vKey string) *HttpModeServer {
+func NewHttpModeServer(httpPort int, bridge *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *HttpModeServer {
 	s := new(HttpModeServer)
 	s.bridge = bridge
 	s.httpPort = httpPort
 	s.enCompress = enCompress
 	s.deCompress = deCompress
 	s.vKey = vKey
+	s.crypt = crypt
 	return s
 }
 
@@ -90,7 +92,7 @@ func (s *HttpModeServer) writeRequest(r *http.Request, conn *Conn) error {
 		return err
 	}
 	conn.wSign()
-	conn.WriteCompressType(s.enCompress, s.deCompress)
+	conn.WriteConnInfo(s.enCompress, s.deCompress, s.crypt)
 	c, err := conn.WriteCompress(raw, s.enCompress)
 	if err != nil {
 		return err
@@ -152,9 +154,10 @@ type TunnelModeServer struct {
 	basicUser     string
 	basicPassword string
 	vKey          string
+	crypt         bool
 }
 
-func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bridge *Tunnel, enCompress, deCompress int, vKey, basicUser, basicPasswd string) *TunnelModeServer {
+func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bridge *Tunnel, enCompress, deCompress int, vKey, basicUser, basicPasswd string, crypt bool) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.httpPort = httpPort
 	s.bridge = bridge
@@ -165,6 +168,7 @@ func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bri
 	s.vKey = vKey
 	s.basicUser = basicUser
 	s.basicPassword = basicPasswd
+	s.crypt = crypt
 	return s
 }
 
@@ -202,7 +206,7 @@ func (s *TunnelModeServer) Close() error {
 
 //tcp隧道模式
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
-	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
 	if err != nil {
 		log.Println(err)
 		c.Close()
@@ -214,8 +218,8 @@ func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
 		log.Println(err)
 		return err
 	}
-	go relay(link, c, s.enCompress)
-	relay(c, link, s.deCompress)
+	go relay(link, c, s.enCompress, s.crypt)
+	relay(c, link, s.deCompress, s.crypt)
 	return nil
 }
 
@@ -229,7 +233,7 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 	if err := s.auth(r, c); err != nil {
 		return err
 	}
-	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
 	if err != nil {
 		log.Println(err)
 		c.Close()
@@ -246,8 +250,8 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 	} else {
 		link.WriteCompress(rb, s.enCompress)
 	}
-	go relay(link, c, s.enCompress)
-	relay(c, link, s.deCompress)
+	go relay(link, c, s.enCompress, s.crypt)
+	relay(c, link, s.deCompress, s.crypt)
 	return nil
 }
 
@@ -267,7 +271,7 @@ func ProcessHost(c *Conn, s *TunnelModeServer) error {
 		return err
 	}
 	de, en := getCompressType(task.Compress)
-	link, err := s.bridge.GetTunnel(getverifyval(host.Vkey), en, de)
+	link, err := s.bridge.GetTunnel(getverifyval(host.Vkey), en, de, s.crypt)
 	if err != nil {
 		log.Println(err)
 		c.Close()
@@ -284,8 +288,8 @@ func ProcessHost(c *Conn, s *TunnelModeServer) error {
 	} else {
 		link.WriteCompress(rb, en)
 	}
-	go relay(link, c, en)
-	relay(c, link, de)
+	go relay(link, c, en, s.crypt)
+	relay(c, link, de, s.crypt)
 	return nil
 }
 
@@ -324,6 +328,7 @@ func NewWebServer(bridge *Tunnel) *WebServer {
 
 //host
 type HostServer struct {
+	crypt bool
 }
 
 //开始
@@ -331,9 +336,10 @@ func (s *HostServer) Start() error {
 	return nil
 }
 
-//TODO：host模式的客户端，无需指定和监听端口等，此处有待优化
-func NewHostServer() *HostServer {
+//TODO：host模式的客户端，无需指定和监听端口等
+func NewHostServer(crypt bool) *HostServer {
 	s := new(HostServer)
+	s.crypt = crypt
 	return s
 }
 

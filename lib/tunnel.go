@@ -141,7 +141,7 @@ retry:
 }
 
 //得到一个tcp隧道
-func (s *Tunnel) GetTunnel(cFlag string, en, de int) (c *Conn, err error) {
+func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt bool) (c *Conn, err error) {
 	if v, ok := s.tunnelList[cFlag]; !ok || v.Len() < 10 { //新建通道
 		go s.newChan(cFlag)
 	}
@@ -154,7 +154,7 @@ retry:
 		c.Close()
 		goto retry
 	}
-	c.WriteCompressType(en, de)
+	c.WriteConnInfo(en, de, crypt)
 	return
 }
 

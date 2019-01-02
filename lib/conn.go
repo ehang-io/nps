@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/snappy"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -18,20 +17,76 @@ import (
 	"time"
 )
 
-type SnappyConn struct {
-	w *snappy.Writer
-	r *snappy.Reader
+type CryptConn struct {
+	conn  net.Conn
+	crypt bool
 }
 
-func NewSnappyConn(conn net.Conn) *SnappyConn {
+func NewCryptConn(conn net.Conn, crypt bool) *CryptConn {
+	c := new(CryptConn)
+	c.conn = conn
+	c.crypt = crypt
+	return c
+}
+
+func (s *CryptConn) Write(b []byte) (n int, err error) {
+	n = len(b)
+	if s.crypt {
+		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
+			return
+		}
+		if b, err = GetLenBytes(b); err != nil {
+			return
+		}
+	}
+	_, err = s.conn.Write(b)
+	return
+}
+
+func (s *CryptConn) Read(b []byte) (n int, err error) {
+	if s.crypt {
+		var lens int
+		var buf, bs []byte
+		c := NewConn(s.conn)
+		if lens, err = c.GetLen(); err != nil {
+			return
+		}
+		if buf, err = c.ReadLen(lens); err != nil {
+			return
+		}
+		if bs, err = AesDecrypt(buf, []byte(cryptKey)); err != nil {
+			return
+		}
+		n = len(bs)
+		copy(b, bs)
+		return
+	}
+	return s.conn.Read(b)
+}
+
+type SnappyConn struct {
+	w     *snappy.Writer
+	r     *snappy.Reader
+	crypt bool
+}
+
+func NewSnappyConn(conn net.Conn, crypt bool) *SnappyConn {
 	c := new(SnappyConn)
 	c.w = snappy.NewBufferedWriter(conn)
 	c.r = snappy.NewReader(conn)
+	c.crypt = crypt
 	return c
 }
 
 func (s *SnappyConn) Write(b []byte) (n int, err error) {
-	if n, err = s.w.Write(b); err != nil {
+	n = len(b)
+	if s.crypt {
+		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
+			log.Println("encode crypt error:", err)
+			return
+		}
+	}
+	if _, err = s.w.Write(b); err != nil {
 		return
 	}
 	err = s.w.Flush()
@@ -39,25 +94,42 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 }
 
 func (s *SnappyConn) Read(b []byte) (n int, err error) {
-	return s.r.Read(b)
+	if n, err = s.r.Read(b); err != nil {
+		return
+	}
+	if s.crypt {
+		var bs []byte
+		if bs, err = AesDecrypt(b[:n], []byte(cryptKey)); err != nil {
+			log.Println("decode crypt error:", err)
+			return
+		}
+		n = len(bs)
+		copy(b, bs)
+	}
+	return
 }
 
 type GzipConn struct {
-	w *gzip.Writer
-	r *gzip.Reader
+	w     *gzip.Writer
+	r     *gzip.Reader
+	crypt bool
 }
 
-func NewGzipConn(conn net.Conn) *GzipConn {
+func NewGzipConn(conn net.Conn, crypt bool) *GzipConn {
 	c := new(GzipConn)
+	c.crypt = crypt
 	c.w = gzip.NewWriter(conn)
 	c.r, err = gzip.NewReader(conn)
+	fmt.Println("err", err)
+	//错误处理
 	return c
 }
 
 func (s *GzipConn) Write(b []byte) (n int, err error) {
-	if n, err = s.w.Write(b); err != nil || err == io.EOF {
-		err = s.w.Flush()
-		s.w.Close()
+	fmt.Println(string(b))
+	if n, err = s.w.Write(b); err != nil {
+		//err = s.w.Flush()
+		//s.w.Close()
 		return
 	}
 	err = s.w.Flush()
@@ -65,7 +137,20 @@ func (s *GzipConn) Write(b []byte) (n int, err error) {
 }
 
 func (s *GzipConn) Read(b []byte) (n int, err error) {
-	return s.r.Read(b)
+	fmt.Println("read")
+	if n, err = s.r.Read(b); err != nil {
+		return
+	}
+	if s.crypt {
+		var bs []byte
+		if bs, err = AesDecrypt(b[:n], []byte(cryptKey)); err != nil {
+			log.Println("decode crypt error:", err)
+			return
+		}
+		n = len(bs)
+		copy(b, bs)
+	}
+	return
 }
 
 type Conn struct {
@@ -80,72 +165,49 @@ func NewConn(conn net.Conn) *Conn {
 
 //读取指定内容长度
 func (s *Conn) ReadLen(len int) ([]byte, error) {
-	raw := make([]byte, 0)
-	buff := make([]byte, 1024)
-	c := 0
-	for {
-		clen, err := s.Read(buff)
-		if err != nil && err != io.EOF {
-			return raw, err
-		}
-		raw = append(raw, buff[:clen]...)
-		if c += clen; c >= len {
-			break
-		}
+	buf := make([]byte, len)
+	if n, err := s.Read(buf); err != nil || n != len {
+		return buf, errors.New("读取指定长度错误" + err.Error())
 	}
-	if c != len {
-		return raw, errors.New(fmt.Sprintf("已读取长度错误，已读取%dbyte，需要读取%dbyte。", c, len))
-	}
-	return raw, nil
+	return buf, nil
 }
 
 //获取长度
 func (s *Conn) GetLen() (int, error) {
 	val := make([]byte, 4)
-	_, err := s.Read(val)
-	if err != nil {
+	if _, err := s.Read(val); err != nil {
 		return 0, err
 	}
-	nlen := binary.LittleEndian.Uint32(val)
-	if nlen <= 0 {
-		return 0, errors.New("数据长度错误")
-	}
-	return int(nlen), nil
+	return GetLenByBytes(val)
 }
 
 //写入长度
 func (s *Conn) WriteLen(buf []byte) (int, error) {
-	raw := bytes.NewBuffer([]byte{})
-	if err := binary.Write(raw, binary.LittleEndian, int32(len(buf))); err != nil {
-		log.Println(err)
+	var b []byte
+	if b, err = GetLenBytes(buf); err != nil {
 		return 0, err
 	}
-	if err = binary.Write(raw, binary.LittleEndian, buf); err != nil {
-		log.Println(err)
-		return 0, err
-	}
-	return s.Write(raw.Bytes())
+	return s.Write(b)
 }
 
 //读取flag
 func (s *Conn) ReadFlag() (string, error) {
 	val := make([]byte, 4)
-	_, err := s.Read(val)
-	if err != nil {
+	if _, err := s.Read(val); err != nil {
 		return "", err
 	}
 	return string(val), err
 }
 
 //读取host 连接地址 压缩类型
-func (s *Conn) GetHostFromConn() (typeStr string, host string, en, de int, err error) {
+func (s *Conn) GetHostFromConn() (typeStr string, host string, en, de int, crypt bool, err error) {
 retry:
 	ltype := make([]byte, 3)
 	if _, err = s.Read(ltype); err != nil {
 		return
 	}
 	if typeStr = string(ltype); typeStr == TEST_FLAG {
-		en, de = s.GetCompressTypeFromConn()
+		en, de, crypt = s.GetConnInfoFromConn()
 		goto retry
 	}
 	len, err := s.GetLen()
@@ -209,16 +271,10 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 //压缩方式读
 func (s *Conn) ReadFromCompress(b []byte, compress int) (int, error) {
 	switch compress {
-	case COMPRESS_GZIP_DECODE:
-		r, err := gzip.NewReader(s)
-		if err != nil {
-			return 0, err
-		}
-		return r.Read(b)
 	case COMPRESS_SNAPY_DECODE:
 		r := snappy.NewReader(s)
 		return r.Read(b)
-	case COMPRESS_NONE:
+	default:
 		return s.Read(b)
 	}
 	return 0, nil
@@ -227,35 +283,30 @@ func (s *Conn) ReadFromCompress(b []byte, compress int) (int, error) {
 //压缩方式写
 func (s *Conn) WriteCompress(b []byte, compress int) (n int, err error) {
 	switch compress {
-	case COMPRESS_GZIP_ENCODE:
-		w := gzip.NewWriter(s)
-		if n, err = w.Write(b); err == nil {
-			w.Flush()
-		}
-		err = w.Close()
 	case COMPRESS_SNAPY_ENCODE:
 		w := snappy.NewBufferedWriter(s)
 		if n, err = w.Write(b); err == nil {
 			w.Flush()
 		}
 		err = w.Close()
-	case COMPRESS_NONE:
+	default:
 		n, err = s.Write(b)
 	}
 	return
 }
 
 //写压缩方式
-func (s *Conn) WriteCompressType(en, de int) {
-	s.Write([]byte(strconv.Itoa(en) + strconv.Itoa(de)))
+func (s *Conn) WriteConnInfo(en, de int, crypt bool) {
+	s.Write([]byte(strconv.Itoa(en) + strconv.Itoa(de) + GetStrByBool(crypt)))
 }
 
 //获取压缩方式
-func (s *Conn) GetCompressTypeFromConn() (en, de int) {
-	buf := make([]byte, 2)
+func (s *Conn) GetConnInfoFromConn() (en, de int, crypt bool) {
+	buf := make([]byte, 3)
 	s.Read(buf)
 	en, _ = strconv.Atoi(string(buf[0]))
 	de, _ = strconv.Atoi(string(buf[1]))
+	crypt = GetBoolByStr(string(buf[2]))
 	return
 }
 
@@ -289,4 +340,26 @@ func (s *Conn) wChan() (int, error) {
 
 func (s *Conn) wTest() (int, error) {
 	return s.Write([]byte(TEST_FLAG))
+}
+
+//获取长度+内容
+func GetLenBytes(buf []byte) (b []byte, err error) {
+	raw := bytes.NewBuffer([]byte{})
+	if err = binary.Write(raw, binary.LittleEndian, int32(len(buf))); err != nil {
+		return
+	}
+	if err = binary.Write(raw, binary.LittleEndian, buf); err != nil {
+		return
+	}
+	b = raw.Bytes()
+	return
+}
+
+//解析出长度
+func GetLenByBytes(buf []byte) (int, error) {
+	nlen := binary.LittleEndian.Uint32(buf)
+	if nlen <= 0 {
+		return 0, errors.New("数据长度错误")
+	}
+	return int(nlen), nil
 }

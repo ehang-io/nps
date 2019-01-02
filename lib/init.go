@@ -21,12 +21,16 @@ var (
 	p            = flag.String("p", "", "socks5验证密码")
 	compress     = flag.String("compress", "", "数据压缩方式（gzip|snappy）")
 	serverAddr   = flag.String("server", "", "服务器地址ip:端口")
+	crypt        = flag.String("crypt", "", "是否加密(1|0)")
 	config       Config
 	err          error
 	RunList      map[string]interface{} //运行中的任务
 	bridge       *Tunnel
 	CsvDb        *Csv
+	//crypt        = GetBoolNoErrFromConfig("crypt")
 )
+
+const cryptKey = "1234567812345678"
 
 func init() {
 	RunList = make(map[string]interface{})
@@ -52,7 +56,7 @@ func InitMode() {
 			log.Fatalln("服务端开启失败", err)
 		}
 		log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
-		if svr := newMode(*rpMode, bridge, *httpPort, *tunnelTarget, *u, *p, en, de, *verifyKey); svr != nil {
+		if svr := newMode(*rpMode, bridge, *httpPort, *tunnelTarget, *u, *p, en, de, *verifyKey, *crypt); svr != nil {
 			reflect.ValueOf(svr).MethodByName("Start").Call(nil)
 		} else {
 			log.Fatalln("启动模式不正确")
@@ -71,29 +75,33 @@ func InitFromCsv() {
 	}
 }
 
-func newMode(mode string, bridge *Tunnel, httpPort int, tunnelTarget string, u string, p string, enCompress int, deCompress int, vkey string) interface{} {
-	if u == "" || p == "" { //如果web管理中设置了用户名和密码，则覆盖配置文件
+func newMode(mode string, bridge *Tunnel, httpPort int, tunnelTarget string, u string, p string, enCompress int, deCompress int, vkey string, crypt string) interface{} {
+	if u == "" || p == "" { //如果web管理或者命令中设置了用户名和密码，则覆盖配置文件
 		u = beego.AppConfig.String("auth.user")
 		p = beego.AppConfig.String("auth.password")
 	}
+	if crypt == "" { //如果web管理或者命令中设置了是否加密，则覆盖配置文件
+		crypt = beego.AppConfig.String("crypt")
+	}
+	bCrypt := GetBoolByStr(crypt)
 	switch mode {
 	case "httpServer":
-		return NewHttpModeServer(httpPort, bridge, enCompress, deCompress, vkey)
+		return NewHttpModeServer(httpPort, bridge, enCompress, deCompress, vkey, bCrypt)
 	case "tunnelServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessTunnel, bridge, enCompress, deCompress, vkey, u, p)
+		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessTunnel, bridge, enCompress, deCompress, vkey, u, p, bCrypt)
 	case "sock5Server":
-		return NewSock5ModeServer(httpPort, u, p, bridge, enCompress, deCompress, vkey)
+		return NewSock5ModeServer(httpPort, u, p, bridge, enCompress, deCompress, vkey, bCrypt)
 	case "httpProxyServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHttp, bridge, enCompress, deCompress, vkey, u, p)
+		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHttp, bridge, enCompress, deCompress, vkey, u, p, bCrypt)
 	case "udpServer":
-		return NewUdpModeServer(httpPort, tunnelTarget, bridge, enCompress, deCompress, vkey)
+		return NewUdpModeServer(httpPort, tunnelTarget, bridge, enCompress, deCompress, vkey, bCrypt)
 	case "webServer":
 		InitCsvDb()
 		return NewWebServer(bridge)
 	case "hostServer":
-		return NewHostServer()
+		return NewHostServer(bCrypt)
 	case "httpHostServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHost, bridge, enCompress, deCompress, vkey, u, p)
+		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHost, bridge, enCompress, deCompress, vkey, u, p, bCrypt)
 	}
 	return nil
 }
@@ -119,7 +127,7 @@ func StopServer(cFlag string) error {
 
 func AddTask(t *TaskList) error {
 	de, en := getCompressType(t.Compress)
-	if svr := newMode(t.Mode, bridge, t.TcpPort, t.Target, t.U, t.P, en, de, t.VerifyKey); svr != nil {
+	if svr := newMode(t.Mode, bridge, t.TcpPort, t.Target, t.U, t.P, en, de, t.VerifyKey, t.Crypt); svr != nil {
 		RunList[t.VerifyKey] = svr
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]

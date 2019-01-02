@@ -86,10 +86,12 @@ func (s *TRPClient) dealChan() error {
 	//创建一个tcp连接
 	conn, err := net.Dial("tcp", s.svrAddr)
 	if err != nil {
+		log.Println("connect to ", s.svrAddr, "error:", err)
 		return err
 	}
 	//验证
 	if _, err := conn.Write([]byte(getverifyval(s.vKey))); err != nil {
+		log.Println("connect to ", s.svrAddr, "error:", err)
 		return err
 	}
 	//默认长连接保持
@@ -98,25 +100,26 @@ func (s *TRPClient) dealChan() error {
 	//写标志
 	c.wChan()
 	//获取连接的host type(tcp or udp)
-	typeStr, host, en, de, err := c.GetHostFromConn()
+	typeStr, host, en, de, crypt, err := c.GetHostFromConn()
 	if err != nil {
+		log.Println("get host info error:", err)
 		return err
 	}
 	//与目标建立连接
 	server, err := net.Dial(typeStr, host)
 	if err != nil {
-		log.Println(err)
+		log.Println("connect to ", host, "error:", err)
 		return err
 	}
-	go relay(NewConn(server), c, de)
-	relay(c, NewConn(server), en)
+	go relay(NewConn(server), c, de, crypt)
+	relay(c, NewConn(server), en, crypt)
 	return nil
 }
 
 //http模式处理
 func (s *TRPClient) dealHttp(c *Conn) error {
 	buf := make([]byte, 1024*32)
-	en, de := c.GetCompressTypeFromConn()
+	en, de, _ := c.GetConnInfoFromConn()
 	n, err := c.ReadFromCompress(buf, de)
 	if err != nil {
 		c.wError()

@@ -10,6 +10,7 @@
                         <th>内网目标</th>
                         <th>多客户端模式客户端执行命令</th>
                         <th>压缩方式</th>
+                        <th>加密传输</th>
                         <th>用户名</th>
                         <th>密码</th>
                         <th>客户端状态</th>
@@ -106,6 +107,7 @@
                 {data: 'Target'},
                 {data: 'VerifyKey'},
                 {data: 'Compress'},
+                {data: 'Crypt'},
                 {data: 'U'},
                 {data: 'P'},
                 {data: 'ClientStatus'},
@@ -143,6 +145,16 @@
                             return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
                         } else {
                             return "<span class=\"badge badge-pill badge-success\">正常</span>"
+                        }
+                    }
+                },
+                {
+                    targets: -6,
+                    render: function (data, type, row, meta) {
+                        if (data == "0") {
+                            return "不加密"
+                        } else {
+                            return "加密"
                         }
                     }
                 },

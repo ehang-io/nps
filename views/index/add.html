@@ -34,8 +34,14 @@
                         <label class="control-label">数据压缩方式</label>
                         <select class="form-control" name="compress">
                             <option value="">不压缩</option>
-                            <option value="gzip">gzip压缩</option>
                             <option value="snappy">snappy</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="compress">
+                        <label class="control-label">是否加密传输</label>
+                        <select class="form-control" name="crypt">
+                            <option value="0">不加密</option>
+                            <option value="1">加密</option>
                         </select>
                     </div>
                     <div class="form-group" id="u">

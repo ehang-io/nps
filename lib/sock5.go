@@ -53,6 +53,7 @@ type Sock5ModeServer struct {
 	isVerify   bool
 	listener   net.Listener
 	vKey       string
+	crypt      bool
 }
 
 func (s *Sock5ModeServer) handleRequest(c net.Conn) {
@@ -136,7 +137,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	binary.Read(c, binary.BigEndian, &port)
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
-	client, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress)
+	client, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
 	if err != nil {
 		log.Println(err)
 		client.Close()
@@ -159,8 +160,8 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 		log.Println(err)
 		c.Close()
 	} else {
-		go relay(proxyConn, NewConn(c), s.enCompress)
-		go relay(NewConn(c), proxyConn, s.deCompress)
+		go relay(proxyConn, NewConn(c), s.enCompress, s.crypt)
+		go relay(NewConn(c), proxyConn, s.deCompress, s.crypt)
 	}
 
 }
@@ -192,8 +193,8 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		go relay(proxyConn, NewConn(c), s.enCompress)
-		go relay(NewConn(c), proxyConn, s.deCompress)
+		go relay(proxyConn, NewConn(c), s.enCompress, s.crypt)
+		go relay(NewConn(c), proxyConn, s.deCompress, s.crypt)
 	}
 }
 
@@ -290,7 +291,7 @@ func (s *Sock5ModeServer) Close() error {
 	return s.listener.Close()
 }
 
-func NewSock5ModeServer(httpPort int, u, p string, brige *Tunnel, enCompress int, deCompress int, vKey string) *Sock5ModeServer {
+func NewSock5ModeServer(httpPort int, u, p string, brige *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.httpPort = httpPort
 	s.bridge = brige
@@ -304,5 +305,6 @@ func NewSock5ModeServer(httpPort int, u, p string, brige *Tunnel, enCompress int
 	s.enCompress = enCompress
 	s.deCompress = deCompress
 	s.vKey = vKey
+	s.crypt = crypt
 	return s
 }
