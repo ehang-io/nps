@@ -33,10 +33,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 - [x] 支持内网穿透sock5代理，配合proxifer可达到vpn的效果，在外网访问内网资源或者设备，同时可以设置用户名和密码验证
 - [x] 强大的web管理界面，可方便的设置的和管理隧道
 - [x] 支持站点密码保护
-<<<<<<< Updated upstream
-=======
 - [x] 支持加密传输
->>>>>>> Stashed changes
 - [x] 支持同时开多条tcp、udp隧道等等，且只需要开一个客户端和服务端
 - [x] 支持一个服务端，多个客户端模式
 
@@ -50,13 +47,9 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 6. [socks5代理模式](#socks5代理模式)
 7. [http代理模式](#http代理模式)
 8. [数据压缩支持](#数据压缩支持)
-<<<<<<< Updated upstream
-9. [站点保护](#站点保护)
-=======
 9. [站点密码保护](#站点保护)
-11. [加密传输](#加密传输)
->>>>>>> Stashed changes
-10. [配置文件说明](#配置文件)
+10. [加密传输](#加密传输)
+11. [配置文件说明](#配置文件)
 
 ## 安装
 
@@ -156,7 +149,7 @@ tcpport | 服务端与客户端通信端口
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 外部访问端口
@@ -167,6 +160,22 @@ target | 目标地址，格式如上
 
 ```
 ./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+```
+
+- 与nginx配合实现访问a.ourcauc.com等同访问10.1.50.203:80效果，将该域名解析道云服务器，nginx配置
+```
+server {
+    listen 80;
+    server_name a.ourcauc.com;
+    location / {
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host  $http_host;
+            proxy_set_header X-Nginx-Proxy true;
+            proxy_set_header Connection "";
+            proxy_pass http://127.0.0.1:8024;
+        }
+}
 ```
 ## udp隧道模式
 
@@ -194,7 +203,7 @@ target | 目标地址，格式如上
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 公网vps的访问端口
@@ -232,7 +241,7 @@ target | 目标地址，格式如上
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 代理的http端口（与nginx配合使用）
@@ -287,10 +296,6 @@ Replace | 是否自动匹配替换[（查看场景）](https://github.com/cnlh/e
 
 ### nginx代理配置示例
 ```
-upstream nodejs {
-    server 127.0.0.1:8024;
-    keepalive 64;
-}
 server {
     listen 80;
     server_name a.ourcauc.com b.ourcauc.com c.ourcauc.com ;
@@ -300,7 +305,7 @@ server {
             proxy_set_header Host  $http_host;
             proxy_set_header X-Nginx-Proxy true;
             proxy_set_header Connection "";
-            proxy_pass      http://nodejs;
+            proxy_pass http://127.0.0.1:8024;
         }
 }
 ```
@@ -341,7 +346,7 @@ server {
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | 代理的http端口（socks5连接端口）
@@ -350,13 +355,14 @@ p | 验证的密码
 
 **说明**：用户名和密码验证模式，仅部分socks5客户端支持，例如proxifer。
 
-默认验证的用户名和密码为/conf/app.conf中的用户名和密码
+默认验证的用户名和密码为/conf/app.conf中的用户名和密码，为空则不验证
 
-如需不同，可在服务端命令后加上，将会覆盖/conf/app.conf中的配置
+如需不同，可在服务端命令后加上
+
 ```
 -u=user -p=password
 ```
-即可
+即可，将会覆盖/conf/app.conf中的配置
 
 - 客户端
 
@@ -368,9 +374,9 @@ p | 验证的密码
 - 需要使用内网代理的机器
 
 ```
-配置sock5代理即可，ip为外网服务器ip，端口为httpport，即可在外网环境使用内网啦！也可使用proxifer等全局代理软件。
+配置socks5代理即可，ip为外网服务器ip，端口为httpport，即可在外网环境使用内网啦！也可使用proxifer等全局代理软件。
 ```
-如果设置了用户名和密码，记得填上用户名和密码
+如果设置了用户名和密码，记得填上用户名和密码(仅部分客户端支持密码验证)
 
 
 
@@ -390,7 +396,7 @@ p | 验证的密码
 
 名称 | 含义
 ---|---
-mode | 运行模式(client、server不写默认client)
+mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | http代理连接端口
@@ -412,19 +418,13 @@ httpport | http代理连接端口
 
 ## 数据压缩支持
 
-### 场景及原理
 由于是内网穿透，内网客户端与服务端之间的隧道存在大量的数据交换，为节省流量，加快传输速度，由此本程序支持SNNAPY形式的压缩。
 
-### 注意点
 
 - 所有模式均支持数据压缩，可以与加密同时使用
 
 
-### 如何使用
-
-**snappy压缩**
-
-- 在server端加上参数 -compress=snappy，例如在TCP隧道模式
+- 在server端加上参数 -compress=snappy（或在web中设置），例如在TCP隧道模式
 ```
 ./easyProxy -mode tunnelServer -vkey DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80 -compress=snappy
 ```
@@ -432,8 +432,6 @@ httpport | http代理连接端口
 ## 加密传输
 
 如果公司内网防火墙对外网访问进行了流量识别与屏蔽，例如禁止了ssh协议等，通过设置 配置文件，将服务端与客户端之间的通信内容加密传输，将会有效防止流量被拦截。
-
-### 如何使用
 
 
 - 在server端加上参数 -crypt=1（或在web管理中设置），例如在TCP隧道模式
@@ -465,25 +463,8 @@ password | web界面管理密码
 hostPort | 域名代理模式监听端口
 auth.user | 验证用户名（socks5、http代理、http代理请求、域名代理模式）
 auth.password | 验证密码（socks5、http代理、http代理请求、域名代理模式）
+crypt | 是否加密传输（全局控制）
 
-## 站点保护
-由于所有客户端共用一个 http 服务端口，任何知道你的域名和 url 的人都能访问到你部署在内网的 web 服务，但是在某些场景下需要确保只有限定的用户才能访问。
-
-easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需要通过用户名和密码才能访问到你的服务。
-
-该功能目前可以在 域名代理模式、http代理请求模式、http代理模式 中使用，需要在/conf/app.conf中设置。
-
-**注意：**  web管理中如果设置了用户名和密码则会覆盖配置文件中的用户名和密码
-
-## 配置文件
-/conf/app.conf
-名称 | 含义
----|---
-httpport | web管理端口
-password | web界面管理密码
-hostPort | 域名代理模式监听端口
-auth.user | 验证用户名（socks5、http代理、http代理请求、域名代理模式）
-auth.password | 验证密码（socks5、http代理、http代理请求、域名代理模式）
 
 ## 操作系统支持
 支持Windows、Linux、MacOSX等，无第三方依赖库。
