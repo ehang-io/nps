@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -47,7 +46,6 @@ func (s *UdpModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			log.Println(err)
 			continue
 		}
 		go s.process(addr, data[:n])
@@ -57,8 +55,6 @@ func (s *UdpModeServer) Start() error {
 
 //TODO:效率问题有待解决
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	fmt.Println(addr.String())
-	fmt.Println(string(data))
 	conn, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
 	if err != nil {
 		log.Println(err)
@@ -68,11 +64,11 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		conn.Close()
 		return
 	}
-	conn.WriteCompress(data, s.enCompress)
+	conn.WriteTo(data, s.enCompress,s.crypt)
 	go func(addr *net.UDPAddr, conn *Conn) {
 		buf := make([]byte, 1024)
 		conn.conn.SetReadDeadline(time.Now().Add(time.Duration(time.Second * 3)))
-		n, err := conn.ReadFromCompress(buf, s.deCompress)
+		n, err := conn.ReadFrom(buf, s.deCompress,s.crypt)
 		if err != nil || err == io.EOF {
 			conn.Close()
 			return

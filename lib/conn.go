@@ -3,11 +3,10 @@ package lib
 import (
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/golang/snappy"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -29,6 +28,7 @@ func NewCryptConn(conn net.Conn, crypt bool) *CryptConn {
 	return c
 }
 
+//加密写
 func (s *CryptConn) Write(b []byte) (n int, err error) {
 	n = len(b)
 	if s.crypt {
@@ -43,6 +43,7 @@ func (s *CryptConn) Write(b []byte) (n int, err error) {
 	return
 }
 
+//解密读
 func (s *CryptConn) Read(b []byte) (n int, err error) {
 	if s.crypt {
 		var lens int
@@ -78,6 +79,7 @@ func NewSnappyConn(conn net.Conn, crypt bool) *SnappyConn {
 	return c
 }
 
+//snappy压缩写 包含加密
 func (s *SnappyConn) Write(b []byte) (n int, err error) {
 	n = len(b)
 	if s.crypt {
@@ -93,51 +95,8 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 	return
 }
 
+//snappy压缩读 包含解密
 func (s *SnappyConn) Read(b []byte) (n int, err error) {
-	if n, err = s.r.Read(b); err != nil {
-		return
-	}
-	if s.crypt {
-		var bs []byte
-		if bs, err = AesDecrypt(b[:n], []byte(cryptKey)); err != nil {
-			log.Println("decode crypt error:", err)
-			return
-		}
-		n = len(bs)
-		copy(b, bs)
-	}
-	return
-}
-
-type GzipConn struct {
-	w     *gzip.Writer
-	r     *gzip.Reader
-	crypt bool
-}
-
-func NewGzipConn(conn net.Conn, crypt bool) *GzipConn {
-	c := new(GzipConn)
-	c.crypt = crypt
-	c.w = gzip.NewWriter(conn)
-	c.r, err = gzip.NewReader(conn)
-	fmt.Println("err", err)
-	//错误处理
-	return c
-}
-
-func (s *GzipConn) Write(b []byte) (n int, err error) {
-	fmt.Println(string(b))
-	if n, err = s.w.Write(b); err != nil {
-		//err = s.w.Flush()
-		//s.w.Close()
-		return
-	}
-	err = s.w.Flush()
-	return
-}
-
-func (s *GzipConn) Read(b []byte) (n int, err error) {
-	fmt.Println("read")
 	if n, err = s.r.Read(b); err != nil {
 		return
 	}
@@ -157,16 +116,17 @@ type Conn struct {
 	conn net.Conn
 }
 
+//new conn
 func NewConn(conn net.Conn) *Conn {
 	c := new(Conn)
 	c.conn = conn
 	return c
 }
 
-//读取指定内容长度
+//读取指定长度内容
 func (s *Conn) ReadLen(len int) ([]byte, error) {
 	buf := make([]byte, len)
-	if n, err := s.Read(buf); err != nil || n != len {
+	if n, err := io.ReadFull(s, buf); err != nil || n != len {
 		return buf, errors.New("读取指定长度错误" + err.Error())
 	}
 	return buf, nil
@@ -174,14 +134,14 @@ func (s *Conn) ReadLen(len int) ([]byte, error) {
 
 //获取长度
 func (s *Conn) GetLen() (int, error) {
-	val := make([]byte, 4)
-	if _, err := s.Read(val); err != nil {
+	val, err := s.ReadLen(4)
+	if err != nil {
 		return 0, err
 	}
 	return GetLenByBytes(val)
 }
 
-//写入长度
+//写入长度+内容 粘包
 func (s *Conn) WriteLen(buf []byte) (int, error) {
 	var b []byte
 	if b, err = GetLenBytes(buf); err != nil {
@@ -192,8 +152,8 @@ func (s *Conn) WriteLen(buf []byte) (int, error) {
 
 //读取flag
 func (s *Conn) ReadFlag() (string, error) {
-	val := make([]byte, 4)
-	if _, err := s.Read(val); err != nil {
+	val, err := s.ReadLen(4)
+	if err != nil {
 		return "", err
 	}
 	return string(val), err
@@ -202,20 +162,20 @@ func (s *Conn) ReadFlag() (string, error) {
 //读取host 连接地址 压缩类型
 func (s *Conn) GetHostFromConn() (typeStr string, host string, en, de int, crypt bool, err error) {
 retry:
-	ltype := make([]byte, 3)
-	if _, err = s.Read(ltype); err != nil {
-		return
-	}
-	if typeStr = string(ltype); typeStr == TEST_FLAG {
-		en, de, crypt = s.GetConnInfoFromConn()
-		goto retry
-	}
-	len, err := s.GetLen()
+	lType, err := s.ReadLen(3)
 	if err != nil {
 		return
 	}
-	hostByte := make([]byte, len)
-	if _, err = s.Read(hostByte); err != nil {
+	if typeStr = string(lType); typeStr == TEST_FLAG {
+		en, de, crypt = s.GetConnInfoFromConn()
+		goto retry
+	}
+	cLen, err := s.GetLen()
+	if err != nil {
+		return
+	}
+	hostByte, err := s.ReadLen(cLen)
+	if err != nil {
 		return
 	}
 	host = string(hostByte)
@@ -239,7 +199,7 @@ func (s *Conn) SetAlive() {
 	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 }
 
-//从tcp报文中解析出host
+//从tcp报文中解析出host，连接类型等
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
 	var b [32 * 1024]byte
 	var n int
@@ -268,76 +228,76 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 	return
 }
 
-//压缩方式读
-func (s *Conn) ReadFromCompress(b []byte, compress int) (int, error) {
-	switch compress {
-	case COMPRESS_SNAPY_DECODE:
-		r := snappy.NewReader(s)
-		return r.Read(b)
-	default:
-		return s.Read(b)
+//单独读（加密|压缩）
+func (s *Conn) ReadFrom(b []byte, compress int, crypt bool) (int, error) {
+	if COMPRESS_SNAPY_DECODE == compress {
+		return NewSnappyConn(s.conn, crypt).Read(b)
 	}
-	return 0, nil
+	return NewCryptConn(s.conn, crypt).Read(b)
 }
 
-//压缩方式写
-func (s *Conn) WriteCompress(b []byte, compress int) (n int, err error) {
-	switch compress {
-	case COMPRESS_SNAPY_ENCODE:
-		w := snappy.NewBufferedWriter(s)
-		if n, err = w.Write(b); err == nil {
-			w.Flush()
-		}
-		err = w.Close()
-	default:
-		n, err = s.Write(b)
+//单独写（加密|压缩）
+func (s *Conn) WriteTo(b []byte, compress int, crypt bool) (n int, err error) {
+	if COMPRESS_SNAPY_ENCODE == compress {
+		return NewSnappyConn(s.conn, crypt).Write(b)
 	}
-	return
+	return NewCryptConn(s.conn, crypt).Write(b)
 }
 
-//写压缩方式
+//写压缩方式，加密
 func (s *Conn) WriteConnInfo(en, de int, crypt bool) {
 	s.Write([]byte(strconv.Itoa(en) + strconv.Itoa(de) + GetStrByBool(crypt)))
 }
 
-//获取压缩方式
+//获取压缩方式，是否加密
 func (s *Conn) GetConnInfoFromConn() (en, de int, crypt bool) {
-	buf := make([]byte, 3)
-	s.Read(buf)
+	buf, err := s.ReadLen(3)
+	//TODO：错误处理
+	if err != nil {
+		return
+	}
 	en, _ = strconv.Atoi(string(buf[0]))
 	de, _ = strconv.Atoi(string(buf[1]))
 	crypt = GetBoolByStr(string(buf[2]))
 	return
 }
 
+//close
 func (s *Conn) Close() error {
 	return s.conn.Close()
 }
 
+//write
 func (s *Conn) Write(b []byte) (int, error) {
 	return s.conn.Write(b)
 }
 
+//read
 func (s *Conn) Read(b []byte) (int, error) {
 	return s.conn.Read(b)
 }
 
+//write error
 func (s *Conn) wError() (int, error) {
 	return s.Write([]byte(RES_MSG))
 }
 
+//write sign flag
 func (s *Conn) wSign() (int, error) {
 	return s.Write([]byte(RES_SIGN))
 }
 
+//write main
 func (s *Conn) wMain() (int, error) {
 	return s.Write([]byte(WORK_MAIN))
 }
 
+//write chan
 func (s *Conn) wChan() (int, error) {
 	return s.Write([]byte(WORK_CHAN))
 }
 
+//write test
 func (s *Conn) wTest() (int, error) {
 	return s.Write([]byte(TEST_FLAG))
 }

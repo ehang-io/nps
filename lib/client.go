@@ -16,6 +16,7 @@ type TRPClient struct {
 	vKey string
 }
 
+//new client
 func NewRPClient(svraddr string, tcpNum int, vKey string) *TRPClient {
 	c := new(TRPClient)
 	c.svrAddr = svraddr
@@ -24,6 +25,7 @@ func NewRPClient(svraddr string, tcpNum int, vKey string) *TRPClient {
 	return c
 }
 
+//start
 func (s *TRPClient) Start() error {
 	for i := 0; i < s.tcpNum; i++ {
 		go s.newConn()
@@ -46,6 +48,7 @@ func (s *TRPClient) newConn() error {
 	return s.process(NewConn(conn))
 }
 
+//处理
 func (s *TRPClient) process(c *Conn) error {
 	c.SetAlive()
 	if _, err := c.Write([]byte(getverifyval(s.vKey))); err != nil {
@@ -119,8 +122,8 @@ func (s *TRPClient) dealChan() error {
 //http模式处理
 func (s *TRPClient) dealHttp(c *Conn) error {
 	buf := make([]byte, 1024*32)
-	en, de, _ := c.GetConnInfoFromConn()
-	n, err := c.ReadFromCompress(buf, de)
+	en, de, crypt := c.GetConnInfoFromConn()
+	n, err := c.ReadFrom(buf, de, crypt)
 	if err != nil {
 		c.wError()
 		return err
@@ -136,7 +139,7 @@ func (s *TRPClient) dealHttp(c *Conn) error {
 		return err
 	}
 	c.wSign()
-	n, err = c.WriteCompress(respBytes, en)
+	n, err = c.WriteTo(respBytes, en, crypt)
 	if err != nil {
 		return err
 	}

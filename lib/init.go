@@ -19,7 +19,7 @@ var (
 	verifyKey    = flag.String("vkey", "", "验证密钥")
 	u            = flag.String("u", "", "socks5验证用户名")
 	p            = flag.String("p", "", "socks5验证密码")
-	compress     = flag.String("compress", "", "数据压缩方式（gzip|snappy）")
+	compress     = flag.String("compress", "", "数据压缩方式（snappy）")
 	serverAddr   = flag.String("server", "", "服务器地址ip:端口")
 	crypt        = flag.String("crypt", "", "是否加密(1|0)")
 	config       Config

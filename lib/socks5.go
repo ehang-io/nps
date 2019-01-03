@@ -56,6 +56,7 @@ type Sock5ModeServer struct {
 	crypt      bool
 }
 
+//req
 func (s *Sock5ModeServer) handleRequest(c net.Conn) {
 	/*
 		The SOCKS request is formed as follows:
@@ -88,6 +89,7 @@ func (s *Sock5ModeServer) handleRequest(c net.Conn) {
 	}
 }
 
+//reply
 func (s *Sock5ModeServer) sendReply(c net.Conn, rep uint8) {
 	reply := []byte{
 		5,
@@ -108,6 +110,7 @@ func (s *Sock5ModeServer) sendReply(c net.Conn, rep uint8) {
 	c.Write(reply)
 }
 
+//do conn
 func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn, err error) {
 	addrType := make([]byte, 1)
 	c.Read(addrType)
@@ -154,6 +157,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	return client, nil
 }
 
+//conn
 func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	proxyConn, err := s.doConnect(c, connectMethod)
 	if err != nil {
@@ -170,6 +174,7 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 func (s *Sock5ModeServer) handleBind(c net.Conn) {
 }
 
+//udp
 func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	log.Println("UDP Associate")
 	/*
@@ -198,6 +203,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	}
 }
 
+//new conn
 func (s *Sock5ModeServer) handleNewConn(c net.Conn) {
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(c, buf); err != nil {
@@ -234,6 +240,7 @@ func (s *Sock5ModeServer) handleNewConn(c net.Conn) {
 	s.handleRequest(c)
 }
 
+//socks5 auth
 func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	header := []byte{0, 0}
 	if _, err := io.ReadAtLeast(c, header, 2); err != nil {
@@ -269,6 +276,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	return errors.New("未知错误")
 }
 
+//start
 func (s *Sock5ModeServer) Start() error {
 	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.httpPort))
 	if err != nil {
@@ -287,10 +295,12 @@ func (s *Sock5ModeServer) Start() error {
 	return nil
 }
 
+//close
 func (s *Sock5ModeServer) Close() error {
 	return s.listener.Close()
 }
 
+//new
 func NewSock5ModeServer(httpPort int, u, p string, brige *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.httpPort = httpPort

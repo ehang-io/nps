@@ -30,6 +30,8 @@ WWW-Authenticate: Basic realm="easyProxy"
 401 Unauthorized`
 )
 
+type process func(c *Conn, s *TunnelModeServer) error
+
 type HttpModeServer struct {
 	bridge     *Tunnel
 	httpPort   int
@@ -39,6 +41,7 @@ type HttpModeServer struct {
 	crypt      bool
 }
 
+//http
 func NewHttpModeServer(httpPort int, bridge *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *HttpModeServer {
 	s := new(HttpModeServer)
 	s.bridge = bridge
@@ -93,7 +96,7 @@ func (s *HttpModeServer) writeRequest(r *http.Request, conn *Conn) error {
 	}
 	conn.wSign()
 	conn.WriteConnInfo(s.enCompress, s.deCompress, s.crypt)
-	c, err := conn.WriteCompress(raw, s.enCompress)
+	c, err := conn.WriteTo(raw, s.enCompress, s.crypt)
 	if err != nil {
 		return err
 	}
@@ -112,7 +115,7 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 	switch flags {
 	case RES_SIGN:
 		buf := make([]byte, 1024*1024*32)
-		n, err := c.ReadFromCompress(buf, s.deCompress)
+		n, err := c.ReadFrom(buf, s.deCompress, s.crypt)
 		if err != nil {
 			return err
 		}
@@ -141,8 +144,6 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 	return nil
 }
 
-type process func(c *Conn, s *TunnelModeServer) error
-
 type TunnelModeServer struct {
 	httpPort      int
 	tunnelTarget  string
@@ -157,6 +158,7 @@ type TunnelModeServer struct {
 	crypt         bool
 }
 
+//tcp|http|host
 func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bridge *Tunnel, enCompress, deCompress int, vKey, basicUser, basicPasswd string, crypt bool) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.httpPort = httpPort
@@ -191,6 +193,8 @@ func (s *TunnelModeServer) Start() error {
 	}
 	return nil
 }
+
+//权限认证
 func (s *TunnelModeServer) auth(r *http.Request, c *Conn) error {
 	if s.basicUser != "" && s.basicPassword != "" && !checkAuth(r, s.basicUser, s.basicPassword) {
 		c.Write([]byte(Unauthorized_BYTES))
@@ -200,27 +204,44 @@ func (s *TunnelModeServer) auth(r *http.Request, c *Conn) error {
 	return nil
 }
 
+//与客户端建立通道
+func (s *TunnelModeServer) dealClient(vKey string, en, de int, c *Conn, target string, method string, rb []byte) error {
+	link, err := s.bridge.GetTunnel(getverifyval(vKey), en, de, s.crypt)
+	if err != nil {
+		log.Println(err)
+		c.Close()
+		return err
+	}
+	if _, err := link.WriteHost(CONN_TCP, target); err != nil {
+		c.Close()
+		link.Close()
+		log.Println(err)
+		return err
+	}
+	if method == "CONNECT" {
+		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
+	} else {
+		link.WriteTo(rb, en, s.crypt)
+	}
+	go relay(link, c, en, s.crypt)
+	relay(c, link, de, s.crypt)
+	return nil
+}
+
+//close
 func (s *TunnelModeServer) Close() error {
 	return s.listener.Close()
 }
 
 //tcp隧道模式
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
-	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
-	if err != nil {
-		log.Println(err)
-		c.Close()
-		return err
+	method, _, rb, err, r := c.GetHost()
+	if err == nil {
+		if err := s.auth(r, c); err != nil {
+			return err
+		}
 	}
-	if _, err := link.WriteHost(CONN_TCP, s.tunnelTarget); err != nil {
-		link.Close()
-		c.Close()
-		log.Println(err)
-		return err
-	}
-	go relay(link, c, s.enCompress, s.crypt)
-	relay(c, link, s.deCompress, s.crypt)
-	return nil
+	return s.dealClient(s.vKey, s.enCompress, s.deCompress, c, s.tunnelTarget, method, rb)
 }
 
 //http代理模式
@@ -233,26 +254,7 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 	if err := s.auth(r, c); err != nil {
 		return err
 	}
-	link, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
-	if err != nil {
-		log.Println(err)
-		c.Close()
-		return err
-	}
-	if _, err := link.WriteHost(CONN_TCP, addr); err != nil {
-		c.Close()
-		link.Close()
-		log.Println(err)
-		return err
-	}
-	if method == "CONNECT" {
-		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
-	} else {
-		link.WriteCompress(rb, s.enCompress)
-	}
-	go relay(link, c, s.enCompress, s.crypt)
-	relay(c, link, s.deCompress, s.crypt)
-	return nil
+	return s.dealClient(s.vKey, s.enCompress, s.deCompress, c, addr, method, rb)
 }
 
 //多客户端域名代理
@@ -271,26 +273,7 @@ func ProcessHost(c *Conn, s *TunnelModeServer) error {
 		return err
 	}
 	de, en := getCompressType(task.Compress)
-	link, err := s.bridge.GetTunnel(getverifyval(host.Vkey), en, de, s.crypt)
-	if err != nil {
-		log.Println(err)
-		c.Close()
-		return err
-	}
-	if _, err := link.WriteHost(CONN_TCP, host.Target); err != nil {
-		c.Close()
-		link.Close()
-		log.Println(err)
-		return err
-	}
-	if method == "CONNECT" {
-		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
-	} else {
-		link.WriteCompress(rb, en)
-	}
-	go relay(link, c, en, s.crypt)
-	relay(c, link, de, s.crypt)
-	return nil
+	return s.dealClient(host.Vkey, en, de, c, host.Target, method, rb)
 }
 
 //web管理方式
@@ -320,6 +303,7 @@ func (s *WebServer) Start() {
 	beego.Run()
 }
 
+//new
 func NewWebServer(bridge *Tunnel) *WebServer {
 	s := new(WebServer)
 	s.bridge = bridge
@@ -343,6 +327,7 @@ func NewHostServer(crypt bool) *HostServer {
 	return s
 }
 
+//close
 func (s *HostServer) Close() error {
 	return nil
 }

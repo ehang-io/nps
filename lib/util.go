@@ -16,19 +16,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 var (
 	disabledRedirect = errors.New("disabled redirect.")
-	bufPool          = &sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 32*1024)
-		},
-	}
 )
-//pool 实现
-type bufType [32 * 1024]byte
 
 const (
 	COMPRESS_NONE_ENCODE = iota
@@ -37,6 +29,7 @@ const (
 	COMPRESS_SNAPY_DECODE
 )
 
+//error
 func BadRequest(w http.ResponseWriter) {
 	http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 }
@@ -95,7 +88,7 @@ func DecodeRequest(data []byte) (*http.Request, error) {
 	return req, nil
 }
 
-//// 将response转为字节
+// 将response转为字节
 func EncodeResponse(r *http.Response) ([]byte, error) {
 	respBytes, err := httputil.DumpResponse(r, true)
 	if err != nil {
@@ -116,6 +109,7 @@ func DecodeResponse(data []byte) (*http.Response, error) {
 	return resp, nil
 }
 
+// 根据host地址从配置是文件中查找对应目标
 func getHost(str string) (string, error) {
 	for _, v := range config.SiteList {
 		if v.Host == str {
@@ -125,6 +119,7 @@ func getHost(str string) (string, error) {
 	return "", errors.New("没有找到解析的的host!")
 }
 
+//替换
 func replaceHost(resp []byte) []byte {
 	str := string(resp)
 	for _, v := range config.SiteList {
@@ -134,8 +129,8 @@ func replaceHost(resp []byte) []byte {
 	return []byte(str)
 }
 
+//copy
 func relay(in, out *Conn, compressType int, crypt bool) {
-	fmt.Println(crypt)
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
 		copyBuffer(NewSnappyConn(in.conn, crypt), out)
@@ -264,7 +259,7 @@ func GetStrByBool(b bool) string {
 	return "0"
 }
 
-// io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密
+// io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
