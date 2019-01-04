@@ -29,7 +29,7 @@
             <ul>
                 <li>将a.proxy.com，b.proxy.com解析到公网服务器{{.ip}}</li>
                 <li>使用nginx监听这两个个域名，并配置ssl等……</li>
-                <li>在nginx配置中添加反向代理<br>
+                <li>在nginx配置中添加反向代理（或直接将http监听端口改为80）<br>
                     <pre><code>
                     server {
                         listen 80;

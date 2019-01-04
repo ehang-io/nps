@@ -40,12 +40,12 @@
                         </select>
                     </div>
                     <div class="form-group" id="u">
-                        <label class="control-label">验证用户名(socks5、HTTP代理模式)</label>
+                        <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
                         <input class="form-control" value="{{.t.U}}" type="text" name="u"
                                placeholder="不填则无需验证">
                     </div>
                     <div class="form-group" id="p">
-                        <label class="control-label">验证密码(socks5、HTTP代理模式)</label>
+                        <label class="control-label">验证密码(仅socks5,web穿透支持)</label>
                         <input class="form-control" value="{{.t.P}}" type="text" name="p"
                                placeholder="不填则无需验证">
                     </div>
@@ -63,11 +63,11 @@
 <script>
     var arr = []
     arr["all"] = ["type", "port", "compress", "u", "p", "target"]
-    arr["tunnelServer"] = ["type", "port", "target", "compress"]
+    arr["tunnelServer"] = ["type", "port", "target", "u", "p", "compress"]
     arr["udpServer"] = ["type", "port", "target", "compress"]
     arr["sock5Server"] = ["type", "port", "compress", "u", "p"]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p"]
-    arr["hostServer"] = ["type", "compress"]
+    arr["hostServer"] = ["type", "compress", "u", "p"]
 
     function resetForm() {
         for (var i = 0; i < arr["all"].length; i++) {

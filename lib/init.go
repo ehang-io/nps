@@ -3,7 +3,6 @@ package lib
 import (
 	"errors"
 	"flag"
-	"github.com/astaxie/beego"
 	"log"
 	"reflect"
 	"strings"
@@ -27,7 +26,6 @@ var (
 	RunList      map[string]interface{} //运行中的任务
 	bridge       *Tunnel
 	CsvDb        *Csv
-	//crypt        = GetBoolNoErrFromConfig("crypt")
 )
 
 const cryptKey = "1234567812345678"
@@ -76,13 +74,6 @@ func InitFromCsv() {
 }
 
 func newMode(mode string, bridge *Tunnel, httpPort int, tunnelTarget string, u string, p string, enCompress int, deCompress int, vkey string, crypt string) interface{} {
-	if u == "" || p == "" { //如果web管理或者命令中设置了用户名和密码，则覆盖配置文件
-		u = beego.AppConfig.String("auth.user")
-		p = beego.AppConfig.String("auth.password")
-	}
-	if crypt == "" { //如果web管理或者命令中设置了是否加密，则覆盖配置文件
-		crypt = beego.AppConfig.String("crypt")
-	}
 	bCrypt := GetBoolByStr(crypt)
 	switch mode {
 	case "httpServer":

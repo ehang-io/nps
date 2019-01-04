@@ -195,8 +195,8 @@ func (s *TunnelModeServer) Start() error {
 }
 
 //权限认证
-func (s *TunnelModeServer) auth(r *http.Request, c *Conn) error {
-	if s.basicUser != "" && s.basicPassword != "" && !checkAuth(r, s.basicUser, s.basicPassword) {
+func (s *TunnelModeServer) auth(r *http.Request, c *Conn, u, p string) error {
+	if u != "" && p != "" && !checkAuth(r, u, p) {
 		c.Write([]byte(Unauthorized_BYTES))
 		c.Close()
 		return errors.New("401 Unauthorized")
@@ -237,7 +237,7 @@ func (s *TunnelModeServer) Close() error {
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
 	method, _, rb, err, r := c.GetHost()
 	if err == nil {
-		if err := s.auth(r, c); err != nil {
+		if err := s.auth(r, c, s.basicUser, s.basicPassword); err != nil {
 			return err
 		}
 	}
@@ -251,7 +251,7 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 		c.Close()
 		return err
 	}
-	if err := s.auth(r, c); err != nil {
+	if err := s.auth(r, c, s.basicUser, s.basicPassword); err != nil {
 		return err
 	}
 	return s.dealClient(s.vKey, s.enCompress, s.deCompress, c, addr, method, rb)
@@ -264,10 +264,10 @@ func ProcessHost(c *Conn, s *TunnelModeServer) error {
 		c.Close()
 		return err
 	}
-	if err := s.auth(r, c); err != nil {
+	host, task, err := getKeyByHost(addr)
+	if err := s.auth(r, c, task.U, task.P); err != nil {
 		return err
 	}
-	host, task, err := getKeyByHost(addr)
 	if err != nil {
 		c.Close()
 		return err

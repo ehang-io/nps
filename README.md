@@ -353,16 +353,12 @@ httpport | 代理的http端口（socks5连接端口）
 u | 验证的用户名
 p | 验证的密码
 
-**说明**：用户名和密码验证模式，仅部分socks5客户端支持，例如proxifer。
+**说明**：用户名和密码验证模式，仅部分socks5客户端支持，例如proxifer。命令行执行加上，web管理模式中可单独配置
 
-默认验证的用户名和密码为/conf/app.conf中的用户名和密码，为空则不验证
-
-如需不同，可在服务端命令后加上
 
 ```
 -u=user -p=password
 ```
-即可，将会覆盖/conf/app.conf中的配置
 
 - 客户端
 
@@ -387,8 +383,8 @@ p | 验证的密码
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/httpProxy.png?raw=true)
 
 
-### 使用 
-- 服务端 
+### 使用
+- 服务端
 
 ```
 ./easyProxy -mode=httpProxyServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
@@ -434,12 +430,11 @@ httpport | http代理连接端口
 如果公司内网防火墙对外网访问进行了流量识别与屏蔽，例如禁止了ssh协议等，通过设置 配置文件，将服务端与客户端之间的通信内容加密传输，将会有效防止流量被拦截。
 
 
-- 在server端加上参数 -crypt=1（或在web管理中设置），例如在TCP隧道模式
+- 在server端加上参数 -crypt=1（或在web管理中设置）
 ```
-./easyProxy -mode tunnelServer -vkey DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80 -crypt=1
+-crypt=1
 ```
 
-**注意：** 优先级：命令行或者web管理设置>配置文件
 
 
 ## 站点保护
@@ -447,9 +442,12 @@ httpport | http代理连接端口
 
 easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需要通过用户名和密码才能访问到你的服务。
 
-该功能目前可以在 域名代理模式、http代理请求模式、http代理模式 中使用，需要在/conf/app.conf或者命令行或者webg管理中设置，请按照自己选择的使用方式设置则可。
+目前支持使用tcp协议的web站点保护，命令行运行时可设置
+```
+-u=user -p=password
+```
 
-**注意：** 优先级：命令行或者web管理设置>配置文件，为空则表示无需验证
+web管理中也可配置
 
 
 
@@ -461,9 +459,6 @@ easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需�
 httpport | web管理端口
 password | web界面管理密码
 hostPort | 域名代理模式监听端口
-auth.user | 验证用户名（socks5、http代理、http代理请求、域名代理模式）
-auth.password | 验证密码（socks5、http代理、http代理请求、域名代理模式）
-crypt | 是否加密传输（全局控制）
 
 
 ## 操作系统支持

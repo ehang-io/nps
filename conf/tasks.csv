@@ -1,2 +1,3 @@
-0,hostServer,,ts08z6vk5nc72fs8,,,,1,0
-8001,tunnelServer,127.0.0.1:88,jq5i7n0sjs1h0jje,,,,1,1
+0,hostServer,,ts08z6vk5nc72fs8,aaa,bbb,,1,0
+0,hostServer,,7n7bxc2bm1fyjfab,a,b,,1,0
+8001,tunnelServer,127.0.0.1:88,jq5i7n0sjs1h0jje,aaa,bbb,,1,1
