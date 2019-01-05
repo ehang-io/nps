@@ -34,6 +34,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 - [x] 强大的web管理界面，可方便的设置的和管理隧道
 - [x] 支持站点密码保护
 - [x] 支持加密传输
+- [x] 支持TCP多路复用
 - [x] 支持同时开多条tcp、udp隧道等等，且只需要开一个客户端和服务端
 - [x] 支持一个服务端，多个客户端模式
 
@@ -49,6 +50,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 8. [数据压缩支持](#数据压缩支持)
 9. [站点密码保护](#站点保护)
 10. [加密传输](#加密传输)
+11. [TCP多路复用](#多路复用)
 11. [配置文件说明](#配置文件)
 
 ## 安装
@@ -140,8 +142,8 @@ tcpport | 服务端与客户端通信端口
 
 在家里能够通过访问VPS的8024端口访问到内网机器A的80端口
 
-### 使用 
-- 服务端 
+### 使用
+- 服务端
 
 ```
 ./easyProxy -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
@@ -194,8 +196,8 @@ server {
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/udp.png?raw=true)
 
 
-### 使用 
-- 服务端 
+### 使用
+- 服务端
 
 ```
 ./easyProxy -mode=udpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=53 -target=10.1.50.210:53
@@ -232,8 +234,8 @@ target | 目标地址，格式如上
 - 访问a.server.com和访问10.1.50.203的80端口相同
 - 访问b.server.com和访问10.1.50.202的80端口相同
 - 访问c.server.com和访问10.1.50.201的80端口相同
-### 使用 
-- 服务端 
+### 使用
+- 服务端
 
 ```
 ./easyProxy -mode=httpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
@@ -337,11 +339,11 @@ server {
 主要用于socks5代理，也就是和ss类似，不过是代理内网。使用此模式时，可在非内网环境下配置本机的socks5代理（服务器ip、sock5代理端口），即可实现socks5代理，达到访问内网的网站的效果，配合proxifer等全局代理软件，即可如同使用内网vpn一样，访问内网网站，通过ssh连接内网机器等等……。
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/sock5.png?raw=true)
 
-### 使用 
-- 服务端 
+### 使用
+- 服务端
 
 ```
-./easyProxy -mode=sock5ServerServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+./easyProxy -mode=socks5Server -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
 ```
 
 名称 | 含义
@@ -422,7 +424,7 @@ httpport | http代理连接端口
 
 - 在server端加上参数 -compress=snappy（或在web中设置），例如在TCP隧道模式
 ```
-./easyProxy -mode tunnelServer -vkey DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80 -compress=snappy
+./easyProxy -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80 -compress=snappy
 ```
 
 ## 加密传输
@@ -430,11 +432,21 @@ httpport | http代理连接端口
 如果公司内网防火墙对外网访问进行了流量识别与屏蔽，例如禁止了ssh协议等，通过设置 配置文件，将服务端与客户端之间的通信内容加密传输，将会有效防止流量被拦截。
 
 
-- 在server端加上参数 -crypt=1（或在web管理中设置）
+- 在server端加上参数 -crypt=true（或在web管理中设置）
 ```
--crypt=1
+-crypt=true
 ```
 
+## 多路复用
+
+客户端和服务器端之间的连接支持多路复用，不再需要为每一个用户请求创建一个连接，使连接建立的延迟降低，并且避免了大量文件描述符的占用。
+
+
+- 在server端加上参数 -mux=true（或在web管理中设置）
+
+```
+-mux=true
+```
 
 
 ## 站点保护
