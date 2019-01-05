@@ -27,6 +27,7 @@ const (
 	COMPRESS_NONE_DECODE
 	COMPRESS_SNAPY_ENCODE
 	COMPRESS_SNAPY_DECODE
+	IO_EOF = "EOF"
 )
 
 //error
@@ -130,19 +131,35 @@ func replaceHost(resp []byte) []byte {
 }
 
 //copy
-func relay(in, out *Conn, compressType int, crypt bool) {
+func relay(in, out *Conn, compressType int, crypt, mux bool) {
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
 		copyBuffer(NewSnappyConn(in.conn, crypt), out)
+		if mux {
+			NewSnappyConn(in.conn, crypt).Write([]byte(IO_EOF))
+			out.Close()
+		}
 	case COMPRESS_SNAPY_DECODE:
 		copyBuffer(in, NewSnappyConn(out.conn, crypt))
+		if mux {
+			in.Close()
+		}
 	case COMPRESS_NONE_ENCODE:
 		copyBuffer(NewCryptConn(in.conn, crypt), out)
+		if mux {
+			NewCryptConn(in.conn, crypt).Write([]byte(IO_EOF))
+			out.Close()
+		}
 	case COMPRESS_NONE_DECODE:
 		copyBuffer(in, NewCryptConn(out.conn, crypt))
+		if mux {
+			in.Close()
+		}
 	}
-	out.Close()
-	in.Close()
+	if !mux {
+		in.Close()
+		out.Close()
+	}
 }
 
 //判断压缩方式
@@ -183,7 +200,7 @@ func verify(verifyKeyMd5 string) bool {
 }
 
 //get key by host from x
-func getKeyByHost(host string) (h *HostList, t *TaskList, err error) {
+func getKeyByHost(host string) (h *HostList, t *ServerConfig, err error) {
 	for _, v := range CsvDb.Hosts {
 		if strings.Contains(host, v.Host) {
 			h = v
@@ -257,6 +274,10 @@ func GetStrByBool(b bool) string {
 		return "1"
 	}
 	return "0"
+}
+func GetIntNoerrByStr(str string) int {
+	i, _ := strconv.Atoi(str)
+	return i
 }
 
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改

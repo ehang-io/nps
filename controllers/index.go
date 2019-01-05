@@ -43,10 +43,10 @@ func (s *IndexController) Host() {
 	s.display("index/list")
 }
 
-func (s *IndexController) GetTaskList() {
+func (s *IndexController) GetServerConfig() {
 	start, length := s.GetAjaxParams()
 	taskType := s.GetString("type")
-	list, cnt := lib.CsvDb.GetTaskList(start, length, taskType)
+	list, cnt := lib.CsvDb.GetServerConfig(start, length, taskType)
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -56,7 +56,7 @@ func (s *IndexController) Add() {
 		s.SetInfo("新增")
 		s.display()
 	} else {
-		t := &lib.TaskList{
+		t := &lib.ServerConfig{
 			TcpPort:   s.GetIntNoErr("port"),
 			Mode:      s.GetString("type"),
 			Target:    s.GetString("target"),
@@ -64,7 +64,8 @@ func (s *IndexController) Add() {
 			U:         s.GetString("u"),
 			P:         s.GetString("p"),
 			Compress:  s.GetString("compress"),
-			Crypt:     s.GetString("crypt"),
+			Crypt:     lib.GetBoolByStr(s.GetString("crypt")),
+			Mux:     lib.GetBoolByStr(s.GetString("mux")),
 			IsRun:     0,
 		}
 		lib.CsvDb.NewTask(t)
@@ -97,7 +98,8 @@ func (s *IndexController) Edit() {
 			t.U = s.GetString("u")
 			t.P = s.GetString("p")
 			t.Compress = s.GetString("compress")
-			t.Crypt = s.GetString("crypt")
+			t.Crypt = lib.GetBoolByStr(s.GetString("crypt"))
+			t.Mux = lib.GetBoolByStr(s.GetString("mux"))
 			lib.CsvDb.UpdateTask(t)
 			lib.StopServer(t.VerifyKey)
 			lib.StartTask(t.VerifyKey)

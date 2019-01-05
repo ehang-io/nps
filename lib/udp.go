@@ -9,33 +9,23 @@ import (
 )
 
 type UdpModeServer struct {
-	bridge       *Tunnel
-	udpPort      int    //监听的udp端口
-	tunnelTarget string //udp目标地址
-	listener     *net.UDPConn
-	udpMap       map[string]*Conn
-	enCompress   int
-	deCompress   int
-	vKey         string
-	crypt        bool
+	bridge   *Tunnel
+	listener *net.UDPConn
+	udpMap   map[string]*Conn
+	config   *ServerConfig
 }
 
-func NewUdpModeServer(udpPort int, tunnelTarget string, bridge *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *UdpModeServer {
+func NewUdpModeServer(bridge *Tunnel, cnf *ServerConfig) *UdpModeServer {
 	s := new(UdpModeServer)
-	s.udpPort = udpPort
-	s.tunnelTarget = tunnelTarget
 	s.bridge = bridge
 	s.udpMap = make(map[string]*Conn)
-	s.enCompress = enCompress
-	s.deCompress = deCompress
-	s.vKey = vKey
-	s.crypt = crypt
+	s.config = cnf
 	return s
 }
 
 //开始
 func (s *UdpModeServer) Start() error {
-	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.udpPort, ""})
+	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.config.TcpPort, ""})
 	if err != nil {
 		return err
 	}
@@ -55,20 +45,25 @@ func (s *UdpModeServer) Start() error {
 
 //TODO:效率问题有待解决
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	conn, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
+	conn, err := s.bridge.GetTunnel(getverifyval(s.config.VerifyKey), s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	if _, err := conn.WriteHost(CONN_UDP, s.tunnelTarget); err != nil {
+	if _, err := conn.WriteHost(CONN_UDP, s.config.Target); err != nil {
 		conn.Close()
 		return
 	}
-	conn.WriteTo(data, s.enCompress,s.crypt)
+	conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt)
 	go func(addr *net.UDPAddr, conn *Conn) {
+		defer func() {
+			if s.config.Mux {
+				s.bridge.ReturnTunnel(conn, getverifyval(s.config.VerifyKey))
+			}
+		}()
 		buf := make([]byte, 1024)
 		conn.conn.SetReadDeadline(time.Now().Add(time.Duration(time.Second * 3)))
-		n, err := conn.ReadFrom(buf, s.deCompress,s.crypt)
+		n, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt)
 		if err != nil || err == io.EOF {
 			conn.Close()
 			return

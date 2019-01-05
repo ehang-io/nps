@@ -44,16 +44,10 @@ const (
 )
 
 type Sock5ModeServer struct {
-	bridge     *Tunnel
-	httpPort   int
-	u          string //用户名
-	p          string //密码
-	enCompress int
-	deCompress int
-	isVerify   bool
-	listener   net.Listener
-	vKey       string
-	crypt      bool
+	bridge   *Tunnel
+	isVerify bool
+	listener net.Listener
+	config   *ServerConfig
 }
 
 //req
@@ -140,10 +134,9 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	binary.Read(c, binary.BigEndian, &port)
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
-	client, err := s.bridge.GetTunnel(getverifyval(s.vKey), s.enCompress, s.deCompress, s.crypt)
+	client, err := s.bridge.GetTunnel(getverifyval(s.config.VerifyKey), s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	if err != nil {
 		log.Println(err)
-		client.Close()
 		return
 	}
 	s.sendReply(c, succeeded)
@@ -164,8 +157,11 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 		log.Println(err)
 		c.Close()
 	} else {
-		go relay(proxyConn, NewConn(c), s.enCompress, s.crypt)
-		go relay(NewConn(c), proxyConn, s.deCompress, s.crypt)
+		go relay(proxyConn, NewConn(c), s.config.CompressEncode, s.config.Crypt, s.config.Mux)
+		relay(NewConn(c), proxyConn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		if s.config.Mux {
+			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
+		}
 	}
 
 }
@@ -198,8 +194,11 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		go relay(proxyConn, NewConn(c), s.enCompress, s.crypt)
-		go relay(NewConn(c), proxyConn, s.deCompress, s.crypt)
+		go relay(proxyConn, NewConn(c), s.config.CompressEncode, s.config.Crypt, s.config.Mux)
+		relay(NewConn(c), proxyConn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		if s.config.Mux {
+			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
+		}
 	}
 }
 
@@ -262,7 +261,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	if _, err := io.ReadAtLeast(c, pass, passLen); err != nil {
 		return err
 	}
-	if string(pass) == s.p && string(user) == s.u {
+	if string(pass) == s.config.U && string(user) == s.config.P {
 		if _, err := c.Write([]byte{userAuthVersion, authSuccess}); err != nil {
 			return err
 		}
@@ -278,7 +277,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 
 //start
 func (s *Sock5ModeServer) Start() error {
-	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.httpPort))
+	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.config.TcpPort))
 	if err != nil {
 		return err
 	}
@@ -301,20 +300,14 @@ func (s *Sock5ModeServer) Close() error {
 }
 
 //new
-func NewSock5ModeServer(httpPort int, u, p string, brige *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *Sock5ModeServer {
+func NewSock5ModeServer(bridge *Tunnel, cnf *ServerConfig) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
-	s.httpPort = httpPort
-	s.bridge = brige
-	if u != "" && p != "" {
+	s.bridge = bridge
+	s.config = cnf
+	if s.config.U != "" && s.config.P != "" {
 		s.isVerify = true
-		s.u = u
-		s.p = p
 	} else {
 		s.isVerify = false
 	}
-	s.enCompress = enCompress
-	s.deCompress = deCompress
-	s.vKey = vKey
-	s.crypt = crypt
 	return s
 }

@@ -16,11 +16,12 @@ var (
 	rpMode       = flag.String("mode", "client", "启动模式")
 	tunnelTarget = flag.String("target", "10.1.50.203:80", "远程目标")
 	verifyKey    = flag.String("vkey", "", "验证密钥")
-	u            = flag.String("u", "", "socks5验证用户名")
-	p            = flag.String("p", "", "socks5验证密码")
+	u            = flag.String("u", "", "验证用户名(socks5和web)")
+	p            = flag.String("p", "", "验证密码(socks5和web)")
 	compress     = flag.String("compress", "", "数据压缩方式（snappy）")
 	serverAddr   = flag.String("server", "", "服务器地址ip:端口")
-	crypt        = flag.String("crypt", "", "是否加密(1|0)")
+	crypt        = flag.String("crypt", "false", "是否加密(true|false)")
+	mux          = flag.String("mux", "false", "是否TCP多路复用(true|false)")
 	config       Config
 	err          error
 	RunList      map[string]interface{} //运行中的任务
@@ -36,7 +37,6 @@ func init() {
 
 func InitMode() {
 	flag.Parse()
-	de, en := getCompressType(*compress)
 	if *rpMode == "client" {
 		JsonParse := NewJsonStruct()
 		if config, err = JsonParse.Load(*configPath); err != nil {
@@ -54,7 +54,25 @@ func InitMode() {
 			log.Fatalln("服务端开启失败", err)
 		}
 		log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
-		if svr := newMode(*rpMode, bridge, *httpPort, *tunnelTarget, *u, *p, en, de, *verifyKey, *crypt); svr != nil {
+		cnf := ServerConfig{
+			TcpPort:        *httpPort,
+			Mode:           *rpMode,
+			Target:         *tunnelTarget,
+			VerifyKey:      *verifyKey,
+			U:              *u,
+			P:              *p,
+			Compress:       *compress,
+			Start:          0,
+			IsRun:          0,
+			ClientStatus:   0,
+			Crypt:          GetBoolByStr(*crypt),
+			Mux:            GetBoolByStr(*mux),
+			CompressEncode: 0,
+			CompressDecode: 0,
+		}
+		cnf.CompressDecode, cnf.CompressEncode = getCompressType(cnf.Compress)
+		if svr := newMode(bridge, &cnf);
+			svr != nil {
 			reflect.ValueOf(svr).MethodByName("Start").Call(nil)
 		} else {
 			log.Fatalln("启动模式不正确")
@@ -73,26 +91,25 @@ func InitFromCsv() {
 	}
 }
 
-func newMode(mode string, bridge *Tunnel, httpPort int, tunnelTarget string, u string, p string, enCompress int, deCompress int, vkey string, crypt string) interface{} {
-	bCrypt := GetBoolByStr(crypt)
-	switch mode {
+func newMode(bridge *Tunnel, config *ServerConfig) interface{} {
+	switch config.Mode {
 	case "httpServer":
-		return NewHttpModeServer(httpPort, bridge, enCompress, deCompress, vkey, bCrypt)
+		return NewHttpModeServer(bridge, config)
 	case "tunnelServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessTunnel, bridge, enCompress, deCompress, vkey, u, p, bCrypt)
-	case "sock5Server":
-		return NewSock5ModeServer(httpPort, u, p, bridge, enCompress, deCompress, vkey, bCrypt)
+		return NewTunnelModeServer(ProcessTunnel, bridge, config)
+	case "socks5Server":
+		return NewSock5ModeServer(bridge, config)
 	case "httpProxyServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHttp, bridge, enCompress, deCompress, vkey, u, p, bCrypt)
+		return NewTunnelModeServer(ProcessHttp, bridge, config)
 	case "udpServer":
-		return NewUdpModeServer(httpPort, tunnelTarget, bridge, enCompress, deCompress, vkey, bCrypt)
+		return NewUdpModeServer(bridge, config)
 	case "webServer":
 		InitCsvDb()
 		return NewWebServer(bridge)
 	case "hostServer":
-		return NewHostServer(bCrypt)
+		return NewHostServer(config)
 	case "httpHostServer":
-		return NewTunnelModeServer(httpPort, tunnelTarget, ProcessHost, bridge, enCompress, deCompress, vkey, u, p, bCrypt)
+		return NewTunnelModeServer(ProcessHost, bridge, config)
 	}
 	return nil
 }
@@ -116,9 +133,9 @@ func StopServer(cFlag string) error {
 	return errors.New("未在运行中")
 }
 
-func AddTask(t *TaskList) error {
-	de, en := getCompressType(t.Compress)
-	if svr := newMode(t.Mode, bridge, t.TcpPort, t.Target, t.U, t.P, en, de, t.VerifyKey, t.Crypt); svr != nil {
+func AddTask(t *ServerConfig) error {
+	t.CompressDecode, t.CompressEncode = getCompressType(t.Compress)
+	if svr := newMode(bridge, t); svr != nil {
 		RunList[t.VerifyKey] = svr
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]

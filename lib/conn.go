@@ -45,6 +45,12 @@ func (s *CryptConn) Write(b []byte) (n int, err error) {
 
 //解密读
 func (s *CryptConn) Read(b []byte) (n int, err error) {
+	defer func() {
+		if string(b[:n]) == IO_EOF {
+			err = io.EOF
+			n = 0
+		}
+	}()
 	if s.crypt {
 		var lens int
 		var buf, bs []byte
@@ -62,7 +68,8 @@ func (s *CryptConn) Read(b []byte) (n int, err error) {
 		copy(b, bs)
 		return
 	}
-	return s.conn.Read(b)
+	n, err = s.conn.Read(b)
+	return
 }
 
 type SnappyConn struct {
@@ -97,6 +104,12 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 
 //snappy压缩读 包含解密
 func (s *SnappyConn) Read(b []byte) (n int, err error) {
+	defer func() {
+		if string(b[:n]) == IO_EOF {
+			err = io.EOF
+			n = 0
+		}
+	}()
 	if n, err = s.r.Read(b); err != nil {
 		return
 	}
@@ -160,14 +173,14 @@ func (s *Conn) ReadFlag() (string, error) {
 }
 
 //读取host 连接地址 压缩类型
-func (s *Conn) GetHostFromConn() (typeStr string, host string, en, de int, crypt bool, err error) {
+func (s *Conn) GetHostFromConn() (typeStr string, host string, en, de int, crypt, mux bool, err error) {
 retry:
 	lType, err := s.ReadLen(3)
 	if err != nil {
 		return
 	}
 	if typeStr = string(lType); typeStr == TEST_FLAG {
-		en, de, crypt = s.GetConnInfoFromConn()
+		en, de, crypt, mux = s.GetConnInfoFromConn()
 		goto retry
 	}
 	cLen, err := s.GetLen()
@@ -245,13 +258,13 @@ func (s *Conn) WriteTo(b []byte, compress int, crypt bool) (n int, err error) {
 }
 
 //写压缩方式，加密
-func (s *Conn) WriteConnInfo(en, de int, crypt bool) {
-	s.Write([]byte(strconv.Itoa(en) + strconv.Itoa(de) + GetStrByBool(crypt)))
+func (s *Conn) WriteConnInfo(en, de int, crypt, mux bool) {
+	s.Write([]byte(strconv.Itoa(en) + strconv.Itoa(de) + GetStrByBool(crypt) + GetStrByBool(mux)))
 }
 
 //获取压缩方式，是否加密
-func (s *Conn) GetConnInfoFromConn() (en, de int, crypt bool) {
-	buf, err := s.ReadLen(3)
+func (s *Conn) GetConnInfoFromConn() (en, de int, crypt, mux bool) {
+	buf, err := s.ReadLen(4)
 	//TODO：错误处理
 	if err != nil {
 		return
@@ -259,6 +272,7 @@ func (s *Conn) GetConnInfoFromConn() (en, de int, crypt bool) {
 	en, _ = strconv.Atoi(string(buf[0]))
 	de, _ = strconv.Atoi(string(buf[1]))
 	crypt = GetBoolByStr(string(buf[2]))
+	mux = GetBoolByStr(string(buf[3]))
 	return
 }
 

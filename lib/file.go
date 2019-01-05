@@ -10,18 +10,21 @@ import (
 	"strconv"
 )
 
-type TaskList struct {
-	TcpPort      int    //服务端与客户端通信端口
-	Mode         string //启动方式
-	Target       string //目标
-	VerifyKey    string //flag
-	U            string //socks5验证用户名
-	P            string //socks5验证密码
-	Compress     string //压缩方式
-	Start        int    //是否开启
-	IsRun        int    //是否在运行
-	ClientStatus int    //客户端状态
-	Crypt        string //是否加密
+type ServerConfig struct {
+	TcpPort        int    //服务端与客户端通信端口
+	Mode           string //启动方式
+	Target         string //目标
+	VerifyKey      string //flag
+	U              string //socks5验证用户名
+	P              string //socks5验证密码
+	Compress       string //压缩方式
+	Start          int    //是否开启
+	IsRun          int    //是否在运行
+	ClientStatus   int    //客s户端状态
+	Crypt          bool   //是否加密
+	Mux            bool   //是否加密
+	CompressEncode int
+	CompressDecode int
 }
 
 type HostList struct {
@@ -39,7 +42,7 @@ func NewCsv(path string, bridge *Tunnel, runList map[string]interface{}) *Csv {
 }
 
 type Csv struct {
-	Tasks   []*TaskList
+	Tasks   []*ServerConfig
 	Path    string
 	Bridge  *Tunnel
 	RunList map[string]interface{}
@@ -69,7 +72,10 @@ func (s *Csv) StoreTasksToCsv() {
 			task.P,
 			task.Compress,
 			strconv.Itoa(task.Start),
-			task.Crypt,
+			GetStrByBool(task.Crypt),
+			GetStrByBool(task.Mux),
+			strconv.Itoa(task.CompressEncode),
+			strconv.Itoa(task.CompressDecode),
 		}
 		err := writer.Write(record)
 		if err != nil {
@@ -98,21 +104,24 @@ func (s *Csv) LoadTaskFromCsv() {
 	if err != nil {
 		panic(err)
 	}
-	var tasks []*TaskList
+	var tasks []*ServerConfig
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		tcpPort, _ := strconv.Atoi(item[0])
 		Start, _ := strconv.Atoi(item[7])
-		post := &TaskList{
-			TcpPort:   tcpPort,
-			Mode:      item[1],
-			Target:    item[2],
-			VerifyKey: item[3],
-			U:         item[4],
-			P:         item[5],
-			Compress:  item[6],
-			Start:     Start,
-			Crypt:     item[8],
+		post := &ServerConfig{
+			TcpPort:        tcpPort,
+			Mode:           item[1],
+			Target:         item[2],
+			VerifyKey:      item[3],
+			U:              item[4],
+			P:              item[5],
+			Compress:       item[6],
+			Start:          Start,
+			Crypt:          GetBoolByStr(item[8]),
+			Mux:            GetBoolByStr(item[9]),
+			CompressEncode: GetIntNoerrByStr(item[10]),
+			CompressDecode: GetIntNoerrByStr(item[11]),
 		}
 		tasks = append(tasks, post)
 	}
@@ -177,8 +186,8 @@ func (s *Csv) LoadHostFromCsv() {
 	s.Hosts = hosts
 }
 
-func (s *Csv) GetTaskList(start, length int, typeVal string) ([]*TaskList, int) {
-	list := make([]*TaskList, 0)
+func (s *Csv) GetServerConfig(start, length int, typeVal string) ([]*ServerConfig, int) {
+	list := make([]*ServerConfig, 0)
 	var cnt int
 	for _, v := range s.Tasks {
 		if v.Mode != typeVal {
@@ -209,12 +218,12 @@ func (s *Csv) GetTaskList(start, length int, typeVal string) ([]*TaskList, int) 
 	return list, cnt
 }
 
-func (s *Csv) NewTask(t *TaskList) {
+func (s *Csv) NewTask(t *ServerConfig) {
 	s.Tasks = append(s.Tasks, t)
 	s.StoreTasksToCsv()
 }
 
-func (s *Csv) UpdateTask(t *TaskList) error {
+func (s *Csv) UpdateTask(t *ServerConfig) error {
 	for k, v := range s.Tasks {
 		if v.VerifyKey == t.VerifyKey {
 			s.Tasks = append(s.Tasks[:k], s.Tasks[k+1:]...)
@@ -246,7 +255,7 @@ func (s *Csv) DelTask(vKey string) error {
 	return errors.New("不存在")
 }
 
-func (s *Csv) GetTask(vKey string) (v *TaskList, err error) {
+func (s *Csv) GetTask(vKey string) (v *ServerConfig, err error) {
 	for _, v = range s.Tasks {
 		if v.VerifyKey == vKey {
 			return

@@ -141,8 +141,8 @@ retry:
 }
 
 //得到一个tcp隧道
-func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt bool) (c *Conn, err error) {
-	if v, ok := s.tunnelList[cFlag]; !ok || v.Len() < 10 { //新建通道
+func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt, mux bool) (c *Conn, err error) {
+	if v, ok := s.tunnelList[cFlag]; !ok || v.Len() < 3 { //新建通道
 		go s.newChan(cFlag)
 	}
 retry:
@@ -150,11 +150,11 @@ retry:
 		return
 	}
 	c = s.tunnelList[cFlag].Pop()
-	if _, err := c.wTest(); err != nil {
+	if _, err = c.wTest(); err != nil {
 		c.Close()
 		goto retry
 	}
-	c.WriteConnInfo(en, de, crypt)
+	c.WriteConnInfo(en, de, crypt, mux)
 	return
 }
 
@@ -171,6 +171,13 @@ func (s *Tunnel) GetSignal(cFlag string) (err error, conn *Conn) {
 //重回slice 复用
 func (s *Tunnel) ReturnSignal(conn *Conn, cFlag string) {
 	if v, ok := s.signalList[cFlag]; ok {
+		v.Add(conn)
+	}
+}
+
+//重回slice 复用
+func (s *Tunnel) ReturnTunnel(conn *Conn, cFlag string) {
+	if v, ok := s.tunnelList[cFlag]; ok {
 		v.Add(conn)
 	}
 }

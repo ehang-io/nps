@@ -102,27 +102,43 @@ func (s *TRPClient) dealChan() error {
 	c.SetAlive()
 	//写标志
 	c.wChan()
+re:
 	//获取连接的host type(tcp or udp)
-	typeStr, host, en, de, crypt, err := c.GetHostFromConn()
+	typeStr, host, en, de, crypt, mux, err := c.GetHostFromConn()
 	if err != nil {
 		log.Println("get host info error:", err)
 		return err
 	}
-	//与目标建立连接
-	server, err := net.Dial(typeStr, host)
+	//与目标建立连接,超时时间为3
+	server, err := net.DialTimeout(typeStr, host, time.Second*3)
 	if err != nil {
-		log.Println("connect to ", host, "error:", err)
+		log.Println("connect to ", host, "error:", err, mux)
+		if mux {
+			s.sendEof(conn, de, crypt)
+			goto re
+		}
 		return err
 	}
-	go relay(NewConn(server), c, de, crypt)
-	relay(c, NewConn(server), en, crypt)
+	go relay(NewConn(server), c, de, crypt, mux)
+	relay(c, NewConn(server), en, crypt, mux)
+	if mux {
+		goto re
+	}
 	return nil
+}
+func (s *TRPClient) sendEof(c net.Conn, de int, crypt bool) {
+	switch de {
+	case COMPRESS_SNAPY_DECODE:
+		NewSnappyConn(c, crypt).Write([]byte(IO_EOF))
+	case COMPRESS_NONE_DECODE:
+		NewCryptConn(c, crypt).Write([]byte(IO_EOF))
+	}
 }
 
 //http模式处理
 func (s *TRPClient) dealHttp(c *Conn) error {
 	buf := make([]byte, 1024*32)
-	en, de, crypt := c.GetConnInfoFromConn()
+	en, de, crypt, _ := c.GetConnInfoFromConn()
 	n, err := c.ReadFrom(buf, de, crypt)
 	if err != nil {
 		c.wError()

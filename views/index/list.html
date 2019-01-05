@@ -11,6 +11,7 @@
                         <th>多客户端模式客户端执行命令</th>
                         <th>压缩方式</th>
                         <th>加密传输</th>
+                        <th>TCP多路复用</th>
                         <th>用户名</th>
                         <th>密码</th>
                         <th>客户端状态</th>
@@ -97,7 +98,7 @@
             autoWidth: false,
             ordering: false,
             ajax: {
-                url: '/index/gettasklist?type={{.type}}',
+                url: '/index/getserverconfig?type={{.type}}',
                 type: 'POST'
             },
             dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
@@ -108,6 +109,7 @@
                 {data: 'VerifyKey'},
                 {data: 'Compress'},
                 {data: 'Crypt'},
+                {data: 'Mux'},
                 {data: 'U'},
                 {data: 'P'},
                 {data: 'ClientStatus'},
@@ -149,7 +151,7 @@
                     }
                 },
                 {
-                    targets: -6,
+                    targets: -7,
                     render: function (data, type, row, meta) {
                         if (data == "0") {
                             return "不加密"
@@ -158,6 +160,17 @@
                         }
                     }
                 },
+                {
+                    targets: -6,
+                    render: function (data, type, row, meta) {
+                        if (data == "0") {
+                            return "不启用"
+                        } else {
+                            return "启用"
+                        }
+                    }
+                }
+                ,
                 {
                     targets: 2,
                     render: function (data, type, row, meta) {

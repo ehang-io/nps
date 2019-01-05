@@ -33,23 +33,15 @@ WWW-Authenticate: Basic realm="easyProxy"
 type process func(c *Conn, s *TunnelModeServer) error
 
 type HttpModeServer struct {
-	bridge     *Tunnel
-	httpPort   int
-	enCompress int
-	deCompress int
-	vKey       string
-	crypt      bool
+	bridge *Tunnel
+	config *ServerConfig
 }
 
 //http
-func NewHttpModeServer(httpPort int, bridge *Tunnel, enCompress int, deCompress int, vKey string, crypt bool) *HttpModeServer {
+func NewHttpModeServer(bridge *Tunnel, cnf *ServerConfig) *HttpModeServer {
 	s := new(HttpModeServer)
 	s.bridge = bridge
-	s.httpPort = httpPort
-	s.enCompress = enCompress
-	s.deCompress = deCompress
-	s.vKey = vKey
-	s.crypt = crypt
+	s.config = cnf
 	return s
 }
 
@@ -65,7 +57,7 @@ func (s *HttpModeServer) Start() {
 			w.Write([]byte("401 Unauthorized\n"))
 			return
 		}
-		err, conn := s.bridge.GetSignal(getverifyval(s.vKey))
+		err, conn := s.bridge.GetSignal(getverifyval(s.config.VerifyKey))
 		if err != nil {
 			BadRequest(w)
 			return
@@ -83,9 +75,9 @@ func (s *HttpModeServer) Start() {
 			goto retry
 			return
 		}
-		s.bridge.ReturnSignal(conn, getverifyval(s.vKey))
+		s.bridge.ReturnSignal(conn, getverifyval(s.config.VerifyKey))
 	})
-	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", s.httpPort), nil))
+	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", s.config.TcpPort), nil))
 }
 
 //req转为bytes发送给client端
@@ -95,8 +87,8 @@ func (s *HttpModeServer) writeRequest(r *http.Request, conn *Conn) error {
 		return err
 	}
 	conn.wSign()
-	conn.WriteConnInfo(s.enCompress, s.deCompress, s.crypt)
-	c, err := conn.WriteTo(raw, s.enCompress, s.crypt)
+	conn.WriteConnInfo(s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+	c, err := conn.WriteTo(raw, s.config.CompressEncode, s.config.Crypt)
 	if err != nil {
 		return err
 	}
@@ -115,7 +107,7 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 	switch flags {
 	case RES_SIGN:
 		buf := make([]byte, 1024*1024*32)
-		n, err := c.ReadFrom(buf, s.deCompress, s.crypt)
+		n, err := c.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt)
 		if err != nil {
 			return err
 		}
@@ -145,38 +137,24 @@ func (s *HttpModeServer) writeResponse(w http.ResponseWriter, c *Conn) error {
 }
 
 type TunnelModeServer struct {
-	httpPort      int
-	tunnelTarget  string
-	process       process
-	bridge        *Tunnel
-	listener      *net.TCPListener
-	enCompress    int
-	deCompress    int
-	basicUser     string
-	basicPassword string
-	vKey          string
-	crypt         bool
+	process  process
+	bridge   *Tunnel
+	config   *ServerConfig
+	listener *net.TCPListener
 }
 
 //tcp|http|host
-func NewTunnelModeServer(httpPort int, tunnelTarget string, process process, bridge *Tunnel, enCompress, deCompress int, vKey, basicUser, basicPasswd string, crypt bool) *TunnelModeServer {
+func NewTunnelModeServer(process process, bridge *Tunnel, cnf *ServerConfig) *TunnelModeServer {
 	s := new(TunnelModeServer)
-	s.httpPort = httpPort
 	s.bridge = bridge
-	s.tunnelTarget = tunnelTarget
 	s.process = process
-	s.enCompress = enCompress
-	s.deCompress = deCompress
-	s.vKey = vKey
-	s.basicUser = basicUser
-	s.basicPassword = basicPasswd
-	s.crypt = crypt
+	s.config = cnf
 	return s
 }
 
 //开始
 func (s *TunnelModeServer) Start() error {
-	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.httpPort, ""})
+	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.config.TcpPort, ""})
 	if err != nil {
 		return err
 	}
@@ -205,14 +183,19 @@ func (s *TunnelModeServer) auth(r *http.Request, c *Conn, u, p string) error {
 }
 
 //与客户端建立通道
-func (s *TunnelModeServer) dealClient(vKey string, en, de int, c *Conn, target string, method string, rb []byte) error {
-	link, err := s.bridge.GetTunnel(getverifyval(vKey), en, de, s.crypt)
+func (s *TunnelModeServer) dealClient(c *Conn, cnf *ServerConfig, addr string, method string, rb []byte) error {
+	link, err := s.bridge.GetTunnel(getverifyval(cnf.VerifyKey), cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+	defer func() {
+		if cnf.Mux {
+			s.bridge.ReturnTunnel(link, getverifyval(cnf.VerifyKey))
+		}
+	}()
 	if err != nil {
 		log.Println(err)
 		c.Close()
 		return err
 	}
-	if _, err := link.WriteHost(CONN_TCP, target); err != nil {
+	if _, err := link.WriteHost(CONN_TCP, addr); err != nil {
 		c.Close()
 		link.Close()
 		log.Println(err)
@@ -221,10 +204,10 @@ func (s *TunnelModeServer) dealClient(vKey string, en, de int, c *Conn, target s
 	if method == "CONNECT" {
 		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
 	} else {
-		link.WriteTo(rb, en, s.crypt)
+		link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt)
 	}
-	go relay(link, c, en, s.crypt)
-	relay(c, link, de, s.crypt)
+	go relay(link, c, cnf.CompressEncode, cnf.Crypt, cnf.Mux)
+	relay(c, link, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
 	return nil
 }
 
@@ -237,11 +220,11 @@ func (s *TunnelModeServer) Close() error {
 func ProcessTunnel(c *Conn, s *TunnelModeServer) error {
 	method, _, rb, err, r := c.GetHost()
 	if err == nil {
-		if err := s.auth(r, c, s.basicUser, s.basicPassword); err != nil {
+		if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
 			return err
 		}
 	}
-	return s.dealClient(s.vKey, s.enCompress, s.deCompress, c, s.tunnelTarget, method, rb)
+	return s.dealClient(c, s.config, s.config.Target, method, rb)
 }
 
 //http代理模式
@@ -251,10 +234,11 @@ func ProcessHttp(c *Conn, s *TunnelModeServer) error {
 		c.Close()
 		return err
 	}
-	if err := s.auth(r, c, s.basicUser, s.basicPassword); err != nil {
+	if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
 		return err
 	}
-	return s.dealClient(s.vKey, s.enCompress, s.deCompress, c, addr, method, rb)
+	//TODO效率问题
+	return s.dealClient(c, s.config, addr, method, rb)
 }
 
 //多客户端域名代理
@@ -272,8 +256,7 @@ func ProcessHost(c *Conn, s *TunnelModeServer) error {
 		c.Close()
 		return err
 	}
-	de, en := getCompressType(task.Compress)
-	return s.dealClient(host.Vkey, en, de, c, host.Target, method, rb)
+	return s.dealClient(c, task, host.Target, method, rb)
 }
 
 //web管理方式
@@ -285,7 +268,7 @@ type WebServer struct {
 func (s *WebServer) Start() {
 	InitFromCsv()
 	p, _ := beego.AppConfig.Int("hostPort")
-	t := &TaskList{
+	t := &ServerConfig{
 		TcpPort:      p,
 		Mode:         "httpHostServer",
 		Target:       "",
@@ -312,7 +295,7 @@ func NewWebServer(bridge *Tunnel) *WebServer {
 
 //host
 type HostServer struct {
-	crypt bool
+	config *ServerConfig
 }
 
 //开始
@@ -321,9 +304,9 @@ func (s *HostServer) Start() error {
 }
 
 //TODO：host模式的客户端，无需指定和监听端口等
-func NewHostServer(crypt bool) *HostServer {
+func NewHostServer(cnf *ServerConfig) *HostServer {
 	s := new(HostServer)
-	s.crypt = crypt
+	s.config = cnf
 	return s
 }
 
