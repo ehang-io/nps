@@ -20,6 +20,8 @@ const (
 	WORK_CHAN          = "chan"
 	RES_SIGN           = "sign"
 	RES_MSG            = "msg0"
+	CONN_SUCCESS       = "sucs"
+	CONN_ERROR         = "fail"
 	TEST_FLAG          = "tst"
 	CONN_TCP           = "tcp"
 	CONN_UDP           = "udp"
@@ -201,13 +203,19 @@ func (s *TunnelModeServer) dealClient(c *Conn, cnf *ServerConfig, addr string, m
 		log.Println(err)
 		return err
 	}
-	if method == "CONNECT" {
-		fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
-	} else {
-		link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt)
+	if flag, err := link.ReadFlag(); err == nil {
+		if flag == CONN_SUCCESS {
+			if method == "CONNECT" {
+				fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
+			} else {
+				link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt)
+			}
+			go relay(link.conn, c.conn, cnf.CompressEncode, cnf.Crypt, cnf.Mux)
+			relay(c.conn, link.conn, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+		} else {
+			c.Close()
+		}
 	}
-	go relay(link, c, cnf.CompressEncode, cnf.Crypt, cnf.Mux)
-	relay(c, link, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
 	return nil
 }
 
@@ -283,6 +291,8 @@ func (s *WebServer) Start() {
 	AddTask(t)
 	beego.BConfig.WebConfig.Session.SessionOn = true
 	log.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
+	beego.SetViewsPath(beego.AppPath + "/views/")
+	beego.SetStaticPath("/static/", beego.AppPath+"/static/")
 	beego.Run()
 }
 

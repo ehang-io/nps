@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"github.com/astaxie/beego"
 	"io/ioutil"
 	"log"
 	"os"
@@ -33,9 +34,8 @@ type HostList struct {
 	Target string //目标
 }
 
-func NewCsv(path string, bridge *Tunnel, runList map[string]interface{}) *Csv {
+func NewCsv(bridge *Tunnel, runList map[string]interface{}) *Csv {
 	c := new(Csv)
-	c.Path = path
 	c.Bridge = bridge
 	c.RunList = runList
 	return c
@@ -56,7 +56,7 @@ func (s *Csv) Init() {
 
 func (s *Csv) StoreTasksToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(s.Path + "tasks.csv")
+	csvFile, err := os.Create(beego.AppPath + "/conf/tasks.csv")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -87,7 +87,7 @@ func (s *Csv) StoreTasksToCsv() {
 
 func (s *Csv) LoadTaskFromCsv() {
 	// 打开文件
-	file, err := os.Open(s.Path + "tasks.csv")
+	file, err := os.Open(beego.AppPath + "/conf/tasks.csv")
 	if err != nil {
 		panic(err)
 	}
@@ -156,7 +156,7 @@ func (s *Csv) StoreHostToCsv() {
 
 func (s *Csv) LoadHostFromCsv() {
 	// 打开文件
-	file, err := os.Open(s.Path + "hosts.csv")
+	file, err := os.Open(beego.AppPath + "/conf/hosts.csv")
 	if err != nil {
 		panic(err)
 	}

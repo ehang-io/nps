@@ -72,7 +72,7 @@ func (s *TRPClient) process(c *Conn) error {
 				return err
 			}
 		case WORK_CHAN: //隧道模式，每次开启10个，加快连接速度
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 5; i++ {
 				go s.dealChan()
 			}
 		case RES_MSG:
@@ -85,17 +85,18 @@ func (s *TRPClient) process(c *Conn) error {
 }
 
 //隧道模式处理
-func (s *TRPClient) dealChan() error {
+func (s *TRPClient) dealChan() {
+	var err error
 	//创建一个tcp连接
 	conn, err := net.Dial("tcp", s.svrAddr)
 	if err != nil {
 		log.Println("connect to ", s.svrAddr, "error:", err)
-		return err
+		return
 	}
 	//验证
 	if _, err := conn.Write([]byte(getverifyval(s.vKey))); err != nil {
 		log.Println("connect to ", s.svrAddr, "error:", err)
-		return err
+		return
 	}
 	//默认长连接保持
 	c := NewConn(conn)
@@ -107,31 +108,24 @@ re:
 	typeStr, host, en, de, crypt, mux, err := c.GetHostFromConn()
 	if err != nil {
 		log.Println("get host info error:", err)
-		return err
+		c.Close()
+		return
 	}
 	//与目标建立连接,超时时间为3
 	server, err := net.DialTimeout(typeStr, host, time.Second*3)
 	if err != nil {
 		log.Println("connect to ", host, "error:", err, mux)
-		if mux {
-			s.sendEof(conn, de, crypt)
-			goto re
-		}
-		return err
+		c.wFail()
+		goto end
 	}
-	go relay(NewConn(server), c, de, crypt, mux)
-	relay(c, NewConn(server), en, crypt, mux)
+	c.wSuccess()
+	go relay(server, c.conn, de, crypt, mux)
+	relay(c.conn, server, en, crypt, mux)
+end:
 	if mux {
 		goto re
-	}
-	return nil
-}
-func (s *TRPClient) sendEof(c net.Conn, de int, crypt bool) {
-	switch de {
-	case COMPRESS_SNAPY_DECODE:
-		NewSnappyConn(c, crypt).Write([]byte(IO_EOF))
-	case COMPRESS_NONE_DECODE:
-		NewCryptConn(c, crypt).Write([]byte(IO_EOF))
+	} else {
+		c.Close()
 	}
 }
 

@@ -25,7 +25,7 @@ func (l *list) Len() int {
 
 func newList() *list {
 	l := new(list)
-	l.connList = make(chan *Conn, 100)
+	l.connList = make(chan *Conn, 1000)
 	return l
 }
 
@@ -34,7 +34,8 @@ type Tunnel struct {
 	listener   *net.TCPListener //server端监听
 	signalList map[string]*list //通信
 	tunnelList map[string]*list //隧道
-	sync.Mutex
+	lock       sync.Mutex
+	tunnelLock      sync.Mutex
 }
 
 func newTunnel(tunnelPort int) *Tunnel {
@@ -113,7 +114,7 @@ func (s *Tunnel) typeDeal(typeVal string, c *Conn, cFlag string) error {
 
 //加到对应的list中
 func (s *Tunnel) addList(m map[string]*list, c *Conn, cFlag string) {
-	s.Lock()
+	s.lock.Lock()
 	if v, ok := m[cFlag]; ok {
 		v.Add(c)
 	} else {
@@ -121,7 +122,7 @@ func (s *Tunnel) addList(m map[string]*list, c *Conn, cFlag string) {
 		l.Add(c)
 		m[cFlag] = l
 	}
-	s.Unlock()
+	s.lock.Unlock()
 }
 
 //新建隧道
@@ -142,6 +143,7 @@ retry:
 
 //得到一个tcp隧道
 func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt, mux bool) (c *Conn, err error) {
+	s.tunnelLock.Lock()
 	if v, ok := s.tunnelList[cFlag]; !ok || v.Len() < 3 { //新建通道
 		go s.newChan(cFlag)
 	}
@@ -155,6 +157,7 @@ retry:
 		goto retry
 	}
 	c.WriteConnInfo(en, de, crypt, mux)
+	s.tunnelLock.Unlock()
 	return
 }
 

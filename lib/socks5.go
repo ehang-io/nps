@@ -147,23 +147,29 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 		ltype = CONN_TCP
 	}
 	_, err = client.WriteHost(ltype, addr)
-	return client, nil
+	var flag string
+	if flag, err = client.ReadFlag(); err == nil {
+		if flag != CONN_SUCCESS {
+			err = errors.New("conn failed")
+		}
+	}
+	return client, err
 }
 
 //conn
 func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	proxyConn, err := s.doConnect(c, connectMethod)
-	if err != nil {
-		log.Println(err)
-		c.Close()
-	} else {
-		go relay(proxyConn, NewConn(c), s.config.CompressEncode, s.config.Crypt, s.config.Mux)
-		relay(NewConn(c), proxyConn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+	defer func() {
 		if s.config.Mux {
 			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
 		}
+	}()
+	if err != nil {
+		c.Close()
+	} else {
+		go relay(proxyConn.conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
+		relay(c, proxyConn.conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	}
-
 }
 
 // passive mode
@@ -191,14 +197,16 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	}
 
 	proxyConn, err := s.doConnect(c, associateMethod)
-	if err != nil {
-		c.Close()
-	} else {
-		go relay(proxyConn, NewConn(c), s.config.CompressEncode, s.config.Crypt, s.config.Mux)
-		relay(NewConn(c), proxyConn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+	defer func() {
 		if s.config.Mux {
 			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
 		}
+	}()
+	if err != nil {
+		c.Close()
+	} else {
+		go relay(proxyConn.conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
+		relay(c, proxyConn.conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	}
 }
 

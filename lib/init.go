@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"reflect"
 	"strings"
 	"sync"
@@ -35,9 +37,12 @@ func init() {
 	RunList = make(map[string]interface{})
 }
 
-func InitMode() {
+func InitClient() {
 	flag.Parse()
 	if *rpMode == "client" {
+		go func() {
+			http.ListenAndServe("0.0.0.0:8899", nil)
+		}()
 		JsonParse := NewJsonStruct()
 		if config, err = JsonParse.Load(*configPath); err != nil {
 			log.Println("配置文件加载失败")
@@ -45,7 +50,25 @@ func InitMode() {
 		stop := make(chan int)
 		for _, v := range strings.Split(*verifyKey, ",") {
 			log.Println("客户端启动，连接：", *serverAddr, " 验证令牌：", v)
-			go NewRPClient(*serverAddr, 3, v).Start()
+			go NewRPClient(*serverAddr, 1, v).Start()
+		}
+		<-stop
+	}
+}
+func InitMode() {
+	flag.Parse()
+	if *rpMode == "client" {
+		go func() {
+			http.ListenAndServe("0.0.0.0:8899", nil)
+		}()
+		JsonParse := NewJsonStruct()
+		if config, err = JsonParse.Load(*configPath); err != nil {
+			log.Println("配置文件加载失败")
+		}
+		stop := make(chan int)
+		for _, v := range strings.Split(*verifyKey, ",") {
+			log.Println("客户端启动，连接：", *serverAddr, " 验证令牌：", v)
+			go NewRPClient(*serverAddr, 1, v).Start()
 		}
 		<-stop
 	} else {
@@ -171,7 +194,7 @@ func DelTask(vKey string) error {
 func InitCsvDb() *Csv {
 	var once sync.Once
 	once.Do(func() {
-		CsvDb = NewCsv("./conf/", bridge, RunList)
+		CsvDb = NewCsv( bridge, RunList)
 		CsvDb.Init()
 	})
 	return CsvDb

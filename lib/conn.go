@@ -35,9 +35,9 @@ func (s *CryptConn) Write(b []byte) (n int, err error) {
 		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
 			return
 		}
-		if b, err = GetLenBytes(b); err != nil {
-			return
-		}
+	}
+	if b, err = GetLenBytes(b); err != nil {
+		return
 	}
 	_, err = s.conn.Write(b)
 	return
@@ -46,29 +46,29 @@ func (s *CryptConn) Write(b []byte) (n int, err error) {
 //解密读
 func (s *CryptConn) Read(b []byte) (n int, err error) {
 	defer func() {
-		if string(b[:n]) == IO_EOF {
+		if err == nil && n == len(IO_EOF) && string(b[:n]) == IO_EOF {
 			err = io.EOF
 			n = 0
 		}
 	}()
+	var lens int
+	var buf, bs []byte
+	c := NewConn(s.conn)
+	if lens, err = c.GetLen(); err != nil {
+		return
+	}
+	if buf, err = c.ReadLen(lens); err != nil {
+		return
+	}
 	if s.crypt {
-		var lens int
-		var buf, bs []byte
-		c := NewConn(s.conn)
-		if lens, err = c.GetLen(); err != nil {
-			return
-		}
-		if buf, err = c.ReadLen(lens); err != nil {
-			return
-		}
 		if bs, err = AesDecrypt(buf, []byte(cryptKey)); err != nil {
 			return
 		}
-		n = len(bs)
-		copy(b, bs)
-		return
+	} else {
+		bs = buf
 	}
-	n, err = s.conn.Read(b)
+	n = len(bs)
+	copy(b, bs)
 	return
 }
 
@@ -105,7 +105,7 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 //snappy压缩读 包含解密
 func (s *SnappyConn) Read(b []byte) (n int, err error) {
 	defer func() {
-		if string(b[:n]) == IO_EOF {
+		if err == nil && n == len(IO_EOF) && string(b[:n]) == IO_EOF {
 			err = io.EOF
 			n = 0
 		}
@@ -137,9 +137,12 @@ func NewConn(conn net.Conn) *Conn {
 }
 
 //读取指定长度内容
-func (s *Conn) ReadLen(len int) ([]byte, error) {
-	buf := make([]byte, len)
-	if n, err := io.ReadFull(s, buf); err != nil || n != len {
+func (s *Conn) ReadLen(cLen int) ([]byte, error) {
+	if cLen > 65535 {
+		return nil, errors.New("长度错误")
+	}
+	buf := bufPool.Get().([]byte)[:cLen]
+	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
 		return buf, errors.New("读取指定长度错误" + err.Error())
 	}
 	return buf, nil
@@ -314,6 +317,16 @@ func (s *Conn) wChan() (int, error) {
 //write test
 func (s *Conn) wTest() (int, error) {
 	return s.Write([]byte(TEST_FLAG))
+}
+
+//write test
+func (s *Conn) wSuccess() (int, error) {
+	return s.Write([]byte(CONN_SUCCESS))
+}
+
+//write test
+func (s *Conn) wFail() (int, error) {
+	return s.Write([]byte(CONN_ERROR))
 }
 
 //获取长度+内容

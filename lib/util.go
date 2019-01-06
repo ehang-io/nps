@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var (
@@ -27,7 +28,7 @@ const (
 	COMPRESS_NONE_DECODE
 	COMPRESS_SNAPY_ENCODE
 	COMPRESS_SNAPY_DECODE
-	IO_EOF = "EOF"
+	IO_EOF = "PROXYEOF"
 )
 
 //error
@@ -131,27 +132,27 @@ func replaceHost(resp []byte) []byte {
 }
 
 //copy
-func relay(in, out *Conn, compressType int, crypt, mux bool) {
+func relay(in, out net.Conn, compressType int, crypt, mux bool) {
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
-		copyBuffer(NewSnappyConn(in.conn, crypt), out)
+		copyBuffer(NewSnappyConn(in, crypt), out)
 		if mux {
-			NewSnappyConn(in.conn, crypt).Write([]byte(IO_EOF))
 			out.Close()
+			NewSnappyConn(in, crypt).Write([]byte(IO_EOF))
 		}
 	case COMPRESS_SNAPY_DECODE:
-		copyBuffer(in, NewSnappyConn(out.conn, crypt))
+		copyBuffer(in, NewSnappyConn(out, crypt))
 		if mux {
 			in.Close()
 		}
 	case COMPRESS_NONE_ENCODE:
-		copyBuffer(NewCryptConn(in.conn, crypt), out)
+		copyBuffer(NewCryptConn(in, crypt), out)
 		if mux {
-			NewCryptConn(in.conn, crypt).Write([]byte(IO_EOF))
 			out.Close()
+			NewCryptConn(in, crypt).Write([]byte(IO_EOF))
 		}
 	case COMPRESS_NONE_DECODE:
-		copyBuffer(in, NewCryptConn(out.conn, crypt))
+		copyBuffer(in, NewCryptConn(out, crypt))
 		if mux {
 			in.Close()
 		}
@@ -280,18 +281,15 @@ func GetIntNoerrByStr(str string) int {
 	return i
 }
 
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, 65535)
+	},
+}
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
-	// If the reader has a WriteTo method, use it to do the copy.
-	// Avoids an allocation and a copy.
-	if wt, ok := src.(io.WriterTo); ok {
-		return wt.WriteTo(dst)
-	}
-	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
-	if rt, ok := dst.(io.ReaderFrom); ok {
-		return rt.ReadFrom(src)
-	}
-	buf := make([]byte, 65535)
+	//TODO 回收问题
+	buf := bufPool.Get().([]byte)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
