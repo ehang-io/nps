@@ -123,6 +123,7 @@ re:
 	relay(c.conn, server, en, crypt, mux)
 end:
 	if mux {
+		FlushConn(conn)
 		goto re
 	} else {
 		c.Close()

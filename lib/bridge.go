@@ -35,7 +35,7 @@ type Tunnel struct {
 	signalList map[string]*list //通信
 	tunnelList map[string]*list //隧道
 	lock       sync.Mutex
-	tunnelLock      sync.Mutex
+	tunnelLock sync.Mutex
 }
 
 func newTunnel(tunnelPort int) *Tunnel {
@@ -181,6 +181,7 @@ func (s *Tunnel) ReturnSignal(conn *Conn, cFlag string) {
 //重回slice 复用
 func (s *Tunnel) ReturnTunnel(conn *Conn, cFlag string) {
 	if v, ok := s.tunnelList[cFlag]; ok {
+		FlushConn(conn.conn)
 		v.Add(conn)
 	}
 }

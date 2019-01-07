@@ -190,6 +190,8 @@ func (s *TunnelModeServer) dealClient(c *Conn, cnf *ServerConfig, addr string, m
 	defer func() {
 		if cnf.Mux {
 			s.bridge.ReturnTunnel(link, getverifyval(cnf.VerifyKey))
+		} else {
+			c.Close()
 		}
 	}()
 	if err != nil {
@@ -212,8 +214,6 @@ func (s *TunnelModeServer) dealClient(c *Conn, cnf *ServerConfig, addr string, m
 			}
 			go relay(link.conn, c.conn, cnf.CompressEncode, cnf.Crypt, cnf.Mux)
 			relay(c.conn, link.conn, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
-		} else {
-			c.Close()
 		}
 	}
 	return nil

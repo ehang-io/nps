@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -314,4 +315,16 @@ func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 		}
 	}
 	return written, err
+}
+
+//连接重置 清空缓存区
+func FlushConn(c net.Conn) {
+	c.SetReadDeadline(time.Now().Add(time.Second * 3))
+	buf := bufPool.Get().([]byte)
+	for {
+		if _, err := c.Read(buf); err != nil {
+			break
+		}
+	}
+	c.SetReadDeadline(time.Time{})
 }

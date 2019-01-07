@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/pkg/errors"
 	"math/rand"
 	"time"
 )
@@ -38,9 +39,9 @@ func AesDecrypt(crypted, key []byte) ([]byte, error) {
 	origData := make([]byte, len(crypted))
 	// origData := crypted
 	blockMode.CryptBlocks(origData, crypted)
-	origData = PKCS5UnPadding(origData)
+	err, origData = PKCS5UnPadding(origData)
 	// origData = ZeroUnPadding(origData)
-	return origData, nil
+	return origData, err
 }
 
 //补全
@@ -51,11 +52,14 @@ func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
 }
 
 //去补
-func PKCS5UnPadding(origData []byte) []byte {
+func PKCS5UnPadding(origData []byte) (error, []byte) {
 	length := len(origData)
 	// 去掉最后一个字节 unpadding 次
 	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
+	if (length - unpadding) < 0 {
+		return errors.New("len error"), nil
+	}
+	return nil, origData[:(length - unpadding)]
 }
 
 //生成32位md5字串

@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"strings"
-	"time"
 )
 
 type UdpModeServer struct {
@@ -54,25 +53,25 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		conn.Close()
 		return
 	}
-	conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt)
 	if flag, err := conn.ReadFlag(); err == nil {
-		if flag == CONN_SUCCESS {
-			go func(addr *net.UDPAddr, conn *Conn) {
-				defer func() {
-					if s.config.Mux {
-						s.bridge.ReturnTunnel(conn, getverifyval(s.config.VerifyKey))
-					}
-				}()
-				buf := make([]byte, 1024)
-				conn.conn.SetReadDeadline(time.Now().Add(time.Duration(time.Second * 3)))
-				n, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt)
-				if err != nil || err == io.EOF {
-					conn.Close()
-					return
-				}
-				s.listener.WriteToUDP(buf[:n], addr)
+		defer func() {
+			if s.config.Mux {
+				s.bridge.ReturnTunnel(conn, getverifyval(s.config.VerifyKey))
+			} else {
 				conn.Close()
-			}(addr, conn)
+			}
+		}()
+		if flag == CONN_SUCCESS {
+			conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt)
+			buf := make([]byte, 1024)
+			//conn.conn.SetReadDeadline(time.Now().Add(time.Duration(time.Second * 3)))
+			n, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt)
+			if err != nil || err == io.EOF {
+				log.Println("revieve error:", err)
+				return
+			}
+			s.listener.WriteToUDP(buf[:n], addr)
+			conn.WriteTo([]byte(IO_EOF), s.config.CompressEncode, s.config.Crypt)
 		}
 	}
 }
