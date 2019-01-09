@@ -1,6 +1,8 @@
-package lib
+package server
 
 import (
+	"github.com/cnlh/easyProxy/bridge"
+	"github.com/cnlh/easyProxy/utils"
 	"io"
 	"log"
 	"net"
@@ -8,22 +10,23 @@ import (
 )
 
 type UdpModeServer struct {
-	bridge   *Tunnel
+	bridge   *bridge.Tunnel
 	listener *net.UDPConn
-	udpMap   map[string]*Conn
+	udpMap   map[string]*utils.Conn
 	config   *ServerConfig
 }
 
-func NewUdpModeServer(bridge *Tunnel, cnf *ServerConfig) *UdpModeServer {
+func NewUdpModeServer(bridge *bridge.Tunnel, cnf *ServerConfig) *UdpModeServer {
 	s := new(UdpModeServer)
 	s.bridge = bridge
-	s.udpMap = make(map[string]*Conn)
+	s.udpMap = make(map[string]*utils.Conn)
 	s.config = cnf
 	return s
 }
 
 //开始
 func (s *UdpModeServer) Start() error {
+	var err error
 	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.config.TcpPort, ""})
 	if err != nil {
 		return err
@@ -49,7 +52,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		log.Println(err)
 		return
 	}
-	if _, err := conn.WriteHost(CONN_UDP, s.config.Target); err != nil {
+	if _, err := conn.WriteHost(utils.CONN_UDP, s.config.Target); err != nil {
 		conn.Close()
 		return
 	}
@@ -61,7 +64,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 				conn.Close()
 			}
 		}()
-		if flag == CONN_SUCCESS {
+		if flag == utils.CONN_SUCCESS {
 			conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt)
 			buf := make([]byte, 1024)
 			//conn.conn.SetReadDeadline(time.Now().Add(time.Duration(time.Second * 3)))
@@ -71,7 +74,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 				return
 			}
 			s.listener.WriteToUDP(buf[:n], addr)
-			conn.WriteTo([]byte(IO_EOF), s.config.CompressEncode, s.config.Crypt)
+			conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt)
 		}
 	}
 }

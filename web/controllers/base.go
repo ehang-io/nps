@@ -2,7 +2,8 @@ package controllers
 
 import (
 	"github.com/astaxie/beego"
-	"github.com/cnlh/easyProxy/lib"
+	"github.com/cnlh/easyProxy/server"
+	"github.com/cnlh/easyProxy/utils"
 	"strconv"
 	"strings"
 )
@@ -33,8 +34,8 @@ func (s *BaseController) display(tpl ...string) {
 	}
 	s.Data["menu"] = s.actionName
 	ip := s.Ctx.Request.Host
-	s.Data["ip"] = lib.Gethostbyname(ip[0:strings.LastIndex(ip, ":")])
-	s.Data["p"] = *lib.TcpPort
+	s.Data["ip"] = utils.Gethostbyname(ip[0:strings.LastIndex(ip, ":")])
+	s.Data["p"] = server.Bridge.TunnelPort
 	s.Data["proxyPort"] = beego.AppConfig.String("hostPort")
 	s.Layout = "public/layout.html"
 	s.TplName = tplname

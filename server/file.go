@@ -1,11 +1,10 @@
-package lib
+package server
 
 import (
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"github.com/astaxie/beego"
-	"io/ioutil"
+	"github.com/cnlh/easyProxy/utils"
 	"log"
 	"os"
 	"strconv"
@@ -34,9 +33,8 @@ type HostList struct {
 	Target string //目标
 }
 
-func NewCsv(bridge *Tunnel, runList map[string]interface{}) *Csv {
+func NewCsv(runList map[string]interface{}) *Csv {
 	c := new(Csv)
-	c.Bridge = bridge
 	c.RunList = runList
 	return c
 }
@@ -44,7 +42,6 @@ func NewCsv(bridge *Tunnel, runList map[string]interface{}) *Csv {
 type Csv struct {
 	Tasks   []*ServerConfig
 	Path    string
-	Bridge  *Tunnel
 	RunList map[string]interface{}
 	Hosts   []*HostList //域名列表
 }
@@ -72,8 +69,8 @@ func (s *Csv) StoreTasksToCsv() {
 			task.P,
 			task.Compress,
 			strconv.Itoa(task.Start),
-			GetStrByBool(task.Crypt),
-			GetStrByBool(task.Mux),
+			utils.GetStrByBool(task.Crypt),
+			utils.GetStrByBool(task.Mux),
 			strconv.Itoa(task.CompressEncode),
 			strconv.Itoa(task.CompressDecode),
 		}
@@ -118,10 +115,10 @@ func (s *Csv) LoadTaskFromCsv() {
 			P:              item[5],
 			Compress:       item[6],
 			Start:          Start,
-			Crypt:          GetBoolByStr(item[8]),
-			Mux:            GetBoolByStr(item[9]),
-			CompressEncode: GetIntNoerrByStr(item[10]),
-			CompressDecode: GetIntNoerrByStr(item[11]),
+			Crypt:          utils.GetBoolByStr(item[8]),
+			Mux:            utils.GetBoolByStr(item[9]),
+			CompressEncode: utils.GetIntNoerrByStr(item[10]),
+			CompressDecode: utils.GetIntNoerrByStr(item[11]),
 		}
 		tasks = append(tasks, post)
 	}
@@ -130,7 +127,7 @@ func (s *Csv) LoadTaskFromCsv() {
 
 func (s *Csv) StoreHostToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(s.Path + "hosts.csv")
+	csvFile, err := os.Create(beego.AppPath + "/conf/hosts.csv")
 	if err != nil {
 		panic(err)
 	}
@@ -186,38 +183,6 @@ func (s *Csv) LoadHostFromCsv() {
 	s.Hosts = hosts
 }
 
-func (s *Csv) GetServerConfig(start, length int, typeVal string) ([]*ServerConfig, int) {
-	list := make([]*ServerConfig, 0)
-	var cnt int
-	for _, v := range s.Tasks {
-		if v.Mode != typeVal {
-			continue
-		}
-		cnt++
-		if start--; start < 0 {
-			if length--; length > 0 {
-				if _, ok := s.RunList[v.VerifyKey]; ok {
-					v.IsRun = 1
-				} else {
-					v.IsRun = 0
-				}
-				if s, ok := s.Bridge.signalList[getverifyval(v.VerifyKey)]; ok {
-					if s.Len() > 0 {
-						v.ClientStatus = 1
-					} else {
-						v.ClientStatus = 0
-					}
-				} else {
-					v.ClientStatus = 0
-				}
-				list = append(list, v)
-			}
-		}
-
-	}
-	return list, cnt
-}
-
 func (s *Csv) NewTask(t *ServerConfig) {
 	s.Tasks = append(s.Tasks, t)
 	s.StoreTasksToCsv()
@@ -232,7 +197,6 @@ func (s *Csv) UpdateTask(t *ServerConfig) error {
 			return nil
 		}
 	}
-	//TODO:待测试
 	return errors.New("不存在")
 }
 
@@ -296,32 +260,4 @@ func (s *Csv) GetHostList(start, length int, vKey string) ([]*HostList, int) {
 		}
 	}
 	return list, cnt
-}
-
-type Site struct {
-	Host string
-	Url  string
-	Port int
-}
-type Config struct {
-	SiteList []Site
-	Replace  int
-}
-type JsonStruct struct {
-}
-
-func NewJsonStruct() *JsonStruct {
-	return &JsonStruct{}
-}
-func (jst *JsonStruct) Load(filename string) (Config, error) {
-	data, err := ioutil.ReadFile(filename)
-	config := Config{}
-	if err != nil {
-		return config, errors.New("配置文件打开错误")
-	}
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		return config, errors.New("配置文件解析错误")
-	}
-	return config, nil
 }

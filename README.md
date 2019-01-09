@@ -11,19 +11,17 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/web.png?raw=true)
 1. web管理模式，可配置多条tcp、udp隧道，多个域名代理等等----> [web管理模式](#web管理模式)
 
-2. 内网多站点配合代理。----> [http反向代理请求](#http代理请求)
 
-3. 想在外网通过ssh连接内网的机器，做云服务器到内网服务器端口的映射，或者做微信公众号开发、小程序开发等---->[tcp隧道模式](#tcp隧道模式)
+2. 想在外网通过ssh连接内网的机器，做云服务器到内网服务器端口的映射，或者做微信公众号开发、小程序开发等---->[tcp隧道模式](#tcp隧道模式)
 
-4. 在非内网环境下使用内网dns，或者需要通过udp访问内网机器等---->[udp隧道模式](#udp隧道模式)
+3. 在非内网环境下使用内网dns，或者需要通过udp访问内网机器等---->[udp隧道模式](#udp隧道模式)
 
-5. 在外网使用HTTP代理访问内网站点---->[http代理模式](#http代理模式)
+4. 在外网使用HTTP代理访问内网站点---->[http代理模式](#http代理模式)
 
-6. 搭建一个内网穿透ss，在外网如同使用内网vpn一样访问内网资源或者设备----> [socks5代理模式](#socks5代理模式)
+5. 搭建一个内网穿透ss，在外网如同使用内网vpn一样访问内网资源或者设备----> [socks5代理模式](#socks5代理模式)
 
 ## 特点
 - [x] 支持snappy压缩,减小传输过程流量消耗
-- [x] 支持多站点配置,兼容多个内网网站，可处理相互之间的跳转包含关系
 - [x] 断线自动重连
 - [x] 支持多路传输,提高并发
 - [x] 跨站自动匹配替换
@@ -44,13 +42,12 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 2. [web管理模式](#web管理模式)（多隧道时推荐）
 3. [tcp隧道模式](#tcp隧道模式)
 4. [udp隧道模式](#udp隧道模式)
-5. [http反向代理请求](#http代理请求)
-6. [socks5代理模式](#socks5代理模式)
-7. [http代理模式](#http代理模式)
-8. [数据压缩支持](#数据压缩支持)
-9. [站点密码保护](#站点保护)
-10. [加密传输](#加密传输)
-11. [TCP多路复用](#多路复用)
+5. [socks5代理模式](#socks5代理模式)
+6. [http代理模式](#http代理模式)
+7. [数据压缩支持](#数据压缩支持)
+8. [站点密码保护](#站点保护)
+9. [加密传输](#加密传输)
+10. [TCP多路复用](#多路复用)
 11. [配置文件说明](#配置文件)
 
 ## 安装
@@ -58,13 +55,14 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 1. release安装
 > https://github.com/cnlh/easyProxy/releases
 
-下载对应的系统版本即可，服务端和客户端共用一个程序，go语言开发，无需任何第三方依赖
+下载对应的系统版本即可，服务端和客户端是单独的，go语言开发，无需任何第三方依赖
 
 2. 源码安装
 - 安装源码
 > go get github.com/cnlh/easyProxy
 - 编译
-> go build
+> go build cmd/proxy_server.go
+> go build cmd/proxy_client.go
 
 ## web管理模式
 
@@ -72,6 +70,9 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 ### 介绍
 
 可在网页上配置和管理各个tcp、udp隧道、内网站点代理等等，功能极为强大，操作也非常方便。
+
+**提示：使用web模式时，服务端执行文件必须在项目根目录，否则无法正确加载配置文件**
+
 ### 使用
 
 **有两种模式：**
@@ -218,116 +219,7 @@ target | 目标地址，格式如上
 ./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
-## http代理请求
 
-### 场景及原理
-
-较为适用于http，也就是web站点的穿透，服务端与客户端之间建立连接，服务端收到http请求后，将请求发送到客户端，客户端再执行这个请求，并将结果返回给服务端，服务端收到后再返回。
-
-<html>
-<span style="color:red">特点：支持同时代理多个站点，不同站点之间有联系还可以实现匹配替换</span>
-</html>
-
-![image](https://github.com/cnlh/easyProxy/blob/master/image/http.png?raw=true)
-
-**最终效果**：
-- 访问a.server.com和访问10.1.50.203的80端口相同
-- 访问b.server.com和访问10.1.50.202的80端口相同
-- 访问c.server.com和访问10.1.50.201的80端口相同
-### 使用
-- 服务端
-
-```
-./easyProxy -mode=httpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
-```
-
-名称 | 含义
----|---
-mode | 运行模式
-vkey | 验证密钥
-tcpport | 服务端与客户端通信端口
-httpport | 代理的http端口（与nginx配合使用）
-
-- 客户端
-
-```
-建立配置文件 config.json
-```
-
-
-```
-./easyProxy -server=ip:port -config=config.json -vkey=DKibZF5TXvic1g3kY
-```
-
-
- 名称 | 含义
----|---
-config | 配置文件路径
-### 配置文件config.json
-
-```
-{
-  "SiteList": [
-    {
-      "host": "a.ourcauc.com",
-      "url": "10.1.50.203",
-      "port": 80
-    },
-    {
-      "host": "b.ourcauc.com",
-      "url": "10.1.50.202",
-      "port": 80
-    },
-    {
-      "host": "c.ourcauc.com",
-      "url": "10.1.50.203",
-      "port": 80
-    }
-  ],
-  "Replace": 0
-}
-```
- 名称 | 含义
----|---
-SiteList | 本地解析的域名列表
-host | 域名地址
-url | 内网代理的地址
-port | 内网代理的地址对应的端口
-Replace | 是否自动匹配替换[（查看场景）](https://github.com/cnlh/easyProxy/issues/1)
-
-
-### nginx代理配置示例
-```
-server {
-    listen 80;
-    server_name a.ourcauc.com b.ourcauc.com c.ourcauc.com ;
-    location / {
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header Host  $http_host;
-            proxy_set_header X-Nginx-Proxy true;
-            proxy_set_header Connection "";
-            proxy_pass http://127.0.0.1:8024;
-        }
-}
-```
-## 域名配置示例
-> -a	    A	    123.206.77.88
-
-> -b	    A	    123.206.77.88
-
-> -c	    A	    123.206.77.88
-
-### 跨站自动匹配替换说明
-
-例如，访问：a.ourcauc.com，该页面里面有一个超链接为10.1.50.202:80,将根据配置文件自动该将url替换为b.ourcauc.com，以达到跨站也可访问的效果，但需要提前在配置文件中配置这些站点。
-
-如需开启，请加配置文件Replace值设置为1
->注意：开启可能导致不应该被替换的内容被替换，请谨慎开启
-
-### 二级域名示范
-
-[二级域名](https://github.com/cnlh/easyProxy/wiki/%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)
 
 
 ## socks5代理模式
@@ -422,9 +314,9 @@ httpport | http代理连接端口
 - 所有模式均支持数据压缩，可以与加密同时使用
 
 
-- 在server端加上参数 -compress=snappy（或在web中设置），例如在TCP隧道模式
+- 在server端加上参数 -compress=snappy（或在web管理中设置）
 ```
-./easyProxy -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80 -compress=snappy
+-compress=snappy
 ```
 
 ## 加密传输

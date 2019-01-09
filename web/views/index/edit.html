@@ -10,7 +10,7 @@
                         <select class="form-control" name="type" id="type">
                             <option {{if eq "tunnelServer" .t.Mode}}selected{{end}} value="tunnelServer">tcp隧道</option>
                             <option {{if eq "udpServer" .t.Mode}}selected{{end}} value="udpServer">udp隧道</option>
-                            <option {{if eq "sock5Server" .t.Mode}}selected{{end}} value="sock5Server">socks5代理</option>
+                            <option {{if eq "socks5Server" .t.Mode}}selected{{end}} value="socks5Server">socks5代理</option>
                             <option {{if eq "httpProxyServer" .t.Mode}}selected{{end}} value="httpProxyServer">http代理
                             <option {{if eq "hostServer" .t.Mode}}selected{{end}} value="hostServer">host客户端</option>
                         </select>
@@ -72,7 +72,7 @@
     arr["all"] = ["type", "port", "compress", "u", "p", "target"]
     arr["tunnelServer"] = ["type", "port", "target", "u", "p", "compress"]
     arr["udpServer"] = ["type", "port", "target", "compress"]
-    arr["sock5Server"] = ["type", "port", "compress", "u", "p"]
+    arr["socks5Server"] = ["type", "port", "compress", "u", "p"]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p"]
     arr["hostServer"] = ["type", "compress", "u", "p"]
 

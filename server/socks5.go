@@ -1,8 +1,10 @@
-package lib
+package server
 
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/cnlh/easyProxy/bridge"
+	"github.com/cnlh/easyProxy/utils"
 	"io"
 	"log"
 	"net"
@@ -44,7 +46,7 @@ const (
 )
 
 type Sock5ModeServer struct {
-	bridge   *Tunnel
+	bridge   *bridge.Tunnel
 	isVerify bool
 	listener net.Listener
 	config   *ServerConfig
@@ -105,7 +107,7 @@ func (s *Sock5ModeServer) sendReply(c net.Conn, rep uint8) {
 }
 
 //do conn
-func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn, err error) {
+func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils.Conn, err error) {
 	addrType := make([]byte, 1)
 	c.Read(addrType)
 	var host string
@@ -142,14 +144,14 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *Conn,
 	s.sendReply(c, succeeded)
 	var ltype string
 	if command == associateMethod {
-		ltype = CONN_UDP
+		ltype = utils.CONN_UDP
 	} else {
-		ltype = CONN_TCP
+		ltype = utils.CONN_TCP
 	}
 	_, err = client.WriteHost(ltype, addr)
 	var flag string
 	if flag, err = client.ReadFlag(); err == nil {
-		if flag != CONN_SUCCESS {
+		if flag != utils.CONN_SUCCESS {
 			err = errors.New("conn failed")
 		}
 	}
@@ -167,8 +169,8 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		go relay(proxyConn.conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
-		relay(c, proxyConn.conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		go utils.Relay(proxyConn.Conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
+		utils.Relay(c, proxyConn.Conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	}
 }
 
@@ -205,13 +207,13 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		go relay(proxyConn.conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
-		relay(c, proxyConn.conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		go utils.Relay(proxyConn.Conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
+		utils.Relay(c, proxyConn.Conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	}
 }
 
 //new conn
-func (s *Sock5ModeServer) handleNewConn(c net.Conn) {
+func (s *Sock5ModeServer) handleConn(c net.Conn) {
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(c, buf); err != nil {
 		log.Println("negotiation err", err)
@@ -285,6 +287,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 
 //start
 func (s *Sock5ModeServer) Start() error {
+	var err error
 	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.config.TcpPort))
 	if err != nil {
 		return err
@@ -297,7 +300,7 @@ func (s *Sock5ModeServer) Start() error {
 			}
 			log.Fatal("accept error: ", err)
 		}
-		go s.handleNewConn(conn)
+		go s.handleConn(conn)
 	}
 	return nil
 }
@@ -308,7 +311,7 @@ func (s *Sock5ModeServer) Close() error {
 }
 
 //new
-func NewSock5ModeServer(bridge *Tunnel, cnf *ServerConfig) *Sock5ModeServer {
+func NewSock5ModeServer(bridge *bridge.Tunnel, cnf *ServerConfig) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
 	s.config = cnf

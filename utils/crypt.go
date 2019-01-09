@@ -1,4 +1,4 @@
-package lib
+package utils
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"encoding/hex"
-	"github.com/pkg/errors"
+	"errors"
 	"math/rand"
 	"time"
 )

@@ -1,7 +1,8 @@
 package controllers
 
 import (
-	"github.com/cnlh/easyProxy/lib"
+	"github.com/cnlh/easyProxy/server"
+	"github.com/cnlh/easyProxy/utils"
 )
 
 type IndexController struct {
@@ -27,7 +28,7 @@ func (s *IndexController) Udp() {
 
 func (s *IndexController) Socks5() {
 	s.SetInfo("socks5管理")
-	s.SetType("sock5Server")
+	s.SetType("socks5Server")
 	s.display("index/list")
 }
 
@@ -46,7 +47,7 @@ func (s *IndexController) Host() {
 func (s *IndexController) GetServerConfig() {
 	start, length := s.GetAjaxParams()
 	taskType := s.GetString("type")
-	list, cnt := lib.CsvDb.GetServerConfig(start, length, taskType)
+	list, cnt := server.GetServerConfig(start, length, taskType)
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -56,20 +57,20 @@ func (s *IndexController) Add() {
 		s.SetInfo("新增")
 		s.display()
 	} else {
-		t := &lib.ServerConfig{
+		t := &server.ServerConfig{
 			TcpPort:   s.GetIntNoErr("port"),
 			Mode:      s.GetString("type"),
 			Target:    s.GetString("target"),
-			VerifyKey: lib.GetRandomString(16),
+			VerifyKey: utils.GetRandomString(16),
 			U:         s.GetString("u"),
 			P:         s.GetString("p"),
 			Compress:  s.GetString("compress"),
-			Crypt:     lib.GetBoolByStr(s.GetString("crypt")),
-			Mux:     lib.GetBoolByStr(s.GetString("mux")),
+			Crypt:     utils.GetBoolByStr(s.GetString("crypt")),
+			Mux:       utils.GetBoolByStr(s.GetString("mux")),
 			IsRun:     0,
 		}
-		lib.CsvDb.NewTask(t)
-		if err := lib.AddTask(t); err != nil {
+		server.CsvDb.NewTask(t)
+		if err := server.AddTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		} else {
 			s.AjaxOk("添加成功")
@@ -80,7 +81,7 @@ func (s *IndexController) Add() {
 func (s *IndexController) Edit() {
 	if s.Ctx.Request.Method == "GET" {
 		vKey := s.GetString("vKey")
-		if t, err := lib.CsvDb.GetTask(vKey); err != nil {
+		if t, err := server.CsvDb.GetTask(vKey); err != nil {
 			s.error()
 		} else {
 			s.Data["t"] = t
@@ -89,7 +90,7 @@ func (s *IndexController) Edit() {
 		s.display()
 	} else {
 		vKey := s.GetString("vKey")
-		if t, err := lib.CsvDb.GetTask(vKey); err != nil {
+		if t, err := server.CsvDb.GetTask(vKey); err != nil {
 			s.error()
 		} else {
 			t.TcpPort = s.GetIntNoErr("port")
@@ -98,11 +99,11 @@ func (s *IndexController) Edit() {
 			t.U = s.GetString("u")
 			t.P = s.GetString("p")
 			t.Compress = s.GetString("compress")
-			t.Crypt = lib.GetBoolByStr(s.GetString("crypt"))
-			t.Mux = lib.GetBoolByStr(s.GetString("mux"))
-			lib.CsvDb.UpdateTask(t)
-			lib.StopServer(t.VerifyKey)
-			lib.StartTask(t.VerifyKey)
+			t.Crypt = utils.GetBoolByStr(s.GetString("crypt"))
+			t.Mux = utils.GetBoolByStr(s.GetString("mux"))
+			server.CsvDb.UpdateTask(t)
+			server.StopServer(t.VerifyKey)
+			server.StartTask(t.VerifyKey)
 		}
 		s.AjaxOk("修改成功")
 	}
@@ -110,14 +111,14 @@ func (s *IndexController) Edit() {
 
 func (s *IndexController) Stop() {
 	vKey := s.GetString("vKey")
-	if err := lib.StopServer(vKey); err != nil {
+	if err := server.StopServer(vKey); err != nil {
 		s.AjaxErr("停止失败")
 	}
 	s.AjaxOk("停止成功")
 }
 func (s *IndexController) Del() {
 	vKey := s.GetString("vKey")
-	if err := lib.DelTask(vKey); err != nil {
+	if err := server.DelTask(vKey); err != nil {
 		s.AjaxErr("删除失败")
 	}
 	s.AjaxOk("删除成功")
@@ -125,7 +126,7 @@ func (s *IndexController) Del() {
 
 func (s *IndexController) Start() {
 	vKey := s.GetString("vKey")
-	if err := lib.StartTask(vKey); err != nil {
+	if err := server.StartTask(vKey); err != nil {
 		s.AjaxErr("开启失败")
 	}
 	s.AjaxOk("开启成功")
@@ -139,14 +140,14 @@ func (s *IndexController) HostList() {
 	} else {
 		start, length := s.GetAjaxParams()
 		vkey := s.GetString("vkey")
-		list, cnt := lib.CsvDb.GetHostList(start, length, vkey)
+		list, cnt := server.CsvDb.GetHostList(start, length, vkey)
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
 
 func (s *IndexController) DelHost() {
 	host := s.GetString("host")
-	if err := lib.CsvDb.DelHost(host); err != nil {
+	if err := server.CsvDb.DelHost(host); err != nil {
 		s.AjaxErr("删除失败")
 	}
 	s.AjaxOk("删除成功")
@@ -158,12 +159,12 @@ func (s *IndexController) AddHost() {
 		s.SetInfo("新增")
 		s.display("index/hadd")
 	} else {
-		h := &lib.HostList{
+		h := &server.HostList{
 			Vkey:   s.GetString("vkey"),
 			Host:   s.GetString("host"),
 			Target: s.GetString("target"),
 		}
-		lib.CsvDb.NewHost(h)
+		server.CsvDb.NewHost(h)
 		s.AjaxOk("添加成功")
 	}
 }

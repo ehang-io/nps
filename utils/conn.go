@@ -1,4 +1,4 @@
-package lib
+package utils
 
 import (
 	"bufio"
@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 )
+
+const cryptKey = "1234567812345678"
 
 type CryptConn struct {
 	conn  net.Conn
@@ -126,13 +128,13 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 }
 
 type Conn struct {
-	conn net.Conn
+	Conn net.Conn
 }
 
 //new conn
 func NewConn(conn net.Conn) *Conn {
 	c := new(Conn)
-	c.conn = conn
+	c.Conn = conn
 	return c
 }
 
@@ -160,6 +162,7 @@ func (s *Conn) GetLen() (int, error) {
 //写入长度+内容 粘包
 func (s *Conn) WriteLen(buf []byte) (int, error) {
 	var b []byte
+	var err error
 	if b, err = GetLenBytes(buf); err != nil {
 		return 0, err
 	}
@@ -209,7 +212,7 @@ func (s *Conn) WriteHost(ltype string, host string) (int, error) {
 
 //设置连接为长连接
 func (s *Conn) SetAlive() {
-	conn := s.conn.(*net.TCPConn)
+	conn := s.Conn.(*net.TCPConn)
 	conn.SetReadDeadline(time.Time{})
 	conn.SetKeepAlive(true)
 	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
@@ -247,17 +250,17 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 //单独读（加密|压缩）
 func (s *Conn) ReadFrom(b []byte, compress int, crypt bool) (int, error) {
 	if COMPRESS_SNAPY_DECODE == compress {
-		return NewSnappyConn(s.conn, crypt).Read(b)
+		return NewSnappyConn(s.Conn, crypt).Read(b)
 	}
-	return NewCryptConn(s.conn, crypt).Read(b)
+	return NewCryptConn(s.Conn, crypt).Read(b)
 }
 
 //单独写（加密|压缩）
 func (s *Conn) WriteTo(b []byte, compress int, crypt bool) (n int, err error) {
 	if COMPRESS_SNAPY_ENCODE == compress {
-		return NewSnappyConn(s.conn, crypt).Write(b)
+		return NewSnappyConn(s.Conn, crypt).Write(b)
 	}
-	return NewCryptConn(s.conn, crypt).Write(b)
+	return NewCryptConn(s.Conn, crypt).Write(b)
 }
 
 //写压缩方式，加密
@@ -268,7 +271,6 @@ func (s *Conn) WriteConnInfo(en, de int, crypt, mux bool) {
 //获取压缩方式，是否加密
 func (s *Conn) GetConnInfoFromConn() (en, de int, crypt, mux bool) {
 	buf, err := s.ReadLen(4)
-	//TODO：错误处理
 	if err != nil {
 		return
 	}
@@ -281,51 +283,51 @@ func (s *Conn) GetConnInfoFromConn() (en, de int, crypt, mux bool) {
 
 //close
 func (s *Conn) Close() error {
-	return s.conn.Close()
+	return s.Conn.Close()
 }
 
 //write
 func (s *Conn) Write(b []byte) (int, error) {
-	return s.conn.Write(b)
+	return s.Conn.Write(b)
 }
 
 //read
 func (s *Conn) Read(b []byte) (int, error) {
-	return s.conn.Read(b)
+	return s.Conn.Read(b)
 }
 
 //write error
-func (s *Conn) wError() (int, error) {
+func (s *Conn) WriteError() (int, error) {
 	return s.Write([]byte(RES_MSG))
 }
 
 //write sign flag
-func (s *Conn) wSign() (int, error) {
+func (s *Conn) WriteSign() (int, error) {
 	return s.Write([]byte(RES_SIGN))
 }
 
 //write main
-func (s *Conn) wMain() (int, error) {
+func (s *Conn) WriteMain() (int, error) {
 	return s.Write([]byte(WORK_MAIN))
 }
 
 //write chan
-func (s *Conn) wChan() (int, error) {
+func (s *Conn) WriteChan() (int, error) {
 	return s.Write([]byte(WORK_CHAN))
 }
 
 //write test
-func (s *Conn) wTest() (int, error) {
+func (s *Conn) WriteTest() (int, error) {
 	return s.Write([]byte(TEST_FLAG))
 }
 
 //write test
-func (s *Conn) wSuccess() (int, error) {
+func (s *Conn) WriteSuccess() (int, error) {
 	return s.Write([]byte(CONN_SUCCESS))
 }
 
 //write test
-func (s *Conn) wFail() (int, error) {
+func (s *Conn) WriteFail() (int, error) {
 	return s.Write([]byte(CONN_ERROR))
 }
 
