@@ -174,7 +174,7 @@
                 {
                     targets: 2,
                     render: function (data, type, row, meta) {
-                        return "./easyProxy -server={{.ip}}:{{.p}} -vkey=" + data
+                        return "./proxy_client -server={{.ip}}:{{.p}} -vkey=" + data
                         // return data
                     }
                 },

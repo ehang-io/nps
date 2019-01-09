@@ -83,7 +83,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 - 服务端
 
 ```
- ./easyProxy -mode=webServer -tcpport=8284 -vkey=DKibZF5TXvic1g3kY
+ ./proxy_server -mode=webServer -tcpport=8284 -vkey=DKibZF5TXvic1g3kY
 ```
 名称 | 含义
 ---|---
@@ -95,7 +95,7 @@ tcpport | 服务端与客户端通信端口
 - 客户端
 
 ```
- ./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+ ./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 - 配置
 
@@ -107,7 +107,7 @@ tcpport | 服务端与客户端通信端口
 - 服务端
 
 ```
- ./easyProxy -mode=webServer -tcpport=8284
+ ./proxy_server -mode=webServer -tcpport=8284
 ```
 名称 | 含义
 ---|---
@@ -147,7 +147,7 @@ tcpport | 服务端与客户端通信端口
 - 服务端
 
 ```
-./easyProxy -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
+./proxy_server -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
 ```
 
 名称 | 含义
@@ -162,7 +162,7 @@ target | 目标地址，格式如上
 
 
 ```
-./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 - 与nginx配合实现访问a.ourcauc.com等同访问10.1.50.203:80效果，将该域名解析道云服务器，nginx配置
@@ -201,7 +201,7 @@ server {
 - 服务端
 
 ```
-./easyProxy -mode=udpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=53 -target=10.1.50.210:53
+./proxy_server -mode=udpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=53 -target=10.1.50.210:53
 ```
 
 名称 | 含义
@@ -216,7 +216,7 @@ target | 目标地址，格式如上
 
 
 ```
-./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 
@@ -235,7 +235,7 @@ target | 目标地址，格式如上
 - 服务端
 
 ```
-./easyProxy -mode=socks5Server -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+./proxy_server -mode=socks5Server -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
 ```
 
 名称 | 含义
@@ -258,7 +258,7 @@ p | 验证的密码
 
 
 ```
-./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 - 需要使用内网代理的机器
@@ -281,7 +281,7 @@ p | 验证的密码
 - 服务端
 
 ```
-./easyProxy -mode=httpProxyServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+./proxy_server -mode=httpProxyServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
 ```
 
 名称 | 含义
@@ -296,7 +296,7 @@ httpport | http代理连接端口
 
 
 ```
-./easyProxy -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 - 需要使用内网代理的机器
