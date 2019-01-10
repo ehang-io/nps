@@ -41,30 +41,24 @@ func Relay(in, out net.Conn, compressType int, crypt, mux bool) {
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
 		copyBuffer(NewSnappyConn(in, crypt), out)
-		if mux {
-			out.Close()
-			NewSnappyConn(in, crypt).Write([]byte(IO_EOF))
-		}
+		out.Close()
+		NewSnappyConn(in, crypt).Write([]byte(IO_EOF))
 	case COMPRESS_SNAPY_DECODE:
 		copyBuffer(in, NewSnappyConn(out, crypt))
-		if mux {
-			in.Close()
+		in.Close()
+		if !mux {
+			out.Close()
 		}
 	case COMPRESS_NONE_ENCODE:
 		copyBuffer(NewCryptConn(in, crypt), out)
-		if mux {
-			out.Close()
-			NewCryptConn(in, crypt).Write([]byte(IO_EOF))
-		}
+		out.Close()
+		NewCryptConn(in, crypt).Write([]byte(IO_EOF))
 	case COMPRESS_NONE_DECODE:
 		copyBuffer(in, NewCryptConn(out, crypt))
-		if mux {
-			in.Close()
-		}
-	}
-	if !mux {
 		in.Close()
-		out.Close()
+		if !mux {
+			out.Close()
+		}
 	}
 }
 
