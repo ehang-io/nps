@@ -59,6 +59,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 	if flag, err := conn.ReadFlag(); err == nil {
 		defer func() {
 			if s.config.Mux {
+				conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt)
 				s.bridge.ReturnTunnel(conn, getverifyval(s.config.VerifyKey))
 			} else {
 				conn.Close()
@@ -74,7 +75,6 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 				return
 			}
 			s.listener.WriteToUDP(buf[:n], addr)
-			conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt)
 		}
 	}
 }

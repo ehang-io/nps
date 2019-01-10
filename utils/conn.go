@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -218,17 +219,14 @@ func (s *Conn) SetAlive() {
 	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 }
 
-//从tcp报文中解析出host，连接类型等
+//从tcp报文中解析出host，连接类型等 TODO 多种情况
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
-	var b [32 * 1024]byte
-	var n int
-	if n, err = s.Read(b[:]); err != nil {
+	r, err = http.ReadRequest(bufio.NewReader(s))
+	if err != nil {
 		return
 	}
-	rb = b[:n]
-	r, err = http.ReadRequest(bufio.NewReader(bytes.NewReader(rb)))
+	rb, err = httputil.DumpRequest(r, true)
 	if err != nil {
-		log.Println("解析host出错：", err)
 		return
 	}
 	hostPortURL, err := url.Parse(r.Host)

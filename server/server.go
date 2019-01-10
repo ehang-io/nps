@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/astaxie/beego"
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
 	"log"
@@ -62,9 +63,9 @@ func NewMode(Bridge *bridge.Tunnel, config *ServerConfig) interface{} {
 	case "webServer":
 		InitCsvDb()
 		InitFromCsv()
-		//p, _ := beego.AppConfig.Int("hostPort")
+		p, _ := beego.AppConfig.Int("hostPort")
 		t := &ServerConfig{
-			TcpPort:      8088,
+			TcpPort:      p,
 			Mode:         "httpHostServer",
 			Target:       "",
 			VerifyKey:    "",

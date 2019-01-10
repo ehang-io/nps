@@ -12,7 +12,6 @@ import (
 	"strings"
 )
 
-
 type process func(c *utils.Conn, s *TunnelModeServer) error
 
 type TunnelModeServer struct {
@@ -87,7 +86,7 @@ func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *ServerConfig, addr str
 		if flag == utils.CONN_SUCCESS {
 			if method == "CONNECT" {
 				fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
-			} else {
+			} else if rb != nil {
 				link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt)
 			}
 			go utils.Relay(link.Conn, c.Conn, cnf.CompressEncode, cnf.Crypt, cnf.Mux)
@@ -104,13 +103,7 @@ func (s *TunnelModeServer) Close() error {
 
 //tcp隧道模式
 func ProcessTunnel(c *utils.Conn, s *TunnelModeServer) error {
-	method, _, rb, err, r := c.GetHost()
-	if err == nil {
-		if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
-			return err
-		}
-	}
-	return s.dealClient(c, s.config, s.config.Target, method, rb)
+	return s.dealClient(c, s.config, s.config.Target, "", nil)
 }
 
 //http代理模式
@@ -123,7 +116,7 @@ func ProcessHttp(c *utils.Conn, s *TunnelModeServer) error {
 	if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
 		return err
 	}
-	//TODO效率问题
+	//TODO 效率问题
 	return s.dealClient(c, s.config, addr, method, rb)
 }
 
@@ -158,7 +151,7 @@ func (s *WebServer) Start() {
 	beego.BConfig.WebConfig.Session.SessionOn = true
 	log.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
 	beego.SetViewsPath(beego.AppPath + "/web/views")
-	beego.SetStaticPath("/static/", "/web/static")
+	beego.SetStaticPath("/static", beego.AppPath+"/web/static")
 	beego.Run()
 }
 
