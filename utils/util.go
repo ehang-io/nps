@@ -153,7 +153,7 @@ func GetIntNoerrByStr(str string) int {
 
 var bufPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, 65535)
+		return make([]byte, 65536)
 	},
 }
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改

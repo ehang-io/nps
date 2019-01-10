@@ -113,7 +113,7 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 			n = 0
 		}
 	}()
-	if n, err = s.r.Read(b); err != nil {
+	if n, err = s.r.Read(b); err != nil || err == io.EOF {
 		return
 	}
 	if s.crypt {
