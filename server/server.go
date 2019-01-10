@@ -157,7 +157,8 @@ func InitCsvDb() *Csv {
 //get key by host from x
 func GetKeyByHost(host string) (h *HostList, t *ServerConfig, err error) {
 	for _, v := range CsvDb.Hosts {
-		if strings.Contains(host, v.Host) {
+		s := strings.Split(host, ":")
+		if s[0] == v.Host {
 			h = v
 			t, err = CsvDb.GetTask(v.Vkey)
 			return

@@ -63,6 +63,7 @@ func (s *TunnelModeServer) auth(r *http.Request, c *utils.Conn, u, p string) err
 
 //与客户端建立通道
 func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *ServerConfig, addr string, method string, rb []byte) error {
+reGet:
 	link, err := s.bridge.GetTunnel(getverifyval(cnf.VerifyKey), cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
 	defer func() {
 		if cnf.Mux {
@@ -72,7 +73,7 @@ func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *ServerConfig, addr str
 		}
 	}()
 	if err != nil {
-		log.Println(err)
+		log.Println("conn to client error:", err)
 		c.Close()
 		return err
 	}
@@ -80,7 +81,7 @@ func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *ServerConfig, addr str
 		c.Close()
 		link.Close()
 		log.Println(err)
-		return err
+		goto reGet
 	}
 	if flag, err := link.ReadFlag(); err == nil {
 		if flag == utils.CONN_SUCCESS {
