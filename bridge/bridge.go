@@ -146,8 +146,8 @@ retry:
 }
 
 //得到一个tcp隧道
+//TODO 超时问题 锁机制问题 对单个客户端加锁
 func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt, mux bool) (c *utils.Conn, err error) {
-	s.tunnelLock.Lock()
 	if v, ok := s.TunnelList[cFlag]; !ok || v.Len() < 3 { //新建通道
 		go s.newChan(cFlag)
 	}
@@ -161,7 +161,6 @@ retry:
 		goto retry
 	}
 	c.WriteConnInfo(en, de, crypt, mux)
-	s.tunnelLock.Unlock()
 	return
 }
 
