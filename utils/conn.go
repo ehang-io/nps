@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -245,16 +244,20 @@ func (s *Conn) SetAlive() {
 
 //从tcp报文中解析出host，连接类型等 TODO 多种情况
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
-	r, err = http.ReadRequest(bufio.NewReader(s))
-	if err != nil {
+	var b [32 * 1024]byte
+	var n int
+	if n, err = s.Read(b[:]); err != nil {
 		return
 	}
-	rb, err = httputil.DumpRequest(r, true)
+	rb = b[:n]
+	r, err = http.ReadRequest(bufio.NewReader(bytes.NewReader(rb)))
 	if err != nil {
 		return
 	}
 	hostPortURL, err := url.Parse(r.Host)
 	if err != nil {
+		address = r.Host
+		err = nil
 		return
 	}
 	if hostPortURL.Opaque == "443" { //https访问

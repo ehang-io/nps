@@ -104,13 +104,20 @@ func (s *TunnelModeServer) Close() error {
 
 //tcp隧道模式
 func ProcessTunnel(c *utils.Conn, s *TunnelModeServer) error {
-	return s.dealClient(c, s.config, s.config.Target, "", nil)
+	_, _, rb, err, r := c.GetHost()
+	if err == nil {
+		if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
+			return err
+		}
+	}
+	return s.dealClient(c, s.config, s.config.Target, "", rb)
 }
 
 //http代理模式
 func ProcessHttp(c *utils.Conn, s *TunnelModeServer) error {
 	method, addr, rb, err, r := c.GetHost()
 	if err != nil {
+		log.Println(err)
 		c.Close()
 		return err
 	}

@@ -141,6 +141,11 @@ func DelTask(vKey string) error {
 	if err := StopServer(vKey); err != nil {
 		return err
 	}
+	for _, v := range CsvDb.Hosts {
+		if v.Vkey == vKey {
+			CsvDb.DelHost(v.Host)
+		}
+	}
 	return CsvDb.DelTask(vKey)
 }
 
