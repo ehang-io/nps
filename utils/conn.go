@@ -210,9 +210,12 @@ retry:
 	if typeStr = string(lType); typeStr == TEST_FLAG {
 		en, de, crypt, mux = s.GetConnInfoFromConn()
 		goto retry
+	} else if typeStr != CONN_TCP && typeStr != CONN_UDP {
+		err = errors.New("unknown conn type")
+		return
 	}
 	cLen, err := s.GetLen()
-	if err != nil {
+	if err != nil || cLen > poolSize {
 		return
 	}
 	hostByte, err := s.ReadLen(cLen)

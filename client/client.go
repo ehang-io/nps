@@ -101,7 +101,6 @@ re:
 	//获取连接的host type(tcp or udp)
 	typeStr, host, en, de, crypt, mux, err := c.GetHostFromConn()
 	if err != nil {
-		log.Println("get host info error:", err)
 		c.Close()
 		return
 	}
