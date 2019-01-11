@@ -34,6 +34,9 @@ func NewCryptConn(conn net.Conn, crypt bool) *CryptConn {
 //加密写
 func (s *CryptConn) Write(b []byte) (n int, err error) {
 	n = len(b)
+	if n == 0 {
+		return
+	}
 	if s.crypt {
 		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
 			return
@@ -92,6 +95,9 @@ func NewSnappyConn(conn net.Conn, crypt bool) *SnappyConn {
 //snappy压缩写 包含加密
 func (s *SnappyConn) Write(b []byte) (n int, err error) {
 	n = len(b)
+	if n == 0 {
+		return
+	}
 	if s.crypt {
 		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
 			log.Println("encode crypt error:", err)
