@@ -141,7 +141,7 @@ func NewConn(conn net.Conn) *Conn {
 
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int) ([]byte, error) {
-	if cLen > 65535 {
+	if cLen > 65536 {
 		return nil, errors.New("长度错误")
 	}
 	buf := bufPool.Get().([]byte)[:cLen]
