@@ -18,25 +18,26 @@ import (
 )
 
 const cryptKey = "1234567812345678"
+const poolSize = 64 * 1024
 
 type CryptConn struct {
 	conn  net.Conn
 	crypt bool
+	rb    []byte
+	rn    int
 }
 
 func NewCryptConn(conn net.Conn, crypt bool) *CryptConn {
 	c := new(CryptConn)
 	c.conn = conn
 	c.crypt = crypt
+	c.rb = make([]byte, poolSize)
 	return c
 }
 
 //加密写
 func (s *CryptConn) Write(b []byte) (n int, err error) {
 	n = len(b)
-	if n == 0 {
-		return
-	}
 	if s.crypt {
 		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
 			return
@@ -51,6 +52,21 @@ func (s *CryptConn) Write(b []byte) (n int, err error) {
 
 //解密读
 func (s *CryptConn) Read(b []byte) (n int, err error) {
+read:
+	if len(s.rb) > 0 {
+		if len(b) >= s.rn {
+			n = s.rn
+			copy(b, s.rb[:s.rn])
+			s.rn = 0
+			s.rb = s.rb[:0]
+		} else {
+			n = len(b)
+			copy(b, s.rb[:len(b)])
+			s.rn = n - len(b)
+			s.rb = s.rb[len(b):]
+		}
+		return
+	}
 	defer func() {
 		if err == nil && n == len(IO_EOF) && string(b[:n]) == IO_EOF {
 			err = io.EOF
@@ -58,7 +74,7 @@ func (s *CryptConn) Read(b []byte) (n int, err error) {
 		}
 	}()
 	var lens int
-	var buf, bs []byte
+	var buf []byte
 	c := NewConn(s.conn)
 	if lens, err = c.GetLen(); err != nil {
 		return
@@ -67,15 +83,14 @@ func (s *CryptConn) Read(b []byte) (n int, err error) {
 		return
 	}
 	if s.crypt {
-		if bs, err = AesDecrypt(buf, []byte(cryptKey)); err != nil {
+		if s.rb, err = AesDecrypt(buf, []byte(cryptKey)); err != nil {
 			return
 		}
 	} else {
-		bs = buf
+		s.rb = buf
 	}
-	n = len(bs)
-	copy(b, bs)
-	return
+	s.rn = len(s.rb)
+	goto read
 }
 
 type SnappyConn struct {
@@ -95,9 +110,6 @@ func NewSnappyConn(conn net.Conn, crypt bool) *SnappyConn {
 //snappy压缩写 包含加密
 func (s *SnappyConn) Write(b []byte) (n int, err error) {
 	n = len(b)
-	if n == 0 {
-		return
-	}
 	if s.crypt {
 		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
 			log.Println("encode crypt error:", err)
@@ -119,18 +131,21 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 			n = 0
 		}
 	}()
-	if n, err = s.r.Read(b); err != nil || err == io.EOF {
+	buf := bufPool.Get().([]byte)
+	if n, err = s.r.Read(buf); err != nil {
 		return
 	}
+	var bs []byte
 	if s.crypt {
-		var bs []byte
-		if bs, err = AesDecrypt(b[:n], []byte(cryptKey)); err != nil {
+		if bs, err = AesDecrypt(buf[:n], []byte(cryptKey)); err != nil {
 			log.Println("decode crypt error:", err)
 			return
 		}
-		n = len(bs)
-		copy(b, bs)
+	} else {
+		bs = buf[:n]
 	}
+	n = len(bs)
+	copy(b, bs)
 	return
 }
 
@@ -147,8 +162,8 @@ func NewConn(conn net.Conn) *Conn {
 
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int) ([]byte, error) {
-	if cLen > 65536 {
-		return nil, errors.New("长度错误")
+	if cLen > poolSize {
+		return nil, errors.New("长度错误" + strconv.Itoa(cLen))
 	}
 	buf := bufPool.Get().([]byte)[:cLen]
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {

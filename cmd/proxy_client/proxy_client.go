@@ -12,7 +12,6 @@ var (
 	verifyKey  = flag.String("vkey", "", "验证密钥")
 )
 
-
 func main() {
 	flag.Parse()
 	//go func() {

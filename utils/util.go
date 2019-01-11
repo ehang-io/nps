@@ -40,21 +40,21 @@ WWW-Authenticate: Basic realm="easyProxy"
 func Relay(in, out net.Conn, compressType int, crypt, mux bool) {
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
-		copyBuffer(NewSnappyConn(in, crypt), out)
+		io.Copy(NewSnappyConn(in, crypt), out)
 		out.Close()
 		NewSnappyConn(in, crypt).Write([]byte(IO_EOF))
 	case COMPRESS_SNAPY_DECODE:
-		copyBuffer(in, NewSnappyConn(out, crypt))
+		io.Copy(in, NewSnappyConn(out, crypt))
 		in.Close()
 		if !mux {
 			out.Close()
 		}
 	case COMPRESS_NONE_ENCODE:
-		copyBuffer(NewCryptConn(in, crypt), out)
+		io.Copy(NewCryptConn(in, crypt), out)
 		out.Close()
 		NewCryptConn(in, crypt).Write([]byte(IO_EOF))
 	case COMPRESS_NONE_DECODE:
-		copyBuffer(in, NewCryptConn(out, crypt))
+		io.Copy(in, NewCryptConn(out, crypt))
 		in.Close()
 		if !mux {
 			out.Close()
@@ -147,10 +147,11 @@ func GetIntNoerrByStr(str string) int {
 
 var bufPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, 65536)
+		return make([]byte, poolSize)
 	},
 }
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改
+//废除
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	//TODO 回收问题
 	buf := bufPool.Get().([]byte)
