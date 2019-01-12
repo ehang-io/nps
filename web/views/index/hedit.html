@@ -1,32 +1,34 @@
 <div class="row tile">
     <div class="col-md-6 col-md-auto">
         <div>
-            <h3 class="tile-title">添加</h3>
+            <h3 class="tile-title">修改</h3>
             <div class="tile-body">
                 <form>
-                    <input type="hidden" name="vkey" value="{{.vkey}}">
+                    <input type="hidden" name="vkey" value="{{.t.VerifyKey}}">
                     <div class="form-group">
                         <label class="control-label">域名</label>
-                        <input class="form-control" type="text" name="host" placeholder="域名">
+                        <input class="form-control" value="{{.h.Host}}" type="text" name="host" placeholder="域名">
                     </div>
                     <div class="form-group">
                         <label class="control-label">内网目标</label>
-                        <input class="form-control" type="text" name="target" placeholder="内网隧道目标，例如10.1.50.203:22">
+                        <input class="form-control" value="{{.h.Target}}" type="text" name="target"
+                               placeholder="内网隧道目标，例如10.1.50.203:22">
                     </div>
                     <div class="form-group" id="header">
                         <label class="control-label">header头修改(冒号分隔，多个请换行填写)</label>
-                        <textarea class="form-control" rows="4" type="text" name="header" placeholder="Cache-Control: no-cache"></textarea>
+                        <textarea class="form-control" rows="4" type="text" name="header"
+                                  placeholder="Cache-Control: no-cache">{{.h.HeaderChange}}</textarea>
                     </div>
                     <div class="form-group" id="hostchange">
                         <label class="control-label">host修改</label>
-                        <input class="form-control" value="" type="text" name="hostchange"
+                        <input class="form-control" value="{{.h.HostChange}}" type="text" name="hostchange"
                                placeholder="host修改">
                     </div>
                 </form>
             </div>
             <div class="tile-footer">
                 &nbsp;&nbsp;<button class="btn btn-success" href="#" id="add"><i
-                    class="fa fa-fw fa-lg fa-eye"></i>添加
+                    class="fa fa-fw fa-lg fa-eye"></i>保存
             </button>
             </div>
         </div>
@@ -38,7 +40,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/index/addhost",
+                url: "/index/edithost",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

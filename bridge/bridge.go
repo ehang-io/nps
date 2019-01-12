@@ -92,7 +92,6 @@ func (s *Tunnel) cliProcess(c *utils.Conn) error {
 		s.verifyError(c)
 		return errors.New("验证错误")
 	}
-	log.Println("客户端连接成功: ", c.Conn.RemoteAddr())
 	c.Conn.(*net.TCPConn).SetReadDeadline(time.Time{})
 	//做一个判断 添加到对应的channel里面以供使用
 	if flag, err := c.ReadFlag(); err != nil {
@@ -106,6 +105,7 @@ func (s *Tunnel) cliProcess(c *utils.Conn) error {
 func (s *Tunnel) typeDeal(typeVal string, c *utils.Conn, cFlag string) error {
 	switch typeVal {
 	case utils.WORK_MAIN:
+		log.Println("客户端连接成功", c.Conn.RemoteAddr())
 		s.addList(s.SignalList, c, cFlag)
 	case utils.WORK_CHAN:
 		s.addList(s.TunnelList, c, cFlag)
@@ -131,14 +131,13 @@ func (s *Tunnel) addList(m map[string]*list, c *utils.Conn, cFlag string) {
 
 //新建隧道
 func (s *Tunnel) newChan(cFlag string) error {
-	if err := s.wait(s.SignalList, cFlag); err != nil {
+	var connPass *utils.Conn
+	var err error
+retry:
+	if connPass, err = s.waitAndPop(s.SignalList, cFlag); err != nil {
 		return err
 	}
-retry:
-	connPass := s.SignalList[cFlag].Pop()
-	_, err := connPass.Conn.Write([]byte("chan"))
-	if err != nil {
-		log.Println(err)
+	if _, err = connPass.Conn.Write([]byte("chan")); err != nil {
 		goto retry
 	}
 	s.SignalList[cFlag].Add(connPass)
@@ -152,10 +151,9 @@ func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt, mux bool) (c *utils.
 		go s.newChan(cFlag)
 	}
 retry:
-	if err = s.wait(s.TunnelList, cFlag); err != nil {
+	if c, err = s.waitAndPop(s.TunnelList, cFlag); err != nil {
 		return
 	}
-	c = s.TunnelList[cFlag].Pop()
 	if _, err = c.WriteTest(); err != nil {
 		c.Close()
 		goto retry
@@ -212,22 +210,26 @@ func (s *Tunnel) delClient(cFlag string, l map[string]*list) {
 }
 
 //等待
-func (s *Tunnel) wait(m map[string]*list, cFlag string) error {
+func (s *Tunnel) waitAndPop(m map[string]*list, cFlag string) (c *utils.Conn, err error) {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	stop := time.After(time.Second * 10)
-loop:
 	for {
 		select {
 		case <-ticker.C:
-			if _, ok := m[cFlag]; ok {
+			s.lock.Lock()
+			if v, ok := m[cFlag]; ok && v.Len() > 0 {
+				c = v.Pop()
 				ticker.Stop()
-				break loop
+				s.lock.Unlock()
+				return
 			}
+			s.lock.Unlock()
 		case <-stop:
-			return errors.New("client key: " + cFlag + ",err: get client conn timeout")
+			err = errors.New("client key: " + cFlag + ",err: get client conn timeout")
+			return
 		}
 	}
-	return nil
+	return
 }
 
 func (s *Tunnel) verify(vKeyMd5 string) bool {

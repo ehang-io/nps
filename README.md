@@ -1,7 +1,7 @@
 # easyProxy
 ![](https://img.shields.io/github/stars/cnlh/easyProxy.svg)   ![](https://img.shields.io/github/forks/cnlh/easyProxy.svg) ![](https://img.shields.io/github/license/cnlh/easyProxy.svg)
 
-easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何tcp、udp上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**，可实现在非内网环境下如同使用vpn一样访问内网资源和设备的效果，同时**支持socks5验证，snnapy压缩（节省带宽和流量）、站点保护、加密传输、多路复用**。
+easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何tcp、udp上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**，可实现在非内网环境下如同使用vpn一样访问内网资源和设备的效果，同时**支持socks5验证，snnapy压缩（节省带宽和流量）、站点保护、加密传输、多路复用、host修改、自定义header**。
 
 目前市面上提供类似服务的有花生壳、TeamView、GoToMyCloud等等，但要使用第三方的公网服务器就必须为第三方付费，并且这些服务都有各种各样的限制，此外，由于数据包会流经第三方，因此对数据安全也是一大隐患。
 
@@ -36,6 +36,8 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 - [x] 支持TCP多路复用
 - [x] 支持同时开多条tcp、udp隧道等等，且只需要开一个客户端和服务端
 - [x] 支持一个服务端，多个客户端模式
+- [x] host修改支持
+- [x] 自定义设置header支持
 
 ## 目录
 
@@ -49,7 +51,10 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 8. [站点密码保护](#站点保护)
 9. [加密传输](#加密传输)
 10. [TCP多路复用](#多路复用)
-11. [配置文件说明](#配置文件)
+11. [host修改](#host修改)
+12. [自定义header](#自定义header)
+13. [获取用户真实 IP](#获取用户真实 IP)
+
 
 ## 安装
 
@@ -62,8 +67,9 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 - 安装源码
 > go get github.com/cnlh/easyProxy
 - 编译
-> go build cmd/proxy_server.go
-> go build cmd/proxy_client.go
+> go build cmd/server/proxy_server.go
+
+> go build cmd/client/proxy_client.go
 
 ## web管理模式
 
@@ -71,10 +77,21 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 ### 介绍
 
 可在网页上配置和管理各个tcp、udp隧道、内网站点代理等等，功能极为强大，操作也非常方便。
+### 服务端配置文件
+- /conf/app.conf
+
+名称 | 含义
+---|---
+httpport | web管理端口
+password | web界面管理密码
+hostPort | 域名代理模式监听端口
+tcpport  | 服务端客户端通信端口
 
 **提示：使用web模式时，服务端执行文件必须在项目根目录，否则无法正确加载配置文件**
 
 ### 使用
+
+
 
 **有两种模式：**
 
@@ -84,13 +101,11 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 - 服务端
 
 ```
- ./proxy_server -mode=webServer -tcpport=8284 -vkey=DKibZF5TXvic1g3kY
+ ./proxy_server -vkey=DKibZF5TXvic1g3kY
 ```
 名称 | 含义
 ---|---
-mode | 运行模式
 vkey | 验证密钥
-tcpport | 服务端与客户端通信端口
 
 
 - 客户端
@@ -100,7 +115,7 @@ tcpport | 服务端与客户端通信端口
 ```
 - 配置
 
-进入web界面，公网ip:web界面端口（默认8080），密码为123
+进入web界面，公网ip:web界面端口（默认8080），密码默认为123
 
 2、多客户端模式，不同的隧道流量均从不同的客户端转发。
 
@@ -108,12 +123,11 @@ tcpport | 服务端与客户端通信端口
 - 服务端
 
 ```
- ./proxy_server -mode=webServer -tcpport=8284
+ ./proxy_server
 ```
 名称 | 含义
 ---|---
 mode | 运行模式
-tcpport | 服务端与客户端通信端口
 - 客户端
 
 进入web管理界面，有详细的命令
@@ -121,7 +135,6 @@ tcpport | 服务端与客户端通信端口
 - 配置
 
 进入web界面，公网ip:web界面端口（默认8080），密码默认为123
-
 
 
 
@@ -354,16 +367,22 @@ easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需�
 
 web管理中也可配置
 
+## host修改
 
 
-## 配置文件
-- /conf/app.conf
+通常情况下本代理不会修改转发的任何数据。但有一些后端服务会根据 http 请求 header 中的 host 字段来展现不同的网站，例如 nginx 的虚拟主机服务，启用 host-header 的修改功能可以动态修改 http 请求中的 host 字段。该功能仅限于域名代理模式。
 
-名称 | 含义
----|---
-httpport | web管理端口
-password | web界面管理密码
-hostPort | 域名代理模式监听端口
+**使用方法：在web管理中设置**
+
+## 自定义header
+
+支持对header进行新增或者修改，以配合服务的需要
+
+## 获取用户真实 IP
+
+目前只有域名模式的代理支持这一功能，可以通过用户请求的 header 中的 X-Forwarded-For 和 X-Real-IP 来获取用户真实 IP。
+
+**本代理前会在每一个请求中添加了这两个 header。**
 
 
 ## 操作系统支持

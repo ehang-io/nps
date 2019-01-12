@@ -160,11 +160,40 @@ func (s *IndexController) AddHost() {
 		s.display("index/hadd")
 	} else {
 		h := &server.HostList{
-			Vkey:   s.GetString("vkey"),
-			Host:   s.GetString("host"),
-			Target: s.GetString("target"),
+			Vkey:         s.GetString("vkey"),
+			Host:         s.GetString("host"),
+			Target:       s.GetString("target"),
+			HeaderChange: s.GetString("header"),
+			HostChange:   s.GetString("hostchange"),
 		}
 		server.CsvDb.NewHost(h)
 		s.AjaxOk("添加成功")
+	}
+}
+
+func (s *IndexController) EditHost() {
+	if s.Ctx.Request.Method == "GET" {
+		host := s.GetString("host")
+		if h, t, err := server.GetKeyByHost(host); err != nil {
+			s.error()
+		} else {
+			s.Data["t"] = t
+			s.Data["h"] = h
+		}
+		s.SetInfo("修改")
+		s.display("index/hedit")
+	} else {
+		host := s.GetString("host")
+		if h, _, err := server.GetKeyByHost(host); err != nil {
+			s.error()
+		} else {
+			h.Vkey = s.GetString("vkey")
+			h.Host = s.GetString("host")
+			h.Target = s.GetString("target")
+			h.HeaderChange = s.GetString("header")
+			h.HostChange = s.GetString("hostchange")
+			server.CsvDb.UpdateHost(h)
+		}
+		s.AjaxOk("修改成功")
 	}
 }

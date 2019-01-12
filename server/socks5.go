@@ -162,15 +162,14 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils
 func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	proxyConn, err := s.doConnect(c, connectMethod)
 	defer func() {
-		if s.config.Mux {
+		if s.config.Mux && proxyConn != nil {
 			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
 		}
 	}()
 	if err != nil {
 		c.Close()
 	} else {
-		go utils.Relay(proxyConn.Conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
-		utils.Relay(c, proxyConn.Conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	}
 }
 
@@ -200,15 +199,14 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 
 	proxyConn, err := s.doConnect(c, associateMethod)
 	defer func() {
-		if s.config.Mux {
+		if s.config.Mux && proxyConn != nil {
 			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
 		}
 	}()
 	if err != nil {
 		c.Close()
 	} else {
-		go utils.Relay(proxyConn.Conn, c, s.config.CompressEncode, s.config.Crypt, s.config.Mux)
-		utils.Relay(c, proxyConn.Conn, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	}
 }
 

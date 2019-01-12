@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/astaxie/beego"
@@ -9,7 +10,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strings"
+	"sync"
 )
 
 type process func(c *utils.Conn, s *TunnelModeServer) error
@@ -61,27 +64,22 @@ func (s *TunnelModeServer) auth(r *http.Request, c *utils.Conn, u, p string) err
 	return nil
 }
 
+func (s *TunnelModeServer) dealClient2(c *utils.Conn, cnf *ServerConfig, addr string, method string, rb []byte) error {
+	return nil
+}
+
 //与客户端建立通道
 func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *ServerConfig, addr string, method string, rb []byte) error {
-reGet:
-	link, err := s.bridge.GetTunnel(getverifyval(cnf.VerifyKey), cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+	var link *utils.Conn
+	var err error
 	defer func() {
-		if cnf.Mux {
+		if cnf.Mux && link != nil {
 			s.bridge.ReturnTunnel(link, getverifyval(cnf.VerifyKey))
-		} else {
-			c.Close()
 		}
 	}()
-	if err != nil {
-		log.Println("conn to client error:", err)
-		c.Close()
+	if link, err = s.GetTunnelAndWriteHost(c, cnf, addr); err != nil {
+		log.Println("get bridge tunnel error: ", err)
 		return err
-	}
-	if _, err := link.WriteHost(utils.CONN_TCP, addr); err != nil {
-		c.Close()
-		link.Close()
-		log.Println(err)
-		goto reGet
 	}
 	if flag, err := link.ReadFlag(); err == nil {
 		if flag == utils.CONN_SUCCESS {
@@ -90,8 +88,7 @@ reGet:
 			} else if rb != nil {
 				link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt)
 			}
-			go utils.Relay(link.Conn, c.Conn, cnf.CompressEncode, cnf.Crypt, cnf.Mux)
-			utils.Relay(c.Conn, link.Conn, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+			utils.ReplayWaitGroup(link.Conn, c.Conn, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
 		}
 	}
 	return nil
@@ -100,6 +97,19 @@ reGet:
 //close
 func (s *TunnelModeServer) Close() error {
 	return s.listener.Close()
+}
+
+func (s *TunnelModeServer) GetTunnelAndWriteHost(c *utils.Conn, cnf *ServerConfig, addr string) (*utils.Conn, error) {
+	var err error
+	link, err := s.bridge.GetTunnel(getverifyval(cnf.VerifyKey), cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = link.WriteHost(utils.CONN_TCP, addr); err != nil {
+		link.Close()
+		return nil, err
+	}
+	return link, nil
 }
 
 //tcp隧道模式
@@ -124,29 +134,69 @@ func ProcessHttp(c *utils.Conn, s *TunnelModeServer) error {
 	if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
 		return err
 	}
-	//TODO 效率问题
 	return s.dealClient(c, s.config, addr, method, rb)
 }
 
 //多客户端域名代理
 func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
-	method, addr, rb, err, r := c.GetHost()
-	if err != nil {
-		c.Close()
-		return err
+	var (
+		isConn = true
+		link   *utils.Conn
+		cnf    *ServerConfig
+		host   *HostList
+		wg     sync.WaitGroup
+	)
+	for {
+		r, err := http.ReadRequest(bufio.NewReader(c))
+		if err != nil {
+			break
+		}
+		//首次获取conn
+		if isConn {
+			isConn = false
+			if host, cnf, err = GetKeyByHost(r.Host); err != nil {
+				log.Printf("the host %s is not found !", r.Host)
+				break
+			}
+
+			if err = s.auth(r, c, cnf.U, cnf.P); err != nil {
+				break
+			}
+
+			if link, err = s.GetTunnelAndWriteHost(c, cnf, host.Target); err != nil {
+				log.Println("get bridge tunnel error: ", err)
+				break
+			}
+
+			if flag, err := link.ReadFlag(); err != nil || flag == utils.CONN_ERROR {
+				log.Printf("the host %s connection to %s error", r.Host, host.Target)
+				break
+			} else {
+				wg.Add(1)
+				go func() {
+					utils.Relay(c.Conn, link.Conn, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+					wg.Done()
+				}()
+			}
+		}
+		utils.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
+		b, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			break
+		}
+		if _, err := link.WriteTo(b, cnf.CompressEncode, cnf.Crypt); err != nil {
+			break
+		}
 	}
-	host, task, err := GetKeyByHost(addr)
-	if err != nil {
-		return err
+	wg.Wait()
+	if cnf != nil && cnf.Mux && link != nil {
+		link.WriteTo([]byte(utils.IO_EOF), cnf.CompressEncode, cnf.Crypt)
+		s.bridge.ReturnTunnel(link, getverifyval(cnf.VerifyKey))
+	} else if link != nil {
+		link.Close()
 	}
-	if err := s.auth(r, c, task.U, task.P); err != nil {
-		return err
-	}
-	if err != nil {
-		c.Close()
-		return err
-	}
-	return s.dealClient(c, task, host.Target, method, rb)
+	c.Close()
+	return nil
 }
 
 //web管理方式

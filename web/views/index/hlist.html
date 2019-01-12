@@ -42,6 +42,10 @@
         window.location.href = "/index/addhost?vkey={{.vkey}}"
     }
 
+    function edit(host) {
+        window.location.href = "/index/edithost?host=" + host
+    }
+
     $(document).ready(function () {
         var table = $('#sampleTable').DataTable({
             dom: 'Bfrtip',
@@ -67,7 +71,8 @@
 
                     return '<div class="btn-group" role="group" aria-label="..."> ' +
                             '<button onclick="del(\'' + row.Host + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
-                            ' </div>'
+                            '<button onclick="edit(\'' + row.Host + '\')" type="button"   class="btn btn-primary btn-sm">编辑查看</button> '
+                            + ' </div>'
                 }
             }
             ],

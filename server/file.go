@@ -23,14 +23,16 @@ type ServerConfig struct {
 	ClientStatus   int    //客s户端状态
 	Crypt          bool   //是否加密
 	Mux            bool   //是否加密
-	CompressEncode int
-	CompressDecode int
+	CompressEncode int    //加密方式
+	CompressDecode int    //解密方式
 }
 
 type HostList struct {
-	Vkey   string //服务端与客户端通信端口
-	Host   string //启动方式
-	Target string //目标
+	Vkey         string //服务端与客户端通信端口
+	Host         string //启动方式
+	Target       string //目标
+	HeaderChange string //host修改
+	HostChange   string //host修改
 }
 
 func NewCsv(runList map[string]interface{}) *Csv {
@@ -125,64 +127,6 @@ func (s *Csv) LoadTaskFromCsv() {
 	s.Tasks = tasks
 }
 
-func (s *Csv) StoreHostToCsv() {
-	// 创建文件
-	csvFile, err := os.Create(beego.AppPath + "/conf/hosts.csv")
-	if err != nil {
-		panic(err)
-	}
-	defer csvFile.Close()
-	// 获取csv的Writer
-	writer := csv.NewWriter(csvFile)
-	// 将map中的Post转换成slice，因为csv的Write需要slice参数
-	// 并写入csv文件
-	for _, host := range s.Hosts {
-		record := []string{
-			host.Host,
-			host.Target,
-			host.Vkey,
-		}
-		err1 := writer.Write(record)
-		if err1 != nil {
-			panic(err1)
-		}
-	}
-	// 确保所有内存数据刷到csv文件
-	writer.Flush()
-}
-
-func (s *Csv) LoadHostFromCsv() {
-	// 打开文件
-	file, err := os.Open(beego.AppPath + "/conf/hosts.csv")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	// 获取csv的reader
-	reader := csv.NewReader(file)
-
-	// 设置FieldsPerRecord为-1
-	reader.FieldsPerRecord = -1
-
-	// 读取文件中所有行保存到slice中
-	records, err := reader.ReadAll()
-	if err != nil {
-		panic(err)
-	}
-	var hosts []*HostList
-	// 将每一行数据保存到内存slice中
-	for _, item := range records {
-		post := &HostList{
-			Vkey:   item[2],
-			Host:   item[0],
-			Target: item[1],
-		}
-		hosts = append(hosts, post)
-	}
-	s.Hosts = hosts
-}
-
 func (s *Csv) NewTask(t *ServerConfig) {
 	s.Tasks = append(s.Tasks, t)
 	s.StoreTasksToCsv()
@@ -194,6 +138,18 @@ func (s *Csv) UpdateTask(t *ServerConfig) error {
 			s.Tasks = append(s.Tasks[:k], s.Tasks[k+1:]...)
 			s.Tasks = append(s.Tasks, t)
 			s.StoreTasksToCsv()
+			return nil
+		}
+	}
+	return errors.New("不存在")
+}
+
+func (s *Csv) UpdateHost(t *HostList) error {
+	for k, v := range s.Hosts {
+		if v.Host == t.Host {
+			s.Hosts = append(s.Hosts[:k], s.Hosts[k+1:]...)
+			s.Hosts = append(s.Hosts, t)
+			s.StoreHostToCsv()
 			return nil
 		}
 	}
@@ -227,6 +183,68 @@ func (s *Csv) GetTask(vKey string) (v *ServerConfig, err error) {
 	}
 	err = errors.New("未找到")
 	return
+}
+
+func (s *Csv) StoreHostToCsv() {
+	// 创建文件
+	csvFile, err := os.Create(beego.AppPath + "/conf/hosts.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer csvFile.Close()
+	// 获取csv的Writer
+	writer := csv.NewWriter(csvFile)
+	// 将map中的Post转换成slice，因为csv的Write需要slice参数
+	// 并写入csv文件
+	for _, host := range s.Hosts {
+		record := []string{
+			host.Host,
+			host.Target,
+			host.Vkey,
+			host.HeaderChange,
+			host.HostChange,
+		}
+		err1 := writer.Write(record)
+		if err1 != nil {
+			panic(err1)
+		}
+	}
+	// 确保所有内存数据刷到csv文件
+	writer.Flush()
+}
+
+func (s *Csv) LoadHostFromCsv() {
+	// 打开文件
+	file, err := os.Open(beego.AppPath + "/conf/hosts.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// 获取csv的reader
+	reader := csv.NewReader(file)
+
+	// 设置FieldsPerRecord为-1
+	reader.FieldsPerRecord = -1
+
+	// 读取文件中所有行保存到slice中
+	records, err := reader.ReadAll()
+	if err != nil {
+		panic(err)
+	}
+	var hosts []*HostList
+	// 将每一行数据保存到内存slice中
+	for _, item := range records {
+		post := &HostList{
+			Vkey:         item[2],
+			Host:         item[0],
+			Target:       item[1],
+			HeaderChange: item[3],
+			HostChange:   item[4],
+		}
+		hosts = append(hosts, post)
+	}
+	s.Hosts = hosts
 }
 
 func (s *Csv) DelHost(host string) error {

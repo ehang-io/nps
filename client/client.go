@@ -122,6 +122,5 @@ func Process(c *utils.Conn, typeStr, host string, en, de int, crypt, mux bool) {
 		return
 	}
 	c.WriteSuccess()
-	go utils.Relay(server, c.Conn, de, crypt, mux)
-	utils.Relay(c.Conn, server, en, crypt, mux)
+	utils.ReplayWaitGroup(c.Conn, server, en, de, crypt, mux)
 }
