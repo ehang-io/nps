@@ -50,7 +50,6 @@ func main() {
 			*TcpPort = 8284
 		}
 	}
-	log.SetFlags(log.Lshortfile)
 	cnf.CompressDecode, cnf.CompressEncode = utils.GetCompressType(cnf.Compress)
 	server.StartNewServer(*TcpPort, &cnf)
 }

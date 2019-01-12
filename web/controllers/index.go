@@ -188,7 +188,7 @@ func (s *IndexController) EditHost() {
 			s.error()
 		} else {
 			h.Vkey = s.GetString("vkey")
-			h.Host = s.GetString("host")
+			h.Host = s.GetString("nhost")
 			h.Target = s.GetString("target")
 			h.HeaderChange = s.GetString("header")
 			h.HostChange = s.GetString("hostchange")

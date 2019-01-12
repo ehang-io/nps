@@ -7,7 +7,8 @@
                     <input type="hidden" name="vkey" value="{{.t.VerifyKey}}">
                     <div class="form-group">
                         <label class="control-label">域名</label>
-                        <input class="form-control" value="{{.h.Host}}" type="text" name="host" placeholder="域名">
+                        <input class="form-control" value="{{.h.Host}}" type="hidden" name="host" placeholder="域名">
+                        <input class="form-control" value="{{.h.Host}}" type="text" name="nhost" placeholder="域名">
                     </div>
                     <div class="form-group">
                         <label class="control-label">内网目标</label>
