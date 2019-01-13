@@ -6,7 +6,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 目前市面上提供类似服务的有花生壳、TeamView、GoToMyCloud等等，但要使用第三方的公网服务器就必须为第三方付费，并且这些服务都有各种各样的限制，此外，由于数据包会流经第三方，因此对数据安全也是一大隐患。
 
 
-支持客户端与服务端连接中断自动重连，多路传输，大大的提高请求处理速度，go语言编写，无第三方依赖。
+支持客户端与服务端连接中断自动重连，多路传输，大大的提高请求处理速度，go语言编写，无第三方依赖，各个平台都已经编译在release中，普通个人场景下，内存使用量在10M以下。
 
 ## 背景
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/web.png?raw=true)
@@ -185,11 +185,7 @@ server {
     listen 80;
     server_name a.ourcauc.com;
     location / {
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header Host  $http_host;
-            proxy_set_header X-Nginx-Proxy true;
-            proxy_set_header Connection "";
+            #其他配置，例如ssl
             proxy_pass http://127.0.0.1:8024;
         }
 }

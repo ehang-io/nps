@@ -36,11 +36,6 @@
                         server_name a.proxy.com b.proxy.com;#也可以是泛解析*.proxy.com
                         #ssl等配置
                         <b>location / {
-                            proxy_set_header X-Real-IP $remote_addr;
-                            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                            proxy_set_header Host $http_host;
-                            proxy_set_header X-Nginx-Proxy true;
-                            proxy_set_header Connection "";
                             proxy_pass http://127.0.0.1:{{.proxyPort}};
                         }</b>
                     }
@@ -140,10 +135,10 @@
         <div class="tile">
             <p>
                 <b>多客户端模式：</b>
-            <li>服务端启动：./easyProxy -mode=webServer -tcpport=8284</li>
-            <li>客户端启动：./easyProxy -server={{.ip}}:{{.p}} -vkey=xxx（见管理列表的客户端启动模式）</li>
+            <li>服务端启动：./proxy_server</li>
+            <li>客户端启动：./proxy_client -server={{.ip}}:{{.p}} -vkey=xxx（见管理列表的客户端启动模式）</li>
             </p>
-            <p><b>支持客户端同时建立多条隧道，例如单个通道时命令为./easyProxy -server={{.ip}}:{{.p}} -vkey=ccc，如果要支持另外一个隧道，则对应的执行命令为./easyProxy
+            <p><b>支持客户端同时建立多条隧道，例如单个通道时命令为./proxy_client -server={{.ip}}:{{.p}} -vkey=ccc，如果要支持另外一个隧道，则对应的执行命令为./proxy_client
                 -server={{.ip}}:{{.p}} -vkey=ccc,ddd，即用逗号分隔开多个vkey，适用于所有模式！</b></p>
         </div>
     </div>

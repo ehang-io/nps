@@ -147,15 +147,14 @@ func GetIntNoerrByStr(str string) int {
 
 
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改
-//废除
+//内存优化 用到pool，快速回收
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
-	//TODO 回收问题
-	buf := bufPoolCopy.Get().([]byte)
-	defer bufPoolCopy.Put(buf)
 	for {
+		buf := bufPoolCopy.Get().([]byte)
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
+			bufPoolCopy.Put(buf)
 			if nw > 0 {
 				written += int64(nw)
 			}
@@ -167,6 +166,8 @@ func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 				err = io.ErrShortWrite
 				break
 			}
+		}else {
+			bufPoolCopy.Put(buf)
 		}
 		if er != nil {
 			if er != io.EOF {
