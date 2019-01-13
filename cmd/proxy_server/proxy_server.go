@@ -25,7 +25,6 @@ var (
 func main() {
 	flag.Parse()
 	server.VerifyKey = *VerifyKey
-	log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
 	cnf := server.ServerConfig{
 		TcpPort:        *httpPort,
 		Mode:           *rpMode,
@@ -50,6 +49,7 @@ func main() {
 			*TcpPort = 8284
 		}
 	}
+	log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
 	cnf.CompressDecode, cnf.CompressEncode = utils.GetCompressType(cnf.Compress)
 	server.StartNewServer(*TcpPort, &cnf)
 }
