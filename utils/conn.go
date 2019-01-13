@@ -17,8 +17,6 @@ import (
 )
 
 const cryptKey = "1234567812345678"
-const poolSize = 64 * 1024
-const poolSizeSmall = 10
 
 type CryptConn struct {
 	conn  net.Conn
@@ -116,6 +114,7 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 		}
 	}()
 	buf := bufPool.Get().([]byte)
+	defer bufPool.Put(buf)
 	if n, err = s.r.Read(buf); err != nil {
 		return
 	}
@@ -152,8 +151,10 @@ func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 	var buf []byte
 	if cLen <= poolSizeSmall {
 		buf = bufPoolSmall.Get().([]byte)[:cLen]
+		defer bufPoolSmall.Put(buf)
 	} else {
 		buf = bufPool.Get().([]byte)[:cLen]
+		defer bufPool.Put(buf)
 	}
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
 		return buf, errors.New("读取指定长度错误" + err.Error())

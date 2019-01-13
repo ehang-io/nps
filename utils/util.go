@@ -145,21 +145,13 @@ func GetIntNoerrByStr(str string) int {
 	return i
 }
 
-var bufPool = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, poolSize)
-	},
-}
-var bufPoolSmall = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, poolSizeSmall)
-	},
-}
+
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改
 //废除
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	//TODO 回收问题
-	buf := bufPool.Get().([]byte)[:32*1024]
+	buf := bufPoolCopy.Get().([]byte)
+	defer bufPoolCopy.Put(buf)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
@@ -190,6 +182,7 @@ func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 func FlushConn(c net.Conn) {
 	c.SetReadDeadline(time.Now().Add(time.Second * 3))
 	buf := bufPool.Get().([]byte)
+	defer bufPool.Put(buf)
 	for {
 		if _, err := c.Read(buf); err != nil {
 			break
