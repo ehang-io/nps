@@ -84,9 +84,9 @@ func (s *Csv) StoreTasksToCsv() {
 	writer.Flush()
 }
 
-func (s *Csv) LoadTaskFromCsv() {
+func (s *Csv) openFile(path string) ([][]string, error) {
 	// 打开文件
-	file, err := os.Open(beego.AppPath + "/conf/tasks.csv")
+	file, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
@@ -99,28 +99,31 @@ func (s *Csv) LoadTaskFromCsv() {
 	reader.FieldsPerRecord = -1
 
 	// 读取文件中所有行保存到slice中
-	records, err := reader.ReadAll()
+	return reader.ReadAll()
+}
+
+func (s *Csv) LoadTaskFromCsv() {
+	path := beego.AppPath + "/conf/tasks.csv"
+	records, err := s.openFile(path)
 	if err != nil {
-		panic(err)
+		log.Fatal("配置文件打开错误:", path)
 	}
 	var tasks []*ServerConfig
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
-		tcpPort, _ := strconv.Atoi(item[0])
-		Start, _ := strconv.Atoi(item[7])
 		post := &ServerConfig{
-			TcpPort:        tcpPort,
+			TcpPort:        utils.GetIntNoErrByStr(item[0]),
 			Mode:           item[1],
 			Target:         item[2],
 			VerifyKey:      item[3],
 			U:              item[4],
 			P:              item[5],
 			Compress:       item[6],
-			Start:          Start,
+			Start:          utils.GetIntNoErrByStr(item[7]),
 			Crypt:          utils.GetBoolByStr(item[8]),
 			Mux:            utils.GetBoolByStr(item[9]),
-			CompressEncode: utils.GetIntNoerrByStr(item[10]),
-			CompressDecode: utils.GetIntNoerrByStr(item[11]),
+			CompressEncode: utils.GetIntNoErrByStr(item[10]),
+			CompressDecode: utils.GetIntNoErrByStr(item[11]),
 		}
 		tasks = append(tasks, post)
 	}
@@ -214,23 +217,10 @@ func (s *Csv) StoreHostToCsv() {
 }
 
 func (s *Csv) LoadHostFromCsv() {
-	// 打开文件
-	file, err := os.Open(beego.AppPath + "/conf/hosts.csv")
+	path := beego.AppPath + "/conf/hosts.csv"
+	records, err := s.openFile(path)
 	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	// 获取csv的reader
-	reader := csv.NewReader(file)
-
-	// 设置FieldsPerRecord为-1
-	reader.FieldsPerRecord = -1
-
-	// 读取文件中所有行保存到slice中
-	records, err := reader.ReadAll()
-	if err != nil {
-		panic(err)
+		log.Fatal("配置文件打开错误:", path)
 	}
 	var hosts []*HostList
 	// 将每一行数据保存到内存slice中

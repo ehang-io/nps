@@ -34,7 +34,7 @@ func (s *BaseController) display(tpl ...string) {
 	}
 	s.Data["menu"] = s.actionName
 	ip := s.Ctx.Request.Host
-	s.Data["ip"] = utils.Gethostbyname(ip[0:strings.LastIndex(ip, ":")])
+	s.Data["ip"] = utils.GetHostByName(ip[0:strings.LastIndex(ip, ":")])
 	s.Data["p"] = server.Bridge.TunnelPort
 	s.Data["proxyPort"] = beego.AppConfig.String("hostPort")
 	s.Layout = "public/layout.html"

@@ -46,10 +46,9 @@ const (
 )
 
 type Sock5ModeServer struct {
-	bridge   *bridge.Tunnel
+	server
 	isVerify bool
 	listener net.Listener
-	config   *ServerConfig
 }
 
 //req
@@ -136,26 +135,24 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils
 	binary.Read(c, binary.BigEndian, &port)
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
-	client, err := s.bridge.GetTunnel(getverifyval(s.config.VerifyKey), s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	s.sendReply(c, succeeded)
 	var ltype string
 	if command == associateMethod {
 		ltype = utils.CONN_UDP
 	} else {
 		ltype = utils.CONN_TCP
 	}
-	_, err = client.WriteHost(ltype, addr)
+	if proxyConn, err = s.GetTunnelAndWriteHost(ltype, s.config, addr); err != nil {
+		log.Println("get bridge tunnel error: ", err)
+		return
+	}
+	s.sendReply(c, succeeded)
 	var flag string
-	if flag, err = client.ReadFlag(); err == nil {
+	if flag, err = proxyConn.ReadFlag(); err == nil {
 		if flag != utils.CONN_SUCCESS {
 			err = errors.New("conn failed")
 		}
 	}
-	return client, err
+	return
 }
 
 //conn

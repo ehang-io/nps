@@ -76,7 +76,7 @@ func GetCompressType(compress string) (int, int) {
 }
 
 //通过host获取对应的ip地址
-func Gethostbyname(hostname string) string {
+func GetHostByName(hostname string) string {
 	if !DomainCheck(hostname) {
 		return hostname
 	}
@@ -140,16 +140,17 @@ func GetStrByBool(b bool) string {
 }
 
 //int
-func GetIntNoerrByStr(str string) int {
+func GetIntNoErrByStr(str string) int {
 	i, _ := strconv.Atoi(str)
 	return i
 }
 
 
-// io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密，特此修改
+// io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密
 //内存优化 用到pool，快速回收
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	for {
+		//放在里面是为了加快回收和重利用
 		buf := bufPoolCopy.Get().([]byte)
 		nr, er := src.Read(buf)
 		if nr > 0 {
