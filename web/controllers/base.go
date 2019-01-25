@@ -27,14 +27,18 @@ func (s *BaseController) Prepare() {
 //加载模板
 func (s *BaseController) display(tpl ...string) {
 	var tplname string
+	if s.Data["menu"] == nil {
+		s.Data["menu"] = s.actionName
+	}
 	if len(tpl) > 0 {
 		tplname = strings.Join([]string{tpl[0], "html"}, ".")
 	} else {
 		tplname = s.controllerName + "/" + s.actionName + ".html"
 	}
-	s.Data["menu"] = s.actionName
 	ip := s.Ctx.Request.Host
-	s.Data["ip"] = utils.GetHostByName(ip[0:strings.LastIndex(ip, ":")])
+	if strings.LastIndex(ip, ":") > 0 {
+		s.Data["ip"] = utils.GetHostByName(ip[0:])
+	}
 	s.Data["p"] = server.Bridge.TunnelPort
 	s.Data["proxyPort"] = beego.AppConfig.String("hostPort")
 	s.Layout = "public/layout.html"

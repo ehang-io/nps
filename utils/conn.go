@@ -107,14 +107,14 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 
 //snappy压缩读 包含解密
 func (s *SnappyConn) Read(b []byte) (n int, err error) {
+	buf := bufPool.Get().([]byte)
 	defer func() {
 		if err == nil && n == len(IO_EOF) && string(b[:n]) == IO_EOF {
 			err = io.EOF
 			n = 0
 		}
+		bufPool.Put(buf)
 	}()
-	buf := bufPool.Get().([]byte)
-	defer bufPool.Put(buf)
 	if n, err = s.r.Read(buf); err != nil {
 		return
 	}
@@ -153,8 +153,8 @@ func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 		buf = bufPoolSmall.Get().([]byte)[:cLen]
 		defer bufPoolSmall.Put(buf)
 	} else {
-		buf = bufPool.Get().([]byte)[:cLen]
-		defer bufPool.Put(buf)
+		buf = bufPoolMax.Get().([]byte)[:cLen]
+		defer bufPoolMax.Put(buf)
 	}
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
 		return buf, errors.New("读取指定长度错误" + err.Error())

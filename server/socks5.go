@@ -160,13 +160,14 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	proxyConn, err := s.doConnect(c, connectMethod)
 	defer func() {
 		if s.config.Mux && proxyConn != nil {
-			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
+			s.bridge.ReturnTunnel(proxyConn, s.config.ClientId)
 		}
 	}()
 	if err != nil {
 		c.Close()
 	} else {
-		utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		s.FlowAdd(in, out)
 	}
 }
 
@@ -197,13 +198,14 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	proxyConn, err := s.doConnect(c, associateMethod)
 	defer func() {
 		if s.config.Mux && proxyConn != nil {
-			s.bridge.ReturnTunnel(proxyConn, getverifyval(s.config.VerifyKey))
+			s.bridge.ReturnTunnel(proxyConn, s.config.ClientId)
 		}
 	}()
 	if err != nil {
 		c.Close()
 	} else {
-		utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		s.FlowAdd(in, out)
 	}
 }
 
@@ -295,6 +297,7 @@ func (s *Sock5ModeServer) Start() error {
 			}
 			log.Fatal("accept error: ", err)
 		}
+		s.ResetConfig()
 		go s.handleConn(conn)
 	}
 	return nil
@@ -306,7 +309,7 @@ func (s *Sock5ModeServer) Close() error {
 }
 
 //new
-func NewSock5ModeServer(bridge *bridge.Tunnel, cnf *ServerConfig) *Sock5ModeServer {
+func NewSock5ModeServer(bridge *bridge.Tunnel, cnf *utils.ServerConfig) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
 	s.config = cnf

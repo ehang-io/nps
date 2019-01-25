@@ -1,0 +1,234 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="tile">
+            <div class="tile-body">
+                <table class="table table-hover table-bordered" id="sampleTable">
+                    <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>验证密钥</th>
+                        <th>客户端地址</th>
+                        <th>备注</th>
+                        <th>压缩方式</th>
+                        <th>加密</th>
+                        <th>多路复用</th>
+                        <th>用户名</th>
+                        <th>密码</th>
+                        <th>状态</th>
+                        <th>客户端连接状态</th>
+                        <th>出口流量</th>
+                        <th>入口流量</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</main>
+
+<script type="text/javascript">
+    function del(id) {
+        if (confirm("确定要删除数据吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/client/del",
+                data: {"id": id},
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        document.location.reload();
+                    }
+                }
+            })
+        }
+    }
+
+    function start(id) {
+        if (confirm("确定要开始任务吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/client/changestatus",
+                data: {"id": id, "status": 1},
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        document.location.reload();
+                    }
+                }
+            })
+        }
+    }
+
+    function stop(id) {
+        if (confirm("确定要暂停吗？")) {
+            $.ajax({
+                type: "POST",
+                url: "/client/changestatus",
+                data: {
+                    "id": id, "status": 0
+                },
+                success:
+
+                        function (res) {
+                            alert(res.msg)
+                            if (res.status) {
+                                document.location.reload();
+                            }
+                        }
+            })
+        }
+    }
+
+    function edit(id) {
+        window.location.href = "/client/edit?id=" + id
+    }
+
+    function add() {
+        window.location.href = "/client/add"
+    }
+
+    function show_tunnel_list(id) {
+        window.location.href = "/index/all?client_id=" + id
+    }
+
+    function show_host_list(id) {
+        window.location.href = "/index/hostlist?client_id=" + id
+    }
+
+    $(document)
+
+            .ready(function () {
+                var table = $('#sampleTable').DataTable({
+                    responsive: {
+                        details: {
+                            display: $.fn.dataTable.Responsive.display.childRowImmediate
+                        }
+                    },
+                    dom: 'Bfrtip',
+                    processing: true,
+                    serverSide: true,
+                    autoWidth: false,
+                    ordering: false,
+                    ajax: {
+                        url: '/client/client',
+                        type: 'POST'
+                    },
+                    dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
+                    columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
+                        {data: 'Id'},
+                        {data: 'VerifyKey'},
+                        {data: "Addr"},
+                        {data: "Remark"},
+                        {data: "Addr"},
+                        {data: "Addr"},
+                        {data: "Addr"},
+                        {data: "Addr"},
+                        {data: "Remark"},
+                        {data: "Status"},
+                        {data: "IsConnect"},
+                        {data: "Addr"},
+                        {data: "Addr"},
+                        {data: ""},
+                    ],
+                    bFilter: false,
+                    columnDefs: [{
+                        targets: -1,
+                        render: function (data, type, row, meta) {
+                            if (row.Status == true) {
+                                btn = "<button onclick=\"stop('" + row.Id + "')\" class=\"btn btn-secondary btn-sm\" type=\"button\">关闭</button>"
+                            } else {
+                                btn = "<button onclick=\"start('" + row.Id + "')\" class=\"btn btn-success btn-sm\" type=\"button\">打开</button>"
+                            }
+                            btn_del = '<button onclick="del(\'' + row.Id + '\')"  class="btn btn-danger btn-sm">删除</button> '
+                            btn_edit = '<button onclick="edit(\'' + row.Id + '\')"  class="btn btn-primary btn-sm">查看编辑</button> '
+                            btn_list = '<button onclick="show_tunnel_list(\'' + row.Id + '\')"  class="btn btn-info btn-sm">隧道</button> '
+                            btn_host = '<button onclick="show_host_list(\'' + row.Id + '\')"  class="btn btn-info btn-sm">域名</button> '
+                            return '<div class="btn-group" role="group" aria-label="..."> ' + btn + btn_del + btn_edit + btn_host + btn_list + '</div>'
+                        }
+                    },
+                        {
+                            targets: -5,
+                            render: function (data, type, row, meta) {
+                                if (data == false) {
+                                    return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
+                                } else {
+                                    return "<span class=\"badge badge-pill badge-success\">正常</span>"
+                                }
+                            }
+                        },
+                        {
+                            targets: -4,
+                            render: function (data, type, row, meta) {
+                                if (data == false) {
+                                    return "<span class=\"badge badge-pill badge-secondary\">未连接</span>"
+                                } else {
+                                    return "<span class=\"badge badge-pill badge-success\">已连接</span>"
+                                }
+                            }
+                        },
+                        {
+                            targets: -2,
+                            render: function (data, type, row, meta) {
+                                return change(row.Flow.InletFlow)
+                            }
+                        },
+                        {
+                            targets: -3,
+                            render: function (data, type, row, meta) {
+                                return change(row.Flow.ExportFlow)
+                            }
+                        },
+                        {
+                            targets: -6,
+                            render: function (data, type, row, meta) {
+                                return row.Cnf.P
+                            }
+                        },
+                        {
+                            targets: -7,
+                            render: function (data, type, row, meta) {
+                                return row.Cnf.U
+                            }
+                        },
+                        {
+                            targets: -8,
+                            render: function (data, type, row, meta) {
+                                if (row.Cnf.Mux == "0") {
+                                    return "不启用"
+                                } else {
+                                    return "启用"
+                                }
+                            }
+                        }
+                        ,
+                        {
+                            targets: -9,
+                            render: function (data, type, row, meta) {
+                                if (row.Cnf.Crypt == "0") {
+                                    return "不加密"
+                                } else {
+                                    return "加密"
+                                }
+                            }
+                        }
+                        ,
+                        {
+                            targets: -10,
+                            render: function (data, type, row, meta) {
+                                return row.Cnf.Compress
+                            }
+                        }
+                    ],
+
+                    buttons: []
+                });
+                $("#sampleTable_length").html('<button class="btn btn-primary" onclick="add()" type="button">新增</button>')
+            })
+    ;
+
+
+</script>

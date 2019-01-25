@@ -11,35 +11,43 @@ import (
 	"sync"
 )
 
+type RunServer struct {
+	flag       int   //标志
+	ExportFlow int64 //出口流量
+	InletFlow  int64 //入口流量
+	service    interface{}
+	sync.Mutex
+}
+
 var (
 	Bridge    *bridge.Tunnel
-	RunList   map[string]interface{} //运行中的任务
-	CsvDb     *Csv
+	RunList   map[int]interface{} //运行中的任务
+	CsvDb     = utils.GetCsvDb()
 	VerifyKey string
 )
 
 func init() {
-	RunList = make(map[string]interface{})
+	RunList = make(map[int]interface{})
 }
 
 //从csv文件中恢复任务
 func InitFromCsv() {
 	for _, v := range CsvDb.Tasks {
 		if v.Start == 1 {
-			log.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort, "客户端令牌：", v.VerifyKey)
+			log.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
 			AddTask(v)
 		}
 	}
 }
 
 //start a new server
-func StartNewServer(bridgePort int, cnf *ServerConfig) {
+func StartNewServer(bridgePort int, cnf *utils.ServerConfig) {
 	Bridge = bridge.NewTunnel(bridgePort, RunList)
 	if err := Bridge.StartTunnel(); err != nil {
 		log.Fatalln("服务端开启失败", err)
 	}
 	if svr := NewMode(Bridge, cnf); svr != nil {
-		RunList[cnf.VerifyKey] = svr
+		RunList[cnf.Id] = svr
 		err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 		if err.Interface() != nil {
 			log.Println(err)
@@ -50,7 +58,8 @@ func StartNewServer(bridgePort int, cnf *ServerConfig) {
 }
 
 //new a server by mode name
-func NewMode(Bridge *bridge.Tunnel, config *ServerConfig) interface{} {
+func NewMode(Bridge *bridge.Tunnel, c *utils.ServerConfig) interface{} {
+	config := utils.DeepCopyConfig(c)
 	switch config.Mode {
 	case "tunnelServer":
 		return NewTunnelModeServer(ProcessTunnel, Bridge, config)
@@ -61,14 +70,12 @@ func NewMode(Bridge *bridge.Tunnel, config *ServerConfig) interface{} {
 	case "udpServer":
 		return NewUdpModeServer(Bridge, config)
 	case "webServer":
-		InitCsvDb()
 		InitFromCsv()
 		p, _ := beego.AppConfig.Int("hostPort")
-		t := &ServerConfig{
+		t := &utils.ServerConfig{
 			TcpPort:      p,
 			Mode:         "httpHostServer",
 			Target:       "",
-			VerifyKey:    "",
 			U:            "",
 			P:            "",
 			Compress:     "",
@@ -87,15 +94,10 @@ func NewMode(Bridge *bridge.Tunnel, config *ServerConfig) interface{} {
 }
 
 //stop server
-func StopServer(cFlag string) error {
-	if v, ok := RunList[cFlag]; ok {
+func StopServer(id int) error {
+	if v, ok := RunList[id]; ok {
 		reflect.ValueOf(v).MethodByName("Close").Call(nil)
-		delete(RunList, cFlag)
-		if VerifyKey == "" { //多客户端模式关闭相关隧道
-			Bridge.DelClientSignal(cFlag)
-			Bridge.DelClientTunnel(cFlag)
-		}
-		if t, err := CsvDb.GetTask(cFlag); err != nil {
+		if t, err := CsvDb.GetTask(id); err != nil {
 			return err
 		} else {
 			t.Start = 0
@@ -107,15 +109,14 @@ func StopServer(cFlag string) error {
 }
 
 //add task
-func AddTask(t *ServerConfig) error {
-	t.CompressDecode, t.CompressEncode = utils.GetCompressType(t.Compress)
+func AddTask(t *utils.ServerConfig) error {
 	if svr := NewMode(Bridge, t); svr != nil {
-		RunList[t.VerifyKey] = svr
+		RunList[t.Id] = svr
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 			if err.Interface() != nil {
-				log.Println("客户端", t.VerifyKey, "启动失败，错误：", err)
-				delete(RunList, t.VerifyKey)
+				log.Println("客户端", t.Id, "启动失败，错误：", err)
+				delete(RunList, t.Id)
 			}
 		}()
 	} else {
@@ -125,8 +126,8 @@ func AddTask(t *ServerConfig) error {
 }
 
 //start task
-func StartTask(vKey string) error {
-	if t, err := CsvDb.GetTask(vKey); err != nil {
+func StartTask(id int) error {
+	if t, err := CsvDb.GetTask(id); err != nil {
 		return err
 	} else {
 		AddTask(t)
@@ -137,35 +138,20 @@ func StartTask(vKey string) error {
 }
 
 //delete task
-func DelTask(vKey string) error {
-	if err := StopServer(vKey); err != nil {
+func DelTask(id int) error {
+	if err := StopServer(id); err != nil {
 		return err
 	}
-	for _, v := range CsvDb.Hosts {
-		if v.Vkey == vKey {
-			CsvDb.DelHost(v.Host)
-		}
-	}
-	return CsvDb.DelTask(vKey)
-}
-
-//init csv from file
-func InitCsvDb() *Csv {
-	var once sync.Once
-	once.Do(func() {
-		CsvDb = NewCsv(RunList)
-		CsvDb.Init()
-	})
-	return CsvDb
+	return CsvDb.DelTask(id)
 }
 
 //get key by host from x
-func GetKeyByHost(host string) (h *HostList, t *ServerConfig, err error) {
+func GetKeyByHost(host string) (h *utils.HostList, t *utils.Client, err error) {
 	for _, v := range CsvDb.Hosts {
 		s := strings.Split(host, ":")
 		if s[0] == v.Host {
 			h = v
-			t, err = CsvDb.GetTask(v.Vkey)
+			t, err = CsvDb.GetClient(v.ClientId)
 			return
 		}
 	}
@@ -174,22 +160,32 @@ func GetKeyByHost(host string) (h *HostList, t *ServerConfig, err error) {
 }
 
 //get task list by page num
-func GetServerConfig(start, length int, typeVal string) ([]*ServerConfig, int) {
-	list := make([]*ServerConfig, 0)
+func GetServerConfig(start, length int, typeVal string, clientId int) ([]*utils.ServerConfig, int) {
+	list := make([]*utils.ServerConfig, 0)
 	var cnt int
 	for _, v := range CsvDb.Tasks {
-		if v.Mode != typeVal {
+		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.ClientId) {
 			continue
+		}
+		if v.UseClientCnf {
+			v = utils.DeepCopyConfig(v)
+			if c, err := CsvDb.GetClient(v.ClientId); err == nil {
+				v.Compress = c.Cnf.Compress
+				v.Mux = c.Cnf.Mux
+				v.Crypt = c.Cnf.Crypt
+				v.U = c.Cnf.U
+				v.P = c.Cnf.P
+			}
 		}
 		cnt++
 		if start--; start < 0 {
 			if length--; length > 0 {
-				if _, ok := RunList[v.VerifyKey]; ok {
+				if _, ok := RunList[v.Id]; ok {
 					v.IsRun = 1
 				} else {
 					v.IsRun = 0
 				}
-				if s, ok := Bridge.SignalList[getverifyval(v.VerifyKey)]; ok {
+				if s, ok := Bridge.SignalList[v.ClientId]; ok {
 					if s.Len() > 0 {
 						v.ClientStatus = 1
 					} else {
@@ -201,16 +197,91 @@ func GetServerConfig(start, length int, typeVal string) ([]*ServerConfig, int) {
 				list = append(list, v)
 			}
 		}
-
 	}
 	return list, cnt
 }
 
-//get verify value
-//when mode is webServer and vKey is not none
-func getverifyval(vkey string) string {
-	if VerifyKey != "" {
-		return utils.Md5(VerifyKey)
+//获取客户端列表
+func GetClientList(start, length int) (list []*utils.Client, cnt int) {
+	list, cnt = CsvDb.GetClientList(start, length)
+	dealClientData(list)
+	return
+}
+
+func dealClientData(list []*utils.Client) {
+	for _, v := range list {
+		if _, ok := Bridge.SignalList[v.Id]; ok {
+			v.IsConnect = true
+		} else {
+			v.IsConnect = false
+		}
+		v.Flow.InletFlow = 0
+		v.Flow.ExportFlow = 0
+		for _, h := range CsvDb.Hosts {
+			if h.ClientId == v.Id {
+				v.Flow.InletFlow += h.Flow.InletFlow
+				v.Flow.ExportFlow += h.Flow.ExportFlow
+			}
+		}
+		for _, t := range CsvDb.Tasks {
+			if t.ClientId == v.Id {
+				v.Flow.InletFlow += t.Flow.InletFlow
+				v.Flow.ExportFlow += t.Flow.ExportFlow
+			}
+		}
 	}
-	return utils.Md5(vkey)
+	return
+}
+
+//根据客户端id删除其所属的所有隧道和域名
+func DelTunnelAndHostByClientId(clientId int) {
+	for _, v := range CsvDb.Tasks {
+		if v.ClientId == clientId {
+			DelTask(v.Id)
+		}
+	}
+	for _, v := range CsvDb.Hosts {
+		if v.ClientId == clientId {
+			CsvDb.DelHost(v.Host)
+		}
+	}
+}
+
+//关闭客户端连接
+func DelClientConnect(clientId int) {
+	Bridge.DelClientTunnel(clientId)
+	Bridge.DelClientSignal(clientId)
+}
+
+func GetDashboardData() map[string]int {
+	data := make(map[string]int)
+	data["hostCount"] = len(CsvDb.Hosts)
+	data["clientCount"] = len(CsvDb.Clients)
+	list := CsvDb.Clients
+	dealClientData(list)
+	c := 0
+	var in, out int64
+	for _, v := range list {
+		if v.IsConnect {
+			c += 1
+		}
+		in += v.Flow.InletFlow
+		out += v.Flow.ExportFlow
+	}
+	data["clientOnlineCount"] = c
+	data["inletFlowCount"] = int(in)
+	data["exportFlowCount"] = int(out)
+	for _, v := range CsvDb.Tasks {
+		switch v.Mode {
+		case "tunnelServer":
+			data["tunnelServerCount"] += 1
+		case "socks5Server":
+			data["socks5ServerCount"] += 1
+		case "httpProxyServer":
+			data["httpProxyServerCount"] += 1
+		case "udpServer":
+			data["udpServerCount"] += 1
+		}
+	}
+	return data
 }

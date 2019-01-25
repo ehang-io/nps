@@ -41,8 +41,8 @@ func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
 	var (
 		isConn = true
 		link   *utils.Conn
-		cnf    *ServerConfig
-		host   *HostList
+		client *utils.Client
+		host   *utils.HostList
 		wg     sync.WaitGroup
 	)
 	for {
@@ -52,48 +52,56 @@ func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
 		}
 		//首次获取conn
 		if isConn {
-			isConn = false
-			if host, cnf, err = GetKeyByHost(r.Host); err != nil {
+			if host, client, err = GetKeyByHost(r.Host); err != nil {
 				log.Printf("the host %s is not found !", r.Host)
 				break
 			}
 
-			if err = s.auth(r, c, cnf.U, cnf.P); err != nil {
+			client.Cnf.ClientId = host.ClientId
+			client.Cnf.CompressDecode, client.Cnf.CompressEncode = utils.GetCompressType(client.Cnf.Compress)
+			if err = s.auth(r, c, client.Cnf.U, client.Cnf.P); err != nil {
 				break
 			}
-
-			if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, cnf, host.Target); err != nil {
+			if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, client.Cnf, host.Target); err != nil {
 				log.Println("get bridge tunnel error: ", err)
 				break
 			}
-
 			if flag, err := link.ReadFlag(); err != nil || flag == utils.CONN_ERROR {
 				log.Printf("the host %s connection to %s error", r.Host, host.Target)
 				break
 			} else {
 				wg.Add(1)
 				go func() {
-					utils.Relay(c.Conn, link.Conn, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+					out, _ := utils.Relay(c.Conn, link.Conn, client.Cnf.CompressDecode, client.Cnf.Crypt, client.Cnf.Mux)
 					wg.Done()
+					s.FlowAddHost(host, 0, out)
 				}()
 			}
+			isConn = false
 		}
 		utils.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, true)
+		s.FlowAddHost(host, int64(len(b)), 0)
 		if err != nil {
 			break
 		}
-		if _, err := link.WriteTo(b, cnf.CompressEncode, cnf.Crypt); err != nil {
+		if _, err := link.WriteTo(b, client.Cnf.CompressEncode, client.Cnf.Crypt); err != nil {
 			break
 		}
 	}
 	wg.Wait()
-	if cnf != nil && cnf.Mux && link != nil {
-		link.WriteTo([]byte(utils.IO_EOF), cnf.CompressEncode, cnf.Crypt)
-		s.bridge.ReturnTunnel(link, getverifyval(cnf.VerifyKey))
+	if client != nil && client.Cnf != nil && client.Cnf.Mux && link != nil {
+		link.WriteTo([]byte(utils.IO_EOF), client.Cnf.CompressEncode, client.Cnf.Crypt)
+		s.bridge.ReturnTunnel(link, client.Id)
 	} else if link != nil {
 		link.Close()
+	}
+
+	if isConn {
+		s.writeConnFail(c.Conn)
 	}
 	c.Close()
 	return nil
 }
+
+

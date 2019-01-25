@@ -3,9 +3,11 @@ package utils
 import (
 	"encoding/base64"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,48 +20,52 @@ const (
 	COMPRESS_NONE_DECODE
 	COMPRESS_SNAPY_ENCODE
 	COMPRESS_SNAPY_DECODE
-	VERIFY_EER         = "vkey"
-	WORK_MAIN          = "main"
-	WORK_CHAN          = "chan"
-	RES_SIGN           = "sign"
-	RES_MSG            = "msg0"
-	CONN_SUCCESS       = "sucs"
-	CONN_ERROR         = "fail"
-	TEST_FLAG          = "tst"
-	CONN_TCP           = "tcp"
-	CONN_UDP           = "udp"
-	Unauthorized_BYTES = `HTTP/1.1 401 Unauthorized
+	VERIFY_EER        = "vkey"
+	WORK_MAIN         = "main"
+	WORK_CHAN         = "chan"
+	RES_SIGN          = "sign"
+	RES_MSG           = "msg0"
+	CONN_SUCCESS      = "sucs"
+	CONN_ERROR        = "fail"
+	TEST_FLAG         = "tst"
+	CONN_TCP          = "tcp"
+	CONN_UDP          = "udp"
+	UnauthorizedBytes = `HTTP/1.1 401 Unauthorized
 Content-Type: text/plain; charset=utf-8
 WWW-Authenticate: Basic realm="easyProxy"
 
 401 Unauthorized`
-	IO_EOF = "PROXYEOF"
+	IO_EOF              = "PROXYEOF"
+	ConnectionFailBytes = `HTTP/1.1 404 Not Found
+
+`
 )
 
 //copy
-func Relay(in, out net.Conn, compressType int, crypt, mux bool) {
+func Relay(in, out net.Conn, compressType int, crypt, mux bool) (n int64, err error) {
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
-		copyBuffer(NewSnappyConn(in, crypt), out)
+		n, err = copyBuffer(NewSnappyConn(in, crypt), out)
 		out.Close()
 		NewSnappyConn(in, crypt).Write([]byte(IO_EOF))
 	case COMPRESS_SNAPY_DECODE:
-		copyBuffer(in, NewSnappyConn(out, crypt))
+		n, err = copyBuffer(in, NewSnappyConn(out, crypt))
 		in.Close()
 		if !mux {
 			out.Close()
 		}
 	case COMPRESS_NONE_ENCODE:
-		copyBuffer(NewCryptConn(in, crypt), out)
+		n, err = copyBuffer(NewCryptConn(in, crypt), out)
 		out.Close()
 		NewCryptConn(in, crypt).Write([]byte(IO_EOF))
 	case COMPRESS_NONE_DECODE:
-		copyBuffer(in, NewCryptConn(out, crypt))
+		n, err = copyBuffer(in, NewCryptConn(out, crypt))
 		in.Close()
 		if !mux {
 			out.Close()
 		}
 	}
+	return
 }
 
 //判断压缩方式
@@ -145,7 +151,6 @@ func GetIntNoErrByStr(str string) int {
 	return i
 }
 
-
 // io.copy的优化版，读取buffer长度原为32*1024，与snappy不同，导致读取出的内容存在差异，不利于解密
 //内存优化 用到pool，快速回收
 func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
@@ -167,7 +172,7 @@ func copyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 				err = io.ErrShortWrite
 				break
 			}
-		}else {
+		} else {
 			bufPoolCopy.Put(buf)
 		}
 		if er != nil {
@@ -199,15 +204,17 @@ func Getverifyval(vkey string) string {
 }
 
 //wait replay group
-func ReplayWaitGroup(conn1 net.Conn, conn2 net.Conn, compressEncode, compressDecode int, crypt, mux bool) {
+//conn1 网桥 conn2
+func ReplayWaitGroup(conn1 net.Conn, conn2 net.Conn, compressEncode, compressDecode int, crypt, mux bool) (out int64, in int64) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		Relay(conn1, conn2, compressEncode, crypt, mux)
+		in, _ = Relay(conn1, conn2, compressEncode, crypt, mux)
 		wg.Done()
 	}()
-	Relay(conn2, conn1, compressDecode, crypt, mux)
+	out, _ = Relay(conn2, conn1, compressDecode, crypt, mux)
 	wg.Wait()
+	return
 }
 
 func ChangeHostAndHeader(r *http.Request, host string, header string, addr string) {
@@ -226,4 +233,13 @@ func ChangeHostAndHeader(r *http.Request, host string, header string, addr strin
 	addr = strings.Split(addr, ":")[0]
 	r.Header.Set("X-Forwarded-For", addr)
 	r.Header.Set("X-Real-IP", addr)
+}
+
+func ReadAllFromFile(filePth string) ([]byte, error) {
+	f, err := os.Open(filePth)
+	if err != nil {
+		return nil, err
+	}
+
+	return ioutil.ReadAll(f)
 }

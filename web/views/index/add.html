@@ -19,8 +19,11 @@
                             <option {{if eq "udpServer" .type}}selected{{end}} value="udpServer">udp隧道</option>
                             <option {{if eq "socks5Server" .type}}selected{{end}} value="socks5Server">socks5代理</option>
                             <option {{if eq "httpProxyServer" .type}}selected{{end}} value="httpProxyServer">http代理
-                            <option {{if eq "hostServer" .type}}selected{{end}} value="hostServer">host客户端</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">备注</label>
+                        <input class="form-control" type="text" name="remark" placeholder="备注">
                     </div>
                     <div class="form-group" id="port">
                         <label class="control-label">监听的端口</label>
@@ -30,6 +33,18 @@
                         <label class="control-label">内网目标(ip:端口)</label>
                         <input class="form-control" type="text" name="target" placeholder="内网代理地址，例如10.1.50.203:22">
                     </div>
+                    <div class="form-group" id="client_id">
+                        <label class="control-label">客户端ID</label>
+                        <input value="{{.client_id}}" class="form-control" type="text" name="client_id"
+                               placeholder="客户端id">
+                    </div>
+                    <div class="form-group" id="use_client">
+                        <label class="control-label">是否使用客户端配置</label>
+                        <select class="form-control" name="use_client">
+                            <option value="1">是</option>
+                            <option value="0">否</option>
+                        </select>
+                    </div>
                     <div class="form-group" id="compress">
                         <label class="control-label">数据压缩方式</label>
                         <select class="form-control" name="compress">
@@ -37,16 +52,16 @@
                             <option value="snappy">snappy</option>
                         </select>
                     </div>
-                    <div class="form-group" id="compress">
+                    <div class="form-group" id="crypt">
                         <label class="control-label">是否加密传输</label>
                         <select class="form-control" name="crypt">
                             <option value="0">不加密</option>
                             <option value="1">加密</option>
                         </select>
                     </div>
-                    <div class="form-group" id="compress">
+                    <div class="form-group" id="mux">
                         <label class="control-label">是否TCP复用</label>
-                        <select class="form-control" name="crypt">
+                        <select class="form-control" name="mux">
                             <option value="0">不启用</option>
                             <option value="1">启用</option>
                         </select>
@@ -77,7 +92,7 @@
     arr["udpServer"] = ["type", "port", "target", "compress", "udp隧道模式，提供一条udp隧道，适用于dns、内网dns访问等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的udp目标端口"]
     arr["socks5Server"] = ["type", "port", "compress", "u", "p", "socks5代理模式，内网socks5代理，配合proxifer，可如同使用vpn一样访问内网设备或资源，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置socks5代理，即访问内网设备或者资源 "]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p", " http代理模式，内网http代理，可访问内网网站，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置http代理，即访问内网站点"]
-    arr["hostServer"] = ["type", "compress", "u", "p", "域名分发模式，使用域名代理内网服务，适用于小程序开发、公众号开发、站点演示等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，使用nginx将请求反向代理到本程序，再进行域名配置，即可解析"]
+    arrClientHide = ["compress", "u", "p", "crypt", "mux"]
 
     function resetForm() {
         for (var i = 0; i < arr["all"].length; i++) {
@@ -90,10 +105,28 @@
         $("#info").html(arr[o][arr[o].length - 1])
     }
 
+    function resetClientCnf() {
+        for (var i = 0; i < arrClientHide.length; i++) {
+            $("#" + arrClientHide[i]).css("display", "block")
+        }
+        op = $("#use_client  option:selected").val()
+        if (op == 1) {
+            for (var i = 0; i < arrClientHide.length; i++) {
+                $("#" + arrClientHide[i]).css("display", "none")
+            }
+        }
+    }
+
     $(function () {
         resetForm()
+        resetClientCnf()
         $("#type").on("change", function () {
             resetForm()
+            resetClientCnf()
+        })
+        $("#use_client").on("change", function () {
+            resetForm()
+            resetClientCnf()
         })
         $("#add").on("click", function () {
             $.ajax({

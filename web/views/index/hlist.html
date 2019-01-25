@@ -5,9 +5,13 @@
                 <table class="table table-hover table-bordered" id="sampleTable">
                     <thead>
                     <tr>
-                        <th>客户端key</th>
+                        <th>客户端id</th>
+                        <th>备注</th>
                         <th>host</th>
                         <th>内网目标</th>
+                        <th>host改写</th>
+                        <th>出口流量</th>
+                        <th>入口流量</th>
                         <th>操作</th>
                     </tr>
                     </thead>
@@ -39,7 +43,7 @@
     }
 
     function add() {
-        window.location.href = "/index/addhost?vkey={{.vkey}}"
+        window.location.href = "/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
     }
 
     function edit(host) {
@@ -48,6 +52,11 @@
 
     $(document).ready(function () {
         var table = $('#sampleTable').DataTable({
+            responsive: {
+                details: {
+                    display: $.fn.dataTable.Responsive.display.childRowImmediate
+                }
+            },
             dom: 'Bfrtip',
             processing: true,
             serverSide: true,
@@ -59,9 +68,13 @@
             },
             dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
             columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
-                {data: 'Vkey'},
+                {data: 'ClientId'},
+                {data: 'Remark'},
                 {data: 'Host'},
                 {data: 'Target'},
+                {data: 'HostChange'},
+                {data: 'HostChange'},
+                {data: 'HostChange'},
                 {data: 'Target'},
             ],
             bFilter: false,
@@ -74,7 +87,19 @@
                             '<button onclick="edit(\'' + row.Host + '\')" type="button"   class="btn btn-primary btn-sm">编辑查看</button> '
                             + ' </div>'
                 }
-            }
+            },
+                {
+                    targets: -2,
+                    render: function (data, type, row, meta) {
+                        return change(row.Flow.InletFlow)
+                    }
+                },
+                {
+                    targets: -3,
+                    render: function (data, type, row, meta) {
+                        return change(row.Flow.ExportFlow)
+                    }
+                }
             ],
             buttons: []
         });

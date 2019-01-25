@@ -4,16 +4,20 @@
             <h3 class="tile-title">添加</h3>
             <div class="tile-body">
                 <form>
-                    <input type="hidden" name="vKey" value="{{.t.VerifyKey}}">
+                    <input type="hidden" name="id" value="{{.t.Id}}">
                     <div class="form-group">
                         <label class="control-label">模式</label>
                         <select class="form-control" name="type" id="type">
                             <option {{if eq "tunnelServer" .t.Mode}}selected{{end}} value="tunnelServer">tcp隧道</option>
                             <option {{if eq "udpServer" .t.Mode}}selected{{end}} value="udpServer">udp隧道</option>
-                            <option {{if eq "socks5Server" .t.Mode}}selected{{end}} value="socks5Server">socks5代理</option>
+                            <option {{if eq "socks5Server" .t.Mode}}selected{{end}} value="socks5Server">socks5代理
+                            </option>
                             <option {{if eq "httpProxyServer" .t.Mode}}selected{{end}} value="httpProxyServer">http代理
-                            <option {{if eq "hostServer" .t.Mode}}selected{{end}} value="hostServer">host客户端</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">备注</label>
+                        <input class="form-control" value="{{.t.Remark}}" type="text" name="remark" placeholder="备注">
                     </div>
                     <div class="form-group" id="port">
                         <label class="control-label">监听的端口</label>
@@ -25,6 +29,18 @@
                         <input class="form-control" value="{{.t.Target}}" type="text" name="target"
                                placeholder="内网隧道目标，例如10.1.50.203:22">
                     </div>
+                    <div class="form-group" id="client_id">
+                        <label class="control-label">客户端ID</label>
+                        <input class="form-control" value="{{.t.ClientId}}" type="text" name="client_id"
+                               placeholder="客户端id">
+                    </div>
+                    <div class="form-group" id="use_client">
+                        <label class="control-label">是否使用客户端配置</label>
+                        <select class="form-control" name="use_client">
+                            <option {{if eq false .t.UseClientCnf}}selected{{end}} value="0">否</option>
+                            <option {{if eq  true .t.UseClientCnf}}selected{{end}} value="1">是</option>
+                        </select>
+                    </div>
                     <div class="form-group" id="compress">
                         <label class="control-label">数据压缩方式(所有模式均支持)</label>
                         <select class="form-control" name="compress">
@@ -32,14 +48,14 @@
                             <option {{if eq "snappy" .t.Compress}}selected{{end}} value="snappy">snappy压缩</option>
                         </select>
                     </div>
-                    <div class="form-group" id="compress">
+                    <div class="form-group" id="crypt">
                         <label class="control-label">是否加密传输(所有模式均支持)</label>
                         <select class="form-control" name="crypt">
                             <option {{if eq false .t.Crypt}}selected{{end}} value="0">不加密</option>
                             <option {{if eq  true .t.Crypt}}selected{{end}} value="1">加密</option>
                         </select>
                     </div>
-                    <div class="form-group" id="compress">
+                    <div class="form-group" id="mux">
                         <label class="control-label">是否启用TCP复用(所有模式均支持)</label>
                         <select class="form-control" name="mux">
                             <option {{if eq false .t.Mux}}selected{{end}} value="0">不启用</option>
@@ -74,7 +90,7 @@
     arr["udpServer"] = ["type", "port", "target", "compress"]
     arr["socks5Server"] = ["type", "port", "compress", "u", "p"]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p"]
-    arr["hostServer"] = ["type", "compress", "u", "p"]
+    arrClientHide = ["compress", "u", "p", "crypt", "mux"]
 
     function resetForm() {
         for (var i = 0; i < arr["all"].length; i++) {
@@ -86,10 +102,28 @@
         }
     }
 
+    function resetClientCnf() {
+        for (var i = 0; i < arrClientHide.length; i++) {
+            $("#" + arrClientHide[i]).css("display", "block")
+        }
+        op = $("#use_client  option:selected").val()
+        if (op == 1) {
+            for (var i = 0; i < arrClientHide.length; i++) {
+                $("#" + arrClientHide[i]).css("display", "none")
+            }
+        }
+    }
+
     $(function () {
         resetForm()
+        resetClientCnf()
         $("#type").on("change", function () {
             resetForm()
+            resetClientCnf()
+        })
+        $("#use_client").on("change", function () {
+            resetForm()
+            resetClientCnf()
         })
         $("#add").on("click", function () {
             $.ajax({

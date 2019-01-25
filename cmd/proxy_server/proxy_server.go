@@ -25,7 +25,7 @@ var (
 func main() {
 	flag.Parse()
 	server.VerifyKey = *VerifyKey
-	cnf := server.ServerConfig{
+	cnf := &utils.ServerConfig{
 		TcpPort:        *httpPort,
 		Mode:           *rpMode,
 		Target:         *tunnelTarget,
@@ -51,5 +51,5 @@ func main() {
 	}
 	log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
 	cnf.CompressDecode, cnf.CompressEncode = utils.GetCompressType(cnf.Compress)
-	server.StartNewServer(*TcpPort, &cnf)
+	server.StartNewServer(*TcpPort, cnf)
 }

@@ -4,10 +4,17 @@
             <h3 class="tile-title">添加</h3>
             <div class="tile-body">
                 <form>
-                    <input type="hidden" name="vkey" value="{{.vkey}}">
+                    <div class="form-group">
+                        <label class="control-label">备注</label>
+                        <input class="form-control" type="text" name="remark" placeholder="备注">
+                    </div>
                     <div class="form-group">
                         <label class="control-label">域名</label>
                         <input class="form-control" type="text" name="host" placeholder="域名">
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">客户端id</label>
+                        <input value="{{.client_id}}" class="form-control" type="text" name="client_id" placeholder="客户端id">
                     </div>
                     <div class="form-group">
                         <label class="control-label">内网目标</label>
@@ -15,7 +22,8 @@
                     </div>
                     <div class="form-group" id="header">
                         <label class="control-label">header头修改(冒号分隔，多个请换行填写)</label>
-                        <textarea class="form-control" rows="4" type="text" name="header" placeholder="Cache-Control: no-cache"></textarea>
+                        <textarea class="form-control" rows="4" type="text" name="header"
+                                  placeholder="Cache-Control: no-cache"></textarea>
                     </div>
                     <div class="form-group" id="hostchange">
                         <label class="control-label">host修改</label>

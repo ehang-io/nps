@@ -1,0 +1,67 @@
+<div class="row tile">
+    <div class="col-md-6 col-md-auto">
+        <div>
+            <h3 class="tile-title">添加</h3>
+            <div class="tile-body">
+                <form>
+                    <div class="form-group" id="target">
+                        <label class="control-label">备注</label>
+                        <input class="form-control" type="text" name="Remark" placeholder="客户端备注">
+                    </div>
+                    <div class="form-group" id="u">
+                        <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
+                        <input class="form-control" type="text" name="u" placeholder="不填则无需验证">
+                    </div>
+                    <div class="form-group" id="p">
+                        <label class="control-label">验证密码(仅socks5,web穿透支持)</label>
+                        <input class="form-control" type="text" name="p" placeholder="不填则无需验证">
+                    </div>
+                    <div class="form-group" id="compress">
+                        <label class="control-label">数据压缩方式</label>
+                        <select class="form-control" name="compress">
+                            <option value="">不压缩</option>
+                            <option value="snappy">snappy</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="compress">
+                        <label class="control-label">是否加密传输</label>
+                        <select class="form-control" name="crypt">
+                            <option value="0">不加密</option>
+                            <option value="1">加密</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="compress">
+                        <label class="control-label">是否TCP复用</label>
+                        <select class="form-control" name="crypt">
+                            <option value="0">不启用</option>
+                            <option value="1">启用</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="tile-footer">
+                &nbsp;&nbsp;<button class="btn btn-success" href="#" id="add"><i
+                    class="fa fa-fw fa-lg fa-eye"></i>添加
+            </button>
+            </div>
+        </div>
+    </div>
+</div>
+</main>
+<script>
+    $(function () {
+        $("#add").on("click", function () {
+            $.ajax({
+                type: "POST",
+                url: "/client/add",
+                data: $("form").serializeArray(),
+                success: function (res) {
+                    alert(res.msg)
+                    if (res.status) {
+                        history.back(-1)
+                    }
+                }
+            })
+        })
+    })
+</script>

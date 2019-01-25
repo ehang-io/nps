@@ -5,10 +5,11 @@
                 <table class="table table-hover table-bordered" id="sampleTable">
                     <thead>
                     <tr>
-                    {{/*<th>模式</th>*/}}
+                        <th>Id</th>
+                        <th>备注</th>
+                        <th>客户端Id</th>
                         <th>监听端口</th>
                         <th>内网目标</th>
-                        <th>多客户端模式客户端执行命令</th>
                         <th>压缩方式</th>
                         <th>加密传输</th>
                         <th>TCP多路复用</th>
@@ -16,11 +17,12 @@
                         <th>密码</th>
                         <th>客户端状态</th>
                         <th>状态</th>
+                        <th>出口流量</th>
+                        <th>入口流量</th>
                         <th>操作</th>
                     </tr>
                     </thead>
                     <tbody>
-
                     </tbody>
                 </table>
             </div>
@@ -30,12 +32,12 @@
 </main>
 
 <script type="text/javascript">
-    function del(vKey) {
+    function del(id) {
         if (confirm("确定要删除数据吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/del",
-                data: {"vKey": vKey},
+                data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
                     if (res.status) {
@@ -46,12 +48,12 @@
         }
     }
 
-    function start(vKey) {
+    function start(id) {
         if (confirm("确定要开始任务吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/start",
-                data: {"vKey": vKey},
+                data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
                     if (res.status) {
@@ -62,12 +64,12 @@
         }
     }
 
-    function stop(vKey) {
+    function stop(id) {
         if (confirm("确定要暂停吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/stop",
-                data: {"vKey": vKey},
+                data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
                     if (res.status) {
@@ -78,35 +80,38 @@
         }
     }
 
-    function edit(vKey) {
-        window.location.href = "/index/edit?vKey=" + vKey
+    function edit(id) {
+        window.location.href = "/index/edit?id=" + id
     }
 
     function add() {
-        window.location.href = "/index/add?type=" +{{.type}}
+        window.location.href = "/index/add?type={{.type}}" + "&client_id={{.client_id}}"
     }
 
-    function hostList(vkey) {
-        window.location.href = "/index/hostlist?vkey=" + vkey
-    }
 
     $(document).ready(function () {
         var table = $('#sampleTable').DataTable({
+            responsive: {
+                details: {
+                    display: $.fn.dataTable.Responsive.display.childRowImmediate
+                }
+            },
             dom: 'Bfrtip',
             processing: true,
             serverSide: true,
             autoWidth: false,
             ordering: false,
             ajax: {
-                url: '/index/getserverconfig?type={{.type}}',
+                url: '/index/getserverconfig?type={{.type}}' + "&client_id=" +{{.client_id}},
                 type: 'POST'
             },
             dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
             columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
-                // {data: 'Mode'},
+                {data: 'Id'},
+                {data: 'Remark'},
+                {data: 'ClientId'},
                 {data: 'TcpPort'},
                 {data: 'Target'},
-                {data: 'VerifyKey'},
                 {data: 'Compress'},
                 {data: 'Crypt'},
                 {data: 'Mux'},
@@ -114,6 +119,8 @@
                 {data: 'P'},
                 {data: 'ClientStatus'},
                 {data: 'IsRun'},
+                {data: 'ExportFlow'},
+                {data: 'InletFlow'},
                 {data: "Id"}
             ],
             bFilter: false,
@@ -121,27 +128,18 @@
                 targets: -1,
                 render: function (data, type, row, meta) {
                     if (row.IsRun == 1) {
-                        btn = "<button onclick=\"stop('" + row.VerifyKey + "')\" class=\"btn btn-secondary btn-sm\" type=\"button\">关闭</button>"
+                        btn = "<button onclick=\"stop('" + row.Id + "')\" class=\"btn btn-secondary btn-sm\" type=\"button\">关闭</button>"
                     } else {
-                        btn = "<button onclick=\"start('" + row.VerifyKey + "')\" class=\"btn btn-success btn-sm\" type=\"button\">打开</button>"
+                        btn = "<button onclick=\"start('" + row.Id + "')\" class=\"btn btn-success btn-sm\" type=\"button\">打开</button>"
                     }
-                    btn_edit = '<button onclick="edit(\'' + row.VerifyKey + '\')" type="button"   class="btn btn-primary btn-sm">查看编辑</button> '
-                    if ({{.type}} == "hostServer"
-                )
-                    {
-                        btn_host = '<button onclick="hostList(\'' + row.VerifyKey + '\')" type="button"   class="btn btn-info btn-sm">域名管理</button> '
-                    }
-                else
-                    {
-                        btn_host = ""
-                    }
+                    btn_edit = '<button onclick="edit(\'' + row.Id + '\')" type="button"   class="btn btn-primary btn-sm">查看编辑</button> '
                     return '<div class="btn-group" role="group" aria-label="..."> ' +
-                            '<button onclick="del(\'' + row.VerifyKey + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
-                            btn_edit + btn + btn_host + ' </div>'
+                            '<button onclick="del(\'' + row.Id + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
+                            btn_edit + btn + ' </div>'
                 }
             },
                 {
-                    targets: -2,
+                    targets: -4,
                     render: function (data, type, row, meta) {
                         if (data == 0) {
                             return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
@@ -151,7 +149,7 @@
                     }
                 },
                 {
-                    targets: -7,
+                    targets: -9,
                     render: function (data, type, row, meta) {
                         if (data == "0") {
                             return "不加密"
@@ -161,7 +159,7 @@
                     }
                 },
                 {
-                    targets: -6,
+                    targets: -8,
                     render: function (data, type, row, meta) {
                         if (data == "0") {
                             return "不启用"
@@ -169,23 +167,27 @@
                             return "启用"
                         }
                     }
-                }
-                ,
-                {
-                    targets: 2,
-                    render: function (data, type, row, meta) {
-                        return "./proxy_client -server={{.ip}}:{{.p}} -vkey=" + data
-                        // return data
-                    }
                 },
                 {
-                    targets: -3,
+                    targets: -5,
                     render: function (data, type, row, meta) {
                         if (data == 0) {
                             return "<span class=\"badge badge-pill badge-secondary\">离线</span>"
                         } else {
                             return "<span class=\"badge badge-pill badge-success\">在线</span>"
                         }
+                    }
+                },
+                {
+                    targets: -2,
+                    render: function (data, type, row, meta) {
+                        return change(row.Flow.InletFlow)
+                    }
+                },
+                {
+                    targets: -3,
+                    render: function (data, type, row, meta) {
+                        return change(row.Flow.ExportFlow)
                     }
                 }
             ],

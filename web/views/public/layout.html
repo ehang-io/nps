@@ -41,8 +41,10 @@
     </div>
     <ul class="app-menu">
         <li><a class="app-menu__item {{if eq "index" .menu}}active{{end}}" href="/"><i
-                class="app-menu__icon fa fa-dashboard"></i><span class="app-menu__label">使用说明</span></a></li>
-        <li><a class="app-menu__item {{if eq "host" .menu}}active{{end}}" href="/index/host"><i
+                class="app-menu__icon fa fa-dashboard"></i><span class="app-menu__label">dashboard</span></a></li>
+        <li><a class="app-menu__item {{if eq "client" .menu}}active{{end}}" href="/client/client"><i
+                class="app-menu__icon fa fa-dot-circle-o"></i><span class="app-menu__label">客户端管理</span></a></li>
+        <li><a class="app-menu__item {{if eq "host" .menu}}active{{end}}" href="/index/hostlist"><i
                 class="app-menu__icon fa fa-lemon-o"></i><span class="app-menu__label">域名代理</span></a></li>
         <li><a class="app-menu__item {{if eq "tcp" .menu}}active{{end}}" href="/index/tcp"><i
                 class="app-menu__icon fa fa-life-buoy"></i><span class="app-menu__label">tcp隧道管理</span></a></li>
@@ -52,12 +54,14 @@
                 class="app-menu__icon fa fa-lightbulb-o"></i><span class="app-menu__label">socks5代理</span></a></li>
         <li><a class="app-menu__item {{if eq "http" .menu}}active{{end}}" href="/index/http"><i
                 class="app-menu__icon fa fa-magic"></i><span class="app-menu__label">http代理</span></a></li>
-
+        <li><a class="app-menu__item {{if eq "help" .menu}}active{{end}}" href="/index/help"><i
+                class="app-menu__icon fa fa-question-circle"></i><span class="app-menu__label">使用说明</span></a></li>
     </ul>
 </aside>
 
 <script type="text/javascript" src="/static/js/datatables.min.js"></script>
 <script src="/static/js/main.js"></script>
+<script src="/static/js/chart.js"></script>
 <main class="app-content">
     <div class="app-title">
         <div>

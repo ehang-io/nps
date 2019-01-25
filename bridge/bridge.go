@@ -5,6 +5,7 @@ import (
 	"github.com/cnlh/easyProxy/utils"
 	"log"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -31,20 +32,20 @@ func newList() *list {
 }
 
 type Tunnel struct {
-	TunnelPort int                    //通信隧道端口
-	listener   *net.TCPListener       //server端监听
-	SignalList map[string]*list       //通信
-	TunnelList map[string]*list       //隧道
-	RunList    map[string]interface{} //运行中的任务
+	TunnelPort int                 //通信隧道端口
+	listener   *net.TCPListener    //server端监听
+	SignalList map[int]*list       //通信
+	TunnelList map[int]*list       //隧道
+	RunList    map[int]interface{} //运行中的任务
 	lock       sync.Mutex
 	tunnelLock sync.Mutex
 }
 
-func NewTunnel(tunnelPort int, runList map[string]interface{}) *Tunnel {
+func NewTunnel(tunnelPort int, runList map[int]interface{}) *Tunnel {
 	t := new(Tunnel)
 	t.TunnelPort = tunnelPort
-	t.SignalList = make(map[string]*list)
-	t.TunnelList = make(map[string]*list)
+	t.SignalList = make(map[int]*list)
+	t.TunnelList = make(map[int]*list)
 	t.RunList = runList
 	return t
 }
@@ -87,7 +88,8 @@ func (s *Tunnel) cliProcess(c *utils.Conn) error {
 		c.Conn.Close()
 		return err
 	}
-	if !s.verify(string(vval)) {
+	id, err := utils.GetCsvDb().GetIdByVerifyKey(string(vval),c.Conn.RemoteAddr().String())
+	if err != nil {
 		log.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
 		s.verifyError(c)
 		return errors.New("验证错误")
@@ -97,18 +99,18 @@ func (s *Tunnel) cliProcess(c *utils.Conn) error {
 	if flag, err := c.ReadFlag(); err != nil {
 		return err
 	} else {
-		return s.typeDeal(flag, c, string(vval))
+		return s.typeDeal(flag, c, id)
 	}
 }
 
 //tcp连接类型区分
-func (s *Tunnel) typeDeal(typeVal string, c *utils.Conn, cFlag string) error {
+func (s *Tunnel) typeDeal(typeVal string, c *utils.Conn, id int) error {
 	switch typeVal {
 	case utils.WORK_MAIN:
 		log.Println("客户端连接成功", c.Conn.RemoteAddr())
-		s.addList(s.SignalList, c, cFlag)
+		s.addList(s.SignalList, c, id)
 	case utils.WORK_CHAN:
-		s.addList(s.TunnelList, c, cFlag)
+		s.addList(s.TunnelList, c, id)
 	default:
 		return errors.New("无法识别")
 	}
@@ -117,41 +119,38 @@ func (s *Tunnel) typeDeal(typeVal string, c *utils.Conn, cFlag string) error {
 }
 
 //加到对应的list中
-func (s *Tunnel) addList(m map[string]*list, c *utils.Conn, cFlag string) {
+func (s *Tunnel) addList(m map[int]*list, c *utils.Conn, id int) {
 	s.lock.Lock()
-	if v, ok := m[cFlag]; ok {
+	if v, ok := m[id]; ok {
 		v.Add(c)
 	} else {
 		l := newList()
 		l.Add(c)
-		m[cFlag] = l
+		m[id] = l
 	}
 	s.lock.Unlock()
 }
 
 //新建隧道
-func (s *Tunnel) newChan(cFlag string) error {
+func (s *Tunnel) newChan(id int) error {
 	var connPass *utils.Conn
 	var err error
 retry:
-	if connPass, err = s.waitAndPop(s.SignalList, cFlag); err != nil {
+	if connPass, err = s.waitAndPop(s.SignalList, id); err != nil {
 		return err
 	}
 	if _, err = connPass.Conn.Write([]byte("chan")); err != nil {
 		goto retry
 	}
-	s.SignalList[cFlag].Add(connPass)
+	s.SignalList[id].Add(connPass)
 	return nil
 }
 
 //得到一个tcp隧道
 //TODO 超时问题 锁机制问题 对单个客户端加锁
-func (s *Tunnel) GetTunnel(cFlag string, en, de int, crypt, mux bool) (c *utils.Conn, err error) {
-	if v, ok := s.TunnelList[cFlag]; !ok || v.Len() < 3 { //新建通道
-		go s.newChan(cFlag)
-	}
+func (s *Tunnel) GetTunnel(id int, en, de int, crypt, mux bool) (c *utils.Conn, err error) {
 retry:
-	if c, err = s.waitAndPop(s.TunnelList, cFlag); err != nil {
+	if c, err = s.waitAndPop(s.TunnelList, id); err != nil {
 		return
 	}
 	if _, err = c.WriteTest(); err != nil {
@@ -163,61 +162,61 @@ retry:
 }
 
 //得到一个通信通道
-func (s *Tunnel) GetSignal(cFlag string) (err error, conn *utils.Conn) {
-	if v, ok := s.SignalList[cFlag]; !ok || v.Len() == 0 {
+func (s *Tunnel) GetSignal(id int) (err error, conn *utils.Conn) {
+	if v, ok := s.SignalList[id]; !ok || v.Len() == 0 {
 		err = errors.New("客户端未连接")
 		return
 	}
-	conn = s.SignalList[cFlag].Pop()
+	conn = s.SignalList[id].Pop()
 	return
 }
 
 //重回slice 复用
-func (s *Tunnel) ReturnSignal(conn *utils.Conn, cFlag string) {
-	if v, ok := s.SignalList[cFlag]; ok {
+func (s *Tunnel) ReturnSignal(conn *utils.Conn, id int) {
+	if v, ok := s.SignalList[id]; ok {
 		v.Add(conn)
 	}
 }
 
 //重回slice 复用
-func (s *Tunnel) ReturnTunnel(conn *utils.Conn, cFlag string) {
-	if v, ok := s.TunnelList[cFlag]; ok {
+func (s *Tunnel) ReturnTunnel(conn *utils.Conn, id int) {
+	if v, ok := s.TunnelList[id]; ok {
 		utils.FlushConn(conn.Conn)
 		v.Add(conn)
 	}
 }
 
 //删除通信通道
-func (s *Tunnel) DelClientSignal(cFlag string) {
-	s.delClient(cFlag, s.SignalList)
+func (s *Tunnel) DelClientSignal(id int) {
+	s.delClient(id, s.SignalList)
 }
 
 //删除隧道
-func (s *Tunnel) DelClientTunnel(cFlag string) {
-	s.delClient(cFlag, s.TunnelList)
+func (s *Tunnel) DelClientTunnel(id int) {
+	s.delClient(id, s.TunnelList)
 }
 
-func (s *Tunnel) delClient(cFlag string, l map[string]*list) {
-	if t := l[utils.Getverifyval(cFlag)]; t != nil {
+func (s *Tunnel) delClient(id int, l map[int]*list) {
+	if t := l[id]; t != nil {
 		for {
 			if t.Len() <= 0 {
 				break
 			}
 			t.Pop().Close()
 		}
-		delete(l, utils.Getverifyval(cFlag))
+		delete(l, id)
 	}
 }
 
 //等待
-func (s *Tunnel) waitAndPop(m map[string]*list, cFlag string) (c *utils.Conn, err error) {
+func (s *Tunnel) waitAndPop(m map[int]*list, id int) (c *utils.Conn, err error) {
 	ticker := time.NewTicker(time.Millisecond * 100)
-	stop := time.After(time.Second * 10)
+	stop := time.After(time.Second * 3)
 	for {
 		select {
 		case <-ticker.C:
 			s.lock.Lock()
-			if v, ok := m[cFlag]; ok && v.Len() > 0 {
+			if v, ok := m[id]; ok && v.Len() > 0 {
 				c = v.Pop()
 				ticker.Stop()
 				s.lock.Unlock()
@@ -225,16 +224,16 @@ func (s *Tunnel) waitAndPop(m map[string]*list, cFlag string) (c *utils.Conn, er
 			}
 			s.lock.Unlock()
 		case <-stop:
-			err = errors.New("client key: " + cFlag + ",err: get client conn timeout")
+			err = errors.New("client id: " + strconv.Itoa(id) + ",err: get client conn timeout")
 			return
 		}
 	}
 	return
 }
 
-func (s *Tunnel) verify(vKeyMd5 string) bool {
+func (s *Tunnel) verify(id int) bool {
 	for k := range s.RunList {
-		if utils.Getverifyval(k) == vKeyMd5 {
+		if k == id {
 			return true
 		}
 	}
