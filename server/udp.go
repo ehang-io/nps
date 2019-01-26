@@ -15,18 +15,19 @@ type UdpModeServer struct {
 	udpMap   map[string]*utils.Conn
 }
 
-func NewUdpModeServer(bridge *bridge.Tunnel, cnf *utils.ServerConfig) *UdpModeServer {
+func NewUdpModeServer(bridge *bridge.Bridge, task *utils.Tunnel) *UdpModeServer {
 	s := new(UdpModeServer)
 	s.bridge = bridge
 	s.udpMap = make(map[string]*utils.Conn)
-	s.config = cnf
+	s.task = task
+	s.config = utils.DeepCopyConfig(task.Config)
 	return s
 }
 
 //开始
 func (s *UdpModeServer) Start() error {
 	var err error
-	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.config.TcpPort, ""})
+	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.task.TcpPort, ""})
 	if err != nil {
 		return err
 	}
@@ -45,14 +46,14 @@ func (s *UdpModeServer) Start() error {
 	return nil
 }
 
-//TODO:效率问题有待解决
+//TODO:效率问题有待解决--->建立稳定通道，重复利用，提高效率，下个版本
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	conn, err := s.bridge.GetTunnel(s.config.ClientId, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+	conn, err := s.bridge.GetTunnel(s.task.Client.Id, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	if _, err := conn.WriteHost(utils.CONN_UDP, s.config.Target); err != nil {
+	if _, err := conn.WriteHost(utils.CONN_UDP, s.task.Target); err != nil {
 		conn.Close()
 		return
 	}
@@ -60,7 +61,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		defer func() {
 			if conn != nil && s.config.Mux {
 				conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt)
-				s.bridge.ReturnTunnel(conn, s.config.ClientId)
+				s.bridge.ReturnTunnel(conn, s.task.Client.Id)
 			} else {
 				conn.Close()
 			}
@@ -70,7 +71,6 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 			buf := utils.BufPoolUdp.Get().([]byte)
 			out, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt)
 			if err != nil || err == io.EOF {
-				log.Println("revieve error:", err)
 				return
 			}
 			s.listener.WriteToUDP(buf[:out], addr)

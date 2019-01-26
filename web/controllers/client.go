@@ -33,7 +33,7 @@ func (s *ClientController) Add() {
 			Id:        server.CsvDb.GetClientId(),
 			Status:    true,
 			Remark:    s.GetString("Remark"),
-			Cnf: &utils.ServerConfig{
+			Cnf: &utils.Config{
 				U:        s.GetString("u"),
 				P:        s.GetString("p"),
 				Compress: s.GetString("compress"),

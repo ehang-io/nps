@@ -20,10 +20,9 @@ type RunServer struct {
 }
 
 var (
-	Bridge    *bridge.Tunnel
+	Bridge    *bridge.Bridge
 	RunList   map[int]interface{} //运行中的任务
 	CsvDb     = utils.GetCsvDb()
-	VerifyKey string
 )
 
 func init() {
@@ -33,7 +32,7 @@ func init() {
 //从csv文件中恢复任务
 func InitFromCsv() {
 	for _, v := range CsvDb.Tasks {
-		if v.Start == 1 {
+		if v.Status {
 			log.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
 			AddTask(v)
 		}
@@ -41,7 +40,7 @@ func InitFromCsv() {
 }
 
 //start a new server
-func StartNewServer(bridgePort int, cnf *utils.ServerConfig) {
+func StartNewServer(bridgePort int, cnf *utils.Tunnel) {
 	Bridge = bridge.NewTunnel(bridgePort, RunList)
 	if err := Bridge.StartTunnel(); err != nil {
 		log.Fatalln("服务端开启失败", err)
@@ -58,37 +57,32 @@ func StartNewServer(bridgePort int, cnf *utils.ServerConfig) {
 }
 
 //new a server by mode name
-func NewMode(Bridge *bridge.Tunnel, c *utils.ServerConfig) interface{} {
-	config := utils.DeepCopyConfig(c)
-	switch config.Mode {
+func NewMode(Bridge *bridge.Bridge, c *utils.Tunnel) interface{} {
+	switch c.Mode {
 	case "tunnelServer":
-		return NewTunnelModeServer(ProcessTunnel, Bridge, config)
+		return NewTunnelModeServer(ProcessTunnel, Bridge, c)
 	case "socks5Server":
-		return NewSock5ModeServer(Bridge, config)
+		return NewSock5ModeServer(Bridge, c)
 	case "httpProxyServer":
-		return NewTunnelModeServer(ProcessHttp, Bridge, config)
+		return NewTunnelModeServer(ProcessHttp, Bridge, c)
 	case "udpServer":
-		return NewUdpModeServer(Bridge, config)
+		return NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
 		p, _ := beego.AppConfig.Int("hostPort")
-		t := &utils.ServerConfig{
-			TcpPort:      p,
-			Mode:         "httpHostServer",
-			Target:       "",
-			U:            "",
-			P:            "",
-			Compress:     "",
-			Start:        1,
-			IsRun:        0,
-			ClientStatus: 0,
+		t := &utils.Tunnel{
+			TcpPort: p,
+			Mode:    "httpHostServer",
+			Target:  "",
+			Config:  &utils.Config{},
+			Status:  true,
 		}
 		AddTask(t)
 		return NewWebServer(Bridge)
 	case "hostServer":
-		return NewHostServer(config)
+		return NewHostServer(c)
 	case "httpHostServer":
-		return NewTunnelModeServer(ProcessHost, Bridge, config)
+		return NewTunnelModeServer(ProcessHost, Bridge, c)
 	}
 	return nil
 }
@@ -100,7 +94,7 @@ func StopServer(id int) error {
 		if t, err := CsvDb.GetTask(id); err != nil {
 			return err
 		} else {
-			t.Start = 0
+			t.Status = false
 			CsvDb.UpdateTask(t)
 		}
 		return nil
@@ -109,7 +103,7 @@ func StopServer(id int) error {
 }
 
 //add task
-func AddTask(t *utils.ServerConfig) error {
+func AddTask(t *utils.Tunnel) error {
 	if svr := NewMode(Bridge, t); svr != nil {
 		RunList[t.Id] = svr
 		go func() {
@@ -131,7 +125,7 @@ func StartTask(id int) error {
 		return err
 	} else {
 		AddTask(t)
-		t.Start = 1
+		t.Status = true
 		CsvDb.UpdateTask(t)
 	}
 	return nil
@@ -146,12 +140,11 @@ func DelTask(id int) error {
 }
 
 //get key by host from x
-func GetKeyByHost(host string) (h *utils.HostList, t *utils.Client, err error) {
+func GetInfoByHost(host string) (h *utils.Host, err error) {
 	for _, v := range CsvDb.Hosts {
 		s := strings.Split(host, ":")
 		if s[0] == v.Host {
 			h = v
-			t, err = CsvDb.GetClient(v.ClientId)
 			return
 		}
 	}
@@ -160,39 +153,25 @@ func GetKeyByHost(host string) (h *utils.HostList, t *utils.Client, err error) {
 }
 
 //get task list by page num
-func GetServerConfig(start, length int, typeVal string, clientId int) ([]*utils.ServerConfig, int) {
-	list := make([]*utils.ServerConfig, 0)
+func GetTunnel(start, length int, typeVal string, clientId int) ([]*utils.Tunnel, int) {
+	list := make([]*utils.Tunnel, 0)
 	var cnt int
 	for _, v := range CsvDb.Tasks {
-		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.ClientId) {
+		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
 			continue
 		}
-		if v.UseClientCnf {
-			v = utils.DeepCopyConfig(v)
-			if c, err := CsvDb.GetClient(v.ClientId); err == nil {
-				v.Compress = c.Cnf.Compress
-				v.Mux = c.Cnf.Mux
-				v.Crypt = c.Cnf.Crypt
-				v.U = c.Cnf.U
-				v.P = c.Cnf.P
-			}
-		}
 		cnt++
+		if _, ok := Bridge.SignalList[v.Client.Id]; ok {
+			v.Client.IsConnect = true
+		} else {
+			v.Client.IsConnect = false
+		}
 		if start--; start < 0 {
 			if length--; length > 0 {
 				if _, ok := RunList[v.Id]; ok {
-					v.IsRun = 1
+					v.Client.Status = true
 				} else {
-					v.IsRun = 0
-				}
-				if s, ok := Bridge.SignalList[v.ClientId]; ok {
-					if s.Len() > 0 {
-						v.ClientStatus = 1
-					} else {
-						v.ClientStatus = 0
-					}
-				} else {
-					v.ClientStatus = 0
+					v.Client.Status = false
 				}
 				list = append(list, v)
 			}
@@ -218,13 +197,13 @@ func dealClientData(list []*utils.Client) {
 		v.Flow.InletFlow = 0
 		v.Flow.ExportFlow = 0
 		for _, h := range CsvDb.Hosts {
-			if h.ClientId == v.Id {
+			if h.Client.Id == v.Id {
 				v.Flow.InletFlow += h.Flow.InletFlow
 				v.Flow.ExportFlow += h.Flow.ExportFlow
 			}
 		}
 		for _, t := range CsvDb.Tasks {
-			if t.ClientId == v.Id {
+			if t.Client.Id == v.Id {
 				v.Flow.InletFlow += t.Flow.InletFlow
 				v.Flow.ExportFlow += t.Flow.ExportFlow
 			}
@@ -236,12 +215,12 @@ func dealClientData(list []*utils.Client) {
 //根据客户端id删除其所属的所有隧道和域名
 func DelTunnelAndHostByClientId(clientId int) {
 	for _, v := range CsvDb.Tasks {
-		if v.ClientId == clientId {
+		if v.Client.Id == clientId {
 			DelTask(v.Id)
 		}
 	}
 	for _, v := range CsvDb.Hosts {
-		if v.ClientId == clientId {
+		if v.Client.Id == clientId {
 			CsvDb.DelHost(v.Host)
 		}
 	}

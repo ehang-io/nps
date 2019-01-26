@@ -13,13 +13,7 @@ type process func(c *utils.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *utils.Conn, s *TunnelModeServer) error {
-	_, _, rb, err, r := c.GetHost()
-	if err == nil {
-		if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
-			return err
-		}
-	}
-	return s.dealClient(c, s.config, s.config.Target, "", rb)
+	return s.dealClient(c, s.config, s.task.Target, "", nil)
 }
 
 //http代理模式
@@ -41,8 +35,7 @@ func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
 	var (
 		isConn = true
 		link   *utils.Conn
-		client *utils.Client
-		host   *utils.HostList
+		host   *utils.Host
 		wg     sync.WaitGroup
 	)
 	for {
@@ -52,17 +45,17 @@ func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
 		}
 		//首次获取conn
 		if isConn {
-			if host, client, err = GetKeyByHost(r.Host); err != nil {
+			if host, err = GetInfoByHost(r.Host); err != nil {
 				log.Printf("the host %s is not found !", r.Host)
 				break
 			}
 
-			client.Cnf.ClientId = host.ClientId
-			client.Cnf.CompressDecode, client.Cnf.CompressEncode = utils.GetCompressType(client.Cnf.Compress)
-			if err = s.auth(r, c, client.Cnf.U, client.Cnf.P); err != nil {
+			host.Client.Cnf.CompressDecode, host.Client.Cnf.CompressEncode = utils.GetCompressType(host.Client.Cnf.Compress)
+
+			if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
 				break
 			}
-			if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, client.Cnf, host.Target); err != nil {
+			if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, host.Client.Id, host.Client.Cnf, host.Target); err != nil {
 				log.Println("get bridge tunnel error: ", err)
 				break
 			}
@@ -72,27 +65,28 @@ func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
 			} else {
 				wg.Add(1)
 				go func() {
-					out, _ := utils.Relay(c.Conn, link.Conn, client.Cnf.CompressDecode, client.Cnf.Crypt, client.Cnf.Mux)
+					out, _ := utils.Relay(c.Conn, link.Conn, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, host.Client.Cnf.Mux)
 					wg.Done()
 					s.FlowAddHost(host, 0, out)
 				}()
 			}
 			isConn = false
 		}
+		//根据设定，修改header和host
 		utils.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, true)
-		s.FlowAddHost(host, int64(len(b)), 0)
 		if err != nil {
 			break
 		}
-		if _, err := link.WriteTo(b, client.Cnf.CompressEncode, client.Cnf.Crypt); err != nil {
+		s.FlowAddHost(host, int64(len(b)), 0)
+		if _, err := link.WriteTo(b, host.Client.Cnf.CompressEncode, host.Client.Cnf.Crypt); err != nil {
 			break
 		}
 	}
 	wg.Wait()
-	if client != nil && client.Cnf != nil && client.Cnf.Mux && link != nil {
-		link.WriteTo([]byte(utils.IO_EOF), client.Cnf.CompressEncode, client.Cnf.Crypt)
-		s.bridge.ReturnTunnel(link, client.Id)
+	if host != nil && host.Client.Cnf != nil && host.Client.Cnf.Mux && link != nil {
+		link.WriteTo([]byte(utils.IO_EOF), host.Client.Cnf.CompressEncode, host.Client.Cnf.Crypt)
+		s.bridge.ReturnTunnel(link, host.Client.Id)
 	} else if link != nil {
 		link.Close()
 	}
@@ -103,5 +97,3 @@ func ProcessHost(c *utils.Conn, s *TunnelModeServer) error {
 	c.Close()
 	return nil
 }
-
-

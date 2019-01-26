@@ -31,7 +31,7 @@ func newList() *list {
 	return l
 }
 
-type Tunnel struct {
+type Bridge struct {
 	TunnelPort int                 //通信隧道端口
 	listener   *net.TCPListener    //server端监听
 	SignalList map[int]*list       //通信
@@ -41,8 +41,8 @@ type Tunnel struct {
 	tunnelLock sync.Mutex
 }
 
-func NewTunnel(tunnelPort int, runList map[int]interface{}) *Tunnel {
-	t := new(Tunnel)
+func NewTunnel(tunnelPort int, runList map[int]interface{}) *Bridge {
+	t := new(Bridge)
 	t.TunnelPort = tunnelPort
 	t.SignalList = make(map[int]*list)
 	t.TunnelList = make(map[int]*list)
@@ -50,7 +50,7 @@ func NewTunnel(tunnelPort int, runList map[int]interface{}) *Tunnel {
 	return t
 }
 
-func (s *Tunnel) StartTunnel() error {
+func (s *Bridge) StartTunnel() error {
 	var err error
 	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.TunnelPort, ""})
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *Tunnel) StartTunnel() error {
 }
 
 //tcp server
-func (s *Tunnel) tunnelProcess() error {
+func (s *Bridge) tunnelProcess() error {
 	var err error
 	for {
 		conn, err := s.listener.Accept()
@@ -75,12 +75,12 @@ func (s *Tunnel) tunnelProcess() error {
 }
 
 //验证失败，返回错误验证flag，并且关闭连接
-func (s *Tunnel) verifyError(c *utils.Conn) {
+func (s *Bridge) verifyError(c *utils.Conn) {
 	c.Conn.Write([]byte(utils.VERIFY_EER))
 	c.Conn.Close()
 }
 
-func (s *Tunnel) cliProcess(c *utils.Conn) error {
+func (s *Bridge) cliProcess(c *utils.Conn) error {
 	c.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(5) * time.Second))
 	vval := make([]byte, 32)
 	if _, err := c.Conn.Read(vval); err != nil {
@@ -104,7 +104,7 @@ func (s *Tunnel) cliProcess(c *utils.Conn) error {
 }
 
 //tcp连接类型区分
-func (s *Tunnel) typeDeal(typeVal string, c *utils.Conn, id int) error {
+func (s *Bridge) typeDeal(typeVal string, c *utils.Conn, id int) error {
 	switch typeVal {
 	case utils.WORK_MAIN:
 		log.Println("客户端连接成功", c.Conn.RemoteAddr())
@@ -119,7 +119,7 @@ func (s *Tunnel) typeDeal(typeVal string, c *utils.Conn, id int) error {
 }
 
 //加到对应的list中
-func (s *Tunnel) addList(m map[int]*list, c *utils.Conn, id int) {
+func (s *Bridge) addList(m map[int]*list, c *utils.Conn, id int) {
 	s.lock.Lock()
 	if v, ok := m[id]; ok {
 		v.Add(c)
@@ -132,7 +132,7 @@ func (s *Tunnel) addList(m map[int]*list, c *utils.Conn, id int) {
 }
 
 //新建隧道
-func (s *Tunnel) newChan(id int) error {
+func (s *Bridge) newChan(id int) error {
 	var connPass *utils.Conn
 	var err error
 retry:
@@ -148,7 +148,7 @@ retry:
 
 //得到一个tcp隧道
 //TODO 超时问题 锁机制问题 对单个客户端加锁
-func (s *Tunnel) GetTunnel(id int, en, de int, crypt, mux bool) (c *utils.Conn, err error) {
+func (s *Bridge) GetTunnel(id int, en, de int, crypt, mux bool) (c *utils.Conn, err error) {
 retry:
 	if c, err = s.waitAndPop(s.TunnelList, id); err != nil {
 		return
@@ -162,7 +162,7 @@ retry:
 }
 
 //得到一个通信通道
-func (s *Tunnel) GetSignal(id int) (err error, conn *utils.Conn) {
+func (s *Bridge) GetSignal(id int) (err error, conn *utils.Conn) {
 	if v, ok := s.SignalList[id]; !ok || v.Len() == 0 {
 		err = errors.New("客户端未连接")
 		return
@@ -172,14 +172,14 @@ func (s *Tunnel) GetSignal(id int) (err error, conn *utils.Conn) {
 }
 
 //重回slice 复用
-func (s *Tunnel) ReturnSignal(conn *utils.Conn, id int) {
+func (s *Bridge) ReturnSignal(conn *utils.Conn, id int) {
 	if v, ok := s.SignalList[id]; ok {
 		v.Add(conn)
 	}
 }
 
 //重回slice 复用
-func (s *Tunnel) ReturnTunnel(conn *utils.Conn, id int) {
+func (s *Bridge) ReturnTunnel(conn *utils.Conn, id int) {
 	if v, ok := s.TunnelList[id]; ok {
 		utils.FlushConn(conn.Conn)
 		v.Add(conn)
@@ -187,16 +187,16 @@ func (s *Tunnel) ReturnTunnel(conn *utils.Conn, id int) {
 }
 
 //删除通信通道
-func (s *Tunnel) DelClientSignal(id int) {
+func (s *Bridge) DelClientSignal(id int) {
 	s.delClient(id, s.SignalList)
 }
 
 //删除隧道
-func (s *Tunnel) DelClientTunnel(id int) {
+func (s *Bridge) DelClientTunnel(id int) {
 	s.delClient(id, s.TunnelList)
 }
 
-func (s *Tunnel) delClient(id int, l map[int]*list) {
+func (s *Bridge) delClient(id int, l map[int]*list) {
 	if t := l[id]; t != nil {
 		for {
 			if t.Len() <= 0 {
@@ -209,7 +209,7 @@ func (s *Tunnel) delClient(id int, l map[int]*list) {
 }
 
 //等待
-func (s *Tunnel) waitAndPop(m map[int]*list, id int) (c *utils.Conn, err error) {
+func (s *Bridge) waitAndPop(m map[int]*list, id int) (c *utils.Conn, err error) {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	stop := time.After(time.Second * 3)
 	for {
@@ -231,7 +231,7 @@ func (s *Tunnel) waitAndPop(m map[int]*list, id int) (c *utils.Conn, err error) 
 	return
 }
 
-func (s *Tunnel) verify(id int) bool {
+func (s *Bridge) verify(id int) bool {
 	for k := range s.RunList {
 		if k == id {
 			return true

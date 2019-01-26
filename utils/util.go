@@ -240,6 +240,5 @@ func ReadAllFromFile(filePth string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return ioutil.ReadAll(f)
 }

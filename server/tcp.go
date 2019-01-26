@@ -20,11 +20,12 @@ type TunnelModeServer struct {
 }
 
 //tcp|http|host
-func NewTunnelModeServer(process process, bridge *bridge.Tunnel, cnf *utils.ServerConfig) *TunnelModeServer {
+func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *utils.Tunnel) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.bridge = bridge
 	s.process = process
-	s.config = cnf
+	s.task = task
+	s.config = utils.DeepCopyConfig(task.Config)
 	return s
 }
 
@@ -34,7 +35,7 @@ func (s *TunnelModeServer) Start() error {
 	if s.errorContent, err = utils.ReadAllFromFile(beego.AppPath + "/web/static/page/error.html"); err != nil {
 		s.errorContent = []byte("easyProxy 404")
 	}
-	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.config.TcpPort, ""})
+	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.task.TcpPort, ""})
 	if err != nil {
 		return err
 	}
@@ -69,15 +70,15 @@ func (s *TunnelModeServer) writeConnFail(c net.Conn) {
 }
 
 //与客户端建立通道
-func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *utils.ServerConfig, addr string, method string, rb []byte) error {
+func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *utils.Config, addr string, method string, rb []byte) error {
 	var link *utils.Conn
 	var err error
 	defer func() {
 		if cnf.Mux && link != nil {
-			s.bridge.ReturnTunnel(link, cnf.ClientId)
+			s.bridge.ReturnTunnel(link, s.task.Client.Id)
 		}
 	}()
-	if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, cnf, addr); err != nil {
+	if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, s.task.Client.Id, cnf, addr); err != nil {
 		log.Println("get bridge tunnel error: ", err)
 		return err
 	}
@@ -115,7 +116,7 @@ func (s *WebServer) Start() {
 }
 
 //new
-func NewWebServer(bridge *bridge.Tunnel) *WebServer {
+func NewWebServer(bridge *bridge.Bridge) *WebServer {
 	s := new(WebServer)
 	s.bridge = bridge
 	return s
@@ -131,9 +132,10 @@ func (s *HostServer) Start() error {
 	return nil
 }
 
-func NewHostServer(cnf *utils.ServerConfig) *HostServer {
+func NewHostServer(task *utils.Tunnel) *HostServer {
 	s := new(HostServer)
-	s.config = cnf
+	s.task = task
+	s.config = utils.DeepCopyConfig(task.Config)
 	return s
 }
 

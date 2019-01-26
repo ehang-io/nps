@@ -10,6 +10,11 @@
                         <th>host</th>
                         <th>内网目标</th>
                         <th>host改写</th>
+                        <th>压缩方式</th>
+                        <th>加密</th>
+                        <th>多路复用</th>
+                        <th>用户名</th>
+                        <th>密码</th>
                         <th>出口流量</th>
                         <th>入口流量</th>
                         <th>操作</th>
@@ -68,10 +73,15 @@
             },
             dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
             columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
-                {data: 'ClientId'},
+                {data: 'Remark'},
                 {data: 'Remark'},
                 {data: 'Host'},
                 {data: 'Target'},
+                {data: 'HostChange'},
+                {data: 'HostChange'},
+                {data: 'HostChange'},
+                {data: 'HostChange'},
+                {data: 'HostChange'},
                 {data: 'HostChange'},
                 {data: 'HostChange'},
                 {data: 'HostChange'},
@@ -89,6 +99,12 @@
                 }
             },
                 {
+                    targets: 1,
+                    render: function (data, type, row, meta) {
+                        return row.Client.Id
+                    }
+                },
+                {
                     targets: -2,
                     render: function (data, type, row, meta) {
                         return change(row.Flow.InletFlow)
@@ -98,6 +114,46 @@
                     targets: -3,
                     render: function (data, type, row, meta) {
                         return change(row.Flow.ExportFlow)
+                    }
+                },
+                {
+                    targets: -4,
+                    render: function (data, type, row, meta) {
+                        return row.Client.Cnf.P
+                    }
+                },
+                {
+                    targets: -5,
+                    render: function (data, type, row, meta) {
+                        return row.Client.Cnf.U
+                    }
+                },
+                {
+                    targets: -6,
+                    render: function (data, type, row, meta) {
+                        if (row.Client.Cnf.Mux == "0") {
+                            return "不启用"
+                        } else {
+                            return "启用"
+                        }
+                    }
+                }
+                ,
+                {
+                    targets: -7,
+                    render: function (data, type, row, meta) {
+                        if (row.Client.Cnf.Crypt == "0") {
+                            return "不加密"
+                        } else {
+                            return "加密"
+                        }
+                    }
+                }
+                ,
+                {
+                    targets: -8,
+                    render: function (data, type, row, meta) {
+                        return row.Client.Cnf.Compress
                     }
                 }
             ],

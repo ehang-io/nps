@@ -24,22 +24,32 @@ var (
 
 func main() {
 	flag.Parse()
-	server.VerifyKey = *VerifyKey
-	cnf := &utils.ServerConfig{
-		TcpPort:        *httpPort,
-		Mode:           *rpMode,
-		Target:         *tunnelTarget,
-		VerifyKey:      *VerifyKey,
-		U:              *u,
-		P:              *p,
-		Compress:       *compress,
-		Start:          0,
-		IsRun:          0,
-		ClientStatus:   0,
-		Crypt:          utils.GetBoolByStr(*crypt),
-		Mux:            utils.GetBoolByStr(*mux),
-		CompressEncode: 0,
-		CompressDecode: 0,
+	task := &utils.Tunnel{
+		TcpPort: *httpPort,
+		Mode:    *rpMode,
+		Target:  *tunnelTarget,
+		Config: &utils.Config{
+			U:        *u,
+			P:        *p,
+			Compress: *compress,
+			Crypt:    utils.GetBoolByStr(*crypt),
+			Mux:      utils.GetBoolByStr(*mux),
+		},
+		Flow:         &utils.Flow{},
+		UseClientCnf: false,
+	}
+	if *VerifyKey != "" {
+		c := &utils.Client{
+			Id:        0,
+			VerifyKey: *VerifyKey,
+			Addr:      "",
+			Remark:    "",
+			Status:    true,
+			IsConnect: false,
+		}
+		c.Cnf.CompressDecode, c.Cnf.CompressEncode = utils.GetCompressType(c.Cnf.Compress)
+		server.CsvDb.Clients[0] = c
+		task.Client = c
 	}
 	if *TcpPort == 0 {
 		p, err := beego.AppConfig.Int("tcpport")
@@ -50,6 +60,6 @@ func main() {
 		}
 	}
 	log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
-	cnf.CompressDecode, cnf.CompressEncode = utils.GetCompressType(cnf.Compress)
-	server.StartNewServer(*TcpPort, cnf)
+	task.Config.CompressDecode, task.Config.CompressEncode = utils.GetCompressType(task.Config.Compress)
+	server.StartNewServer(*TcpPort, task)
 }

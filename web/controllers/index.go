@@ -57,11 +57,11 @@ func (s *IndexController) All() {
 	s.display("index/list")
 }
 
-func (s *IndexController) GetServerConfig() {
+func (s *IndexController) GetTunnel() {
 	start, length := s.GetAjaxParams()
 	taskType := s.GetString("type")
 	clientId := s.GetIntNoErr("client_id")
-	list, cnt := server.GetServerConfig(start, length, taskType, clientId)
+	list, cnt := server.GetTunnel(start, length, taskType, clientId)
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -72,21 +72,25 @@ func (s *IndexController) Add() {
 		s.SetInfo("新增")
 		s.display()
 	} else {
-		t := &utils.ServerConfig{
-			TcpPort:      s.GetIntNoErr("port"),
-			Mode:         s.GetString("type"),
-			Target:       s.GetString("target"),
-			U:            s.GetString("u"),
-			P:            s.GetString("p"),
-			Compress:     s.GetString("compress"),
-			Crypt:        s.GetBoolNoErr("crypt"),
-			Mux:          s.GetBoolNoErr("mux"),
-			IsRun:        0,
+		t := &utils.Tunnel{
+			TcpPort: s.GetIntNoErr("port"),
+			Mode:    s.GetString("type"),
+			Target:  s.GetString("target"),
+			Config: &utils.Config{
+				U:        s.GetString("u"),
+				P:        s.GetString("p"),
+				Compress: s.GetString("compress"),
+				Crypt:    s.GetBoolNoErr("crypt"),
+				Mux:      s.GetBoolNoErr("mux"),
+			},
 			Id:           server.CsvDb.GetTaskId(),
-			ClientId:     s.GetIntNoErr("client_id"),
 			UseClientCnf: s.GetBoolNoErr("use_client"),
-			Start:        1,
+			Status:       true,
 			Remark:       s.GetString("remark"),
+		}
+		var err error
+		if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+			s.AjaxErr(err.Error())
 		}
 		server.CsvDb.NewTask(t)
 		if err := server.AddTask(t); err != nil {
@@ -115,12 +119,12 @@ func (s *IndexController) Edit() {
 			t.Mode = s.GetString("type")
 			t.Target = s.GetString("target")
 			t.Id = id
-			t.ClientId = s.GetIntNoErr("client_id")
-			t.U = s.GetString("u")
-			t.P = s.GetString("p")
-			t.Compress = s.GetString("compress")
-			t.Crypt = s.GetBoolNoErr("crypt")
-			t.Mux = s.GetBoolNoErr("mux")
+			t.Client.Id = s.GetIntNoErr("client_id")
+			t.Config.U = s.GetString("u")
+			t.Config.P = s.GetString("p")
+			t.Config.Compress = s.GetString("compress")
+			t.Config.Crypt = s.GetBoolNoErr("crypt")
+			t.Config.Mux = s.GetBoolNoErr("mux")
 			t.UseClientCnf = s.GetBoolNoErr("use_client")
 			t.Remark = s.GetString("remark")
 			server.CsvDb.UpdateTask(t)
@@ -162,7 +166,7 @@ func (s *IndexController) HostList() {
 	} else {
 		start, length := s.GetAjaxParams()
 		clientId := s.GetIntNoErr("client_id")
-		list, cnt := server.CsvDb.GetHostList(start, length, clientId)
+		list, cnt := server.CsvDb.GetHost(start, length, clientId)
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
@@ -182,8 +186,10 @@ func (s *IndexController) AddHost() {
 		s.SetInfo("新增")
 		s.display("index/hadd")
 	} else {
-		h := &utils.HostList{
-			ClientId:     s.GetIntNoErr("client_id"),
+		h := &utils.Host{
+			Client: &utils.Client{
+				Id: s.GetIntNoErr("client_id"),
+			},
 			Host:         s.GetString("host"),
 			Target:       s.GetString("target"),
 			HeaderChange: s.GetString("header"),
@@ -199,7 +205,7 @@ func (s *IndexController) EditHost() {
 	host := s.GetString("host")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "host"
-		if h, _, err := server.GetKeyByHost(host); err != nil {
+		if h, err := server.GetInfoByHost(host); err != nil {
 			s.error()
 		} else {
 			s.Data["h"] = h
@@ -207,10 +213,10 @@ func (s *IndexController) EditHost() {
 		s.SetInfo("修改")
 		s.display("index/hedit")
 	} else {
-		if h, _, err := server.GetKeyByHost(host); err != nil {
+		if h, err := server.GetInfoByHost(host); err != nil {
 			s.error()
 		} else {
-			h.ClientId = s.GetIntNoErr("client_id")
+			h.Client.Id = s.GetIntNoErr("client_id")
 			h.Host = s.GetString("nhost")
 			h.Target = s.GetString("target")
 			h.HeaderChange = s.GetString("header")

@@ -8,53 +8,47 @@ import (
 
 //server base struct
 type server struct {
-	bridge *bridge.Tunnel
-	config *utils.ServerConfig
+	bridge *bridge.Bridge
+	task   *utils.Tunnel
+	config *utils.Config
 	sync.Mutex
 }
 
-func (s *server) GetTunnelAndWriteHost(connType string, cnf *utils.ServerConfig, addr string) (*utils.Conn, error) {
-	var err error
-	link, err := s.bridge.GetTunnel(cnf.ClientId, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
-	if err != nil {
-		return nil, err
+func (s *server) GetTunnelAndWriteHost(connType string, clientId int, cnf *utils.Config, addr string) (link *utils.Conn, err error) {
+	if link, err = s.bridge.GetTunnel(clientId, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux); err != nil {
+		return
 	}
 	if _, err = link.WriteHost(connType, addr); err != nil {
 		link.Close()
-		return nil, err
 	}
-	return link, nil
+	return
 }
 
 func (s *server) FlowAdd(in, out int64) {
 	s.Lock()
 	defer s.Unlock()
-	if s.config.Flow == nil {
-		s.config.Flow = new(utils.Flow)
-	}
-	s.config.Flow.ExportFlow += out
-	s.config.Flow.InletFlow += in
+	s.task.Flow.ExportFlow += out
+	s.task.Flow.InletFlow += in
 }
 
-func (s *server) FlowAddHost(host *utils.HostList, in, out int64) {
+func (s *server) FlowAddHost(host *utils.Host, in, out int64) {
 	s.Lock()
 	defer s.Unlock()
-	if s.config.Flow == nil {
-		s.config.Flow = new(utils.Flow)
-	}
 	host.Flow.ExportFlow += out
 	host.Flow.InletFlow += in
 }
 
 //热更新配置
 func (s *server) ResetConfig() {
-	task, err := CsvDb.GetTask(s.config.Id)
+	//获取最新数据
+	task, err := CsvDb.GetTask(s.task.Id)
 	if err != nil {
 		return
 	}
-	s.config.UseClientCnf = task.UseClientCnf
-	if s.config.UseClientCnf {
-		client, err := CsvDb.GetClient(s.config.ClientId)
+	s.task.UseClientCnf = task.UseClientCnf
+	//使用客户端配置
+	if s.task.UseClientCnf {
+		client, err := CsvDb.GetClient(s.task.Client.Id)
 		if err == nil {
 			s.config.U = client.Cnf.U
 			s.config.P = client.Cnf.P
@@ -62,15 +56,14 @@ func (s *server) ResetConfig() {
 			s.config.Mux = client.Cnf.Mux
 			s.config.Crypt = client.Cnf.Crypt
 		}
-		s.config.CompressDecode, s.config.CompressEncode = utils.GetCompressType(client.Cnf.Compress)
 	} else {
 		if err == nil {
-			s.config.U = task.U
-			s.config.P = task.P
-			s.config.Compress = task.Compress
-			s.config.Mux = task.Mux
-			s.config.Crypt = task.Crypt
+			s.config.U = task.Config.U
+			s.config.P = task.Config.P
+			s.config.Compress = task.Config.Compress
+			s.config.Mux = task.Config.Mux
+			s.config.Crypt = task.Config.Crypt
 		}
-		s.config.CompressDecode, s.config.CompressEncode = utils.GetCompressType(task.Compress)
 	}
+	s.config.CompressDecode, s.config.CompressEncode = utils.GetCompressType(s.config.Compress)
 }

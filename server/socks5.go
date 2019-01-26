@@ -141,7 +141,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils
 	} else {
 		ltype = utils.CONN_TCP
 	}
-	if proxyConn, err = s.GetTunnelAndWriteHost(ltype, s.config, addr); err != nil {
+	if proxyConn, err = s.GetTunnelAndWriteHost(ltype, s.task.Client.Id, s.config, addr); err != nil {
 		log.Println("get bridge tunnel error: ", err)
 		return
 	}
@@ -160,7 +160,7 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	proxyConn, err := s.doConnect(c, connectMethod)
 	defer func() {
 		if s.config.Mux && proxyConn != nil {
-			s.bridge.ReturnTunnel(proxyConn, s.config.ClientId)
+			s.bridge.ReturnTunnel(proxyConn, s.task.Client.Id)
 		}
 	}()
 	if err != nil {
@@ -198,7 +198,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	proxyConn, err := s.doConnect(c, associateMethod)
 	defer func() {
 		if s.config.Mux && proxyConn != nil {
-			s.bridge.ReturnTunnel(proxyConn, s.config.ClientId)
+			s.bridge.ReturnTunnel(proxyConn, s.task.Client.Id)
 		}
 	}()
 	if err != nil {
@@ -285,7 +285,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 //start
 func (s *Sock5ModeServer) Start() error {
 	var err error
-	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.config.TcpPort))
+	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.task.TcpPort))
 	if err != nil {
 		return err
 	}
@@ -309,10 +309,11 @@ func (s *Sock5ModeServer) Close() error {
 }
 
 //new
-func NewSock5ModeServer(bridge *bridge.Tunnel, cnf *utils.ServerConfig) *Sock5ModeServer {
+func NewSock5ModeServer(bridge *bridge.Bridge, task *utils.Tunnel) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
-	s.config = cnf
+	s.task = task
+	s.config = utils.DeepCopyConfig(task.Config)
 	if s.config.U != "" && s.config.P != "" {
 		s.isVerify = true
 	} else {

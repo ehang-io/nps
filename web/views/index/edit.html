@@ -31,7 +31,7 @@
                     </div>
                     <div class="form-group" id="client_id">
                         <label class="control-label">客户端ID</label>
-                        <input class="form-control" value="{{.t.ClientId}}" type="text" name="client_id"
+                        <input class="form-control" value="{{.t.Client.Id}}" type="text" name="client_id"
                                placeholder="客户端id">
                     </div>
                     <div class="form-group" id="use_client">
@@ -44,32 +44,32 @@
                     <div class="form-group" id="compress">
                         <label class="control-label">数据压缩方式(所有模式均支持)</label>
                         <select class="form-control" name="compress">
-                            <option {{if eq "" .t.Compress}}selected{{end}} value="">不压缩</option>
-                            <option {{if eq "snappy" .t.Compress}}selected{{end}} value="snappy">snappy压缩</option>
+                            <option {{if eq "" .t.Config.Compress}}selected{{end}} value="">不压缩</option>
+                            <option {{if eq "snappy" .t.Config.Compress}}selected{{end}} value="snappy">snappy压缩</option>
                         </select>
                     </div>
                     <div class="form-group" id="crypt">
                         <label class="control-label">是否加密传输(所有模式均支持)</label>
                         <select class="form-control" name="crypt">
-                            <option {{if eq false .t.Crypt}}selected{{end}} value="0">不加密</option>
-                            <option {{if eq  true .t.Crypt}}selected{{end}} value="1">加密</option>
+                            <option {{if eq false .t.Config.Crypt}}selected{{end}} value="0">不加密</option>
+                            <option {{if eq  true .t.Config.Crypt}}selected{{end}} value="1">加密</option>
                         </select>
                     </div>
                     <div class="form-group" id="mux">
                         <label class="control-label">是否启用TCP复用(所有模式均支持)</label>
                         <select class="form-control" name="mux">
-                            <option {{if eq false .t.Mux}}selected{{end}} value="0">不启用</option>
-                            <option {{if eq  true .t.Mux}}selected{{end}} value="1">启用</option>
+                            <option {{if eq false .t.Config.Mux}}selected{{end}} value="0">不启用</option>
+                            <option {{if eq  true .t.Config.Mux}}selected{{end}} value="1">启用</option>
                         </select>
                     </div>
                     <div class="form-group" id="u">
                         <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
-                        <input class="form-control" value="{{.t.U}}" type="text" name="u"
+                        <input class="form-control" value="{{.t.Config.U}}" type="text" name="u"
                                placeholder="不填则无需验证">
                     </div>
                     <div class="form-group" id="p">
                         <label class="control-label">验证密码(仅socks5,web穿透支持)</label>
-                        <input class="form-control" value="{{.t.P}}" type="text" name="p"
+                        <input class="form-control" value="{{.t.Config.P}}" type="text" name="p"
                                placeholder="不填则无需验证">
                     </div>
                 </form>

@@ -1,4 +1,5 @@
-9001,tunnelServer,127.0.0.1:8080,,,,1,0,0,0,0,1,1,true,test
-53,udpServer,114.114.114.114:53,,,,1,0,0,0,0,2,2,true,udp测试
-8024,socks5Server,,,,,1,0,0,0,0,3,2,true,socks5测试
-8025,httpProxyServer,,,,,1,0,0,0,0,4,2,true,http测试
+53,udpServer,114.114.114.114:53,,,,1,0,0,0,1,2,2,true,udp测试
+9001,tunnelServer,127.0.0.1:8080,1,1,snappy,1,1,1,0,0,1,1,false,test
+9009,tunnelServer,127.0.0.1:5900,,,,1,0,0,0,0,5,2,true,vnc
+8025,httpProxyServer,,2,2,snappy,1,1,1,0,0,4,2,false,http测试
+8024,socks5Server,,,,,1,0,0,0,0,3,2,false,socks5测试

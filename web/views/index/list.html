@@ -102,7 +102,7 @@
             autoWidth: false,
             ordering: false,
             ajax: {
-                url: '/index/getserverconfig?type={{.type}}' + "&client_id=" +{{.client_id}},
+                url: '/index/gettunnel?type={{.type}}' + "&client_id=" +{{.client_id}},
                 type: 'POST'
             },
             dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
@@ -118,7 +118,7 @@
                 {data: 'U'},
                 {data: 'P'},
                 {data: 'ClientStatus'},
-                {data: 'IsRun'},
+                {data: 'Status'},
                 {data: 'ExportFlow'},
                 {data: 'InletFlow'},
                 {data: "Id"}
@@ -127,7 +127,7 @@
             columnDefs: [{
                 targets: -1,
                 render: function (data, type, row, meta) {
-                    if (row.IsRun == 1) {
+                    if (row.Status == 1) {
                         btn = "<button onclick=\"stop('" + row.Id + "')\" class=\"btn btn-secondary btn-sm\" type=\"button\">关闭</button>"
                     } else {
                         btn = "<button onclick=\"start('" + row.Id + "')\" class=\"btn btn-success btn-sm\" type=\"button\">打开</button>"
@@ -137,11 +137,43 @@
                             '<button onclick="del(\'' + row.Id + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
                             btn_edit + btn + ' </div>'
                 }
+            }, {
+                targets: 2,
+                render: function (data, type, row, meta) {
+                    return row.Client.Id
+                }
+            }, {
+                targets: 5,
+                render: function (data, type, row, meta) {
+                    if (row.UseClientCnf == true) {
+                        return row.Client.Cnf.Compress
+                    } else {
+                        return row.Config.Compress
+                    }
+                }
+            }, {
+                targets: 8,
+                render: function (data, type, row, meta) {
+                    if (row.UseClientCnf == true) {
+                        return row.Client.Cnf.U
+                    } else {
+                        return row.Config.U
+                    }
+                }
+            }, {
+                targets: 9,
+                render: function (data, type, row, meta) {
+                    if (row.UseClientCnf == true) {
+                        return row.Client.Cnf.P
+                    } else {
+                        return row.Config.P
+                    }
+                }
             },
                 {
                     targets: -4,
                     render: function (data, type, row, meta) {
-                        if (data == 0) {
+                        if (data == false) {
                             return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
                         } else {
                             return "<span class=\"badge badge-pill badge-success\">正常</span>"
@@ -151,7 +183,12 @@
                 {
                     targets: -9,
                     render: function (data, type, row, meta) {
-                        if (data == "0") {
+                        if (row.UseClientCnf == true) {
+                            crypt = row.Client.Cnf.Crypt
+                        } else {
+                            crypt = row.Config.Crypt
+                        }
+                        if (crypt == "0") {
                             return "不加密"
                         } else {
                             return "加密"
@@ -161,7 +198,12 @@
                 {
                     targets: -8,
                     render: function (data, type, row, meta) {
-                        if (data == "0") {
+                        if (row.UseClientCnf == true) {
+                            mux = row.Client.Cnf.Mux
+                        } else {
+                            mux = row.Config.Mux
+                        }
+                        if (mux == "0") {
                             return "不启用"
                         } else {
                             return "启用"
@@ -171,7 +213,7 @@
                 {
                     targets: -5,
                     render: function (data, type, row, meta) {
-                        if (data == 0) {
+                        if (row.Client.IsConnect == false) {
                             return "<span class=\"badge badge-pill badge-secondary\">离线</span>"
                         } else {
                             return "<span class=\"badge badge-pill badge-success\">在线</span>"
