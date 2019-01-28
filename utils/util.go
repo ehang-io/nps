@@ -25,6 +25,7 @@ const (
 	WORK_CHAN         = "chan"
 	RES_SIGN          = "sign"
 	RES_MSG           = "msg0"
+	RES_CLOSE         = "clse"
 	CONN_SUCCESS      = "sucs"
 	CONN_ERROR        = "fail"
 	TEST_FLAG         = "tst"
@@ -42,24 +43,24 @@ WWW-Authenticate: Basic realm="easyProxy"
 )
 
 //copy
-func Relay(in, out net.Conn, compressType int, crypt, mux bool) (n int64, err error) {
+func Relay(in, out net.Conn, compressType int, crypt, mux bool, rate *Rate) (n int64, err error) {
 	switch compressType {
 	case COMPRESS_SNAPY_ENCODE:
-		n, err = copyBuffer(NewSnappyConn(in, crypt), out)
+		n, err = copyBuffer(NewSnappyConn(in, crypt, rate), out)
 		out.Close()
-		NewSnappyConn(in, crypt).Write([]byte(IO_EOF))
+		NewSnappyConn(in, crypt, rate).Write([]byte(IO_EOF))
 	case COMPRESS_SNAPY_DECODE:
-		n, err = copyBuffer(in, NewSnappyConn(out, crypt))
+		n, err = copyBuffer(in, NewSnappyConn(out, crypt, rate))
 		in.Close()
 		if !mux {
 			out.Close()
 		}
 	case COMPRESS_NONE_ENCODE:
-		n, err = copyBuffer(NewCryptConn(in, crypt), out)
+		n, err = copyBuffer(NewCryptConn(in, crypt, rate), out)
 		out.Close()
-		NewCryptConn(in, crypt).Write([]byte(IO_EOF))
+		NewCryptConn(in, crypt, rate).Write([]byte(IO_EOF))
 	case COMPRESS_NONE_DECODE:
-		n, err = copyBuffer(in, NewCryptConn(out, crypt))
+		n, err = copyBuffer(in, NewCryptConn(out, crypt, rate))
 		in.Close()
 		if !mux {
 			out.Close()
@@ -205,14 +206,14 @@ func Getverifyval(vkey string) string {
 
 //wait replay group
 //conn1 网桥 conn2
-func ReplayWaitGroup(conn1 net.Conn, conn2 net.Conn, compressEncode, compressDecode int, crypt, mux bool) (out int64, in int64) {
+func ReplayWaitGroup(conn1 net.Conn, conn2 net.Conn, compressEncode, compressDecode int, crypt, mux bool, rate *Rate) (out int64, in int64) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		in, _ = Relay(conn1, conn2, compressEncode, crypt, mux)
+		in, _ = Relay(conn1, conn2, compressEncode, crypt, mux, rate)
 		wg.Done()
 	}()
-	out, _ = Relay(conn2, conn1, compressDecode, crypt, mux)
+	out, _ = Relay(conn2, conn1, compressDecode, crypt, mux, rate)
 	wg.Wait()
 	return
 }

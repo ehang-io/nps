@@ -40,6 +40,16 @@ func (s *ClientController) Add() {
 				Crypt:    s.GetBoolNoErr("crypt"),
 				Mux:      s.GetBoolNoErr("mux"),
 			},
+			RateLimit: s.GetIntNoErr("rate_limit"),
+			Flow: &utils.Flow{
+				ExportFlow: 0,
+				InletFlow:  0,
+				FlowLimit:  int64(s.GetIntNoErr("flow_limit")),
+			},
+		}
+		if t.RateLimit > 0 {
+			t.Rate = utils.NewRate(int64(t.RateLimit * 1024))
+			t.Rate.Start()
 		}
 		server.CsvDb.NewClient(t)
 		s.AjaxOk("添加成功")
@@ -69,6 +79,17 @@ func (s *ClientController) Edit() {
 			c.Cnf.Compress = s.GetString("compress")
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
 			c.Cnf.Mux = s.GetBoolNoErr("mux")
+			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
+			c.RateLimit = s.GetIntNoErr("rate_limit")
+			if c.Rate != nil {
+				c.Rate.Stop()
+			}
+			if c.RateLimit > 0 {
+				c.Rate = utils.NewRate(int64(c.RateLimit * 1024))
+				c.Rate.Start()
+			} else {
+				c.Rate = nil
+			}
 			server.CsvDb.UpdateClient(c)
 		}
 		s.AjaxOk("修改成功")

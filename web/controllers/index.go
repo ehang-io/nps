@@ -87,6 +87,7 @@ func (s *IndexController) Add() {
 			UseClientCnf: s.GetBoolNoErr("use_client"),
 			Status:       true,
 			Remark:       s.GetString("remark"),
+			Flow:         &utils.Flow{},
 		}
 		var err error
 		if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
@@ -127,6 +128,9 @@ func (s *IndexController) Edit() {
 			t.Config.Mux = s.GetBoolNoErr("mux")
 			t.UseClientCnf = s.GetBoolNoErr("use_client")
 			t.Remark = s.GetString("remark")
+			if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("修改失败")
+			}
 			server.CsvDb.UpdateTask(t)
 		}
 		s.AjaxOk("修改成功")
@@ -187,14 +191,16 @@ func (s *IndexController) AddHost() {
 		s.display("index/hadd")
 	} else {
 		h := &utils.Host{
-			Client: &utils.Client{
-				Id: s.GetIntNoErr("client_id"),
-			},
 			Host:         s.GetString("host"),
 			Target:       s.GetString("target"),
 			HeaderChange: s.GetString("header"),
 			HostChange:   s.GetString("hostchange"),
 			Remark:       s.GetString("remark"),
+			Flow:         &utils.Flow{},
+		}
+		var err error
+		if h.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+			s.AjaxErr("添加失败")
 		}
 		server.CsvDb.NewHost(h)
 		s.AjaxOk("添加成功")
@@ -216,13 +222,16 @@ func (s *IndexController) EditHost() {
 		if h, err := server.GetInfoByHost(host); err != nil {
 			s.error()
 		} else {
-			h.Client.Id = s.GetIntNoErr("client_id")
 			h.Host = s.GetString("nhost")
 			h.Target = s.GetString("target")
 			h.HeaderChange = s.GetString("header")
 			h.HostChange = s.GetString("hostchange")
 			h.Remark = s.GetString("remark")
 			server.CsvDb.UpdateHost(h)
+			var err error
+			if h.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("修改失败")
+			}
 		}
 		s.AjaxOk("修改成功")
 	}

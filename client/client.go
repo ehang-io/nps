@@ -12,6 +12,7 @@ import (
 type TRPClient struct {
 	svrAddr      string
 	tcpNum       int
+	connPoolSize int
 	tunnelNum    int64
 	tunnel       chan bool
 	serverStatus bool
@@ -26,6 +27,7 @@ func NewRPClient(svraddr string, tcpNum int, vKey string) *TRPClient {
 	c.tcpNum = tcpNum
 	c.vKey = vKey
 	c.tunnel = make(chan bool)
+	c.connPoolSize = 5
 	return c
 }
 
@@ -56,7 +58,6 @@ func (s *TRPClient) NewConn() error {
 	s.Unlock()
 	return s.processor(utils.NewConn(conn))
 }
-
 //处理
 func (s *TRPClient) processor(c *utils.Conn) error {
 	s.serverStatus = true
@@ -76,6 +77,8 @@ func (s *TRPClient) processor(c *utils.Conn) error {
 		case utils.VERIFY_EER:
 			log.Fatalln("vkey:", s.vKey, "不正确,服务端拒绝连接,请检查")
 		case utils.WORK_CHAN: //隧道模式，每次开启10个，加快连接速度
+		case utils.RES_CLOSE:
+			log.Fatal("该vkey被另一客户连接")
 		case utils.RES_MSG:
 			log.Println("服务端返回错误。")
 		default:
@@ -145,5 +148,5 @@ func (s *TRPClient) ConnectAndCopy(c *utils.Conn, typeStr, host string, en, de i
 		return
 	}
 	c.WriteSuccess()
-	utils.ReplayWaitGroup(c.Conn, server, en, de, crypt, mux)
+	utils.ReplayWaitGroup(c.Conn, server, en, de, crypt, mux, nil)
 }

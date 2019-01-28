@@ -21,12 +21,14 @@ const cryptKey = "1234567812345678"
 type CryptConn struct {
 	conn  net.Conn
 	crypt bool
+	rate  *Rate
 }
 
-func NewCryptConn(conn net.Conn, crypt bool) *CryptConn {
+func NewCryptConn(conn net.Conn, crypt bool, rate *Rate) *CryptConn {
 	c := new(CryptConn)
 	c.conn = conn
 	c.crypt = crypt
+	c.rate = rate
 	return c
 }
 
@@ -42,6 +44,9 @@ func (s *CryptConn) Write(b []byte) (n int, err error) {
 		return
 	}
 	_, err = s.conn.Write(b)
+	if s.rate != nil {
+		s.rate.Get(int64(n))
+	}
 	return
 }
 
@@ -72,6 +77,9 @@ func (s *CryptConn) Read(b []byte) (n int, err error) {
 	}
 	copy(b, rb)
 	n = len(rb)
+	if s.rate != nil {
+		s.rate.Get(int64(n))
+	}
 	return
 }
 
@@ -79,13 +87,15 @@ type SnappyConn struct {
 	w     *snappy.Writer
 	r     *snappy.Reader
 	crypt bool
+	rate  *Rate
 }
 
-func NewSnappyConn(conn net.Conn, crypt bool) *SnappyConn {
+func NewSnappyConn(conn net.Conn, crypt bool, rate *Rate) *SnappyConn {
 	c := new(SnappyConn)
 	c.w = snappy.NewBufferedWriter(conn)
 	c.r = snappy.NewReader(conn)
 	c.crypt = crypt
+	c.rate = rate
 	return c
 }
 
@@ -101,7 +111,12 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 	if _, err = s.w.Write(b); err != nil {
 		return
 	}
-	err = s.w.Flush()
+	if err = s.w.Flush(); err != nil {
+		return
+	}
+	if s.rate != nil {
+		s.rate.Get(int64(n))
+	}
 	return
 }
 
@@ -129,6 +144,9 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 	}
 	n = len(bs)
 	copy(b, bs)
+	if s.rate != nil {
+		s.rate.Get(int64(n))
+	}
 	return
 }
 
@@ -233,6 +251,10 @@ func (s *Conn) SetAlive() {
 	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 }
 
+func (s *Conn) SetReadDeadline(t time.Duration) {
+	s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+}
+
 //从tcp报文中解析出host，连接类型等 TODO 多种情况
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
 	var b [32 * 1024]byte
@@ -264,19 +286,19 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 }
 
 //单独读（加密|压缩）
-func (s *Conn) ReadFrom(b []byte, compress int, crypt bool) (int, error) {
+func (s *Conn) ReadFrom(b []byte, compress int, crypt bool, rate *Rate) (int, error) {
 	if COMPRESS_SNAPY_DECODE == compress {
-		return NewSnappyConn(s.Conn, crypt).Read(b)
+		return NewSnappyConn(s.Conn, crypt, rate).Read(b)
 	}
-	return NewCryptConn(s.Conn, crypt).Read(b)
+	return NewCryptConn(s.Conn, crypt, rate).Read(b)
 }
 
 //单独写（加密|压缩）
-func (s *Conn) WriteTo(b []byte, compress int, crypt bool) (n int, err error) {
+func (s *Conn) WriteTo(b []byte, compress int, crypt bool, rate *Rate) (n int, err error) {
 	if COMPRESS_SNAPY_ENCODE == compress {
-		return NewSnappyConn(s.Conn, crypt).Write(b)
+		return NewSnappyConn(s.Conn, crypt, rate).Write(b)
 	}
-	return NewCryptConn(s.Conn, crypt).Write(b)
+	return NewCryptConn(s.Conn, crypt, rate).Write(b)
 }
 
 //写压缩方式，加密
@@ -320,6 +342,11 @@ func (s *Conn) WriteError() (int, error) {
 //write sign flag
 func (s *Conn) WriteSign() (int, error) {
 	return s.Write([]byte(RES_SIGN))
+}
+
+//write sign flag
+func (s *Conn) WriteClose() (int, error) {
+	return s.Write([]byte(RES_CLOSE))
 }
 
 //write main

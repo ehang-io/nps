@@ -12,6 +12,7 @@ var bufPool = sync.Pool{
 		return make([]byte, poolSize)
 	},
 }
+
 var BufPoolUdp = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, poolSizeUdp)

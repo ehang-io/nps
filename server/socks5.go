@@ -166,7 +166,7 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux, s.task.Client.Rate)
 		s.FlowAdd(in, out)
 	}
 }
@@ -204,7 +204,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	if err != nil {
 		c.Close()
 	} else {
-		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
+		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux, s.task.Client.Rate)
 		s.FlowAdd(in, out)
 	}
 }
@@ -297,7 +297,10 @@ func (s *Sock5ModeServer) Start() error {
 			}
 			log.Fatal("accept error: ", err)
 		}
-		s.ResetConfig()
+		if !s.ResetConfig() {
+			conn.Close()
+			continue
+		}
 		go s.handleConn(conn)
 	}
 	return nil

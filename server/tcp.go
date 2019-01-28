@@ -48,7 +48,6 @@ func (s *TunnelModeServer) Start() error {
 			log.Println(err)
 			continue
 		}
-		s.ResetConfig()
 		go s.process(utils.NewConn(conn), s)
 	}
 	return nil
@@ -87,9 +86,9 @@ func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *utils.Config, addr str
 			if method == "CONNECT" {
 				fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
 			} else if rb != nil {
-				link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt)
+				link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt, s.task.Client.Rate)
 			}
-			out, in := utils.ReplayWaitGroup(link.Conn, c.Conn, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux)
+			out, in := utils.ReplayWaitGroup(link.Conn, c.Conn, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux, s.task.Client.Rate)
 			s.FlowAdd(in, out)
 		}
 	}

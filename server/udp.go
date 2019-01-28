@@ -40,7 +40,9 @@ func (s *UdpModeServer) Start() error {
 			}
 			continue
 		}
-		s.ResetConfig()
+		if !s.ResetConfig() {
+			continue
+		}
 		go s.process(addr, data[:n])
 	}
 	return nil
@@ -60,16 +62,16 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 	if flag, err := conn.ReadFlag(); err == nil {
 		defer func() {
 			if conn != nil && s.config.Mux {
-				conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt)
+				conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt, s.task.Client.Rate)
 				s.bridge.ReturnTunnel(conn, s.task.Client.Id)
 			} else {
 				conn.Close()
 			}
 		}()
 		if flag == utils.CONN_SUCCESS {
-			in, _ := conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt)
+			in, _ := conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt, s.task.Client.Rate)
 			buf := utils.BufPoolUdp.Get().([]byte)
-			out, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt)
+			out, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt, s.task.Client.Rate)
 			if err != nil || err == io.EOF {
 				return
 			}

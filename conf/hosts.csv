@@ -1,2 +1,1 @@
-b.o.com,127.0.0.1:8082,2,,,测试
-a.o.com,127.0.0.1:8080,1,Connection: close,,测试2
+a.o.com,127.0.0.1:8082,1,Connection:close,,

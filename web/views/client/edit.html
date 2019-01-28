@@ -9,6 +9,16 @@
                         <label class="control-label">备注</label>
                         <input class="form-control" value="{{.c.Remark}}" type="text" name="Remark" placeholder="客户端备注">
                     </div>
+                    <div class="form-group" id="flow_limit">
+                        <label class="control-label">流量限制(单位：M，为空不限制)</label>
+                        <input class="form-control" value="{{.c.Flow.FlowLimit}}" type="text" name="flow_limit"
+                               placeholder="为空不限制">
+                    </div>
+                    <div class="form-group" id="rate_limit">
+                        <label class="control-label">速度限制(单位：KB，为空不限制)</label>
+                        <input class="form-control" value="{{.c.RateLimit}}" type="text" name="rate_limit"
+                               placeholder="为空不限制">
+                    </div>
                     <div class="form-group" id="u">
                         <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
                         <input class="form-control" value="{{.c.Cnf.U}}" type="text" name="u"

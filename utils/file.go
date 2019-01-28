@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -19,6 +20,7 @@ var (
 type Flow struct {
 	ExportFlow int64 //出口流量
 	InletFlow  int64 //入口流量
+	FlowLimit  int64 //流量限制，出口+入口 /M
 }
 
 type Client struct {
@@ -29,7 +31,9 @@ type Client struct {
 	Remark    string //备注
 	Status    bool   //是否开启
 	IsConnect bool   //是否连接
-	Flow      *Flow
+	RateLimit int    //速度限制 /kb
+	Flow      *Flow  //流量
+	Rate      *Rate  //速度控制
 }
 
 type Tunnel struct {
@@ -189,7 +193,9 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 	defer s.Unlock()
 	for _, v := range s.Clients {
 		if utils.Getverifyval(v.VerifyKey) == vKey && v.Status {
-			v.Addr = addr
+			if arr := strings.Split(addr, ":"); len(arr) > 0 {
+				v.Addr = arr[0]
+			}
 			return v.Id, nil
 		}
 	}
@@ -276,21 +282,26 @@ func (s *Csv) LoadClientFromCsv() {
 		post := &Client{
 			Id:        GetIntNoErrByStr(item[0]),
 			VerifyKey: item[1],
-			Addr:      item[2],
-			Remark:    item[3],
-			Status:    GetBoolByStr(item[4]),
+			Remark:    item[2],
+			Status:    GetBoolByStr(item[3]),
+			RateLimit: GetIntNoErrByStr(item[9]),
 			Cnf: &Config{
-				U:        item[5],
-				P:        item[6],
-				Crypt:    GetBoolByStr(item[7]),
-				Mux:      GetBoolByStr(item[8]),
-				Compress: item[9],
+				U:        item[4],
+				P:        item[5],
+				Crypt:    GetBoolByStr(item[6]),
+				Mux:      GetBoolByStr(item[7]),
+				Compress: item[8],
 			},
 		}
 		if post.Id > s.ClientIncreaseId {
 			s.ClientIncreaseId = post.Id
 		}
+		if post.RateLimit > 0 {
+			post.Rate = NewRate(int64(post.RateLimit * 1024))
+			post.Rate.Start()
+		}
 		post.Flow = new(Flow)
+		post.Flow.FlowLimit = int64(utils.GetIntNoerrByStr(item[10]))
 		clients = append(clients, post)
 	}
 	s.Clients = clients
@@ -442,7 +453,6 @@ func (s *Csv) StoreClientsToCsv() {
 		record := []string{
 			strconv.Itoa(client.Id),
 			client.VerifyKey,
-			client.Addr,
 			client.Remark,
 			strconv.FormatBool(client.Status),
 			client.Cnf.U,
@@ -450,6 +460,8 @@ func (s *Csv) StoreClientsToCsv() {
 			utils.GetStrByBool(client.Cnf.Crypt),
 			utils.GetStrByBool(client.Cnf.Mux),
 			client.Cnf.Compress,
+			strconv.Itoa(client.RateLimit),
+			strconv.Itoa(int(client.Flow.FlowLimit)),
 		}
 		err := writer.Write(record)
 		if err != nil {

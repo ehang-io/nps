@@ -76,46 +76,55 @@ func (s *Bridge) tunnelProcess() error {
 
 //验证失败，返回错误验证flag，并且关闭连接
 func (s *Bridge) verifyError(c *utils.Conn) {
-	c.Conn.Write([]byte(utils.VERIFY_EER))
+	c.Write([]byte(utils.VERIFY_EER))
 	c.Conn.Close()
 }
 
-func (s *Bridge) cliProcess(c *utils.Conn) error {
-	c.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(5) * time.Second))
-	vval := make([]byte, 32)
-	if _, err := c.Conn.Read(vval); err != nil {
-		log.Println("客户端读超时。客户端地址为：:", c.Conn.RemoteAddr())
-		c.Conn.Close()
-		return err
+func (s *Bridge) cliProcess(c *utils.Conn) {
+	c.SetReadDeadline(5)
+	var buf []byte
+	var err error
+	if buf, err = c.ReadLen(32); err != nil {
+		c.Close()
+		return
 	}
-	id, err := utils.GetCsvDb().GetIdByVerifyKey(string(vval),c.Conn.RemoteAddr().String())
+	//验证
+	id, err := utils.GetCsvDb().GetIdByVerifyKey(string(buf), c.Conn.RemoteAddr().String())
 	if err != nil {
 		log.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
 		s.verifyError(c)
-		return errors.New("验证错误")
+		return
 	}
-	c.Conn.(*net.TCPConn).SetReadDeadline(time.Time{})
 	//做一个判断 添加到对应的channel里面以供使用
-	if flag, err := c.ReadFlag(); err != nil {
-		return err
-	} else {
-		return s.typeDeal(flag, c, id)
+	if flag, err := c.ReadFlag(); err == nil {
+		s.typeDeal(flag, c, id)
 	}
+	return
+}
+
+func (s *Bridge) closeClient(id int) {
+	if len(s.SignalList) > 0 {
+		s.SignalList[id].Pop().WriteClose()
+	}
+	s.DelClientSignal(id)
+	s.DelClientTunnel(id)
 }
 
 //tcp连接类型区分
-func (s *Bridge) typeDeal(typeVal string, c *utils.Conn, id int) error {
+func (s *Bridge) typeDeal(typeVal string, c *utils.Conn, id int) {
 	switch typeVal {
 	case utils.WORK_MAIN:
+		//客户端已经存在，下线
+		if _, ok := s.SignalList[id]; ok {
+			s.closeClient(id)
+		}
 		log.Println("客户端连接成功", c.Conn.RemoteAddr())
 		s.addList(s.SignalList, c, id)
 	case utils.WORK_CHAN:
 		s.addList(s.TunnelList, c, id)
-	default:
-		return errors.New("无法识别")
 	}
 	c.SetAlive()
-	return nil
+	return
 }
 
 //加到对应的list中
@@ -131,23 +140,7 @@ func (s *Bridge) addList(m map[int]*list, c *utils.Conn, id int) {
 	s.lock.Unlock()
 }
 
-//新建隧道
-func (s *Bridge) newChan(id int) error {
-	var connPass *utils.Conn
-	var err error
-retry:
-	if connPass, err = s.waitAndPop(s.SignalList, id); err != nil {
-		return err
-	}
-	if _, err = connPass.Conn.Write([]byte("chan")); err != nil {
-		goto retry
-	}
-	s.SignalList[id].Add(connPass)
-	return nil
-}
-
 //得到一个tcp隧道
-//TODO 超时问题 锁机制问题 对单个客户端加锁
 func (s *Bridge) GetTunnel(id int, en, de int, crypt, mux bool) (c *utils.Conn, err error) {
 retry:
 	if c, err = s.waitAndPop(s.TunnelList, id); err != nil {

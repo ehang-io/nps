@@ -39,16 +39,19 @@ func (s *server) FlowAddHost(host *utils.Host, in, out int64) {
 }
 
 //热更新配置
-func (s *server) ResetConfig() {
+func (s *server) ResetConfig() bool {
 	//获取最新数据
 	task, err := CsvDb.GetTask(s.task.Id)
 	if err != nil {
-		return
+		return false
+	}
+	if s.task.Client.Flow.FlowLimit > 0 && (s.task.Client.Flow.FlowLimit<<20) < (s.task.Client.Flow.ExportFlow+s.task.Client.Flow.InletFlow) {
+		return false
 	}
 	s.task.UseClientCnf = task.UseClientCnf
 	//使用客户端配置
+	client, err := CsvDb.GetClient(s.task.Client.Id)
 	if s.task.UseClientCnf {
-		client, err := CsvDb.GetClient(s.task.Client.Id)
 		if err == nil {
 			s.config.U = client.Cnf.U
 			s.config.P = client.Cnf.P
@@ -65,5 +68,7 @@ func (s *server) ResetConfig() {
 			s.config.Crypt = task.Config.Crypt
 		}
 	}
+	s.task.Client.Rate = client.Rate
 	s.config.CompressDecode, s.config.CompressEncode = utils.GetCompressType(s.config.Compress)
+	return true
 }
