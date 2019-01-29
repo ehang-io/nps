@@ -9,7 +9,7 @@ type ClientController struct {
 	BaseController
 }
 
-func (s *ClientController) Client() {
+func (s *ClientController) List() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
 		s.SetInfo("客户端管理")
@@ -32,7 +32,7 @@ func (s *ClientController) Add() {
 			VerifyKey: utils.GetRandomString(16),
 			Id:        server.CsvDb.GetClientId(),
 			Status:    true,
-			Remark:    s.GetString("Remark"),
+			Remark:    s.GetString("remark"),
 			Cnf: &utils.Config{
 				U:        s.GetString("u"),
 				P:        s.GetString("p"),
@@ -55,12 +55,26 @@ func (s *ClientController) Add() {
 		s.AjaxOk("添加成功")
 	}
 }
+func (s *ClientController) GetClient() {
+	if s.Ctx.Request.Method == "POST" {
+		id := s.GetIntNoErr("id")
+		data := make(map[string]interface{})
+		if c, err := server.CsvDb.GetClient(id); err != nil {
+			data["code"] = 0
+		} else {
+			data["code"] = 1
+			data["data"] = c
+		}
+		s.Data["json"] = data
+		s.ServeJSON()
+	}
+}
 
 //修改客户端
 func (s *ClientController) Edit() {
+	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		id := s.GetIntNoErr("id")
 		if c, err := server.CsvDb.GetClient(id); err != nil {
 			s.error()
 		} else {
@@ -69,11 +83,10 @@ func (s *ClientController) Edit() {
 		s.SetInfo("修改")
 		s.display()
 	} else {
-		id := s.GetIntNoErr("Id")
 		if c, err := server.CsvDb.GetClient(id); err != nil {
 			s.error()
 		} else {
-			c.Remark = s.GetString("Remark")
+			c.Remark = s.GetString("remark")
 			c.Cnf.U = s.GetString("u")
 			c.Cnf.P = s.GetString("p")
 			c.Cnf.Compress = s.GetString("compress")

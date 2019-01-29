@@ -19,8 +19,11 @@ func (s *BaseController) Prepare() {
 	controllerName, actionName := s.GetControllerAndAction()
 	s.controllerName = strings.ToLower(controllerName[0 : len(controllerName)-10])
 	s.actionName = strings.ToLower(actionName)
-	if s.GetSession("auth") != true {
-		s.Redirect("/login/index", 302)
+	arr := strings.Split(s.Ctx.Request.RemoteAddr, ":")
+	if len(arr) > 0 && arr[0] != beego.AppConfig.String("authip") {
+		if s.GetSession("auth") != true {
+			s.Redirect("/login/index", 302)
+		}
 	}
 }
 

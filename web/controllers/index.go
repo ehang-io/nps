@@ -101,7 +101,18 @@ func (s *IndexController) Add() {
 		}
 	}
 }
-
+func (s *IndexController) GetOneTunnel() {
+	id := s.GetIntNoErr("id")
+	data := make(map[string]interface{})
+	if t, err := server.CsvDb.GetTask(id); err != nil {
+		data["code"] = 0
+	} else {
+		data["code"] = 1
+		data["data"] = t
+	}
+	s.Data["json"] = data
+	s.ServeJSON()
+}
 func (s *IndexController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
@@ -172,6 +183,20 @@ func (s *IndexController) HostList() {
 		clientId := s.GetIntNoErr("client_id")
 		list, cnt := server.CsvDb.GetHost(start, length, clientId)
 		s.AjaxTable(list, cnt, cnt)
+	}
+}
+
+func (s *IndexController) GetHost() {
+	if s.Ctx.Request.Method == "POST" {
+		data := make(map[string]interface{})
+		if h, err := server.GetInfoByHost(s.GetString("host")); err != nil {
+			data["code"] = 0
+		} else {
+			data["data"] = h
+			data["code"] = 1
+		}
+		s.Data["json"] = data
+		s.ServeJSON()
 	}
 }
 
