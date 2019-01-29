@@ -52,6 +52,8 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
    * [热更新支持](#热更新支持)
    * [获取用户真实ip](#获取用户真实ip)
    * [客户端地址显示](#客户端地址显示)
+* [web API](#web API)
+   *[]
 
 ## 安装
 
@@ -270,6 +272,7 @@ mode | 运行模式
 vkey | 验证密钥
 tcpport | 服务端与客户端通信端口
 httpport | http代理连接端口
+authip | 免验证ip，适用于web api
 
 - 客户端
 
@@ -323,21 +326,14 @@ httpport | http代理连接端口
 
 
 ### 站点保护
-由于所有客户端共用一个 http 服务端口，任何知道你的域名和 url 的人都能访问到你部署在内网的 web 服务，但是在某些场景下需要确保只有限定的用户才能访问。
+域名代理模式所有客户端共用一个http服务端口，在知道域名后任何人都可访问，一些开发或者测试环境需要保密，所以可以设置用户名和密码，easyProxy将通过 Http Basic Auth 来保护，访问时需要输入正确的用户名和密码。
 
-easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需要通过用户名和密码才能访问到你的服务。
 
-目前支持使用tcp协议的web站点保护，命令行运行时可设置
-```
--u=user -p=password
-```
-
-- web管理中也可配置
+- web管理中可配置
 
 ### host修改
 
-
-通常情况下本代理不会修改转发的任何数据。但有一些后端服务会根据 http 请求 header 中的 host 字段来展现不同的网站，例如 nginx 的虚拟主机服务，启用 host-header 的修改功能可以动态修改 http 请求中的 host 字段。该功能仅限于域名代理模式。
+由于内网站点需要的host可能与公网域名不一致，域名代理支持host修改功能，即修改request的header中的host字段。
 
 **使用方法：在web管理中设置**
 
@@ -361,7 +357,7 @@ easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需�
 
 ### 获取用户真实ip
 
-目前只有域名模式的代理支持这一功能，可以通过用户请求的 header 中的 X-Forwarded-For 和 X-Real-IP 来获取用户真实 IP。
+在域名代理模式中，可以通过request请求 header 中的 X-Forwarded-For 和 X-Real-IP 来获取用户真实 IP。
 
 **本代理前会在每一个请求中添加了这两个 header。**
 
@@ -377,3 +373,224 @@ easyProxy支持通过 HTTP Basic Auth 来保护你的 web 服务，使用户需�
 ### 连接池
  easyProxy会预先和后端服务建立起指定数量的连接，每次接收到用户请求后，会从连接池中取出一个连接和用户连接关联起来，避免了等待与后端服务建立连接时间。
 
+## web API
+
+### 客户端
+
+#### 添加客户端
+```
+POST /client/add/
+```
+参数 | 含义
+---|---
+remark | 备注
+u | 用户名
+p | 密码
+compress | 压缩（snappy或空）
+crypt | 是否加密（1或者0）
+mux | 是否TCP复用（1或者0）
+rate_limit|带宽限制
+flow_limit|流量限制
+
+#### 添加客户端
+```
+POST /client/edit/
+```
+参数 | 含义
+---|---
+id | id
+remark | 备注
+u | 用户名
+p | 密码
+compress | 压缩（snappy或空）
+crypt | 是否加密（1或者0）
+mux | 是否TCP复用（1或者0）
+rate_limit|带宽限制
+flow_limit|流量限制
+
+#### 更改状态
+```
+POST /client/changestatus/
+```
+参数 | 含义
+---|---
+id | id
+status|1或0
+
+#### 删除客户端
+```
+POST /client/del/
+```
+参数 | 含义
+---|---
+id | id
+#### 获取单个客户端
+```
+POST /client/getclient/
+```
+参数 | 含义
+---|---
+id | id
+#### 获取客户端列表
+```
+POST /client/list/
+```
+
+参数 | 含义
+---|---
+start | 开始
+length | 长度
+
+### 域名代理
+
+#### 添加域名代理
+
+```
+POST /index/addhost/
+```
+
+参数 | 含义
+---|---
+host | 域名
+target | 内网目标地址
+header | header修改
+hostchange | host修改
+remark | 备注
+client_id | 客户端id
+#### 删除域名代理
+```
+POST /index/delhost/
+```
+
+参数 | 含义
+---|---
+host | 域名
+
+#### 修改域名代理
+```
+POST /index/edithost/
+```
+
+参数 | 含义
+---|---
+nhost | 修改后的域名
+host | 修改之前的域名
+target | 内网目标地址
+header | header修改
+hostchange | host修改
+remark | 备注
+client_id | 客户端id
+
+#### 获取域名代理列表
+```
+POST /index/hostlist/
+```
+
+参数 | 含义
+---|---
+start | 开始
+length | 长度
+client_id | 客户端id（为空获取所有）
+#### 获取单个host
+```
+POST /index/gethost/
+```
+
+参数 | 含义
+---|---
+host|域名
+
+
+### 其他代理
+
+#### 获取隧道列表
+
+```
+POST /index/gettunnel/
+```
+
+参数 | 含义
+---|---
+client_id|客户端id(为空则忽略客户端限制)
+type|类型(udpServer、tunnelServer、socks5Server、httpProxyServer，为空则忽略类型限制)
+start|开始
+length|长度
+
+#### 添加
+
+```
+POST /index/add/
+```
+
+参数 | 含义
+---|---
+port|监听端口
+type|类型(udpServer、tunnelServer、socks5Server、httpProxyServer)
+start|开始
+u|验证用户名
+p|验证密码
+compress|压缩（空或snappy）
+crypt|是否加密（1或0）
+mux|是否tcp复用（1或0）
+use_client|是否使用客户端配置（1或0）
+remark|备注
+client_id|客户端id
+
+#### 修改
+
+```
+POST /index/edit/
+```
+
+参数 | 含义
+---|---
+id|id
+port|监听端口
+type|类型(udpServer、tunnelServer、socks5Server、httpProxyServer)
+start|开始
+u|验证用户名
+p|验证密码
+compress|压缩（空或snappy）
+crypt|是否加密（1或0）
+mux|是否tcp复用（1或0）
+use_client|是否使用客户端配置（1或0）
+remark|备注
+client_id|客户端id
+
+#### 停止隧道
+
+```
+POST /index/stop/
+```
+
+参数 | 含义
+---|---
+id|id
+
+#### 删除隧道
+
+```
+POST /index/del/
+```
+
+参数 | 含义
+---|---
+id|id
+#### 开始隧道
+
+```
+POST /index/start/
+```
+
+参数 | 含义
+---|---
+id|id
+#### 获取单条隧道详细
+
+```
+POST /index/getonetunnel/
+```
+
+参数 | 含义
+---|---
+id|id
