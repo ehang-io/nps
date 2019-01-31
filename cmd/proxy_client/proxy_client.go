@@ -13,7 +13,6 @@ var (
 )
 
 func main() {
-	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 	stop := make(chan int)
 	for _, v := range strings.Split(*verifyKey, ",") {

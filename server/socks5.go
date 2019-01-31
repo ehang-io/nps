@@ -143,7 +143,6 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	link := utils.NewLink(s.task.Client.GetId(), ltype, addr, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, utils.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
-		log.Println("error", err, link)
 		c.Close()
 		return
 	} else {

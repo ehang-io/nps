@@ -71,7 +71,6 @@ func (s *TRPClient) processor(c *utils.Conn) {
 			if link, err := c.GetLinkInfo(); err != nil {
 				break
 			} else {
-				log.Println(link)
 				s.Lock()
 				s.linkMap[link.Id] = link
 				s.Unlock()
@@ -118,10 +117,10 @@ func (s *TRPClient) linkProcess(link *utils.Link, c *utils.Conn) {
 				break
 			}
 			utils.PutBufPoolCopy(buf)
-			if link.ConnType == utils.CONN_UDP {
-				c.Close()
-				break
-			}
+			//if link.ConnType == utils.CONN_UDP {
+			//	c.Close()
+			//	break
+			//}
 		}
 	}
 

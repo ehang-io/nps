@@ -127,7 +127,6 @@ func ProcessHttp(c *utils.Conn, s *TunnelModeServer) error {
 	}
 	method, addr, rb, err, r := c.GetHost()
 	if err != nil {
-		log.Println(err)
 		c.Close()
 		return err
 	}

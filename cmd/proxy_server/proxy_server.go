@@ -22,7 +22,6 @@ var (
 )
 
 func main() {
-	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 	task := &utils.Tunnel{
 		TcpPort: *httpPort,
@@ -45,6 +44,8 @@ func main() {
 			Remark:    "",
 			Status:    true,
 			IsConnect: false,
+			Cnf:       &utils.Config{},
+			Flow:      &utils.Flow{},
 		}
 		c.Cnf.CompressDecode, c.Cnf.CompressEncode = utils.GetCompressType(c.Cnf.Compress)
 		server.CsvDb.Clients[0] = c
@@ -60,5 +61,8 @@ func main() {
 	}
 	log.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
 	task.Config.CompressDecode, task.Config.CompressEncode = utils.GetCompressType(task.Config.Compress)
+	if *rpMode!="webServer" {
+		server.CsvDb.Tasks[0] = task
+	}
 	server.StartNewServer(*TcpPort, task)
 }
