@@ -55,13 +55,6 @@
                             <option {{if eq  true .t.Config.Crypt}}selected{{end}} value="1">加密</option>
                         </select>
                     </div>
-                    <div class="form-group" id="mux">
-                        <label class="control-label">是否启用TCP复用(所有模式均支持)</label>
-                        <select class="form-control" name="mux">
-                            <option {{if eq false .t.Config.Mux}}selected{{end}} value="0">不启用</option>
-                            <option {{if eq  true .t.Config.Mux}}selected{{end}} value="1">启用</option>
-                        </select>
-                    </div>
                     <div class="form-group" id="u">
                         <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
                         <input class="form-control" value="{{.t.Config.U}}" type="text" name="u"

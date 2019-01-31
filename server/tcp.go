@@ -2,21 +2,18 @@ package server
 
 import (
 	"errors"
-	"fmt"
 	"github.com/astaxie/beego"
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
 	"log"
 	"net"
-	"net/http"
 	"strings"
 )
 
 type TunnelModeServer struct {
 	server
-	errorContent []byte
-	process      process
-	listener     *net.TCPListener
+	process  process
+	listener *net.TCPListener
 }
 
 //tcp|http|host
@@ -32,9 +29,6 @@ func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *utils.Tun
 //开始
 func (s *TunnelModeServer) Start() error {
 	var err error
-	if s.errorContent, err = utils.ReadAllFromFile(beego.AppPath + "/web/static/page/error.html"); err != nil {
-		s.errorContent = []byte("easyProxy 404")
-	}
 	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.task.TcpPort, ""})
 	if err != nil {
 		return err
@@ -53,44 +47,15 @@ func (s *TunnelModeServer) Start() error {
 	return nil
 }
 
-//权限认证
-func (s *TunnelModeServer) auth(r *http.Request, c *utils.Conn, u, p string) error {
-	if u != "" && p != "" && !utils.CheckAuth(r, u, p) {
-		c.Write([]byte(utils.UnauthorizedBytes))
-		c.Close()
-		return errors.New("401 Unauthorized")
-	}
-	return nil
-}
-
-func (s *TunnelModeServer) writeConnFail(c net.Conn) {
-	c.Write([]byte(utils.ConnectionFailBytes))
-	c.Write(s.errorContent)
-}
-
 //与客户端建立通道
 func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *utils.Config, addr string, method string, rb []byte) error {
-	var link *utils.Conn
-	var err error
-	defer func() {
-		if cnf.Mux && link != nil {
-			s.bridge.ReturnTunnel(link, s.task.Client.Id)
-		}
-	}()
-	if link, err = s.GetTunnelAndWriteHost(utils.CONN_TCP, s.task.Client.Id, cnf, addr); err != nil {
-		log.Println("get bridge tunnel error: ", err)
+	link := utils.NewLink(s.task.Client.GetId(), utils.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
+
+	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
+		c.Close()
 		return err
-	}
-	if flag, err := link.ReadFlag(); err == nil {
-		if flag == utils.CONN_SUCCESS {
-			if method == "CONNECT" {
-				fmt.Fprint(c, "HTTP/1.1 200 Connection established\r\n")
-			} else if rb != nil {
-				link.WriteTo(rb, cnf.CompressEncode, cnf.Crypt, s.task.Client.Rate)
-			}
-			out, in := utils.ReplayWaitGroup(link.Conn, c.Conn, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux, s.task.Client.Rate)
-			s.FlowAdd(in, out)
-		}
+	} else {
+		s.linkCopy(link, c, rb, tunnel, s.task.Flow)
 	}
 	return nil
 }
@@ -141,4 +106,33 @@ func NewHostServer(task *utils.Tunnel) *HostServer {
 //close
 func (s *HostServer) Close() error {
 	return nil
+}
+
+type process func(c *utils.Conn, s *TunnelModeServer) error
+
+//tcp隧道模式
+func ProcessTunnel(c *utils.Conn, s *TunnelModeServer) error {
+	if !s.ResetConfig() {
+		c.Close()
+		return errors.New("流量超出")
+	}
+	return s.dealClient(c, s.config, s.task.Target, "", nil)
+}
+
+//http代理模式
+func ProcessHttp(c *utils.Conn, s *TunnelModeServer) error {
+	if !s.ResetConfig() {
+		c.Close()
+		return errors.New("流量超出")
+	}
+	method, addr, rb, err, r := c.GetHost()
+	if err != nil {
+		log.Println(err)
+		c.Close()
+		return err
+	}
+	if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
+		return err
+	}
+	return s.dealClient(c, s.config, addr, method, rb)
 }

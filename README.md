@@ -6,7 +6,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 目前市面上提供类似服务的有花生壳、TeamView、GoToMyCloud等等，但要使用第三方的公网服务器就必须为第三方付费，并且这些服务都有各种各样的限制，此外，由于数据包会流经第三方，因此对数据安全也是一大隐患。
 
 
-支持客户端与服务端连接中断自动重连，多路传输，大大的提高请求处理速度，go语言编写，无第三方依赖，各个平台都已经编译在release中，普通个人场景下，内存使用量在10M以下。
+go语言编写，无第三方依赖，各个平台都已经编译在release中。
 
 ## 背景
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/web.png?raw=true)
@@ -30,6 +30,12 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 * [web管理](#web管理模式)（多隧道时推荐）
     * [启动](#启动)
     * [配置文件说明](#服务端配置文件)
+    * [详细使用说明](#详细说明)
+       * [http|https域名解析](#域名解析)
+       * [tcp隧道](#tcp隧道)
+       * [udp隧道](#udp隧道)
+       * [sock5代理](#sock5代理)
+       * [http正向代理](#http正向代理)
 * 单隧道模式及介绍
     * [tcp隧道模式](#tcp隧道模式)
     * [udp隧道模式](#udp隧道模式)
@@ -40,7 +46,6 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
    * [数据压缩支持](#数据压缩支持)
    * [站点密码保护](#站点保护)
    * [加密传输](#加密传输)
-   * [TCP多路复用](#多路复用)
    * [host修改](#host修改)
    * [自定义header](#自定义header)
    * [自定义404页面](#404页面配置)
@@ -48,14 +53,18 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
    * [带宽限制](#带宽限制)
 * [相关说明](#相关说明)
    * [流量统计](#流量统计)
-   * [连接池](#连接池)
    * [热更新支持](#热更新支持)
    * [获取用户真实ip](#获取用户真实ip)
    * [客户端地址显示](#客户端地址显示)
+* [简单的性能测试](#简单的性能测试)
+   * [qps](#qps)
+   * [速度测试](#速度测试)
+   * [内存和cpu](#内存和cpu)
+   * [额外消耗连接数](#额外消耗连接数)
 * [webAPI](#webAPI)
    * [客户端](#客户端)
-    * [域名代理](#域名代理)
-    * [其他代理](#其他代理)
+   * [域名代理](#域名代理)
+   * [其他代理](#其他代理)
 
 
 ## 安装
@@ -78,16 +87,8 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 ![image](https://github.com/cnlh/easyProxy/blob/master/image/web2.png?raw=true)
 ### 介绍
 
-可在网页上配置和管理各个tcp、udp隧道、内网站点代理等等，功能极为强大，操作也非常方便。
-### 服务端配置文件
-- /conf/app.conf
+可在网页上配置和管理各个tcp、udp隧道、内网站点代理，http、https解析等，功能极为强大，操作也非常方便。
 
-名称 | 含义
----|---
-httpport | web管理端口
-password | web界面管理密码
-hostPort | 域名代理模式监听端口
-tcpport  | 服务端客户端通信端口
 
 **提示：使用web模式时，服务端执行文件必须在项目根目录，否则无法正确加载配置文件**
 
@@ -102,14 +103,120 @@ tcpport  | 服务端客户端通信端口
 
 - 客户端
 ```
- ./proxy_server -server=ip:port -vkey=web界面中显示的
+ ./proxy_server -server=ip:port -vkey=web界面中显示的密钥
 ```
-
-进入web管理界面，有详细的命令
 
 - 配置
 
 进入web界面，公网ip:web界面端口（默认8080），密码默认为123
+
+进入web管理界面，有详细的命令
+
+### 服务端配置文件
+- /conf/app.conf
+
+名称 | 含义
+---|---
+httpport | web管理端口
+password | web界面管理密码
+hostPort | 域名代理模式监听端口
+tcpport  | 服务端客户端通信端口
+pemPath | ssl certFile绝对路径
+keyPath | ssl keyFile绝对路径
+httpsProxyPort | https代理监听端口
+httpProxyPort | http代理监听端口
+
+### 详细说明
+
+#### 域名解析
+
+**适用范围：** 小程序开发、微信公众号开发、产品演示
+
+**假设场景：**
+- 有一个域名proxy.com，有一台公网机器ip为1.1.1.1
+- 两个内网开发站点127.0.0.1:81，127.0.0.1:82
+- 想通过（http|https://）a.proxy.com访问127.0.0.1:81，通过（http|https://）b.proxy.com访问127.0.0.1:82
+
+**使用步骤**
+- 将*.proxy.com解析到公网服务器1.1.1.1
+- 在客户端管理中创建一个客户端，记录下验证密钥
+- 点击该客户端的域名管理，添加两条规则规则：1、域名：a.proxy.com，内网目标：127.0.0.1:81，2、域名：b.proxy.com，内网目标：127.0.0.1:82
+-内网客户端运行
+
+```
+./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+```
+现在访问（http|https://）a.proxy.com，b.proxy.com即可成功
+
+**https:** 如需使用https请在配置文件中将https端口设置为443，和将对应的证书文件路径添加到配置文件中
+
+#### tcp隧道
+
+
+**适用范围：**  ssh、远程桌面等tcp连接场景
+
+**假设场景：**
+ 想通过访问公网服务器1.1.1.1的8001端口，连接内网机器10.1.50.101的22端口，实现ssh连接
+
+**使用步骤**
+- 在客户端管理中创建一个客户端，记录下验证密钥
+- -内网客户端运行
+```
+./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+```
+- 在该客户端隧道管理中添加一条tcp隧道，填写监听的端口（8001）、内网目标ip和目标端口（10.1.50.101:22），选择压缩方式，保存。
+- 访问公网服务器ip（127.0.0.1）,填写的监听端口(8001)，相当于访问内网ip(10.1.50.101):目标端口(22)，例如：ssh -p 8001 root@127.0.0.1
+
+#### udp隧道
+
+
+
+**适用范围：**  内网dns解析等udp连接场景
+
+**假设场景：**
+内网有一台dns（10.1.50.102:53），在非内网环境下想使用该dns，公网服务器为1.1.1.1
+
+**使用步骤**
+- 在客户端管理中创建一个客户端，记录下验证密钥
+- -内网客户端运行
+```
+./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+```
+- 在该客户端的隧道管理中添加一条udp隧道，填写监听的端口（53）、内网目标ip和目标端口（10.1.50.102:53），选择压缩方式，保存。
+- 修改本机dns为127.0.0.1，则相当于使用10.1.50.202作为dns服务器
+
+#### sock5代理
+
+
+**适用范围：**  在外网环境下如同使用vpn一样访问内网设备或者资源
+
+**假设场景：**
+想将公网服务器1.1.1.1的8003端口作为socks5代理，达到访问内网任意设备或者资源的效果
+
+**使用步骤**
+- 在客户端管理中创建一个客户端，记录下验证密钥
+- -内网客户端运行
+```
+./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+```
+- 在该客户端隧道管理中添加一条socks5代理，填写监听的端口（8003），验证用户名和密码自行选择（建议先不填，部分客户端不支持，proxifer支持），选择压缩方式，保存。
+- 在外网环境的本机配置socks5代理，ip为公网服务器ip（127.0.0.1），端口为填写的监听端口(8003)，即可畅享内网了
+
+#### http正向代理
+
+**适用范围：**  在外网环境下使用http代理访问内网站点
+
+**假设场景：**
+想将公网服务器1.1.1.1的8004端口作为http代理，访问内网网站
+
+**使用步骤**
+- 在客户端管理中创建一个客户端，记录下验证密钥
+- -内网客户端运行
+```
+./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+```
+- 在该客户端隧道管理中添加一条http代理，填写监听的端口（8004），选择压缩方式，保存。
+- 在外网环境的本机配置http代理，ip为公网服务器ip（127.0.0.1），端口为填写的监听端口(8004)，即可访问了
 
 
 
@@ -316,16 +423,6 @@ authip | 免验证ip，适用于web api
 -crypt=true
 ```
 
-### 多路复用
-
-客户端和服务器端之间的连接支持多路复用，不再需要为每一个用户请求创建一个连接，使连接建立的延迟降低，并且避免了大量文件描述符的占用。
-
-
-- 在server端加上参数 -mux=true（或在web管理中设置）
-
-```
--mux=true
-```
 
 
 ### 站点保护
@@ -373,227 +470,27 @@ authip | 免验证ip，适用于web api
 ### 流量统计
 可统计显示每个代理使用的流量，由于压缩和加密等原因，会和实际环境中的略有差异
 
-### 连接池
- easyProxy会预先和后端服务建立起指定数量的连接，每次接收到用户请求后，会从连接池中取出一个连接和用户连接关联起来，避免了等待与后端服务建立连接时间。
+## 简单性能测试
+
+### qps
+![image](https://github.com/cnlh/easyProxy/blob/master/image/qps.png?raw=true)
+### 速度测试
+**测试环境：** 1M带宽云服务器，理论125kb/s，带宽与代理无关，与服务器关系较大。
+![image](https://github.com/cnlh/easyProxy/blob/master/image/speed.png?raw=true)
+
+
+### 内存和cpu
+
+**1000次性能测试后**
+![image](https://github.com/cnlh/easyProxy/blob/master/image/cpu1.png?raw=true)
+
+**启动时**
+![image](https://github.com/cnlh/easyProxy/blob/master/image/cpu2.png?raw=true)
+
+### 额外消耗连接数
+为了最大化的提升效率和并发，客户端与服务端之间仅两条tcp连接，减少建立连接的时间消耗和多余tcp连接对机器性能的影响。
 
 ## webAPI
 
-### 客户端
-
-#### 添加客户端
-```
-POST /client/add/
-```
-参数 | 含义
----|---
-remark | 备注
-u | 用户名
-p | 密码
-compress | 压缩（snappy或空）
-crypt | 是否加密（1或者0）
-mux | 是否TCP复用（1或者0）
-rate_limit|带宽限制
-flow_limit|流量限制
-
-#### 添加客户端
-```
-POST /client/edit/
-```
-参数 | 含义
----|---
-id | id
-remark | 备注
-u | 用户名
-p | 密码
-compress | 压缩（snappy或空）
-crypt | 是否加密（1或者0）
-mux | 是否TCP复用（1或者0）
-rate_limit|带宽限制
-flow_limit|流量限制
-
-#### 更改状态
-```
-POST /client/changestatus/
-```
-参数 | 含义
----|---
-id | id
-status|1或0
-
-#### 删除客户端
-```
-POST /client/del/
-```
-参数 | 含义
----|---
-id | id
-#### 获取单个客户端
-```
-POST /client/getclient/
-```
-参数 | 含义
----|---
-id | id
-#### 获取客户端列表
-```
-POST /client/list/
-```
-
-参数 | 含义
----|---
-start | 开始
-length | 长度
-
-### 域名代理
-
-#### 添加域名代理
-
-```
-POST /index/addhost/
-```
-
-参数 | 含义
----|---
-host | 域名
-target | 内网目标地址
-header | header修改
-hostchange | host修改
-remark | 备注
-client_id | 客户端id
-#### 删除域名代理
-```
-POST /index/delhost/
-```
-
-参数 | 含义
----|---
-host | 域名
-
-#### 修改域名代理
-```
-POST /index/edithost/
-```
-
-参数 | 含义
----|---
-nhost | 修改后的域名
-host | 修改之前的域名
-target | 内网目标地址
-header | header修改
-hostchange | host修改
-remark | 备注
-client_id | 客户端id
-
-#### 获取域名代理列表
-```
-POST /index/hostlist/
-```
-
-参数 | 含义
----|---
-start | 开始
-length | 长度
-client_id | 客户端id（为空获取所有）
-#### 获取单个host
-```
-POST /index/gethost/
-```
-
-参数 | 含义
----|---
-host|域名
-
-
-### 其他代理
-
-#### 获取隧道列表
-
-```
-POST /index/gettunnel/
-```
-
-参数 | 含义
----|---
-client_id|客户端id(为空则忽略客户端限制)
-type|类型(udpServer、tunnelServer、socks5Server、httpProxyServer，为空则忽略类型限制)
-start|开始
-length|长度
-
-#### 添加
-
-```
-POST /index/add/
-```
-
-参数 | 含义
----|---
-port|监听端口
-type|类型(udpServer、tunnelServer、socks5Server、httpProxyServer)
-start|开始
-u|验证用户名
-p|验证密码
-compress|压缩（空或snappy）
-crypt|是否加密（1或0）
-mux|是否tcp复用（1或0）
-use_client|是否使用客户端配置（1或0）
-remark|备注
-client_id|客户端id
-
-#### 修改
-
-```
-POST /index/edit/
-```
-
-参数 | 含义
----|---
-id|id
-port|监听端口
-type|类型(udpServer、tunnelServer、socks5Server、httpProxyServer)
-start|开始
-u|验证用户名
-p|验证密码
-compress|压缩（空或snappy）
-crypt|是否加密（1或0）
-mux|是否tcp复用（1或0）
-use_client|是否使用客户端配置（1或0）
-remark|备注
-client_id|客户端id
-
-#### 停止隧道
-
-```
-POST /index/stop/
-```
-
-参数 | 含义
----|---
-id|id
-
-#### 删除隧道
-
-```
-POST /index/del/
-```
-
-参数 | 含义
----|---
-id|id
-#### 开始隧道
-
-```
-POST /index/start/
-```
-
-参数 | 含义
----|---
-id|id
-#### 获取单条隧道详细
-
-```
-POST /index/getonetunnel/
-```
-
-参数 | 含义
----|---
-id|id
+为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见
+[webAPI文档](https://github.com/cnlh/easyProxy/wiki/webAPI%E6%96%87%E6%A1%A3)

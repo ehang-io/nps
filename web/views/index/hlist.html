@@ -12,7 +12,6 @@
                         <th>host改写</th>
                         <th>压缩方式</th>
                         <th>加密</th>
-                        <th>多路复用</th>
                         <th>用户名</th>
                         <th>密码</th>
                         <th>出口流量</th>
@@ -84,7 +83,6 @@
                 {data: 'HostChange'},
                 {data: 'HostChange'},
                 {data: 'HostChange'},
-                {data: 'HostChange'},
                 {data: 'Target'},
             ],
             bFilter: false,
@@ -127,20 +125,10 @@
                     render: function (data, type, row, meta) {
                         return row.Client.Cnf.U
                     }
-                },
-                {
-                    targets: -6,
-                    render: function (data, type, row, meta) {
-                        if (row.Client.Cnf.Mux == "0") {
-                            return "不启用"
-                        } else {
-                            return "启用"
-                        }
-                    }
                 }
                 ,
                 {
-                    targets: -7,
+                    targets: -6,
                     render: function (data, type, row, meta) {
                         if (row.Client.Cnf.Crypt == "0") {
                             return "不加密"
@@ -151,7 +139,7 @@
                 }
                 ,
                 {
-                    targets: -8,
+                    targets: -7,
                     render: function (data, type, row, meta) {
                         return row.Client.Cnf.Compress
                     }

@@ -19,10 +19,10 @@ var (
 	p            = flag.String("p", "", "验证密码(socks5和web)")
 	compress     = flag.String("compress", "", "数据压缩方式（snappy）")
 	crypt        = flag.String("crypt", "false", "是否加密(true|false)")
-	mux          = flag.String("mux", "false", "是否TCP多路复用(true|false)")
 )
 
 func main() {
+	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 	task := &utils.Tunnel{
 		TcpPort: *httpPort,
@@ -33,7 +33,6 @@ func main() {
 			P:        *p,
 			Compress: *compress,
 			Crypt:    utils.GetBoolByStr(*crypt),
-			Mux:      utils.GetBoolByStr(*mux),
 		},
 		Flow:         &utils.Flow{},
 		UseClientCnf: false,

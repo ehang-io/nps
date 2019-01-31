@@ -38,7 +38,6 @@ func (s *ClientController) Add() {
 				P:        s.GetString("p"),
 				Compress: s.GetString("compress"),
 				Crypt:    s.GetBoolNoErr("crypt"),
-				Mux:      s.GetBoolNoErr("mux"),
 			},
 			RateLimit: s.GetIntNoErr("rate_limit"),
 			Flow: &utils.Flow{
@@ -91,7 +90,6 @@ func (s *ClientController) Edit() {
 			c.Cnf.P = s.GetString("p")
 			c.Cnf.Compress = s.GetString("compress")
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
-			c.Cnf.Mux = s.GetBoolNoErr("mux")
 			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
 			c.RateLimit = s.GetIntNoErr("rate_limit")
 			if c.Rate != nil {

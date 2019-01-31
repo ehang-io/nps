@@ -3,8 +3,6 @@ package server
 import (
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
-	"io"
-	"log"
 	"net"
 	"strings"
 )
@@ -31,9 +29,9 @@ func (s *UdpModeServer) Start() error {
 	if err != nil {
 		return err
 	}
-	data := make([]byte, 1472) //udp数据包大小
+	buf := utils.BufPoolUdp.Get().([]byte)
 	for {
-		n, addr, err := s.listener.ReadFromUDP(data)
+		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
@@ -43,42 +41,19 @@ func (s *UdpModeServer) Start() error {
 		if !s.ResetConfig() {
 			continue
 		}
-		go s.process(addr, data[:n])
+		go s.process(addr, buf[:n])
 	}
 	return nil
 }
 
-//TODO:效率问题有待解决--->建立稳定通道，重复利用，提高效率，下个版本
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	conn, err := s.bridge.GetTunnel(s.task.Client.Id, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux)
-	if err != nil {
-		log.Println(err)
+	link := utils.NewLink(s.task.Client.GetId(), utils.CONN_UDP, s.task.Target, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
+
+	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		return
-	}
-	if _, err := conn.WriteHost(utils.CONN_UDP, s.task.Target); err != nil {
-		conn.Close()
-		return
-	}
-	if flag, err := conn.ReadFlag(); err == nil {
-		defer func() {
-			if conn != nil && s.config.Mux {
-				conn.WriteTo([]byte(utils.IO_EOF), s.config.CompressEncode, s.config.Crypt, s.task.Client.Rate)
-				s.bridge.ReturnTunnel(conn, s.task.Client.Id)
-			} else {
-				conn.Close()
-			}
-		}()
-		if flag == utils.CONN_SUCCESS {
-			in, _ := conn.WriteTo(data, s.config.CompressEncode, s.config.Crypt, s.task.Client.Rate)
-			buf := utils.BufPoolUdp.Get().([]byte)
-			out, err := conn.ReadFrom(buf, s.config.CompressDecode, s.config.Crypt, s.task.Client.Rate)
-			if err != nil || err == io.EOF {
-				return
-			}
-			s.listener.WriteToUDP(buf[:out], addr)
-			s.FlowAdd(int64(in), int64(out))
-			utils.BufPoolUdp.Put(buf)
-		}
+	} else {
+		s.task.Flow.Add(len(data), 0)
+		tunnel.SendMsg(data, link)
 	}
 }
 

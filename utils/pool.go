@@ -1,13 +1,15 @@
 package utils
 
-import "sync"
+import (
+	"sync"
+)
 
 const poolSize = 64 * 1024
 const poolSizeSmall = 100
 const poolSizeUdp = 1472
 const poolSizeCopy = 32 * 1024
 
-var bufPool = sync.Pool{
+var BufPool = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, poolSize)
 	},
@@ -18,18 +20,24 @@ var BufPoolUdp = sync.Pool{
 		return make([]byte, poolSizeUdp)
 	},
 }
-var bufPoolMax = sync.Pool{
+var BufPoolMax = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, poolSize)
 	},
 }
-var bufPoolSmall = sync.Pool{
+var BufPoolSmall = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, poolSizeSmall)
 	},
 }
-var bufPoolCopy = sync.Pool{
+var BufPoolCopy = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, poolSizeCopy)
 	},
+}
+
+func PutBufPoolCopy(buf []byte) {
+	if cap(buf) == poolSizeCopy {
+		BufPoolCopy.Put(buf[:poolSizeCopy])
+	}
 }

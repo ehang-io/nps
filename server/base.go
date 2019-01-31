@@ -1,27 +1,22 @@
 package server
 
 import (
+	"errors"
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
+	"net"
+	"net/http"
 	"sync"
 )
 
 //server base struct
 type server struct {
-	bridge *bridge.Bridge
-	task   *utils.Tunnel
-	config *utils.Config
+	id           int
+	bridge       *bridge.Bridge
+	task         *utils.Tunnel
+	config       *utils.Config
+	errorContent []byte
 	sync.Mutex
-}
-
-func (s *server) GetTunnelAndWriteHost(connType string, clientId int, cnf *utils.Config, addr string) (link *utils.Conn, err error) {
-	if link, err = s.bridge.GetTunnel(clientId, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, cnf.Mux); err != nil {
-		return
-	}
-	if _, err = link.WriteHost(connType, addr); err != nil {
-		link.Close()
-	}
-	return
 }
 
 func (s *server) FlowAdd(in, out int64) {
@@ -56,7 +51,6 @@ func (s *server) ResetConfig() bool {
 			s.config.U = client.Cnf.U
 			s.config.P = client.Cnf.P
 			s.config.Compress = client.Cnf.Compress
-			s.config.Mux = client.Cnf.Mux
 			s.config.Crypt = client.Cnf.Crypt
 		}
 	} else {
@@ -64,11 +58,50 @@ func (s *server) ResetConfig() bool {
 			s.config.U = task.Config.U
 			s.config.P = task.Config.P
 			s.config.Compress = task.Config.Compress
-			s.config.Mux = task.Config.Mux
 			s.config.Crypt = task.Config.Crypt
 		}
 	}
 	s.task.Client.Rate = client.Rate
 	s.config.CompressDecode, s.config.CompressEncode = utils.GetCompressType(s.config.Compress)
 	return true
+}
+
+func (s *server) linkCopy(link *utils.Link, c *utils.Conn, rb []byte, tunnel *utils.Conn, flow *utils.Flow) {
+	if rb != nil {
+		if _, err := tunnel.SendMsg(rb, link); err != nil {
+			c.Close()
+			return
+		}
+		flow.Add(len(rb), 0)
+	}
+	for {
+		buf := utils.BufPoolCopy.Get().([]byte)
+		if n, err := c.Read(buf); err != nil {
+			tunnel.SendMsg([]byte(utils.IO_EOF), link)
+			break
+		} else {
+			if _, err := tunnel.SendMsg(buf[:n], link); err != nil {
+				utils.PutBufPoolCopy(buf)
+				c.Close()
+				break
+			}
+			utils.PutBufPoolCopy(buf)
+			flow.Add(n, 0)
+		}
+	}
+}
+
+func (s *server) writeConnFail(c net.Conn) {
+	c.Write([]byte(utils.ConnectionFailBytes))
+	c.Write(s.errorContent)
+}
+
+//权限认证
+func (s *server) auth(r *http.Request, c *utils.Conn, u, p string) error {
+	if u != "" && p != "" && !utils.CheckAuth(r, u, p) {
+		c.Write([]byte(utils.UnauthorizedBytes))
+		c.Close()
+		return errors.New("401 Unauthorized")
+	}
+	return nil
 }

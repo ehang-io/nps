@@ -40,7 +40,8 @@ func (s *BaseController) display(tpl ...string) {
 	}
 	ip := s.Ctx.Request.Host
 	if strings.LastIndex(ip, ":") > 0 {
-		s.Data["ip"] = utils.GetHostByName(ip[0:])
+		arr := strings.Split(utils.GetHostByName(ip), ":")
+		s.Data["ip"] = arr[0]
 	}
 	s.Data["p"] = server.Bridge.TunnelPort
 	s.Data["proxyPort"] = beego.AppConfig.String("hostPort")

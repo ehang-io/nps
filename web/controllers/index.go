@@ -81,7 +81,6 @@ func (s *IndexController) Add() {
 				P:        s.GetString("p"),
 				Compress: s.GetString("compress"),
 				Crypt:    s.GetBoolNoErr("crypt"),
-				Mux:      s.GetBoolNoErr("mux"),
 			},
 			Id:           server.CsvDb.GetTaskId(),
 			UseClientCnf: s.GetBoolNoErr("use_client"),
@@ -136,7 +135,6 @@ func (s *IndexController) Edit() {
 			t.Config.P = s.GetString("p")
 			t.Config.Compress = s.GetString("compress")
 			t.Config.Crypt = s.GetBoolNoErr("crypt")
-			t.Config.Mux = s.GetBoolNoErr("mux")
 			t.UseClientCnf = s.GetBoolNoErr("use_client")
 			t.Remark = s.GetString("remark")
 			if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {

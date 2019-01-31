@@ -2,27 +2,17 @@ package server
 
 import (
 	"errors"
-	"github.com/astaxie/beego"
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
 	"log"
 	"reflect"
 	"strings"
-	"sync"
 )
 
-type RunServer struct {
-	flag       int   //标志
-	ExportFlow int64 //出口流量
-	InletFlow  int64 //入口流量
-	service    interface{}
-	sync.Mutex
-}
-
 var (
-	Bridge    *bridge.Bridge
-	RunList   map[int]interface{} //运行中的任务
-	CsvDb     = utils.GetCsvDb()
+	Bridge  *bridge.Bridge
+	RunList map[int]interface{} //运行中的任务
+	CsvDb   = utils.GetCsvDb()
 )
 
 func init() {
@@ -69,9 +59,8 @@ func NewMode(Bridge *bridge.Bridge, c *utils.Tunnel) interface{} {
 		return NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
-		p, _ := beego.AppConfig.Int("hostPort")
 		t := &utils.Tunnel{
-			TcpPort: p,
+			TcpPort: 0,
 			Mode:    "httpHostServer",
 			Target:  "",
 			Config:  &utils.Config{},
@@ -82,7 +71,7 @@ func NewMode(Bridge *bridge.Bridge, c *utils.Tunnel) interface{} {
 	case "hostServer":
 		return NewHostServer(c)
 	case "httpHostServer":
-		return NewTunnelModeServer(ProcessHost, Bridge, c)
+		return NewHttp(Bridge, c)
 	}
 	return nil
 }
@@ -161,7 +150,7 @@ func GetTunnel(start, length int, typeVal string, clientId int) ([]*utils.Tunnel
 			continue
 		}
 		cnt++
-		if _, ok := Bridge.SignalList[v.Client.Id]; ok {
+		if _, ok := Bridge.Client[v.Client.Id]; ok {
 			v.Client.IsConnect = true
 		} else {
 			v.Client.IsConnect = false
@@ -189,7 +178,7 @@ func GetClientList(start, length int) (list []*utils.Client, cnt int) {
 
 func dealClientData(list []*utils.Client) {
 	for _, v := range list {
-		if _, ok := Bridge.SignalList[v.Id]; ok {
+		if _, ok := Bridge.Client[v.Id]; ok {
 			v.IsConnect = true
 		} else {
 			v.IsConnect = false
@@ -228,8 +217,7 @@ func DelTunnelAndHostByClientId(clientId int) {
 
 //关闭客户端连接
 func DelClientConnect(clientId int) {
-	Bridge.DelClientTunnel(clientId)
-	Bridge.DelClientSignal(clientId)
+	Bridge.DelClient(clientId)
 }
 
 func GetDashboardData() map[string]int {

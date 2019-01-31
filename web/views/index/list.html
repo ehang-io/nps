@@ -12,7 +12,6 @@
                         <th>内网目标</th>
                         <th>压缩方式</th>
                         <th>加密传输</th>
-                        <th>TCP多路复用</th>
                         <th>用户名</th>
                         <th>密码</th>
                         <th>客户端状态</th>
@@ -114,7 +113,6 @@
                 {data: 'Target'},
                 {data: 'Compress'},
                 {data: 'Crypt'},
-                {data: 'Mux'},
                 {data: 'U'},
                 {data: 'P'},
                 {data: 'ClientStatus'},
@@ -152,7 +150,7 @@
                     }
                 }
             }, {
-                targets: 8,
+                targets: 7,
                 render: function (data, type, row, meta) {
                     if (row.UseClientCnf == true) {
                         return row.Client.Cnf.U
@@ -161,7 +159,7 @@
                     }
                 }
             }, {
-                targets: 9,
+                targets: 8,
                 render: function (data, type, row, meta) {
                     if (row.UseClientCnf == true) {
                         return row.Client.Cnf.P
@@ -181,7 +179,7 @@
                     }
                 },
                 {
-                    targets: -9,
+                    targets: -8,
                     render: function (data, type, row, meta) {
                         if (row.UseClientCnf == true) {
                             crypt = row.Client.Cnf.Crypt
@@ -192,21 +190,6 @@
                             return "不加密"
                         } else {
                             return "加密"
-                        }
-                    }
-                },
-                {
-                    targets: -8,
-                    render: function (data, type, row, meta) {
-                        if (row.UseClientCnf == true) {
-                            mux = row.Client.Cnf.Mux
-                        } else {
-                            mux = row.Config.Mux
-                        }
-                        if (mux == "0") {
-                            return "不启用"
-                        } else {
-                            return "启用"
                         }
                     }
                 },

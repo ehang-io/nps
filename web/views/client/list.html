@@ -11,7 +11,6 @@
                         <th>备注</th>
                         <th>压缩方式</th>
                         <th>加密</th>
-                        <th>多路复用</th>
                         <th>用户名</th>
                         <th>密码</th>
                         <th>状态</th>
@@ -126,7 +125,6 @@
                         {data: "Addr"},
                         {data: "Addr"},
                         {data: "Addr"},
-                        {data: "Addr"},
                         {data: "Remark"},
                         {data: "Status"},
                         {data: "IsConnect"},
@@ -193,20 +191,10 @@
                             render: function (data, type, row, meta) {
                                 return row.Cnf.U
                             }
-                        },
-                        {
-                            targets: -8,
-                            render: function (data, type, row, meta) {
-                                if (row.Cnf.Mux == "0") {
-                                    return "不启用"
-                                } else {
-                                    return "启用"
-                                }
-                            }
                         }
                         ,
                         {
-                            targets: -9,
+                            targets: -8,
                             render: function (data, type, row, meta) {
                                 if (row.Cnf.Crypt == "0") {
                                     return "不加密"
@@ -217,7 +205,7 @@
                         }
                         ,
                         {
-                            targets: -10,
+                            targets: -9,
                             render: function (data, type, row, meta) {
                                 return row.Cnf.Compress
                             }

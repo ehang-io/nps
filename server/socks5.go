@@ -106,7 +106,7 @@ func (s *Sock5ModeServer) sendReply(c net.Conn, rep uint8) {
 }
 
 //do conn
-func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils.Conn, err error) {
+func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	addrType := make([]byte, 1)
 	c.Read(addrType)
 	var host string
@@ -127,8 +127,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils
 		host = string(domain)
 	default:
 		s.sendReply(c, addrTypeNotSupported)
-		err = errors.New("Address type not supported")
-		return nil, err
+		return
 	}
 
 	var port uint16
@@ -141,34 +140,22 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) (proxyConn *utils
 	} else {
 		ltype = utils.CONN_TCP
 	}
-	if proxyConn, err = s.GetTunnelAndWriteHost(ltype, s.task.Client.Id, s.config, addr); err != nil {
-		log.Println("get bridge tunnel error: ", err)
+	link := utils.NewLink(s.task.Client.GetId(), ltype, addr, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, utils.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
+
+	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
+		log.Println("error", err, link)
+		c.Close()
 		return
-	}
-	s.sendReply(c, succeeded)
-	var flag string
-	if flag, err = proxyConn.ReadFlag(); err == nil {
-		if flag != utils.CONN_SUCCESS {
-			err = errors.New("conn failed")
-		}
+	} else {
+		s.sendReply(c, succeeded)
+		s.linkCopy(link, utils.NewConn(c), nil, tunnel, s.task.Flow)
 	}
 	return
 }
 
 //conn
 func (s *Sock5ModeServer) handleConnect(c net.Conn) {
-	proxyConn, err := s.doConnect(c, connectMethod)
-	defer func() {
-		if s.config.Mux && proxyConn != nil {
-			s.bridge.ReturnTunnel(proxyConn, s.task.Client.Id)
-		}
-	}()
-	if err != nil {
-		c.Close()
-	} else {
-		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux, s.task.Client.Rate)
-		s.FlowAdd(in, out)
-	}
+	s.doConnect(c, connectMethod)
 }
 
 // passive mode
@@ -195,18 +182,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 		c.Read(dummy)
 	}
 
-	proxyConn, err := s.doConnect(c, associateMethod)
-	defer func() {
-		if s.config.Mux && proxyConn != nil {
-			s.bridge.ReturnTunnel(proxyConn, s.task.Client.Id)
-		}
-	}()
-	if err != nil {
-		c.Close()
-	} else {
-		out, in := utils.ReplayWaitGroup(proxyConn.Conn, c, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, s.config.Mux, s.task.Client.Rate)
-		s.FlowAdd(in, out)
-	}
+	s.doConnect(c, associateMethod)
 }
 
 //new conn

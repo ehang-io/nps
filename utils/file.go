@@ -17,61 +17,8 @@ var (
 	once  sync.Once
 )
 
-type Flow struct {
-	ExportFlow int64 //出口流量
-	InletFlow  int64 //入口流量
-	FlowLimit  int64 //流量限制，出口+入口 /M
-}
-
-type Client struct {
-	Cnf       *Config
-	Id        int    //id
-	VerifyKey string //验证密钥
-	Addr      string //客户端ip地址
-	Remark    string //备注
-	Status    bool   //是否开启
-	IsConnect bool   //是否连接
-	RateLimit int    //速度限制 /kb
-	Flow      *Flow  //流量
-	Rate      *Rate  //速度控制
-}
-
-type Tunnel struct {
-	Id           int     //Id
-	TcpPort      int     //服务端与客户端通信端口
-	Mode         string  //启动方式
-	Target       string  //目标
-	Status       bool    //是否开启
-	Client       *Client //所属客户端id
-	Flow         *Flow
-	Config       *Config
-	UseClientCnf bool   //是否继承客户端配置
-	Remark       string //备注
-}
-
-type Config struct {
-	U              string //socks5验证用户名
-	P              string //socks5验证密码
-	Compress       string //压缩方式
-	Crypt          bool   //是否加密
-	Mux            bool   //是否加密
-	CompressEncode int    //加密方式
-	CompressDecode int    //解密方式
-}
-
-type Host struct {
-	Host         string //启动方式
-	Target       string //目标
-	HeaderChange string //host修改
-	HostChange   string //host修改
-	Flow         *Flow
-	Client       *Client
-	Remark       string //备注
-}
-
 func NewCsv() *Csv {
-	c := new(Csv)
-	return c
+	return new(Csv)
 }
 
 type Csv struct {
@@ -108,7 +55,6 @@ func (s *Csv) StoreTasksToCsv() {
 			task.Config.Compress,
 			utils.GetStrByBool(task.Status),
 			GetStrByBool(task.Config.Crypt),
-			GetStrByBool(task.Config.Mux),
 			strconv.Itoa(task.Config.CompressEncode),
 			strconv.Itoa(task.Config.CompressDecode),
 			strconv.Itoa(task.Id),
@@ -160,17 +106,16 @@ func (s *Csv) LoadTaskFromCsv() {
 				P:              item[4],
 				Compress:       item[5],
 				Crypt:          GetBoolByStr(item[7]),
-				Mux:            GetBoolByStr(item[8]),
-				CompressEncode: GetIntNoErrByStr(item[9]),
-				CompressDecode: GetIntNoErrByStr(item[10]),
+				CompressEncode: GetIntNoErrByStr(item[8]),
+				CompressDecode: GetIntNoErrByStr(item[9]),
 			},
 			Status:       utils.GetBoolByStr(item[6]),
-			Id:           GetIntNoErrByStr(item[11]),
-			UseClientCnf: GetBoolByStr(item[13]),
-			Remark:       item[14],
+			Id:           GetIntNoErrByStr(item[10]),
+			UseClientCnf: GetBoolByStr(item[12]),
+			Remark:       item[13],
 		}
 		post.Flow = new(Flow)
-		if post.Client, err = s.GetClient(GetIntNoErrByStr(item[12])); err != nil {
+		if post.Client, err = s.GetClient(GetIntNoErrByStr(item[11])); err != nil {
 			continue
 		}
 		tasks = append(tasks, post)
@@ -284,13 +229,12 @@ func (s *Csv) LoadClientFromCsv() {
 			VerifyKey: item[1],
 			Remark:    item[2],
 			Status:    GetBoolByStr(item[3]),
-			RateLimit: GetIntNoErrByStr(item[9]),
+			RateLimit: GetIntNoErrByStr(item[8]),
 			Cnf: &Config{
 				U:        item[4],
 				P:        item[5],
 				Crypt:    GetBoolByStr(item[6]),
-				Mux:      GetBoolByStr(item[7]),
-				Compress: item[8],
+				Compress: item[7],
 			},
 		}
 		if post.Id > s.ClientIncreaseId {
@@ -301,7 +245,7 @@ func (s *Csv) LoadClientFromCsv() {
 			post.Rate.Start()
 		}
 		post.Flow = new(Flow)
-		post.Flow.FlowLimit = int64(utils.GetIntNoerrByStr(item[10]))
+		post.Flow.FlowLimit = int64(utils.GetIntNoerrByStr(item[9]))
 		clients = append(clients, post)
 	}
 	s.Clients = clients
@@ -407,10 +351,14 @@ func (s *Csv) GetClientId() int {
 func (s *Csv) UpdateClient(t *Client) error {
 	s.Lock()
 	defer s.Unlock()
-	for k, v := range s.Clients {
+	for _, v := range s.Clients {
 		if v.Id == t.Id {
-			s.Clients = append(s.Clients[:k], s.Clients[k+1:]...)
-			s.Clients = append(s.Clients, t)
+			v.Cnf = t.Cnf
+			v.VerifyKey = t.VerifyKey
+			v.Remark = t.Remark
+			v.RateLimit = t.RateLimit
+			v.Flow = t.Flow
+			v.Rate = t.Rate
 			s.StoreClientsToCsv()
 			return nil
 		}
@@ -458,7 +406,6 @@ func (s *Csv) StoreClientsToCsv() {
 			client.Cnf.U,
 			client.Cnf.P,
 			utils.GetStrByBool(client.Cnf.Crypt),
-			utils.GetStrByBool(client.Cnf.Mux),
 			client.Cnf.Compress,
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
@@ -480,15 +427,3 @@ func GetCsvDb() *Csv {
 	return CsvDb
 }
 
-//深拷贝Tunnel
-func DeepCopyConfig(c *Config) *Config {
-	return &Config{
-		U:              c.U,
-		P:              c.P,
-		Compress:       c.Compress,
-		Crypt:          c.Crypt,
-		Mux:            c.Mux,
-		CompressEncode: c.CompressEncode,
-		CompressDecode: c.CompressDecode,
-	}
-}
