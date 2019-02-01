@@ -130,7 +130,6 @@ func (s *httpServer) process(c *utils.Conn, r *http.Request) {
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
 			if err != nil {
-				log.Println(err)
 				break
 			}
 		}
