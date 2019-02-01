@@ -36,7 +36,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
        * [udp隧道](#udp隧道)
        * [socks5代理](#socks5代理)
        * [http正向代理](#http正向代理)
-    * [使用https理](#使用https)
+    * [使用https](#使用https)
     * [与nginx配合](#与nginx配合)
     * [关闭http|https代理](#关闭代理)
 * 单隧道模式及介绍
