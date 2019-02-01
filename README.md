@@ -81,9 +81,9 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 - 安装源码(另有snappy、beego包)
 > go get github.com/cnlh/easyProxy
 - 编译
-> go build cmd/server/proxy_server.go
+> go build cmd/proxy_server/proxy_server.go
 
-> go build cmd/client/proxy_client.go
+> go build cmd/proxy_client/proxy_client.go
 
 ## web管理模式
 
@@ -227,7 +227,7 @@ httpProxyPort | http代理监听端口
 
 ### 与nginx配合
 
-有时候我们还需要在云服务器上运行https来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例
+普通场景下使用本代理已经能满足使用要求，但是有时候我们还需要在云服务器上运行nginx来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例
 ```
 server {
     listen 80;
