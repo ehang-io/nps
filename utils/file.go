@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"easyProxy/utils"
 	"encoding/csv"
 	"errors"
 	"github.com/astaxie/beego"
@@ -53,7 +52,7 @@ func (s *Csv) StoreTasksToCsv() {
 			task.Config.U,
 			task.Config.P,
 			task.Config.Compress,
-			utils.GetStrByBool(task.Status),
+			GetStrByBool(task.Status),
 			GetStrByBool(task.Config.Crypt),
 			strconv.Itoa(task.Config.CompressEncode),
 			strconv.Itoa(task.Config.CompressDecode),
@@ -109,7 +108,7 @@ func (s *Csv) LoadTaskFromCsv() {
 				CompressEncode: GetIntNoErrByStr(item[8]),
 				CompressDecode: GetIntNoErrByStr(item[9]),
 			},
-			Status:       utils.GetBoolByStr(item[6]),
+			Status:       GetBoolByStr(item[6]),
 			Id:           GetIntNoErrByStr(item[10]),
 			UseClientCnf: GetBoolByStr(item[12]),
 			Remark:       item[13],
@@ -137,7 +136,7 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 	s.Lock()
 	defer s.Unlock()
 	for _, v := range s.Clients {
-		if utils.Getverifyval(v.VerifyKey) == vKey && v.Status {
+		if Getverifyval(v.VerifyKey) == vKey && v.Status {
 			if arr := strings.Split(addr, ":"); len(arr) > 0 {
 				v.Addr = arr[0]
 			}
@@ -245,7 +244,7 @@ func (s *Csv) LoadClientFromCsv() {
 			post.Rate.Start()
 		}
 		post.Flow = new(Flow)
-		post.Flow.FlowLimit = int64(utils.GetIntNoerrByStr(item[9]))
+		post.Flow.FlowLimit = int64(GetIntNoErrByStr(item[9]))
 		clients = append(clients, post)
 	}
 	s.Clients = clients
@@ -405,7 +404,7 @@ func (s *Csv) StoreClientsToCsv() {
 			strconv.FormatBool(client.Status),
 			client.Cnf.U,
 			client.Cnf.P,
-			utils.GetStrByBool(client.Cnf.Crypt),
+			GetStrByBool(client.Cnf.Crypt),
 			client.Cnf.Compress,
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
@@ -426,4 +425,3 @@ func GetCsvDb() *Csv {
 	})
 	return CsvDb
 }
-
