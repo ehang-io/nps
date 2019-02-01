@@ -122,7 +122,6 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 ---|---
 httpport | web管理端口
 password | web界面管理密码
-hostPort | 域名代理模式监听端口
 tcpport  | 服务端客户端通信端口
 pemPath | ssl certFile绝对路径
 keyPath | ssl keyFile绝对路径
