@@ -36,6 +36,8 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
        * [udp隧道](#udp隧道)
        * [socks5代理](#socks5代理)
        * [http正向代理](#http正向代理)
+    * [使用https理](#使用https)
+    * [与nginx配合](#与nginx配合)
     * [关闭http|https代理](#关闭代理)
 * 单隧道模式及介绍
     * [tcp隧道模式](#tcp隧道模式)
@@ -219,9 +221,44 @@ httpProxyPort | http代理监听端口
 - 在该客户端隧道管理中添加一条http代理，填写监听的端口（8004），选择压缩方式，保存。
 - 在外网环境的本机配置http代理，ip为公网服务器ip（127.0.0.1），端口为填写的监听端口(8004)，即可访问了
 
+### 使用https
+
+在配置文件中将httpsProxyPort设置为443或者其他你想配置的端口，和将对应的证书文件路径添加到配置文件中，即可畅销https了
+
+### 与nginx配合
+
+有时候我们还需要在云服务器上运行https来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例
+```
+server {
+    listen 80;
+    server_name *.proxy.com;
+    location / {
+        proxy_pass http://127.0.0.1:8024;
+    }
+}
+```
+如需使用https也可在nginx监听443端口并配置ssl，再设置如上配置即可，例如。
+
+```
+server {
+    listen 443;
+    server_name *.proxy.com;
+    ssl on;
+    ssl_certificate  certificate.crt;
+    ssl_certificate_key private.key;
+    ssl_session_timeout 5m;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+    ssl_prefer_server_ciphers on;
+    location / {
+        proxy_pass http://127.0.0.1:8024;
+    }
+}
+```
 ### 关闭代理
 
-在默认配置文件中，开启80端口作为http监听端口，开启443作为https端口，如需关闭http可在配置文件中将httpProxyPort设置为空，，如需关闭https可在配置文件中将httpsProxyPort设置为空，
+如需关闭http代理可在配置文件中将httpProxyPort设置为空，如需关闭https代理可在配置文件中将httpsProxyPort设置为空。
+
 
 ## tcp隧道模式
 
@@ -270,7 +307,6 @@ server {
     listen 80;
     server_name a.ourcauc.com;
     location / {
-            #其他配置，例如ssl
             proxy_pass http://127.0.0.1:8024;
         }
 }
