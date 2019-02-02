@@ -14,11 +14,13 @@
                     </div>
                     <div class="form-group">
                         <label class="control-label">客户端id</label>
-                        <input value="{{.client_id}}" class="form-control" type="text" name="client_id" placeholder="客户端id">
+                        <input value="{{.client_id}}" class="form-control" type="text" name="client_id"
+                               placeholder="客户端id">
                     </div>
                     <div class="form-group">
                         <label class="control-label">内网目标</label>
-                        <input class="form-control" type="text" name="target" placeholder="内网隧道目标，例如10.1.50.203:22">
+                        <textarea class="form-control" rows="4" type="text" name="target"
+                                  placeholder="内网隧道目标，例如10.1.50.203:22，换行分隔"></textarea>
                     </div>
                     <div class="form-group" id="header">
                         <label class="control-label">header头修改(冒号分隔，多个请换行填写)</label>

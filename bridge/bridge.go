@@ -3,7 +3,6 @@ package bridge
 import (
 	"errors"
 	"github.com/cnlh/easyProxy/utils"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -52,7 +51,7 @@ func (s *Bridge) tunnelProcess() error {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			log.Println(err)
+			utils.Println(err)
 			continue
 		}
 		go s.cliProcess(utils.NewConn(conn))
@@ -77,7 +76,7 @@ func (s *Bridge) cliProcess(c *utils.Conn) {
 	//验证
 	id, err := utils.GetCsvDb().GetIdByVerifyKey(string(buf), c.Conn.RemoteAddr().String())
 	if err != nil {
-		log.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
+		utils.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
 		s.verifyError(c)
 		return
 	}
@@ -116,7 +115,7 @@ func (s *Bridge) typeDeal(typeVal string, c *utils.Conn, id int) {
 			stop:          make(chan bool),
 			linkStatusMap: make(map[int]bool),
 		}
-		log.Printf("客户端%d连接成功,地址为：%s", id, c.Conn.RemoteAddr())
+		utils.Printf("客户端%d连接成功,地址为：%s", id, c.Conn.RemoteAddr())
 		s.Client[id].signal = c
 		s.clientLock.Unlock()
 		go s.GetStatus(id)
@@ -168,7 +167,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *utils.Link) (tunnel *utils.Con
 		s.clientLock.Unlock()
 		v.signal.SendLinkInfo(link)
 		if err != nil {
-			log.Println("send error:", err, link.Id)
+			utils.Println("send error:", err, link.Id)
 			s.DelClient(clientId)
 			return
 		}
@@ -258,7 +257,7 @@ func (s *Bridge) clientCopy(clientId int) {
 	for {
 		if id, err := client.tunnel.GetLen(); err != nil {
 			s.closeClient(clientId)
-			log.Println("读取msg id 错误", err, id)
+			utils.Println("读取msg id 错误", err, id)
 			break
 		} else {
 			client.Lock()
@@ -267,7 +266,7 @@ func (s *Bridge) clientCopy(clientId int) {
 				if content, err := client.tunnel.GetMsgContent(link); err != nil {
 					utils.PutBufPoolCopy(content)
 					s.closeClient(clientId)
-					log.Println("read msg content error", err, "close client")
+					utils.Println("read msg content error", err, "close client")
 					break
 				} else {
 					if len(content) == len(utils.IO_EOF) && string(content) == utils.IO_EOF {

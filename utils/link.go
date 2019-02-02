@@ -2,6 +2,7 @@ package utils
 
 import (
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -101,6 +102,23 @@ type Host struct {
 	Flow         *Flow
 	Client       *Client
 	Remark       string //备注
+	NowIndex     int
+	TargetArr    []string
+	sync.RWMutex
+}
+
+func (s *Host) GetRandomTarget() string {
+	if s.TargetArr == nil {
+		s.TargetArr = strings.Split(s.Target, "\n")
+	}
+	s.Lock()
+	defer s.Unlock()
+	if s.NowIndex >= len(s.TargetArr)-1 {
+		s.NowIndex = 0
+	} else {
+		s.NowIndex++
+	}
+	return s.TargetArr[s.NowIndex]
 }
 
 //深拷贝Config

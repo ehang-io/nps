@@ -5,44 +5,58 @@ import (
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 )
 
 var (
-	Bridge  *bridge.Bridge
-	RunList map[int]interface{} //运行中的任务
-	CsvDb   = utils.GetCsvDb()
+	Bridge      *bridge.Bridge
+	RunList     map[int]interface{} //运行中的任务
+	CsvDb       = utils.GetCsvDb()
+	startFinish chan bool
 )
 
 func init() {
 	RunList = make(map[int]interface{})
+	startFinish = make(chan bool)
 }
 
 //从csv文件中恢复任务
 func InitFromCsv() {
 	for _, v := range CsvDb.Tasks {
 		if v.Status {
-			log.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
+			utils.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
 			AddTask(v)
 		}
 	}
 }
 
 //start a new server
-func StartNewServer(bridgePort int, cnf *utils.Tunnel) {
-	Bridge = bridge.NewTunnel(bridgePort, RunList)
-	if err := Bridge.StartTunnel(); err != nil {
-		log.Fatalln("服务端开启失败", err)
-	}
-	if svr := NewMode(Bridge, cnf); svr != nil {
-		RunList[cnf.Id] = svr
-		err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
-		if err.Interface() != nil {
-			log.Println(err)
+func StartNewServer(bridgePort int, cnf *utils.Tunnel, test bool) {
+	go func() {
+		Bridge = bridge.NewTunnel(bridgePort, RunList)
+		if err := Bridge.StartTunnel(); err != nil {
+			utils.Fatalln("服务端开启失败", err)
 		}
-	} else {
-		log.Fatalln("启动模式不正确")
+		if svr := NewMode(Bridge, cnf); svr != nil {
+			RunList[cnf.Id] = svr
+			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
+			if err.Interface() != nil {
+				utils.Fatalln(err)
+			}
+		} else {
+			utils.Fatalln("启动模式不正确")
+		}
+	}()
+	for {
+		select {
+		case <-startFinish:
+			if test {
+				log.Println("测试完成，未发现错误")
+				os.Exit(0)
+			}
+		}
 	}
 }
 
@@ -98,7 +112,7 @@ func AddTask(t *utils.Tunnel) error {
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 			if err.Interface() != nil {
-				log.Println("客户端", t.Id, "启动失败，错误：", err)
+				utils.Fatalln("服务端", t.Id, "启动失败，错误：", err)
 				delete(RunList, t.Id)
 			}
 		}()

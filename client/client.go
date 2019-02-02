@@ -2,7 +2,6 @@ package client
 
 import (
 	"github.com/cnlh/easyProxy/utils"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -40,7 +39,7 @@ func (s *TRPClient) NewConn() {
 retry:
 	conn, err := net.Dial("tcp", s.svrAddr)
 	if err != nil {
-		log.Println("连接服务端失败,五秒后将重连")
+		utils.Println("连接服务端失败,五秒后将重连")
 		time.Sleep(time.Second * 5)
 		goto retry
 		return
@@ -61,12 +60,12 @@ func (s *TRPClient) processor(c *utils.Conn) {
 	for {
 		flags, err := c.ReadFlag()
 		if err != nil {
-			log.Println("服务端断开,正在重新连接")
+			utils.Println("服务端断开,正在重新连接")
 			break
 		}
 		switch flags {
 		case utils.VERIFY_EER:
-			log.Fatalf("vKey:%s不正确,服务端拒绝连接,请检查", s.vKey)
+			utils.Fatalf("vKey:%s不正确,服务端拒绝连接,请检查", s.vKey)
 		case utils.NEW_CONN:
 			if link, err := c.GetLinkInfo(); err != nil {
 				break
@@ -77,12 +76,12 @@ func (s *TRPClient) processor(c *utils.Conn) {
 				go s.linkProcess(link, c)
 			}
 		case utils.RES_CLOSE:
-			log.Fatal("该vkey被另一客户连接")
+			utils.Fatalln("该vkey被另一客户连接")
 		case utils.RES_MSG:
-			log.Println("服务端返回错误，重新连接")
+			utils.Println("服务端返回错误，重新连接")
 			break
 		default:
-			log.Println("无法解析该错误，重新连接")
+			utils.Println("无法解析该错误，重新连接")
 			break
 		}
 	}
@@ -96,7 +95,7 @@ func (s *TRPClient) linkProcess(link *utils.Link, c *utils.Conn) {
 
 	if err != nil {
 		c.WriteFail(link.Id)
-		log.Println("connect to ", link.Host, "error:", err)
+		utils.Println("connect to ", link.Host, "error:", err)
 		return
 	}
 
@@ -135,12 +134,12 @@ func (s *TRPClient) dealChan() {
 	//创建一个tcp连接
 	conn, err := net.Dial("tcp", s.svrAddr)
 	if err != nil {
-		log.Println("connect to ", s.svrAddr, "error:", err)
+		utils.Println("connect to ", s.svrAddr, "error:", err)
 		return
 	}
 	//验证
 	if _, err := conn.Write([]byte(utils.Getverifyval(s.vKey))); err != nil {
-		log.Println("connect to ", s.svrAddr, "error:", err)
+		utils.Println("connect to ", s.svrAddr, "error:", err)
 		return
 	}
 	//默认长连接保持
@@ -152,14 +151,14 @@ func (s *TRPClient) dealChan() {
 	go func() {
 		for {
 			if id, err := s.tunnel.GetLen(); err != nil {
-				log.Println("get msg id error")
+				utils.Println("get msg id error")
 				break
 			} else {
 				s.Lock()
 				if v, ok := s.linkMap[id]; ok {
 					s.Unlock()
 					if content, err := s.tunnel.GetMsgContent(v); err != nil {
-						log.Println("get msg content error:", err, id)
+						utils.Println("get msg content error:", err, id)
 						break
 					} else {
 						if len(content) == len(utils.IO_EOF) && string(content) == utils.IO_EOF {

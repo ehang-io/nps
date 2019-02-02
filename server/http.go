@@ -6,7 +6,7 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
-	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -49,25 +49,38 @@ func (s *httpServer) Start() error {
 	}
 
 	if s.httpPort > 0 {
+		if !s.TestTcpPort(s.httpPort) {
+			utils.Fatalln("http端口", s.httpPort, "被占用!")
+		}
 		http = s.NewServer(s.httpPort)
 		go func() {
-			log.Println("启动http监听,端口为", s.httpPort)
+			utils.Println("启动http监听,端口为", s.httpPort)
 			err := http.ListenAndServe()
 			if err != nil {
-				log.Fatalln(err)
+				utils.Fatalln(err)
 			}
 		}()
 	}
 	if s.httpsPort > 0 {
+		if !s.TestTcpPort(s.httpsPort) {
+			utils.Fatalln("https端口", s.httpsPort, "被占用!")
+		}
+		if !utils.FileExists(s.pemPath) {
+			utils.Fatalf("ssl certFile文件%s不存在", s.pemPath)
+		}
+		if !utils.FileExists(s.keyPath) {
+			utils.Fatalf("ssl keyFile文件%s不存在", s.keyPath)
+		}
 		https = s.NewServer(s.httpsPort)
 		go func() {
-			log.Println("启动https监听,端口为", s.httpsPort)
+			utils.Println("启动https监听,端口为", s.httpsPort)
 			err := https.ListenAndServeTLS(s.pemPath, s.keyPath)
 			if err != nil {
-				log.Fatalln(err)
+				utils.Fatalln(err)
 			}
 		}()
 	}
+	startFinish <- true
 	select {
 	case <-s.stop:
 		if http != nil {
@@ -77,6 +90,7 @@ func (s *httpServer) Start() error {
 			https.Close()
 		}
 	}
+
 	return nil
 }
 
@@ -110,7 +124,7 @@ func (s *httpServer) process(c *utils.Conn, r *http.Request) {
 		//首次获取conn
 		if isConn {
 			if host, err = GetInfoByHost(r.Host); err != nil {
-				log.Printf("the host %s is not found !", r.Host)
+				utils.Printf("the host %s is not found !", r.Host)
 				break
 			}
 			//流量限制
@@ -122,7 +136,7 @@ func (s *httpServer) process(c *utils.Conn, r *http.Request) {
 			if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
 				break
 			}
-			link = utils.NewLink(host.Client.GetId(), utils.CONN_TCP, host.Target, host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
+			link = utils.NewLink(host.Client.GetId(), utils.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
 			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, link); err != nil {
 				break
 			}
@@ -165,4 +179,13 @@ func (s *httpServer) NewServer(port int) *http.Server {
 		// Disable HTTP/2.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
+}
+
+func (s *httpServer) TestTcpPort(port int) bool {
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), port, ""})
+	defer l.Close()
+	if err != nil {
+		return false
+	}
+	return true
 }

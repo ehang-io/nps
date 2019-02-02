@@ -7,7 +7,6 @@ import (
 	"errors"
 	"github.com/golang/snappy"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -99,7 +98,7 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 	n = len(b)
 	if s.crypt {
 		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
-			log.Println("encode crypt error:", err)
+			Println("encode crypt error:", err)
 			return
 		}
 	}
@@ -125,7 +124,7 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 	var bs []byte
 	if s.crypt {
 		if bs, err = AesDecrypt(buf[:n], []byte(cryptKey)); err != nil {
-			log.Println("decode crypt error:", err)
+			Println("decode crypt error:", err)
 			return
 		}
 	} else {
@@ -170,9 +169,13 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 		return
 	}
 	if hostPortURL.Opaque == "443" { //https访问
-		address = r.Host + ":443"
+		if strings.Index(r.Host, ":") == -1 { //host不带端口， 默认80
+			address = r.Host + ":443"
+		} else {
+			address = r.Host
+		}
 	} else { //http访问
-		if strings.Index(hostPortURL.Host, ":") == -1 { //host不带端口， 默认80
+		if strings.Index(r.Host, ":") == -1 { //host不带端口， 默认80
 			address = r.Host + ":80"
 		} else {
 			address = r.Host

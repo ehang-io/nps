@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"github.com/astaxie/beego"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -40,7 +39,7 @@ func (s *Csv) StoreTasksToCsv() {
 	// 创建文件
 	csvFile, err := os.Create(beego.AppPath + "/conf/tasks.csv")
 	if err != nil {
-		log.Fatalf(err.Error())
+		Fatalf(err.Error())
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
@@ -63,7 +62,7 @@ func (s *Csv) StoreTasksToCsv() {
 		}
 		err := writer.Write(record)
 		if err != nil {
-			log.Fatalf(err.Error())
+			Fatalf(err.Error())
 		}
 	}
 	writer.Flush()
@@ -91,7 +90,7 @@ func (s *Csv) LoadTaskFromCsv() {
 	path := beego.AppPath + "/conf/tasks.csv"
 	records, err := s.openFile(path)
 	if err != nil {
-		log.Fatal("配置文件打开错误:", path)
+		Fatalln("配置文件打开错误:", path)
 	}
 	var tasks []*Tunnel
 	// 将每一行数据保存到内存slice中
@@ -218,7 +217,7 @@ func (s *Csv) LoadClientFromCsv() {
 	path := beego.AppPath + "/conf/clients.csv"
 	records, err := s.openFile(path)
 	if err != nil {
-		log.Fatal("配置文件打开错误:", path)
+		Fatalln("配置文件打开错误:", path)
 	}
 	var clients []*Client
 	// 将每一行数据保存到内存slice中
@@ -254,7 +253,7 @@ func (s *Csv) LoadHostFromCsv() {
 	path := beego.AppPath + "/conf/hosts.csv"
 	records, err := s.openFile(path)
 	if err != nil {
-		log.Fatal("配置文件打开错误:", path)
+		Fatalln("配置文件打开错误:", path)
 	}
 	var hosts []*Host
 	// 将每一行数据保存到内存slice中
@@ -392,7 +391,7 @@ func (s *Csv) StoreClientsToCsv() {
 	// 创建文件
 	csvFile, err := os.Create(beego.AppPath + "/conf/clients.csv")
 	if err != nil {
-		log.Fatalf(err.Error())
+		Fatalln(err.Error())
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
@@ -411,7 +410,7 @@ func (s *Csv) StoreClientsToCsv() {
 		}
 		err := writer.Write(record)
 		if err != nil {
-			log.Fatalf(err.Error())
+			Fatalln(err.Error())
 		}
 	}
 	writer.Flush()

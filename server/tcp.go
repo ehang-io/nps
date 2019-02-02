@@ -5,7 +5,6 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
-	"log"
 	"net"
 	"strings"
 )
@@ -39,7 +38,7 @@ func (s *TunnelModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			log.Println(err)
+			utils.Println(err)
 			continue
 		}
 		go s.process(utils.NewConn(conn), s)
@@ -71,12 +70,13 @@ type WebServer struct {
 }
 
 //开始
-func (s *WebServer) Start() {
+func (s *WebServer) Start() error {
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	log.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
+	utils.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
 	beego.SetViewsPath(beego.AppPath + "/web/views")
 	beego.SetStaticPath("/static", beego.AppPath+"/web/static")
 	beego.Run()
+	return errors.New("web管理启动失败")
 }
 
 //new

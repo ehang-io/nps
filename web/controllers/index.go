@@ -250,6 +250,7 @@ func (s *IndexController) EditHost() {
 			h.HeaderChange = s.GetString("header")
 			h.HostChange = s.GetString("hostchange")
 			h.Remark = s.GetString("remark")
+			h.TargetArr = nil
 			server.CsvDb.UpdateHost(h)
 			var err error
 			if h.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {

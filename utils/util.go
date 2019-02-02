@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/base64"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -38,7 +37,6 @@ WWW-Authenticate: Basic realm="easyProxy"
 `
 )
 
-
 //判断压缩方式
 func GetCompressType(compress string) (int, int) {
 	switch compress {
@@ -47,7 +45,7 @@ func GetCompressType(compress string) (int, int) {
 	case "snappy":
 		return COMPRESS_SNAPY_DECODE, COMPRESS_SNAPY_ENCODE
 	default:
-		log.Fatalln("数据压缩格式错误")
+		Fatalln("数据压缩格式错误")
 	}
 	return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
 }
@@ -127,7 +125,6 @@ func Getverifyval(vkey string) string {
 	return Md5(vkey)
 }
 
-
 func ChangeHostAndHeader(r *http.Request, host string, header string, addr string) {
 	if host != "" {
 		r.Host = host
@@ -152,4 +149,15 @@ func ReadAllFromFile(filePath string) ([]byte, error) {
 		return nil, err
 	}
 	return ioutil.ReadAll(f)
+}
+
+
+// FileExists reports whether the named file or directory exists.
+func FileExists(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

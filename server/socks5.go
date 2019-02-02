@@ -6,7 +6,6 @@ import (
 	"github.com/cnlh/easyProxy/bridge"
 	"github.com/cnlh/easyProxy/utils"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -66,7 +65,7 @@ func (s *Sock5ModeServer) handleRequest(c net.Conn) {
 	_, err := io.ReadFull(c, header)
 
 	if err != nil {
-		log.Println("illegal request", err)
+		utils.Println("illegal request", err)
 		c.Close()
 		return
 	}
@@ -163,7 +162,7 @@ func (s *Sock5ModeServer) handleBind(c net.Conn) {
 
 //udp
 func (s *Sock5ModeServer) handleUDP(c net.Conn) {
-	log.Println("UDP Associate")
+	utils.Println("UDP Associate")
 	/*
 	   +----+------+------+----------+----------+----------+
 	   |RSV | FRAG | ATYP | DST.ADDR | DST.PORT |   DATA   |
@@ -176,7 +175,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	// relay udp datagram silently, without any notification to the requesting client
 	if buf[2] != 0 {
 		// does not support fragmentation, drop it
-		log.Println("does not support fragmentation, drop")
+		utils.Println("does not support fragmentation, drop")
 		dummy := make([]byte, maxUDPPacketSize)
 		c.Read(dummy)
 	}
@@ -188,13 +187,13 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 func (s *Sock5ModeServer) handleConn(c net.Conn) {
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(c, buf); err != nil {
-		log.Println("negotiation err", err)
+		utils.Println("negotiation err", err)
 		c.Close()
 		return
 	}
 
 	if version := buf[0]; version != 5 {
-		log.Println("only support socks5, request from: ", c.RemoteAddr())
+		utils.Println("only support socks5, request from: ", c.RemoteAddr())
 		c.Close()
 		return
 	}
@@ -202,7 +201,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 
 	methods := make([]byte, nMethods)
 	if len, err := c.Read(methods); len != int(nMethods) || err != nil {
-		log.Println("wrong method")
+		utils.Println("wrong method")
 		c.Close()
 		return
 	}
@@ -211,7 +210,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Write(buf)
 		if err := s.Auth(c); err != nil {
 			c.Close()
-			log.Println("验证失败：", err)
+			utils.Println("验证失败：", err)
 			return
 		}
 	} else {
@@ -270,7 +269,7 @@ func (s *Sock5ModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			log.Fatal("accept error: ", err)
+			utils.Fatalln("accept error: ", err)
 		}
 		if !s.ResetConfig() {
 			conn.Close()
