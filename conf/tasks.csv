@@ -1,4 +1,0 @@
-9002,tunnelServer,127.0.0.1:8082,2,2,,1,1,0,0,1,1,false,123
-53,udpServer,114.114.114.114:53,,,,1,0,0,0,2,1,true,udp测试
-9003,httpProxyServer,,,,,1,0,0,0,3,1,false,
-8024,socks5Server,,,,,1,0,0,0,4,1,true,

@@ -3,7 +3,7 @@ package controllers
 import (
 	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"strconv"
 	"strings"
 )
@@ -40,7 +40,7 @@ func (s *BaseController) display(tpl ...string) {
 	}
 	ip := s.Ctx.Request.Host
 	if strings.LastIndex(ip, ":") > 0 {
-		arr := strings.Split(utils.GetHostByName(ip), ":")
+		arr := strings.Split(lib.GetHostByName(ip), ":")
 		s.Data["ip"] = arr[0]
 	}
 	s.Data["p"] = server.Bridge.TunnelPort

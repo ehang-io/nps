@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"net"
 	"strings"
 )
@@ -16,12 +16,12 @@ type TunnelModeServer struct {
 }
 
 //tcp|http|host
-func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *utils.Tunnel) *TunnelModeServer {
+func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *lib.Tunnel) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.bridge = bridge
 	s.process = process
 	s.task = task
-	s.config = utils.DeepCopyConfig(task.Config)
+	s.config = lib.DeepCopyConfig(task.Config)
 	return s
 }
 
@@ -38,17 +38,17 @@ func (s *TunnelModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			utils.Println(err)
+			lib.Println(err)
 			continue
 		}
-		go s.process(utils.NewConn(conn), s)
+		go s.process(lib.NewConn(conn), s)
 	}
 	return nil
 }
 
 //与客户端建立通道
-func (s *TunnelModeServer) dealClient(c *utils.Conn, cnf *utils.Config, addr string, method string, rb []byte) error {
-	link := utils.NewLink(s.task.Client.GetId(), utils.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
+func (s *TunnelModeServer) dealClient(c *lib.Conn, cnf *lib.Config, addr string, method string, rb []byte) error {
+	link := lib.NewLink(s.task.Client.GetId(), lib.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		c.Close()
@@ -72,7 +72,7 @@ type WebServer struct {
 //开始
 func (s *WebServer) Start() error {
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	utils.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
+	lib.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
 	beego.SetViewsPath(beego.AppPath + "/web/views")
 	beego.SetStaticPath("/static", beego.AppPath+"/web/static")
 	beego.Run()
@@ -96,10 +96,10 @@ func (s *HostServer) Start() error {
 	return nil
 }
 
-func NewHostServer(task *utils.Tunnel) *HostServer {
+func NewHostServer(task *lib.Tunnel) *HostServer {
 	s := new(HostServer)
 	s.task = task
-	s.config = utils.DeepCopyConfig(task.Config)
+	s.config = lib.DeepCopyConfig(task.Config)
 	return s
 }
 
@@ -108,10 +108,10 @@ func (s *HostServer) Close() error {
 	return nil
 }
 
-type process func(c *utils.Conn, s *TunnelModeServer) error
+type process func(c *lib.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
-func ProcessTunnel(c *utils.Conn, s *TunnelModeServer) error {
+func ProcessTunnel(c *lib.Conn, s *TunnelModeServer) error {
 	if !s.ResetConfig() {
 		c.Close()
 		return errors.New("流量超出")
@@ -120,7 +120,7 @@ func ProcessTunnel(c *utils.Conn, s *TunnelModeServer) error {
 }
 
 //http代理模式
-func ProcessHttp(c *utils.Conn, s *TunnelModeServer) error {
+func ProcessHttp(c *lib.Conn, s *TunnelModeServer) error {
 	if !s.ResetConfig() {
 		c.Close()
 		return errors.New("流量超出")

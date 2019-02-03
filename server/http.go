@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -22,7 +22,7 @@ type httpServer struct {
 	stop      chan bool
 }
 
-func NewHttp(bridge *bridge.Bridge, c *utils.Tunnel) *httpServer {
+func NewHttp(bridge *bridge.Bridge, c *lib.Tunnel) *httpServer {
 	httpPort, _ := beego.AppConfig.Int("httpProxyPort")
 	httpsPort, _ := beego.AppConfig.Int("httpsProxyPort")
 	pemPath := beego.AppConfig.String("pemPath")
@@ -44,39 +44,39 @@ func NewHttp(bridge *bridge.Bridge, c *utils.Tunnel) *httpServer {
 func (s *httpServer) Start() error {
 	var err error
 	var http, https *http.Server
-	if s.errorContent, err = utils.ReadAllFromFile(beego.AppPath + "/web/static/page/error.html"); err != nil {
+	if s.errorContent, err = lib.ReadAllFromFile(beego.AppPath + "/web/static/page/error.html"); err != nil {
 		s.errorContent = []byte("easyProxy 404")
 	}
 
 	if s.httpPort > 0 {
 		if !s.TestTcpPort(s.httpPort) {
-			utils.Fatalln("http端口", s.httpPort, "被占用!")
+			lib.Fatalln("http端口", s.httpPort, "被占用!")
 		}
 		http = s.NewServer(s.httpPort)
 		go func() {
-			utils.Println("启动http监听,端口为", s.httpPort)
+			lib.Println("启动http监听,端口为", s.httpPort)
 			err := http.ListenAndServe()
 			if err != nil {
-				utils.Fatalln(err)
+				lib.Fatalln(err)
 			}
 		}()
 	}
 	if s.httpsPort > 0 {
 		if !s.TestTcpPort(s.httpsPort) {
-			utils.Fatalln("https端口", s.httpsPort, "被占用!")
+			lib.Fatalln("https端口", s.httpsPort, "被占用!")
 		}
-		if !utils.FileExists(s.pemPath) {
-			utils.Fatalf("ssl certFile文件%s不存在", s.pemPath)
+		if !lib.FileExists(s.pemPath) {
+			lib.Fatalf("ssl certFile文件%s不存在", s.pemPath)
 		}
-		if !utils.FileExists(s.keyPath) {
-			utils.Fatalf("ssl keyFile文件%s不存在", s.keyPath)
+		if !lib.FileExists(s.keyPath) {
+			lib.Fatalf("ssl keyFile文件%s不存在", s.keyPath)
 		}
 		https = s.NewServer(s.httpsPort)
 		go func() {
-			utils.Println("启动https监听,端口为", s.httpsPort)
+			lib.Println("启动https监听,端口为", s.httpsPort)
 			err := https.ListenAndServeTLS(s.pemPath, s.keyPath)
 			if err != nil {
-				utils.Fatalln(err)
+				lib.Fatalln(err)
 			}
 		}()
 	}
@@ -108,35 +108,35 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
-	s.process(utils.NewConn(conn), r)
+	s.process(lib.NewConn(conn), r)
 }
 
-func (s *httpServer) process(c *utils.Conn, r *http.Request) {
+func (s *httpServer) process(c *lib.Conn, r *http.Request) {
 	//多客户端域名代理
 	var (
 		isConn = true
-		link   *utils.Link
-		host   *utils.Host
-		tunnel *utils.Conn
+		link   *lib.Link
+		host   *lib.Host
+		tunnel *lib.Conn
 		err    error
 	)
 	for {
 		//首次获取conn
 		if isConn {
 			if host, err = GetInfoByHost(r.Host); err != nil {
-				utils.Printf("the host %s is not found !", r.Host)
+				lib.Printf("the host %s is not found !", r.Host)
 				break
 			}
 			//流量限制
 			if host.Client.Flow.FlowLimit > 0 && (host.Client.Flow.FlowLimit<<20) < (host.Client.Flow.ExportFlow+host.Client.Flow.InletFlow) {
 				break
 			}
-			host.Client.Cnf.CompressDecode, host.Client.Cnf.CompressEncode = utils.GetCompressType(host.Client.Cnf.Compress)
+			host.Client.Cnf.CompressDecode, host.Client.Cnf.CompressEncode = lib.GetCompressType(host.Client.Cnf.Compress)
 			//权限控制
 			if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
 				break
 			}
-			link = utils.NewLink(host.Client.GetId(), utils.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
+			link = lib.NewLink(host.Client.GetId(), lib.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
 			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, link); err != nil {
 				break
 			}
@@ -148,7 +148,7 @@ func (s *httpServer) process(c *utils.Conn, r *http.Request) {
 			}
 		}
 		//根据设定，修改header和host
-		utils.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
+		lib.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, true)
 		if err != nil {
 			break
@@ -163,7 +163,7 @@ func (s *httpServer) process(c *utils.Conn, r *http.Request) {
 	if isConn {
 		s.writeConnFail(c.Conn)
 	} else {
-		tunnel.SendMsg([]byte(utils.IO_EOF), link)
+		tunnel.SendMsg([]byte(lib.IO_EOF), link)
 	}
 
 	c.Close()

@@ -4,7 +4,7 @@ import (
 	"flag"
 	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	_ "github.com/cnlh/nps/web/routers"
 	"os"
 )
@@ -30,37 +30,37 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		test = true
 	}
-	utils.InitDaemon("server")
+	lib.InitDaemon("nps")
 	if *logType == "stdout" || test {
-		utils.InitLogFile("server", true)
+		lib.InitLogFile("nps", true)
 	} else {
-		utils.InitLogFile("server", false)
+		lib.InitLogFile("nps", false)
 	}
-	task := &utils.Tunnel{
+	task := &lib.Tunnel{
 		TcpPort: *httpPort,
 		Mode:    *rpMode,
 		Target:  *tunnelTarget,
-		Config: &utils.Config{
+		Config: &lib.Config{
 			U:        *u,
 			P:        *p,
 			Compress: *compress,
-			Crypt:    utils.GetBoolByStr(*crypt),
+			Crypt:    lib.GetBoolByStr(*crypt),
 		},
-		Flow:         &utils.Flow{},
+		Flow:         &lib.Flow{},
 		UseClientCnf: false,
 	}
 	if *VerifyKey != "" {
-		c := &utils.Client{
+		c := &lib.Client{
 			Id:        0,
 			VerifyKey: *VerifyKey,
 			Addr:      "",
 			Remark:    "",
 			Status:    true,
 			IsConnect: false,
-			Cnf:       &utils.Config{},
-			Flow:      &utils.Flow{},
+			Cnf:       &lib.Config{},
+			Flow:      &lib.Flow{},
 		}
-		c.Cnf.CompressDecode, c.Cnf.CompressEncode = utils.GetCompressType(c.Cnf.Compress)
+		c.Cnf.CompressDecode, c.Cnf.CompressEncode = lib.GetCompressType(c.Cnf.Compress)
 		server.CsvDb.Clients[0] = c
 		task.Client = c
 	}
@@ -72,8 +72,8 @@ func main() {
 			*TcpPort = 8284
 		}
 	}
-	utils.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
-	task.Config.CompressDecode, task.Config.CompressEncode = utils.GetCompressType(task.Config.Compress)
+	lib.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
+	task.Config.CompressDecode, task.Config.CompressEncode = lib.GetCompressType(task.Config.Compress)
 	if *rpMode != "webServer" {
 		server.CsvDb.Tasks[0] = task
 	}

@@ -3,7 +3,7 @@ package server
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"log"
 	"os"
 	"reflect"
@@ -13,7 +13,7 @@ import (
 var (
 	Bridge      *bridge.Bridge
 	RunList     map[int]interface{} //运行中的任务
-	CsvDb       = utils.GetCsvDb()
+	CsvDb       = lib.GetCsvDb()
 	startFinish chan bool
 )
 
@@ -26,27 +26,27 @@ func init() {
 func InitFromCsv() {
 	for _, v := range CsvDb.Tasks {
 		if v.Status {
-			utils.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
+			lib.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
 			AddTask(v)
 		}
 	}
 }
 
 //start a new server
-func StartNewServer(bridgePort int, cnf *utils.Tunnel, test bool) {
+func StartNewServer(bridgePort int, cnf *lib.Tunnel, test bool) {
 	go func() {
 		Bridge = bridge.NewTunnel(bridgePort, RunList)
 		if err := Bridge.StartTunnel(); err != nil {
-			utils.Fatalln("服务端开启失败", err)
+			lib.Fatalln("服务端开启失败", err)
 		}
 		if svr := NewMode(Bridge, cnf); svr != nil {
 			RunList[cnf.Id] = svr
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 			if err.Interface() != nil {
-				utils.Fatalln(err)
+				lib.Fatalln(err)
 			}
 		} else {
-			utils.Fatalln("启动模式不正确")
+			lib.Fatalln("启动模式不正确")
 		}
 	}()
 	for {
@@ -61,7 +61,7 @@ func StartNewServer(bridgePort int, cnf *utils.Tunnel, test bool) {
 }
 
 //new a server by mode name
-func NewMode(Bridge *bridge.Bridge, c *utils.Tunnel) interface{} {
+func NewMode(Bridge *bridge.Bridge, c *lib.Tunnel) interface{} {
 	switch c.Mode {
 	case "tunnelServer":
 		return NewTunnelModeServer(ProcessTunnel, Bridge, c)
@@ -73,11 +73,11 @@ func NewMode(Bridge *bridge.Bridge, c *utils.Tunnel) interface{} {
 		return NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
-		t := &utils.Tunnel{
+		t := &lib.Tunnel{
 			TcpPort: 0,
 			Mode:    "httpHostServer",
 			Target:  "",
-			Config:  &utils.Config{},
+			Config:  &lib.Config{},
 			Status:  true,
 		}
 		AddTask(t)
@@ -106,13 +106,13 @@ func StopServer(id int) error {
 }
 
 //add task
-func AddTask(t *utils.Tunnel) error {
+func AddTask(t *lib.Tunnel) error {
 	if svr := NewMode(Bridge, t); svr != nil {
 		RunList[t.Id] = svr
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 			if err.Interface() != nil {
-				utils.Fatalln("服务端", t.Id, "启动失败，错误：", err)
+				lib.Fatalln("服务端", t.Id, "启动失败，错误：", err)
 				delete(RunList, t.Id)
 			}
 		}()
@@ -143,7 +143,7 @@ func DelTask(id int) error {
 }
 
 //get key by host from x
-func GetInfoByHost(host string) (h *utils.Host, err error) {
+func GetInfoByHost(host string) (h *lib.Host, err error) {
 	for _, v := range CsvDb.Hosts {
 		s := strings.Split(host, ":")
 		if s[0] == v.Host {
@@ -156,8 +156,8 @@ func GetInfoByHost(host string) (h *utils.Host, err error) {
 }
 
 //get task list by page num
-func GetTunnel(start, length int, typeVal string, clientId int) ([]*utils.Tunnel, int) {
-	list := make([]*utils.Tunnel, 0)
+func GetTunnel(start, length int, typeVal string, clientId int) ([]*lib.Tunnel, int) {
+	list := make([]*lib.Tunnel, 0)
 	var cnt int
 	for _, v := range CsvDb.Tasks {
 		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
@@ -184,13 +184,13 @@ func GetTunnel(start, length int, typeVal string, clientId int) ([]*utils.Tunnel
 }
 
 //获取客户端列表
-func GetClientList(start, length int) (list []*utils.Client, cnt int) {
+func GetClientList(start, length int) (list []*lib.Client, cnt int) {
 	list, cnt = CsvDb.GetClientList(start, length)
 	dealClientData(list)
 	return
 }
 
-func dealClientData(list []*utils.Client) {
+func dealClientData(list []*lib.Client) {
 	for _, v := range list {
 		if _, ok := Bridge.Client[v.Id]; ok {
 			v.IsConnect = true

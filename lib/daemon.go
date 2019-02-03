@@ -1,4 +1,4 @@
-package utils
+package lib
 
 import (
 	"github.com/astaxie/beego"
@@ -32,6 +32,8 @@ func InitDaemon(f string) {
 		stop(f, args[0])
 		start(args, f)
 		os.Exit(0)
+	case "install":
+		InstallNps()
 	}
 }
 
@@ -41,7 +43,7 @@ func start(osArgs []string, f string) {
 	log.Println("执行启动成功")
 	if cmd.Process.Pid > 0 {
 		d1 := []byte(strconv.Itoa(cmd.Process.Pid))
-		ioutil.WriteFile(beego.AppPath+"/proxy_"+f+".pid", d1, 0600)
+		ioutil.WriteFile(beego.AppPath+"/"+f+".pid", d1, 0600)
 	}
 }
 
@@ -53,7 +55,7 @@ func stop(f string, p string) {
 		p := strings.Split(p, `\`)
 		c = exec.Command("taskkill", "/F", "/IM", p[len(p)-1])
 	case "linux", "darwin":
-		b, err := ioutil.ReadFile(beego.AppPath + "/proxy_" + f + ".pid")
+		b, err := ioutil.ReadFile(beego.AppPath + "/" + f + ".pid")
 		if err == nil {
 			c = exec.Command("/bin/bash", "-c", `kill -9 `+string(b))
 		} else {

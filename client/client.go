@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"net"
 	"sync"
 	"time"
@@ -9,9 +9,9 @@ import (
 
 type TRPClient struct {
 	svrAddr string
-	linkMap map[int]*utils.Link
+	linkMap map[int]*lib.Link
 	stop    chan bool
-	tunnel  *utils.Conn
+	tunnel  *lib.Conn
 	sync.Mutex
 	vKey string
 }
@@ -20,7 +20,7 @@ type TRPClient struct {
 func NewRPClient(svraddr string, vKey string) *TRPClient {
 	return &TRPClient{
 		svrAddr: svraddr,
-		linkMap: make(map[int]*utils.Link),
+		linkMap: make(map[int]*lib.Link),
 		stop:    make(chan bool),
 		tunnel:  nil,
 		Mutex:   sync.Mutex{},
@@ -39,18 +39,18 @@ func (s *TRPClient) NewConn() {
 retry:
 	conn, err := net.Dial("tcp", s.svrAddr)
 	if err != nil {
-		utils.Println("连接服务端失败,五秒后将重连")
+		lib.Println("连接服务端失败,五秒后将重连")
 		time.Sleep(time.Second * 5)
 		goto retry
 		return
 	}
-	s.processor(utils.NewConn(conn))
+	s.processor(lib.NewConn(conn))
 }
 
 //处理
-func (s *TRPClient) processor(c *utils.Conn) {
+func (s *TRPClient) processor(c *lib.Conn) {
 	c.SetAlive()
-	if _, err := c.Write([]byte(utils.Getverifyval(s.vKey))); err != nil {
+	if _, err := c.Write([]byte(lib.Getverifyval(s.vKey))); err != nil {
 		return
 	}
 	c.WriteMain()
@@ -60,13 +60,13 @@ func (s *TRPClient) processor(c *utils.Conn) {
 	for {
 		flags, err := c.ReadFlag()
 		if err != nil {
-			utils.Println("服务端断开,正在重新连接")
+			lib.Println("服务端断开,正在重新连接")
 			break
 		}
 		switch flags {
-		case utils.VERIFY_EER:
-			utils.Fatalf("vKey:%s不正确,服务端拒绝连接,请检查", s.vKey)
-		case utils.NEW_CONN:
+		case lib.VERIFY_EER:
+			lib.Fatalf("vKey:%s不正确,服务端拒绝连接,请检查", s.vKey)
+		case lib.NEW_CONN:
 			if link, err := c.GetLinkInfo(); err != nil {
 				break
 			} else {
@@ -75,47 +75,47 @@ func (s *TRPClient) processor(c *utils.Conn) {
 				s.Unlock()
 				go s.linkProcess(link, c)
 			}
-		case utils.RES_CLOSE:
-			utils.Fatalln("该vkey被另一客户连接")
-		case utils.RES_MSG:
-			utils.Println("服务端返回错误，重新连接")
+		case lib.RES_CLOSE:
+			lib.Fatalln("该vkey被另一客户连接")
+		case lib.RES_MSG:
+			lib.Println("服务端返回错误，重新连接")
 			break
 		default:
-			utils.Println("无法解析该错误，重新连接")
+			lib.Println("无法解析该错误，重新连接")
 			break
 		}
 	}
 	s.stop <- true
-	s.linkMap = make(map[int]*utils.Link)
+	s.linkMap = make(map[int]*lib.Link)
 	go s.NewConn()
 }
-func (s *TRPClient) linkProcess(link *utils.Link, c *utils.Conn) {
+func (s *TRPClient) linkProcess(link *lib.Link, c *lib.Conn) {
 	//与目标建立连接
 	server, err := net.DialTimeout(link.ConnType, link.Host, time.Second*3)
 
 	if err != nil {
 		c.WriteFail(link.Id)
-		utils.Println("connect to ", link.Host, "error:", err)
+		lib.Println("connect to ", link.Host, "error:", err)
 		return
 	}
 
 	c.WriteSuccess(link.Id)
 
-	link.Conn = utils.NewConn(server)
+	link.Conn = lib.NewConn(server)
 
 	for {
-		buf := utils.BufPoolCopy.Get().([]byte)
+		buf := lib.BufPoolCopy.Get().([]byte)
 		if n, err := server.Read(buf); err != nil {
-			utils.PutBufPoolCopy(buf)
-			s.tunnel.SendMsg([]byte(utils.IO_EOF), link)
+			lib.PutBufPoolCopy(buf)
+			s.tunnel.SendMsg([]byte(lib.IO_EOF), link)
 			break
 		} else {
 			if _, err := s.tunnel.SendMsg(buf[:n], link); err != nil {
-				utils.PutBufPoolCopy(buf)
+				lib.PutBufPoolCopy(buf)
 				c.Close()
 				break
 			}
-			utils.PutBufPoolCopy(buf)
+			lib.PutBufPoolCopy(buf)
 			//if link.ConnType == utils.CONN_UDP {
 			//	c.Close()
 			//	break
@@ -134,16 +134,16 @@ func (s *TRPClient) dealChan() {
 	//创建一个tcp连接
 	conn, err := net.Dial("tcp", s.svrAddr)
 	if err != nil {
-		utils.Println("connect to ", s.svrAddr, "error:", err)
+		lib.Println("connect to ", s.svrAddr, "error:", err)
 		return
 	}
 	//验证
-	if _, err := conn.Write([]byte(utils.Getverifyval(s.vKey))); err != nil {
-		utils.Println("connect to ", s.svrAddr, "error:", err)
+	if _, err := conn.Write([]byte(lib.Getverifyval(s.vKey))); err != nil {
+		lib.Println("connect to ", s.svrAddr, "error:", err)
 		return
 	}
 	//默认长连接保持
-	s.tunnel = utils.NewConn(conn)
+	s.tunnel = lib.NewConn(conn)
 	s.tunnel.SetAlive()
 	//写标志
 	s.tunnel.WriteChan()
@@ -151,17 +151,17 @@ func (s *TRPClient) dealChan() {
 	go func() {
 		for {
 			if id, err := s.tunnel.GetLen(); err != nil {
-				utils.Println("get msg id error")
+				lib.Println("get msg id error")
 				break
 			} else {
 				s.Lock()
 				if v, ok := s.linkMap[id]; ok {
 					s.Unlock()
 					if content, err := s.tunnel.GetMsgContent(v); err != nil {
-						utils.Println("get msg content error:", err, id)
+						lib.Println("get msg content error:", err, id)
 						break
 					} else {
-						if len(content) == len(utils.IO_EOF) && string(content) == utils.IO_EOF {
+						if len(content) == len(lib.IO_EOF) && string(content) == lib.IO_EOF {
 							v.Conn.Close()
 						} else if v.Conn != nil {
 							v.Conn.Write(content)

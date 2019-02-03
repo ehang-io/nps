@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 )
 
 type ClientController struct {
@@ -28,26 +28,26 @@ func (s *ClientController) Add() {
 		s.SetInfo("新增")
 		s.display()
 	} else {
-		t := &utils.Client{
-			VerifyKey: utils.GetRandomString(16),
+		t := &lib.Client{
+			VerifyKey: lib.GetRandomString(16),
 			Id:        server.CsvDb.GetClientId(),
 			Status:    true,
 			Remark:    s.GetString("remark"),
-			Cnf: &utils.Config{
+			Cnf: &lib.Config{
 				U:        s.GetString("u"),
 				P:        s.GetString("p"),
 				Compress: s.GetString("compress"),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
 			RateLimit: s.GetIntNoErr("rate_limit"),
-			Flow: &utils.Flow{
+			Flow: &lib.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
 				FlowLimit:  int64(s.GetIntNoErr("flow_limit")),
 			},
 		}
 		if t.RateLimit > 0 {
-			t.Rate = utils.NewRate(int64(t.RateLimit * 1024))
+			t.Rate = lib.NewRate(int64(t.RateLimit * 1024))
 			t.Rate.Start()
 		}
 		server.CsvDb.NewClient(t)
@@ -96,7 +96,7 @@ func (s *ClientController) Edit() {
 				c.Rate.Stop()
 			}
 			if c.RateLimit > 0 {
-				c.Rate = utils.NewRate(int64(c.RateLimit * 1024))
+				c.Rate = lib.NewRate(int64(c.RateLimit * 1024))
 				c.Rate.Start()
 			} else {
 				c.Rate = nil

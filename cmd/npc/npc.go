@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/cnlh/nps/client"
-	"github.com/cnlh/nps/utils"
-	_ "github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
+	_ "github.com/cnlh/nps/lib"
 	"strings"
 )
 
@@ -18,15 +18,15 @@ var (
 
 func main() {
 	flag.Parse()
-	utils.InitDaemon("client")
+	lib.InitDaemon("npc")
 	if *logType == "stdout" {
-		utils.InitLogFile("client", true)
+		lib.InitLogFile("npc", true)
 	} else {
-		utils.InitLogFile("client", false)
+		lib.InitLogFile("npc", false)
 	}
 	stop := make(chan int)
 	for _, v := range strings.Split(*verifyKey, ",") {
-		utils.Println("客户端启动，连接：", *serverAddr, " 验证令牌：", v)
+		lib.Println("客户端启动，连接：", *serverAddr, " 验证令牌：", v)
 		go client.NewRPClient(*serverAddr, v).Start()
 	}
 	<-stop

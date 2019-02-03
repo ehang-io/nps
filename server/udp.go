@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"net"
 	"strings"
 )
@@ -10,15 +10,15 @@ import (
 type UdpModeServer struct {
 	server
 	listener *net.UDPConn
-	udpMap   map[string]*utils.Conn
+	udpMap   map[string]*lib.Conn
 }
 
-func NewUdpModeServer(bridge *bridge.Bridge, task *utils.Tunnel) *UdpModeServer {
+func NewUdpModeServer(bridge *bridge.Bridge, task *lib.Tunnel) *UdpModeServer {
 	s := new(UdpModeServer)
 	s.bridge = bridge
-	s.udpMap = make(map[string]*utils.Conn)
+	s.udpMap = make(map[string]*lib.Conn)
 	s.task = task
-	s.config = utils.DeepCopyConfig(task.Config)
+	s.config = lib.DeepCopyConfig(task.Config)
 	return s
 }
 
@@ -29,7 +29,7 @@ func (s *UdpModeServer) Start() error {
 	if err != nil {
 		return err
 	}
-	buf := utils.BufPoolUdp.Get().([]byte)
+	buf := lib.BufPoolUdp.Get().([]byte)
 	for {
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
@@ -47,7 +47,7 @@ func (s *UdpModeServer) Start() error {
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	link := utils.NewLink(s.task.Client.GetId(), utils.CONN_UDP, s.task.Target, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
+	link := lib.NewLink(s.task.Client.GetId(), lib.CONN_UDP, s.task.Target, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		return

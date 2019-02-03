@@ -3,7 +3,7 @@ package server
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"net"
 	"net/http"
 	"sync"
@@ -13,8 +13,8 @@ import (
 type server struct {
 	id           int
 	bridge       *bridge.Bridge
-	task         *utils.Tunnel
-	config       *utils.Config
+	task         *lib.Tunnel
+	config       *lib.Config
 	errorContent []byte
 	sync.Mutex
 }
@@ -26,7 +26,7 @@ func (s *server) FlowAdd(in, out int64) {
 	s.task.Flow.InletFlow += in
 }
 
-func (s *server) FlowAddHost(host *utils.Host, in, out int64) {
+func (s *server) FlowAddHost(host *lib.Host, in, out int64) {
 	s.Lock()
 	defer s.Unlock()
 	host.Flow.ExportFlow += out
@@ -62,11 +62,11 @@ func (s *server) ResetConfig() bool {
 		}
 	}
 	s.task.Client.Rate = client.Rate
-	s.config.CompressDecode, s.config.CompressEncode = utils.GetCompressType(s.config.Compress)
+	s.config.CompressDecode, s.config.CompressEncode = lib.GetCompressType(s.config.Compress)
 	return true
 }
 
-func (s *server) linkCopy(link *utils.Link, c *utils.Conn, rb []byte, tunnel *utils.Conn, flow *utils.Flow) {
+func (s *server) linkCopy(link *lib.Link, c *lib.Conn, rb []byte, tunnel *lib.Conn, flow *lib.Flow) {
 	if rb != nil {
 		if _, err := tunnel.SendMsg(rb, link); err != nil {
 			c.Close()
@@ -75,31 +75,31 @@ func (s *server) linkCopy(link *utils.Link, c *utils.Conn, rb []byte, tunnel *ut
 		flow.Add(len(rb), 0)
 	}
 	for {
-		buf := utils.BufPoolCopy.Get().([]byte)
+		buf := lib.BufPoolCopy.Get().([]byte)
 		if n, err := c.Read(buf); err != nil {
-			tunnel.SendMsg([]byte(utils.IO_EOF), link)
+			tunnel.SendMsg([]byte(lib.IO_EOF), link)
 			break
 		} else {
 			if _, err := tunnel.SendMsg(buf[:n], link); err != nil {
-				utils.PutBufPoolCopy(buf)
+				lib.PutBufPoolCopy(buf)
 				c.Close()
 				break
 			}
-			utils.PutBufPoolCopy(buf)
+			lib.PutBufPoolCopy(buf)
 			flow.Add(n, 0)
 		}
 	}
 }
 
 func (s *server) writeConnFail(c net.Conn) {
-	c.Write([]byte(utils.ConnectionFailBytes))
+	c.Write([]byte(lib.ConnectionFailBytes))
 	c.Write(s.errorContent)
 }
 
 //权限认证
-func (s *server) auth(r *http.Request, c *utils.Conn, u, p string) error {
-	if u != "" && p != "" && !utils.CheckAuth(r, u, p) {
-		c.Write([]byte(utils.UnauthorizedBytes))
+func (s *server) auth(r *http.Request, c *lib.Conn, u, p string) error {
+	if u != "" && p != "" && !lib.CheckAuth(r, u, p) {
+		c.Write([]byte(lib.UnauthorizedBytes))
 		c.Close()
 		return errors.New("401 Unauthorized")
 	}

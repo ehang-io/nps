@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 )
 
 type IndexController struct {
@@ -72,11 +72,11 @@ func (s *IndexController) Add() {
 		s.SetInfo("新增")
 		s.display()
 	} else {
-		t := &utils.Tunnel{
+		t := &lib.Tunnel{
 			TcpPort: s.GetIntNoErr("port"),
 			Mode:    s.GetString("type"),
 			Target:  s.GetString("target"),
-			Config: &utils.Config{
+			Config: &lib.Config{
 				U:        s.GetString("u"),
 				P:        s.GetString("p"),
 				Compress: s.GetString("compress"),
@@ -86,7 +86,7 @@ func (s *IndexController) Add() {
 			UseClientCnf: s.GetBoolNoErr("use_client"),
 			Status:       true,
 			Remark:       s.GetString("remark"),
-			Flow:         &utils.Flow{},
+			Flow:         &lib.Flow{},
 		}
 		var err error
 		if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
@@ -213,13 +213,13 @@ func (s *IndexController) AddHost() {
 		s.SetInfo("新增")
 		s.display("index/hadd")
 	} else {
-		h := &utils.Host{
+		h := &lib.Host{
 			Host:         s.GetString("host"),
 			Target:       s.GetString("target"),
 			HeaderChange: s.GetString("header"),
 			HostChange:   s.GetString("hostchange"),
 			Remark:       s.GetString("remark"),
-			Flow:         &utils.Flow{},
+			Flow:         &lib.Flow{},
 		}
 		var err error
 		if h.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {

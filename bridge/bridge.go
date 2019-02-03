@@ -2,16 +2,16 @@ package bridge
 
 import (
 	"errors"
-	"github.com/cnlh/nps/utils"
+	"github.com/cnlh/nps/lib"
 	"net"
 	"sync"
 	"time"
 )
 
 type Client struct {
-	tunnel        *utils.Conn
-	signal        *utils.Conn
-	linkMap       map[int]*utils.Link
+	tunnel        *lib.Conn
+	signal        *lib.Conn
+	linkMap       map[int]*lib.Link
 	linkStatusMap map[int]bool
 	stop          chan bool
 	sync.RWMutex
@@ -51,21 +51,21 @@ func (s *Bridge) tunnelProcess() error {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			utils.Println(err)
+			lib.Println(err)
 			continue
 		}
-		go s.cliProcess(utils.NewConn(conn))
+		go s.cliProcess(lib.NewConn(conn))
 	}
 	return err
 }
 
 //验证失败，返回错误验证flag，并且关闭连接
-func (s *Bridge) verifyError(c *utils.Conn) {
-	c.Write([]byte(utils.VERIFY_EER))
+func (s *Bridge) verifyError(c *lib.Conn) {
+	c.Write([]byte(lib.VERIFY_EER))
 	c.Conn.Close()
 }
 
-func (s *Bridge) cliProcess(c *utils.Conn) {
+func (s *Bridge) cliProcess(c *lib.Conn) {
 	c.SetReadDeadline(5)
 	var buf []byte
 	var err error
@@ -74,9 +74,9 @@ func (s *Bridge) cliProcess(c *utils.Conn) {
 		return
 	}
 	//验证
-	id, err := utils.GetCsvDb().GetIdByVerifyKey(string(buf), c.Conn.RemoteAddr().String())
+	id, err := lib.GetCsvDb().GetIdByVerifyKey(string(buf), c.Conn.RemoteAddr().String())
 	if err != nil {
-		utils.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
+		lib.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
 		s.verifyError(c)
 		return
 	}
@@ -97,9 +97,9 @@ func (s *Bridge) closeClient(id int) {
 }
 
 //tcp连接类型区分
-func (s *Bridge) typeDeal(typeVal string, c *utils.Conn, id int) {
+func (s *Bridge) typeDeal(typeVal string, c *lib.Conn, id int) {
 	switch typeVal {
-	case utils.WORK_MAIN:
+	case lib.WORK_MAIN:
 		//客户端已经存在，下线
 		s.clientLock.Lock()
 		if _, ok := s.Client[id]; ok {
@@ -111,15 +111,15 @@ func (s *Bridge) typeDeal(typeVal string, c *utils.Conn, id int) {
 		s.clientLock.Lock()
 
 		s.Client[id] = &Client{
-			linkMap:       make(map[int]*utils.Link),
+			linkMap:       make(map[int]*lib.Link),
 			stop:          make(chan bool),
 			linkStatusMap: make(map[int]bool),
 		}
-		utils.Printf("客户端%d连接成功,地址为：%s", id, c.Conn.RemoteAddr())
+		lib.Printf("客户端%d连接成功,地址为：%s", id, c.Conn.RemoteAddr())
 		s.Client[id].signal = c
 		s.clientLock.Unlock()
 		go s.GetStatus(id)
-	case utils.WORK_CHAN:
+	case lib.WORK_CHAN:
 		s.clientLock.Lock()
 		if v, ok := s.Client[id]; ok {
 			s.clientLock.Unlock()
@@ -161,13 +161,13 @@ func (s *Bridge) waitStatus(clientId, id int) (bool) {
 	return false
 }
 
-func (s *Bridge) SendLinkInfo(clientId int, link *utils.Link) (tunnel *utils.Conn, err error) {
+func (s *Bridge) SendLinkInfo(clientId int, link *lib.Link) (tunnel *lib.Conn, err error) {
 	s.clientLock.Lock()
 	if v, ok := s.Client[clientId]; ok {
 		s.clientLock.Unlock()
 		v.signal.SendLinkInfo(link)
 		if err != nil {
-			utils.Println("send error:", err, link.Id)
+			lib.Println("send error:", err, link.Id)
 			s.DelClient(clientId)
 			return
 		}
@@ -192,7 +192,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *utils.Link) (tunnel *utils.Con
 }
 
 //得到一个tcp隧道
-func (s *Bridge) GetTunnel(id int, en, de int, crypt, mux bool) (conn *utils.Conn, err error) {
+func (s *Bridge) GetTunnel(id int, en, de int, crypt, mux bool) (conn *lib.Conn, err error) {
 	s.clientLock.Lock()
 	defer s.clientLock.Unlock()
 	if v, ok := s.Client[id]; !ok {
@@ -204,7 +204,7 @@ func (s *Bridge) GetTunnel(id int, en, de int, crypt, mux bool) (conn *utils.Con
 }
 
 //得到一个通信通道
-func (s *Bridge) GetSignal(id int) (conn *utils.Conn, err error) {
+func (s *Bridge) GetSignal(id int) (conn *lib.Conn, err error) {
 	s.clientLock.Lock()
 	defer s.clientLock.Unlock()
 	if v, ok := s.Client[id]; !ok {
@@ -257,19 +257,19 @@ func (s *Bridge) clientCopy(clientId int) {
 	for {
 		if id, err := client.tunnel.GetLen(); err != nil {
 			s.closeClient(clientId)
-			utils.Println("读取msg id 错误", err, id)
+			lib.Println("读取msg id 错误", err, id)
 			break
 		} else {
 			client.Lock()
 			if link, ok := client.linkMap[id]; ok {
 				client.Unlock()
 				if content, err := client.tunnel.GetMsgContent(link); err != nil {
-					utils.PutBufPoolCopy(content)
+					lib.PutBufPoolCopy(content)
 					s.closeClient(clientId)
-					utils.Println("read msg content error", err, "close client")
+					lib.Println("read msg content error", err, "close client")
 					break
 				} else {
-					if len(content) == len(utils.IO_EOF) && string(content) == utils.IO_EOF {
+					if len(content) == len(lib.IO_EOF) && string(content) == lib.IO_EOF {
 						if link.Conn != nil {
 							link.Conn.Close()
 						}
@@ -281,7 +281,7 @@ func (s *Bridge) clientCopy(clientId int) {
 						}
 						link.Flow.Add(0, len(content))
 					}
-					utils.PutBufPoolCopy(content)
+					lib.PutBufPoolCopy(content)
 				}
 			} else {
 				client.Unlock()

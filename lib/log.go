@@ -1,4 +1,4 @@
-package utils
+package lib
 
 import (
 	"github.com/astaxie/beego"
@@ -12,7 +12,7 @@ var Log *log.Logger
 func InitLogFile(f string, isStdout bool) {
 	var prefix string
 	if !isStdout {
-		logFile, err := os.OpenFile(beego.AppPath+"/proxy_"+f+"_log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+		logFile, err := os.OpenFile(beego.AppPath+"/"+f+"_log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
 		if err != nil {
 			log.Fatalln("open file error !")
 		}
