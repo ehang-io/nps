@@ -3,8 +3,8 @@ package server
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/cnlh/easyProxy/bridge"
-	"github.com/cnlh/easyProxy/utils"
+	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/utils"
 	"io"
 	"net"
 	"strconv"

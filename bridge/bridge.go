@@ -2,7 +2,7 @@ package bridge
 
 import (
 	"errors"
-	"github.com/cnlh/easyProxy/utils"
+	"github.com/cnlh/nps/utils"
 	"net"
 	"sync"
 	"time"

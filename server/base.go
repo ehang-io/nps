@@ -2,8 +2,8 @@ package server
 
 import (
 	"errors"
-	"github.com/cnlh/easyProxy/bridge"
-	"github.com/cnlh/easyProxy/utils"
+	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/utils"
 	"net"
 	"net/http"
 	"sync"

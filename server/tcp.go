@@ -3,8 +3,8 @@ package server
 import (
 	"errors"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/easyProxy/bridge"
-	"github.com/cnlh/easyProxy/utils"
+	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/utils"
 	"net"
 	"strings"
 )

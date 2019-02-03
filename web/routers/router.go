@@ -2,7 +2,7 @@ package routers
 
 import (
 	"github.com/astaxie/beego"
-	"github.com/cnlh/easyProxy/web/controllers"
+	"github.com/cnlh/nps/web/controllers"
 )
 
 func init() {
