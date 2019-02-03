@@ -1,7 +1,7 @@
-# easyProxy
-![](https://img.shields.io/github/stars/cnlh/easyProxy.svg)   ![](https://img.shields.io/github/forks/cnlh/easyProxy.svg) ![](https://img.shields.io/github/license/cnlh/easyProxy.svg)
+# nps
+![](https://img.shields.io/github/stars/cnlh/nps.svg)   ![](https://img.shields.io/github/forks/cnlh/nps.svg) ![](https://img.shields.io/github/license/cnlh/nps.svg)
 
-easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何tcp、udp上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**，可实现在非内网环境下如同使用vpn一样访问内网资源和设备的效果。
+nps是一款轻量级、高性能、功能最为强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何tcp、udp上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**，可实现在非内网环境下如同使用vpn一样访问内网资源和设备的效果。
 
 目前市面上提供类似服务的有花生壳、TeamView、GoToMyCloud等等，但要使用第三方的公网服务器就必须为第三方付费，并且这些服务都有各种各样的限制，此外，由于数据包会流经第三方，因此对数据安全也是一大隐患。
 
@@ -9,7 +9,7 @@ easyProxy是一款轻量级、高性能、功能最为强大的**内网穿透**�
 go语言编写，无第三方依赖，各个平台都已经编译在release中。
 
 ## 背景
-![image](https://github.com/cnlh/easyProxy/blob/master/image/web.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/web.png?raw=true)
 1. web管理模式，可配置多条tcp、udp隧道，多个域名代理等等----> [web管理模式](#web管理模式)
 
 
@@ -80,21 +80,21 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 ## 安装
 
 ### release安装
-> https://github.com/cnlh/easyProxy/releases
+> https://github.com/cnlh/nps/releases
 
 下载对应的系统版本即可，服务端和客户端是单独的，go语言开发，无需任何第三方依赖
 
 ### 源码安装
 - 安装源码(另有snappy、beego包)
-> go get github.com/cnlh/easyProxy
+> go get github.com/cnlh/nps
 - 编译
-> go build cmd/server/proxy_server.go
+> go build cmd/nps/nps.go
 
-> go build cmd/client/proxy_client.go
+> go build cmd/npc/npc.go
 
 ## web管理模式
 
-![image](https://github.com/cnlh/easyProxy/blob/master/image/web2.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/web2.png?raw=true)
 ### 介绍
 
 可在网页上配置和管理各个tcp、udp隧道、内网站点代理，http、https解析等，功能极为强大，操作也非常方便。
@@ -107,12 +107,12 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 
 #### 服务端测试
 ```
- ./proxy_server test
+ ./nps test
 ```
 如有错误请及时修改配置文件，无错误可继续进行下去
 #### 服务端启动
 ```
- ./proxy_server start
+ ./nps start
 ```
 如果无需daemon运行，去掉start即可
 
@@ -124,12 +124,12 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 
 #### 客户端启动
 ```
- ./proxy_server -server=ip:port -vkey=web界面中显示的密钥
+ ./npc -server=ip:port -vkey=web界面中显示的密钥
 ```
 #### 服务端停止或重启
 如果是daemon启动
 ```
- ./proxy_server stop|restart
+ ./nps stop|restart
 ```
 
 ### 服务端配置文件
@@ -165,7 +165,7 @@ httpProxyPort | http代理监听端口
 - 内网客户端运行
 
 ```
-./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+./npc server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
 现在访问（http|https://）a.proxy.com，b.proxy.com即可成功
 
@@ -183,7 +183,7 @@ httpProxyPort | http代理监听端口
 - 在客户端管理中创建一个客户端，记录下验证密钥
 - -内网客户端运行
 ```
-./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+./npc server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
 - 在该客户端隧道管理中添加一条tcp隧道，填写监听的端口（8001）、内网目标ip和目标端口（10.1.50.101:22），选择压缩方式，保存。
 - 访问公网服务器ip（127.0.0.1）,填写的监听端口(8001)，相当于访问内网ip(10.1.50.101):目标端口(22)，例如：ssh -p 8001 root@127.0.0.1
@@ -201,7 +201,7 @@ httpProxyPort | http代理监听端口
 - 在客户端管理中创建一个客户端，记录下验证密钥
 - -内网客户端运行
 ```
-./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+./npc server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
 - 在该客户端的隧道管理中添加一条udp隧道，填写监听的端口（53）、内网目标ip和目标端口（10.1.50.102:53），选择压缩方式，保存。
 - 修改本机dns为127.0.0.1，则相当于使用10.1.50.202作为dns服务器
@@ -218,7 +218,7 @@ httpProxyPort | http代理监听端口
 - 在客户端管理中创建一个客户端，记录下验证密钥
 - -内网客户端运行
 ```
-./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+./npc server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
 - 在该客户端隧道管理中添加一条socks5代理，填写监听的端口（8003），验证用户名和密码自行选择（建议先不填，部分客户端不支持，proxifer支持），选择压缩方式，保存。
 - 在外网环境的本机配置socks5代理，ip为公网服务器ip（127.0.0.1），端口为填写的监听端口(8003)，即可畅享内网了
@@ -234,7 +234,7 @@ httpProxyPort | http代理监听端口
 - 在客户端管理中创建一个客户端，记录下验证密钥
 - -内网客户端运行
 ```
-./proxy_client server=1.1.1.1:8284 -vkey=客户端的密钥
+./npc server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
 - 在该客户端隧道管理中添加一条http代理，填写监听的端口（8004），选择压缩方式，保存。
 - 在外网环境的本机配置http代理，ip为公网服务器ip（127.0.0.1），端口为填写的监听端口(8004)，即可访问了
@@ -284,7 +284,7 @@ server {
 ### 场景及原理
 较为适用于处理tcp连接，例如ssh，同时也适用于http等，访问服务端的8024端口相当于访问内网10.1.50.202机器的4000端口，构成如下所示的隧道。
 
-![image](https://github.com/cnlh/easyProxy/blob/master/image/tcp.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/tcp.png?raw=true)
 
 例如：
 
@@ -302,7 +302,7 @@ server {
 - 服务端
 
 ```
-./proxy_server -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
+./nps -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
 ```
 
 名称 | 含义
@@ -317,7 +317,7 @@ target | 目标地址，格式如上
 
 
 ```
-./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 - 与nginx配合实现访问a.ourcauc.com等同访问10.1.50.203:80效果，将该域名解析道云服务器，nginx配置
@@ -344,14 +344,14 @@ server {
 
 访问vps的53端口相当于访问10.1.50.210的53端口，构成如下所示的隧道。
 
-![image](https://github.com/cnlh/easyProxy/blob/master/image/udp.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/udp.png?raw=true)
 
 
 ### 使用
 - 服务端
 
 ```
-./proxy_server -mode=udpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=53 -target=10.1.50.210:53
+./nps -mode=udpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=53 -target=10.1.50.210:53
 ```
 
 名称 | 含义
@@ -366,7 +366,7 @@ target | 目标地址，格式如上
 
 
 ```
-./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 
@@ -379,13 +379,13 @@ target | 目标地址，格式如上
 **原理**
 
 主要用于socks5代理，也就是和ss类似，不过是代理内网。使用此模式时，可在非内网环境下配置本机的socks5代理（服务器ip、sock5代理端口），即可实现socks5代理，达到访问内网的网站的效果，配合proxifier等全局代理软件，即可如同使用内网vpn一样，访问内网网站，通过ssh连接内网机器等等……。
-![image](https://github.com/cnlh/easyProxy/blob/master/image/sock5.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/sock5.png?raw=true)
 
 ### 使用
 - 服务端
 
 ```
-./proxy_server -mode=socks5Server -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+./nps -mode=socks5Server -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
 ```
 
 名称 | 含义
@@ -408,7 +408,7 @@ p | 验证的密码
 
 
 ```
-./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 - 需要使用内网代理的机器
@@ -424,14 +424,14 @@ p | 验证的密码
 
 ### 场景及原理
 主要用于HTTP代理，区别也就是HTTP代理和sock5代理的区别。使用此模式时，可在非内网环境下配置本机的HTTP代理（服务器ip、HTTP代理端口），即可实现HTTP代理，达到访问内网的网站的效果。
-![image](https://github.com/cnlh/easyProxy/blob/master/image/httpProxy.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/httpProxy.png?raw=true)
 
 
 ### 使用
 - 服务端
 
 ```
-./proxy_server -mode=httpProxyServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+./nps -mode=httpProxyServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
 ```
 
 名称 | 含义
@@ -447,7 +447,7 @@ authip | 免验证ip，适用于web api
 
 
 ```
-./proxy_client -server=ip:port -vkey=DKibZF5TXvic1g3kY
+./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
 ```
 
 - 需要使用内网代理的机器
@@ -484,7 +484,7 @@ authip | 免验证ip，适用于web api
 
 
 ### 站点保护
-域名代理模式所有客户端共用一个http服务端口，在知道域名后任何人都可访问，一些开发或者测试环境需要保密，所以可以设置用户名和密码，easyProxy将通过 Http Basic Auth 来保护，访问时需要输入正确的用户名和密码。
+域名代理模式所有客户端共用一个http服务端口，在知道域名后任何人都可访问，一些开发或者测试环境需要保密，所以可以设置用户名和密码，nps将通过 Http Basic Auth 来保护，访问时需要输入正确的用户名和密码。
 
 
 - web管理中可配置
@@ -517,10 +517,10 @@ authip | 免验证ip，适用于web api
 ### 守护进程
 本代理支持守护进程，使用示例如下，服务端客户端所有模式通用,支持linux，darwin，windows。
 ```
-./proxy_(client|server) start|stop|restart xxxxxx
+./(nps|npc) start|stop|restart xxxxxx
 ```
 ```
-proxy_(client|server).exe start|stop|restart xxxxxx
+(nps|npc).exe start|stop|restart xxxxxx
 ```
 
 ## 相关说明
@@ -543,19 +543,19 @@ proxy_(client|server).exe start|stop|restart xxxxxx
 ## 简单性能测试
 
 ### qps
-![image](https://github.com/cnlh/easyProxy/blob/master/image/qps.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/qps.png?raw=true)
 ### 速度测试
 **测试环境：** 1M带宽云服务器，理论125kb/s，带宽与代理无关，与服务器关系较大。
-![image](https://github.com/cnlh/easyProxy/blob/master/image/speed.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/speed.png?raw=true)
 
 
 ### 内存和cpu
 
 **1000次性能测试后**
-![image](https://github.com/cnlh/easyProxy/blob/master/image/cpu1.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/cpu1.png?raw=true)
 
 **启动时**
-![image](https://github.com/cnlh/easyProxy/blob/master/image/cpu2.png?raw=true)
+![image](https://github.com/cnlh/nps/blob/master/image/cpu2.png?raw=true)
 
 ### 额外消耗连接数
 为了最大化的提升效率和并发，客户端与服务端之间仅两条tcp连接，减少建立连接的时间消耗和多余tcp连接对机器性能的影响。
@@ -563,4 +563,4 @@ proxy_(client|server).exe start|stop|restart xxxxxx
 ## webAPI
 
 为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见
-[webAPI文档](https://github.com/cnlh/easyProxy/wiki/webAPI%E6%96%87%E6%A1%A3)
+[webAPI文档](https://github.com/cnlh/nps/wiki/webAPI%E6%96%87%E6%A1%A3)
