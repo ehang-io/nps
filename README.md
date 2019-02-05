@@ -28,7 +28,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
     * [编译安装](#源码安装)
     * [release安装](#release安装)
 * [web管理](#web管理模式)（多隧道时推荐）
-    * [启动](#启动)
+    * [快速启动](#启动)
        * [服务端测试](#服务端测试)
        * [服务端启动](#服务端启动)
        * [web管理](#web管理)
@@ -44,6 +44,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
     * [使用https](#使用https)
     * [与nginx配合](#与nginx配合)
     * [关闭http|https代理](#关闭代理)
+    * [将nps安装到系统](#将nps安装到系统)
 * 单隧道模式及介绍
     * [tcp隧道模式](#tcp隧道模式)
     * [udp隧道模式](#udp隧道模式)
@@ -72,9 +73,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
    * [内存和cpu](#内存和cpu)
    * [额外消耗连接数](#额外消耗连接数)
 * [webAPI](#webAPI)
-   * [客户端](#客户端)
-   * [域名代理](#域名代理)
-   * [其他代理](#其他代理)
+
 
 
 ## 安装
@@ -139,12 +138,12 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 ---|---
 httpport | web管理端口
 password | web界面管理密码
-hostPort | 域名代理模式监听端口
 tcpport  | 服务端客户端通信端口
 pemPath | ssl certFile绝对路径
 keyPath | ssl keyFile绝对路径
-httpsProxyPort | https代理监听端口
-httpProxyPort | http代理监听端口
+httpsProxyPort | 域名代理https代理监听端口
+httpProxyPort | 域名代理http代理监听端口
+authip|web api免验证IP地址
 
 ### 详细说明
 
@@ -169,7 +168,7 @@ httpProxyPort | http代理监听端口
 ```
 现在访问（http|https://）a.proxy.com，b.proxy.com即可成功
 
-**https:** 如需使用https请在配置文件中将https端口设置为443，和将对应的证书文件路径添加到配置文件中
+**https:** 如需使用https请在配置文件中将https端口设置为443，和将对应的证书文件路径添加到配置文件中，上面添加的这条记录将会把http、https都转发到内网目标
 
 #### tcp隧道
 
@@ -242,11 +241,15 @@ httpProxyPort | http代理监听端口
 
 ### 使用https
 
-在配置文件中将httpsProxyPort设置为443或者其他你想配置的端口，和将对应的证书文件路径添加到配置文件中，即可畅销https了
+在配置文件中将httpsProxyPort设置为443或者其他你想配置的端口，和将对应的证书文件路径添加到配置文件中，然后就和http代理一样了，例如
+
+- 需要访问https://a.proxy.com 对应内网127.0.0.1:80
+
+- 在域名代理中添加a.proxy.com 内网目标127.0.0.1:80 即可将所有到达本代理的http(s)请求都转发到127.0.0.1:80
 
 ### 与nginx配合
 
-有时候我们还需要在云服务器上运行https来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例
+有时候我们还需要在云服务器上运行nginx来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例如httpProxyPort为8024时
 ```
 server {
     listen 80;
@@ -256,7 +259,7 @@ server {
     }
 }
 ```
-如需使用https也可在nginx监听443端口并配置ssl，再设置如上配置即可，例如。
+如需使用https也可在nginx监听443端口并配置ssl，并将本代理的httpsProxyPort设置为空关闭https即可，例如httpProxyPort为8024时
 
 ```
 server {
@@ -277,6 +280,25 @@ server {
 ### 关闭代理
 
 如需关闭http代理可在配置文件中将httpProxyPort设置为空，如需关闭https代理可在配置文件中将httpsProxyPort设置为空。
+
+### 将nps安装到系统
+如果需要长期并且方便的运行nps服务端，可将nps安装到操作系统中，可执行命令
+
+```
+(./nps|nps.exe) install
+```
+安装成功后，对于linux，darwin，将会把配置文件和静态文件放置于/etc/nps/，并将可执行文件nps复制到/usr/bin/nps或者/usr/local/bin/nps，安装成功后可在任何位置执行
+
+```
+nps test|start|stop|restart|status
+```
+对于windows系统，将会把配置文件和静态文件放置于C:\Program Files\nps，安装成功后可将可执行文件nps.exe复制到任何位置执行
+
+```
+nps.exe test|start|stop|restart|status
+```
+
+
 
 
 ## tcp隧道模式
@@ -517,10 +539,10 @@ authip | 免验证ip，适用于web api
 ### 守护进程
 本代理支持守护进程，使用示例如下，服务端客户端所有模式通用,支持linux，darwin，windows。
 ```
-./(nps|npc) start|stop|restart xxxxxx
+./(nps|npc) start|stop|restart|status xxxxxx
 ```
 ```
-(nps|npc).exe start|stop|restart xxxxxx
+(nps|npc).exe start|stop|restart|status xxxxxx
 ```
 
 ## 相关说明
