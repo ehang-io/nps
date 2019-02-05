@@ -2,7 +2,7 @@
     <div class="col-md-3">
         <div class="widget-small warning coloured-icon"><i class="icon fa fa-html5 fa-3x"></i>
             <div class="info">
-                <h4>HTTP端口</h4>
+                <h4>客户端连接端口</h4>
                 <p><b>{{.p}}</b></p>
             </div>
         </div>
@@ -36,69 +36,95 @@
     <div class="col-md-6">
         <div class="tile">
             <h3 class="tile-title">流量</h3>
-            <div class="embed-responsive embed-responsive-16by9">
-                <canvas class="embed-responsive-item" id="flow"></canvas>
-            </div>
+            <div id="flow" style="width: 600px;height:400px;"></div>
         </div>
     </div>
     <div class="col-md-6">
         <div class="tile">
             <h3 class="tile-title">代理类型</h3>
-            <div class="embed-responsive embed-responsive-16by9">
-                <canvas class="embed-responsive-item" id="types"></canvas>
-            </div>
+            <div id="tj" style="width: 600px;height:400px;"></div>
         </div>
     </div>
 </div>
 <script>
-    var pdataFlow = [
-        {
-            value: {{.data.inletFlowCount}},
-            color: "#46BFBD",
-            highlight: "#5AD3D1",
-            label: "入口流量"
+    option = {
+        title : {
+            x:'center'
         },
-        {
-            value: {{.data.exportFlowCount}},
-            color: "#FDB45C",
-            highlight: "#FFC870",
-            label: "出口流量"
-        }
-    ]
-    var pdataTypes = [
-        {
-            value: {{.data.tunnelServerCount}},
-            color: "#46BFBD",
-            highlight: "#5AD3D1",
-            label: "tcp隧道"
+        tooltip: {
+            trigger: 'item',
+            formatter: function (p) {
+                return p.seriesName + "<br>" + p.name + ":" + change(p.data.value);
+            },
         },
-        {
-            value: {{.data.socks5ServerCount}},
-            color: "#85FEAA",
-            highlight: "#85FEAA",
-            label: "socks5隧道"
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: ['入口流量', '出口流量']
         },
-        {
-            value: {{.data.httpProxyServerCount}},
-            color: "#4B653C",
-            highlight: "#4B653C",
-            label: "http代理"
+        series : [
+            {
+                name: '类型 统计',
+                type: 'pie',
+                radius : '55%',
+                center: ['50%', '60%'],
+                data:[
+                    {value:{{.data.inletFlowCount}}, name: '入口流量'},
+                    {value:{{.data.exportFlowCount}}, name: '出口流量'},
+                ],
+                itemStyle: {
+                    emphasis: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+
+    var myChart = echarts.init(document.getElementById('flow'));
+    myChart.setOption(option);
+
+
+    option = {
+        title : {
+            x:'center'
         },
-        {
-            value: {{.data.udpServerCount}},
-            color: "#90653C",
-            highlight: "#90653C",
-            label: "udp代理"
+        tooltip : {
+            trigger: 'item',
+            formatter: "{a} <br/>{b} : {c} ({d}%)"
         },
-        {
-            value: {{.data.hostCount}},
-            color: "#FDB45C",
-            highlight: "#FDB45C",
-            label: "域名解析"
-        }
-    ]
-    var ctxp = $("#flow").get(0).getContext("2d");
-    var pieChart = new Chart(ctxp).Pie(pdataFlow);
-    var ctxd = $("#types").get(0).getContext("2d");
-    var doughnutChart = new Chart(ctxd).Doughnut(pdataTypes);
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: ['tcp隧道数','socks5隧道数','http代理隧道数','udp隧道数','域名解析数']
+        },
+        series : [
+            {
+                name: '类型 统计',
+                type: 'pie',
+                radius : '55%',
+                center: ['50%', '60%'],
+                data:[
+                    {value:{{.data.tunnelServerCount}}, name:'tcp隧道数'},
+                    {value:{{.data.socks5ServerCount}}, name:'socks5隧道数'},
+                    {value:{{.data.httpProxyServerCount}}, name:'http隧道数'},
+                    {value:{{.data.udpServerCount}}, name:'udp隧道数'},
+                    {value:{{.data.hostCount}}, name:'域名解析数'}
+                ],
+                itemStyle: {
+                    emphasis: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+
+    var myChart = echarts.init(document.getElementById('tj'));
+    myChart.setOption(option);
+
 </script>

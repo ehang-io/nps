@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/server"
 )
 
 type ClientController struct {
@@ -30,7 +30,7 @@ func (s *ClientController) Add() {
 	} else {
 		t := &lib.Client{
 			VerifyKey: lib.GetRandomString(16),
-			Id:        server.CsvDb.GetClientId(),
+			Id:        lib.GetCsvDb().GetClientId(),
 			Status:    true,
 			Remark:    s.GetString("remark"),
 			Cnf: &lib.Config{
@@ -50,7 +50,7 @@ func (s *ClientController) Add() {
 			t.Rate = lib.NewRate(int64(t.RateLimit * 1024))
 			t.Rate.Start()
 		}
-		server.CsvDb.NewClient(t)
+		lib.GetCsvDb().NewClient(t)
 		s.AjaxOk("添加成功")
 	}
 }
@@ -58,7 +58,7 @@ func (s *ClientController) GetClient() {
 	if s.Ctx.Request.Method == "POST" {
 		id := s.GetIntNoErr("id")
 		data := make(map[string]interface{})
-		if c, err := server.CsvDb.GetClient(id); err != nil {
+		if c, err := lib.GetCsvDb().GetClient(id); err != nil {
 			data["code"] = 0
 		} else {
 			data["code"] = 1
@@ -74,7 +74,7 @@ func (s *ClientController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		if c, err := server.CsvDb.GetClient(id); err != nil {
+		if c, err := lib.GetCsvDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			s.Data["c"] = c
@@ -82,7 +82,7 @@ func (s *ClientController) Edit() {
 		s.SetInfo("修改")
 		s.display()
 	} else {
-		if c, err := server.CsvDb.GetClient(id); err != nil {
+		if c, err := lib.GetCsvDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			c.Remark = s.GetString("remark")
@@ -101,7 +101,7 @@ func (s *ClientController) Edit() {
 			} else {
 				c.Rate = nil
 			}
-			server.CsvDb.UpdateClient(c)
+			lib.GetCsvDb().UpdateClient(c)
 		}
 		s.AjaxOk("修改成功")
 	}
@@ -110,7 +110,7 @@ func (s *ClientController) Edit() {
 //更改状态
 func (s *ClientController) ChangeStatus() {
 	id := s.GetIntNoErr("id")
-	if client, err := server.CsvDb.GetClient(id); err == nil {
+	if client, err := lib.GetCsvDb().GetClient(id); err == nil {
 		client.Status = s.GetBoolNoErr("status")
 		if client.Status == false {
 			server.DelClientConnect(client.Id)
@@ -123,7 +123,7 @@ func (s *ClientController) ChangeStatus() {
 //删除客户端
 func (s *ClientController) Del() {
 	id := s.GetIntNoErr("id")
-	if err := server.CsvDb.DelClient(id); err != nil {
+	if err := lib.GetCsvDb().DelClient(id); err != nil {
 		s.AjaxErr("删除失败")
 	}
 	server.DelTunnelAndHostByClientId(id)

@@ -6,6 +6,7 @@ import (
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib"
 	"net"
+	"path/filepath"
 	"strings"
 )
 
@@ -71,10 +72,14 @@ type WebServer struct {
 
 //开始
 func (s *WebServer) Start() error {
+	p, _ := beego.AppConfig.Int("httpport")
+	if !lib.TestTcpPort(p) {
+		lib.Fatalln("web管理端口", p, "被占用!")
+	}
 	beego.BConfig.WebConfig.Session.SessionOn = true
 	lib.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
-	beego.SetViewsPath(beego.AppPath + "/web/views")
-	beego.SetStaticPath("/static", beego.AppPath+"/web/static")
+	beego.SetStaticPath("/static", filepath.Join(lib.GetRunPath(), "web", "static"))
+	beego.SetViewsPath(filepath.Join(lib.GetRunPath(), "web", "views"))
 	beego.Run()
 	return errors.New("web管理启动失败")
 }

@@ -36,7 +36,7 @@ func (s *server) FlowAddHost(host *lib.Host, in, out int64) {
 //热更新配置
 func (s *server) ResetConfig() bool {
 	//获取最新数据
-	task, err := CsvDb.GetTask(s.task.Id)
+	task, err := lib.GetCsvDb().GetTask(s.task.Id)
 	if err != nil {
 		return false
 	}
@@ -45,7 +45,7 @@ func (s *server) ResetConfig() bool {
 	}
 	s.task.UseClientCnf = task.UseClientCnf
 	//使用客户端配置
-	client, err := CsvDb.GetClient(s.task.Client.Id)
+	client, err := lib.GetCsvDb().GetClient(s.task.Client.Id)
 	if s.task.UseClientCnf {
 		if err == nil {
 			s.config.U = client.Cnf.U

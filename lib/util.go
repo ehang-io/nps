@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -151,13 +153,68 @@ func ReadAllFromFile(filePath string) ([]byte, error) {
 	return ioutil.ReadAll(f)
 }
 
-
 // FileExists reports whether the named file or directory exists.
 func FileExists(name string) bool {
 	if _, err := os.Stat(name); err != nil {
 		if os.IsNotExist(err) {
 			return false
 		}
+	}
+	return true
+}
+
+func GetRunPath() string {
+	var path string
+	if path = GetInstallPath(); !FileExists(path) {
+		return "./"
+	}
+	return path
+}
+func GetInstallPath() string {
+	var path string
+	if IsWindows() {
+		path = `C:\Program Files\nps`
+	} else {
+		path = "/etc/nps"
+	}
+	return path
+}
+func GetAppPath() string {
+	if path, err := filepath.Abs(filepath.Dir(os.Args[0])); err == nil {
+		return path
+	}
+	return os.Args[0]
+}
+func IsWindows() bool {
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	return false
+}
+func GetLogPath() string {
+	var path string
+	if IsWindows() {
+		path = "./"
+	} else {
+		path = "/tmp"
+	}
+	return path
+}
+func GetPidPath() string {
+	var path string
+	if IsWindows() {
+		path = "./"
+	} else {
+		path = "/tmp"
+	}
+	return path
+}
+
+func TestTcpPort(port int) bool {
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), port, ""})
+	defer l.Close()
+	if err != nil {
+		return false
 	}
 	return true
 }

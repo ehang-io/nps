@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/server"
 	"strconv"
 	"strings"
 )

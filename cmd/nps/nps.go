@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/server"
 	_ "github.com/cnlh/nps/web/routers"
+	"log"
 	"os"
+	"path/filepath"
 )
 
 const VERSION = "v0.0.13"
@@ -26,12 +28,13 @@ var (
 
 func main() {
 	flag.Parse()
-	var test bool
 	if len(os.Args) > 1 && os.Args[1] == "test" {
-		test = true
+		server.TestServerConfig()
+		log.Println("test ok, no error")
+		return
 	}
 	lib.InitDaemon("nps")
-	if *logType == "stdout" || test {
+	if *logType == "stdout" {
 		lib.InitLogFile("nps", true)
 	} else {
 		lib.InitLogFile("nps", false)
@@ -61,7 +64,7 @@ func main() {
 			Flow:      &lib.Flow{},
 		}
 		c.Cnf.CompressDecode, c.Cnf.CompressEncode = lib.GetCompressType(c.Cnf.Compress)
-		server.CsvDb.Clients[0] = c
+		lib.GetCsvDb().Clients[0] = c
 		task.Client = c
 	}
 	if *TcpPort == 0 {
@@ -75,7 +78,8 @@ func main() {
 	lib.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
 	task.Config.CompressDecode, task.Config.CompressEncode = lib.GetCompressType(task.Config.Compress)
 	if *rpMode != "webServer" {
-		server.CsvDb.Tasks[0] = task
+		lib.GetCsvDb().Tasks[0] = task
 	}
-	server.StartNewServer(*TcpPort, task, test)
+	beego.LoadAppConfig("ini", filepath.Join(lib.GetRunPath(), "conf", "app.conf"))
+	server.StartNewServer(*TcpPort, task)
 }

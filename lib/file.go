@@ -3,8 +3,8 @@ package lib
 import (
 	"encoding/csv"
 	"errors"
-	"github.com/astaxie/beego"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,7 +37,7 @@ func (s *Csv) Init() {
 
 func (s *Csv) StoreTasksToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(beego.AppPath + "/conf/tasks.csv")
+	csvFile, err := os.Create(filepath.Join(GetRunPath(), "conf", "tasks.csv"))
 	if err != nil {
 		Fatalf(err.Error())
 	}
@@ -87,7 +87,7 @@ func (s *Csv) openFile(path string) ([][]string, error) {
 }
 
 func (s *Csv) LoadTaskFromCsv() {
-	path := beego.AppPath + "/conf/tasks.csv"
+	path := filepath.Join(GetRunPath(), "conf", "tasks.csv")
 	records, err := s.openFile(path)
 	if err != nil {
 		Fatalln("配置文件打开错误:", path)
@@ -186,7 +186,7 @@ func (s *Csv) GetTask(id int) (v *Tunnel, err error) {
 
 func (s *Csv) StoreHostToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(beego.AppPath + "/conf/hosts.csv")
+	csvFile, err := os.Create(filepath.Join(GetRunPath(), "conf", "hosts.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -214,7 +214,7 @@ func (s *Csv) StoreHostToCsv() {
 }
 
 func (s *Csv) LoadClientFromCsv() {
-	path := beego.AppPath + "/conf/clients.csv"
+	path := filepath.Join(GetRunPath(), "conf", "clients.csv")
 	records, err := s.openFile(path)
 	if err != nil {
 		Fatalln("配置文件打开错误:", path)
@@ -250,7 +250,7 @@ func (s *Csv) LoadClientFromCsv() {
 }
 
 func (s *Csv) LoadHostFromCsv() {
-	path := beego.AppPath + "/conf/hosts.csv"
+	path := filepath.Join(GetRunPath(), "conf", "hosts.csv")
 	records, err := s.openFile(path)
 	if err != nil {
 		Fatalln("配置文件打开错误:", path)
@@ -389,7 +389,7 @@ func (s *Csv) GetClient(id int) (v *Client, err error) {
 }
 func (s *Csv) StoreClientsToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(beego.AppPath + "/conf/clients.csv")
+	csvFile, err := os.Create(filepath.Join(GetRunPath(), "conf", "clients.csv"))
 	if err != nil {
 		Fatalln(err.Error())
 	}

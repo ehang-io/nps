@@ -6,9 +6,9 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib"
-	"net"
 	"net/http"
 	"net/http/httputil"
+	"path/filepath"
 	"strconv"
 	"sync"
 )
@@ -44,14 +44,11 @@ func NewHttp(bridge *bridge.Bridge, c *lib.Tunnel) *httpServer {
 func (s *httpServer) Start() error {
 	var err error
 	var http, https *http.Server
-	if s.errorContent, err = lib.ReadAllFromFile(beego.AppPath + "/web/static/page/error.html"); err != nil {
+	if s.errorContent, err = lib.ReadAllFromFile(filepath.Join(lib.GetRunPath(), "web", "static", "page", "error.html")); err != nil {
 		s.errorContent = []byte("easyProxy 404")
 	}
 
 	if s.httpPort > 0 {
-		if !s.TestTcpPort(s.httpPort) {
-			lib.Fatalln("http端口", s.httpPort, "被占用!")
-		}
 		http = s.NewServer(s.httpPort)
 		go func() {
 			lib.Println("启动http监听,端口为", s.httpPort)
@@ -62,9 +59,6 @@ func (s *httpServer) Start() error {
 		}()
 	}
 	if s.httpsPort > 0 {
-		if !s.TestTcpPort(s.httpsPort) {
-			lib.Fatalln("https端口", s.httpsPort, "被占用!")
-		}
 		if !lib.FileExists(s.pemPath) {
 			lib.Fatalf("ssl certFile文件%s不存在", s.pemPath)
 		}
@@ -80,7 +74,6 @@ func (s *httpServer) Start() error {
 			}
 		}()
 	}
-	startFinish <- true
 	select {
 	case <-s.stop:
 		if http != nil {
@@ -90,7 +83,6 @@ func (s *httpServer) Start() error {
 			https.Close()
 		}
 	}
-
 	return nil
 }
 
@@ -179,13 +171,4 @@ func (s *httpServer) NewServer(port int) *http.Server {
 		// Disable HTTP/2.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
-}
-
-func (s *httpServer) TestTcpPort(port int) bool {
-	l, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), port, ""})
-	defer l.Close()
-	if err != nil {
-		return false
-	}
-	return true
 }

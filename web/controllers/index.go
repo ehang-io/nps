@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/server"
 )
 
 type IndexController struct {
@@ -82,17 +82,17 @@ func (s *IndexController) Add() {
 				Compress: s.GetString("compress"),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
-			Id:           server.CsvDb.GetTaskId(),
+			Id:           lib.GetCsvDb().GetTaskId(),
 			UseClientCnf: s.GetBoolNoErr("use_client"),
 			Status:       true,
 			Remark:       s.GetString("remark"),
 			Flow:         &lib.Flow{},
 		}
 		var err error
-		if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+		if t.Client, err = lib.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		server.CsvDb.NewTask(t)
+		lib.GetCsvDb().NewTask(t)
 		if err := server.AddTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		} else {
@@ -103,7 +103,7 @@ func (s *IndexController) Add() {
 func (s *IndexController) GetOneTunnel() {
 	id := s.GetIntNoErr("id")
 	data := make(map[string]interface{})
-	if t, err := server.CsvDb.GetTask(id); err != nil {
+	if t, err := lib.GetCsvDb().GetTask(id); err != nil {
 		data["code"] = 0
 	} else {
 		data["code"] = 1
@@ -115,7 +115,7 @@ func (s *IndexController) GetOneTunnel() {
 func (s *IndexController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
-		if t, err := server.CsvDb.GetTask(id); err != nil {
+		if t, err := lib.GetCsvDb().GetTask(id); err != nil {
 			s.error()
 		} else {
 			s.Data["t"] = t
@@ -123,7 +123,7 @@ func (s *IndexController) Edit() {
 		s.SetInfo("修改")
 		s.display()
 	} else {
-		if t, err := server.CsvDb.GetTask(id); err != nil {
+		if t, err := lib.GetCsvDb().GetTask(id); err != nil {
 			s.error()
 		} else {
 			t.TcpPort = s.GetIntNoErr("port")
@@ -137,10 +137,10 @@ func (s *IndexController) Edit() {
 			t.Config.Crypt = s.GetBoolNoErr("crypt")
 			t.UseClientCnf = s.GetBoolNoErr("use_client")
 			t.Remark = s.GetString("remark")
-			if t.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+			if t.Client, err = lib.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("修改失败")
 			}
-			server.CsvDb.UpdateTask(t)
+			lib.GetCsvDb().UpdateTask(t)
 		}
 		s.AjaxOk("修改成功")
 	}
@@ -179,7 +179,7 @@ func (s *IndexController) HostList() {
 	} else {
 		start, length := s.GetAjaxParams()
 		clientId := s.GetIntNoErr("client_id")
-		list, cnt := server.CsvDb.GetHost(start, length, clientId)
+		list, cnt := lib.GetCsvDb().GetHost(start, length, clientId)
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
@@ -200,7 +200,7 @@ func (s *IndexController) GetHost() {
 
 func (s *IndexController) DelHost() {
 	host := s.GetString("host")
-	if err := server.CsvDb.DelHost(host); err != nil {
+	if err := lib.GetCsvDb().DelHost(host); err != nil {
 		s.AjaxErr("删除失败")
 	}
 	s.AjaxOk("删除成功")
@@ -222,10 +222,10 @@ func (s *IndexController) AddHost() {
 			Flow:         &lib.Flow{},
 		}
 		var err error
-		if h.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+		if h.Client, err = lib.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr("添加失败")
 		}
-		server.CsvDb.NewHost(h)
+		lib.GetCsvDb().NewHost(h)
 		s.AjaxOk("添加成功")
 	}
 }
@@ -251,9 +251,9 @@ func (s *IndexController) EditHost() {
 			h.HostChange = s.GetString("hostchange")
 			h.Remark = s.GetString("remark")
 			h.TargetArr = nil
-			server.CsvDb.UpdateHost(h)
+			lib.GetCsvDb().UpdateHost(h)
 			var err error
-			if h.Client, err = server.CsvDb.GetClient(s.GetIntNoErr("client_id")); err != nil {
+			if h.Client, err = lib.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("修改失败")
 			}
 		}

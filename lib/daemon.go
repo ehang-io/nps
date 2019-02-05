@@ -1,12 +1,11 @@
 package lib
 
 import (
-	"github.com/astaxie/beego"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -33,39 +32,75 @@ func InitDaemon(f string) {
 		start(args, f)
 		os.Exit(0)
 	case "install":
-		InstallNps()
+		if f == "nps" {
+			InstallNps()
+		}
+		os.Exit(0)
+	case "status":
+		if status(f) {
+			log.Printf("%s is running", f)
+		} else {
+			log.Printf("%s is not running", f)
+		}
+		os.Exit(0)
 	}
 }
 
+func status(f string) bool {
+	var cmd *exec.Cmd
+	b, err := ioutil.ReadFile(filepath.Join(GetPidPath(), f+".pid"))
+	if err == nil {
+		if !IsWindows() {
+			cmd = exec.Command("/bin/sh", "-c", "ps -ax | awk '{ print $1 }' | grep "+string(b))
+		} else {
+			cmd = exec.Command("tasklist", )
+		}
+		out, _ := cmd.Output()
+		if strings.Index(string(out), string(b)) > -1 {
+			return true
+		}
+	}
+	return false
+}
+
 func start(osArgs []string, f string) {
+	if status(f) {
+		log.Printf(" %s is running", f)
+		return
+	}
 	cmd := exec.Command(osArgs[0], osArgs[1:]...)
 	cmd.Start()
-	log.Println("执行启动成功")
 	if cmd.Process.Pid > 0 {
+		log.Println("start ok , pid:", cmd.Process.Pid, "config path:", GetRunPath())
 		d1 := []byte(strconv.Itoa(cmd.Process.Pid))
-		ioutil.WriteFile(beego.AppPath+"/"+f+".pid", d1, 0600)
+		ioutil.WriteFile(filepath.Join(GetPidPath(), f+".pid"), d1, 0600)
+	} else {
+		log.Println("start error")
 	}
 }
 
 func stop(f string, p string) {
+	if !status(f) {
+		log.Printf(" %s is not running", f)
+		return
+	}
 	var c *exec.Cmd
 	var err error
-	switch runtime.GOOS {
-	case "windows":
+	if IsWindows() {
 		p := strings.Split(p, `\`)
 		c = exec.Command("taskkill", "/F", "/IM", p[len(p)-1])
-	case "linux", "darwin":
-		b, err := ioutil.ReadFile(beego.AppPath + "/" + f + ".pid")
+	} else {
+		b, err := ioutil.ReadFile(filepath.Join(GetPidPath(), f+".pid"))
 		if err == nil {
 			c = exec.Command("/bin/bash", "-c", `kill -9 `+string(b))
 		} else {
-			log.Println("停止服务失败,pid文件不存在")
+			log.Fatalln("stop error,PID file does not exist")
 		}
 	}
 	err = c.Run()
 	if err != nil {
-		log.Println("停止服务失败,", err)
+		log.Println("stop error,", err)
 	} else {
-		log.Println("停止服务成功")
+		log.Println("stop ok")
 	}
 }
