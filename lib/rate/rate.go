@@ -1,4 +1,4 @@
-package lib
+package rate
 
 import (
 	"sync/atomic"

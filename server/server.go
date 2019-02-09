@@ -3,7 +3,8 @@ package server
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/lg"
 	"reflect"
 	"strings"
 )
@@ -11,44 +12,41 @@ import (
 var (
 	Bridge      *bridge.Bridge
 	RunList     map[int]interface{} //运行中的任务
-	startFinish chan bool
 )
 
 func init() {
 	RunList = make(map[int]interface{})
-	startFinish = make(chan bool)
 }
 
 //从csv文件中恢复任务
 func InitFromCsv() {
-	for _, v := range lib.GetCsvDb().Tasks {
+	for _, v := range file.GetCsvDb().Tasks {
 		if v.Status {
-			lib.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
+			lg.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
 			AddTask(v)
 		}
 	}
 }
 
 //start a new server
-func StartNewServer(bridgePort int, cnf *lib.Tunnel) {
-	Bridge = bridge.NewTunnel(bridgePort, RunList)
+func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
+	Bridge = bridge.NewTunnel(bridgePort, RunList, bridgeType)
 	if err := Bridge.StartTunnel(); err != nil {
-		lib.Fatalln("服务端开启失败", err)
+		lg.Fatalln("服务端开启失败", err)
 	}
 	if svr := NewMode(Bridge, cnf); svr != nil {
 		RunList[cnf.Id] = svr
 		err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 		if err.Interface() != nil {
-			lib.Fatalln(err)
+			lg.Fatalln(err)
 		}
 	} else {
-		lib.Fatalln("启动模式不正确")
+		lg.Fatalln("启动模式不正确")
 	}
-
 }
 
 //new a server by mode name
-func NewMode(Bridge *bridge.Bridge, c *lib.Tunnel) interface{} {
+func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) interface{} {
 	switch c.Mode {
 	case "tunnelServer":
 		return NewTunnelModeServer(ProcessTunnel, Bridge, c)
@@ -60,17 +58,15 @@ func NewMode(Bridge *bridge.Bridge, c *lib.Tunnel) interface{} {
 		return NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
-		t := &lib.Tunnel{
+		t := &file.Tunnel{
 			TcpPort: 0,
 			Mode:    "httpHostServer",
 			Target:  "",
-			Config:  &lib.Config{},
+			Config:  &file.Config{},
 			Status:  true,
 		}
 		AddTask(t)
 		return NewWebServer(Bridge)
-	case "hostServer":
-		return NewHostServer(c)
 	case "httpHostServer":
 		return NewHttp(Bridge, c)
 	}
@@ -81,11 +77,11 @@ func NewMode(Bridge *bridge.Bridge, c *lib.Tunnel) interface{} {
 func StopServer(id int) error {
 	if v, ok := RunList[id]; ok {
 		reflect.ValueOf(v).MethodByName("Close").Call(nil)
-		if t, err := lib.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetCsvDb().GetTask(id); err != nil {
 			return err
 		} else {
 			t.Status = false
-			lib.GetCsvDb().UpdateTask(t)
+			file.GetCsvDb().UpdateTask(t)
 		}
 		return nil
 	}
@@ -93,13 +89,13 @@ func StopServer(id int) error {
 }
 
 //add task
-func AddTask(t *lib.Tunnel) error {
+func AddTask(t *file.Tunnel) error {
 	if svr := NewMode(Bridge, t); svr != nil {
 		RunList[t.Id] = svr
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 			if err.Interface() != nil {
-				lib.Fatalln("服务端", t.Id, "启动失败，错误：", err)
+				lg.Fatalln("客户端", t.Id, "启动失败，错误：", err)
 				delete(RunList, t.Id)
 			}
 		}()
@@ -111,12 +107,12 @@ func AddTask(t *lib.Tunnel) error {
 
 //start task
 func StartTask(id int) error {
-	if t, err := lib.GetCsvDb().GetTask(id); err != nil {
+	if t, err := file.GetCsvDb().GetTask(id); err != nil {
 		return err
 	} else {
 		AddTask(t)
 		t.Status = true
-		lib.GetCsvDb().UpdateTask(t)
+		file.GetCsvDb().UpdateTask(t)
 	}
 	return nil
 }
@@ -126,12 +122,12 @@ func DelTask(id int) error {
 	if err := StopServer(id); err != nil {
 		return err
 	}
-	return lib.GetCsvDb().DelTask(id)
+	return file.GetCsvDb().DelTask(id)
 }
 
 //get key by host from x
-func GetInfoByHost(host string) (h *lib.Host, err error) {
-	for _, v := range lib.GetCsvDb().Hosts {
+func GetInfoByHost(host string) (h *file.Host, err error) {
+	for _, v := range file.GetCsvDb().Hosts {
 		s := strings.Split(host, ":")
 		if s[0] == v.Host {
 			h = v
@@ -143,10 +139,10 @@ func GetInfoByHost(host string) (h *lib.Host, err error) {
 }
 
 //get task list by page num
-func GetTunnel(start, length int, typeVal string, clientId int) ([]*lib.Tunnel, int) {
-	list := make([]*lib.Tunnel, 0)
+func GetTunnel(start, length int, typeVal string, clientId int) ([]*file.Tunnel, int) {
+	list := make([]*file.Tunnel, 0)
 	var cnt int
-	for _, v := range lib.GetCsvDb().Tasks {
+	for _, v := range file.GetCsvDb().Tasks {
 		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
 			continue
 		}
@@ -171,13 +167,13 @@ func GetTunnel(start, length int, typeVal string, clientId int) ([]*lib.Tunnel, 
 }
 
 //获取客户端列表
-func GetClientList(start, length int) (list []*lib.Client, cnt int) {
-	list, cnt = lib.GetCsvDb().GetClientList(start, length)
+func GetClientList(start, length int) (list []*file.Client, cnt int) {
+	list, cnt = file.GetCsvDb().GetClientList(start, length)
 	dealClientData(list)
 	return
 }
 
-func dealClientData(list []*lib.Client) {
+func dealClientData(list []*file.Client) {
 	for _, v := range list {
 		if _, ok := Bridge.Client[v.Id]; ok {
 			v.IsConnect = true
@@ -186,13 +182,13 @@ func dealClientData(list []*lib.Client) {
 		}
 		v.Flow.InletFlow = 0
 		v.Flow.ExportFlow = 0
-		for _, h := range lib.GetCsvDb().Hosts {
+		for _, h := range file.GetCsvDb().Hosts {
 			if h.Client.Id == v.Id {
 				v.Flow.InletFlow += h.Flow.InletFlow
 				v.Flow.ExportFlow += h.Flow.ExportFlow
 			}
 		}
-		for _, t := range lib.GetCsvDb().Tasks {
+		for _, t := range file.GetCsvDb().Tasks {
 			if t.Client.Id == v.Id {
 				v.Flow.InletFlow += t.Flow.InletFlow
 				v.Flow.ExportFlow += t.Flow.ExportFlow
@@ -204,14 +200,14 @@ func dealClientData(list []*lib.Client) {
 
 //根据客户端id删除其所属的所有隧道和域名
 func DelTunnelAndHostByClientId(clientId int) {
-	for _, v := range lib.GetCsvDb().Tasks {
+	for _, v := range file.GetCsvDb().Tasks {
 		if v.Client.Id == clientId {
 			DelTask(v.Id)
 		}
 	}
-	for _, v := range lib.GetCsvDb().Hosts {
+	for _, v := range file.GetCsvDb().Hosts {
 		if v.Client.Id == clientId {
-			lib.GetCsvDb().DelHost(v.Host)
+			file.GetCsvDb().DelHost(v.Host)
 		}
 	}
 }
@@ -223,9 +219,9 @@ func DelClientConnect(clientId int) {
 
 func GetDashboardData() map[string]int {
 	data := make(map[string]int)
-	data["hostCount"] = len(lib.GetCsvDb().Hosts)
-	data["clientCount"] = len(lib.GetCsvDb().Clients)
-	list := lib.GetCsvDb().Clients
+	data["hostCount"] = len(file.GetCsvDb().Hosts)
+	data["clientCount"] = len(file.GetCsvDb().Clients)
+	list := file.GetCsvDb().Clients
 	dealClientData(list)
 	c := 0
 	var in, out int64
@@ -239,7 +235,7 @@ func GetDashboardData() map[string]int {
 	data["clientOnlineCount"] = c
 	data["inletFlowCount"] = int(in)
 	data["exportFlowCount"] = int(out)
-	for _, v := range lib.GetCsvDb().Tasks {
+	for _, v := range file.GetCsvDb().Tasks {
 		switch v.Mode {
 		case "tunnelServer":
 			data["tunnelServerCount"] += 1

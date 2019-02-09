@@ -3,7 +3,10 @@ package server
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/pool"
 	"net"
 	"net/http"
 	"sync"
@@ -13,8 +16,8 @@ import (
 type server struct {
 	id           int
 	bridge       *bridge.Bridge
-	task         *lib.Tunnel
-	config       *lib.Config
+	task         *file.Tunnel
+	config       *file.Config
 	errorContent []byte
 	sync.Mutex
 }
@@ -26,7 +29,7 @@ func (s *server) FlowAdd(in, out int64) {
 	s.task.Flow.InletFlow += in
 }
 
-func (s *server) FlowAddHost(host *lib.Host, in, out int64) {
+func (s *server) FlowAddHost(host *file.Host, in, out int64) {
 	s.Lock()
 	defer s.Unlock()
 	host.Flow.ExportFlow += out
@@ -36,7 +39,7 @@ func (s *server) FlowAddHost(host *lib.Host, in, out int64) {
 //热更新配置
 func (s *server) ResetConfig() bool {
 	//获取最新数据
-	task, err := lib.GetCsvDb().GetTask(s.task.Id)
+	task, err := file.GetCsvDb().GetTask(s.task.Id)
 	if err != nil {
 		return false
 	}
@@ -45,7 +48,7 @@ func (s *server) ResetConfig() bool {
 	}
 	s.task.UseClientCnf = task.UseClientCnf
 	//使用客户端配置
-	client, err := lib.GetCsvDb().GetClient(s.task.Client.Id)
+	client, err := file.GetCsvDb().GetClient(s.task.Client.Id)
 	if s.task.UseClientCnf {
 		if err == nil {
 			s.config.U = client.Cnf.U
@@ -62,11 +65,11 @@ func (s *server) ResetConfig() bool {
 		}
 	}
 	s.task.Client.Rate = client.Rate
-	s.config.CompressDecode, s.config.CompressEncode = lib.GetCompressType(s.config.Compress)
+	s.config.CompressDecode, s.config.CompressEncode = common.GetCompressType(s.config.Compress)
 	return true
 }
 
-func (s *server) linkCopy(link *lib.Link, c *lib.Conn, rb []byte, tunnel *lib.Conn, flow *lib.Flow) {
+func (s *server) linkCopy(link *conn.Link, c *conn.Conn, rb []byte, tunnel *conn.Conn, flow *file.Flow) {
 	if rb != nil {
 		if _, err := tunnel.SendMsg(rb, link); err != nil {
 			c.Close()
@@ -74,32 +77,32 @@ func (s *server) linkCopy(link *lib.Link, c *lib.Conn, rb []byte, tunnel *lib.Co
 		}
 		flow.Add(len(rb), 0)
 	}
+
+	buf := pool.BufPoolCopy.Get().([]byte)
 	for {
-		buf := lib.BufPoolCopy.Get().([]byte)
 		if n, err := c.Read(buf); err != nil {
-			tunnel.SendMsg([]byte(lib.IO_EOF), link)
+			tunnel.SendMsg([]byte(common.IO_EOF), link)
 			break
 		} else {
 			if _, err := tunnel.SendMsg(buf[:n], link); err != nil {
-				lib.PutBufPoolCopy(buf)
 				c.Close()
 				break
 			}
-			lib.PutBufPoolCopy(buf)
 			flow.Add(n, 0)
 		}
 	}
+	pool.PutBufPoolCopy(buf)
 }
 
 func (s *server) writeConnFail(c net.Conn) {
-	c.Write([]byte(lib.ConnectionFailBytes))
+	c.Write([]byte(common.ConnectionFailBytes))
 	c.Write(s.errorContent)
 }
 
 //权限认证
-func (s *server) auth(r *http.Request, c *lib.Conn, u, p string) error {
-	if u != "" && p != "" && !lib.CheckAuth(r, u, p) {
-		c.Write([]byte(lib.UnauthorizedBytes))
+func (s *server) auth(r *http.Request, c *conn.Conn, u, p string) error {
+	if u != "" && p != "" && !common.CheckAuth(r, u, p) {
+		c.Write([]byte(common.UnauthorizedBytes))
 		c.Close()
 		return errors.New("401 Unauthorized")
 	}

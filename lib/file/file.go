@@ -1,8 +1,11 @@
-package lib
+package file
 
 import (
 	"encoding/csv"
 	"errors"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/lib/rate"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,13 +13,10 @@ import (
 	"sync"
 )
 
-var (
-	CsvDb *Csv
-	once  sync.Once
-)
-
-func NewCsv() *Csv {
-	return new(Csv)
+func NewCsv(runPath string) *Csv {
+	return &Csv{
+		RunPath: runPath,
+	}
 }
 
 type Csv struct {
@@ -24,6 +24,7 @@ type Csv struct {
 	Path             string
 	Hosts            []*Host   //域名列表
 	Clients          []*Client //客户端
+	RunPath          string    //存储根目录
 	ClientIncreaseId int       //客户端id
 	TaskIncreaseId   int       //任务自增ID
 	sync.Mutex
@@ -37,9 +38,9 @@ func (s *Csv) Init() {
 
 func (s *Csv) StoreTasksToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(filepath.Join(GetRunPath(), "conf", "tasks.csv"))
+	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "tasks.csv"))
 	if err != nil {
-		Fatalf(err.Error())
+		lg.Fatalf(err.Error())
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
@@ -51,8 +52,8 @@ func (s *Csv) StoreTasksToCsv() {
 			task.Config.U,
 			task.Config.P,
 			task.Config.Compress,
-			GetStrByBool(task.Status),
-			GetStrByBool(task.Config.Crypt),
+			common.GetStrByBool(task.Status),
+			common.GetStrByBool(task.Config.Crypt),
 			strconv.Itoa(task.Config.CompressEncode),
 			strconv.Itoa(task.Config.CompressDecode),
 			strconv.Itoa(task.Id),
@@ -62,7 +63,7 @@ func (s *Csv) StoreTasksToCsv() {
 		}
 		err := writer.Write(record)
 		if err != nil {
-			Fatalf(err.Error())
+			lg.Fatalf(err.Error())
 		}
 	}
 	writer.Flush()
@@ -87,33 +88,33 @@ func (s *Csv) openFile(path string) ([][]string, error) {
 }
 
 func (s *Csv) LoadTaskFromCsv() {
-	path := filepath.Join(GetRunPath(), "conf", "tasks.csv")
+	path := filepath.Join(s.RunPath, "conf", "tasks.csv")
 	records, err := s.openFile(path)
 	if err != nil {
-		Fatalln("配置文件打开错误:", path)
+		lg.Fatalln("配置文件打开错误:", path)
 	}
 	var tasks []*Tunnel
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Tunnel{
-			TcpPort: GetIntNoErrByStr(item[0]),
+			TcpPort: common.GetIntNoErrByStr(item[0]),
 			Mode:    item[1],
 			Target:  item[2],
 			Config: &Config{
 				U:              item[3],
 				P:              item[4],
 				Compress:       item[5],
-				Crypt:          GetBoolByStr(item[7]),
-				CompressEncode: GetIntNoErrByStr(item[8]),
-				CompressDecode: GetIntNoErrByStr(item[9]),
+				Crypt:          common.GetBoolByStr(item[7]),
+				CompressEncode: common.GetIntNoErrByStr(item[8]),
+				CompressDecode: common.GetIntNoErrByStr(item[9]),
 			},
-			Status:       GetBoolByStr(item[6]),
-			Id:           GetIntNoErrByStr(item[10]),
-			UseClientCnf: GetBoolByStr(item[12]),
+			Status:       common.GetBoolByStr(item[6]),
+			Id:           common.GetIntNoErrByStr(item[10]),
+			UseClientCnf: common.GetBoolByStr(item[12]),
 			Remark:       item[13],
 		}
 		post.Flow = new(Flow)
-		if post.Client, err = s.GetClient(GetIntNoErrByStr(item[11])); err != nil {
+		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[11])); err != nil {
 			continue
 		}
 		tasks = append(tasks, post)
@@ -135,7 +136,7 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 	s.Lock()
 	defer s.Unlock()
 	for _, v := range s.Clients {
-		if Getverifyval(v.VerifyKey) == vKey && v.Status {
+		if common.Getverifyval(v.VerifyKey) == vKey && v.Status {
 			if arr := strings.Split(addr, ":"); len(arr) > 0 {
 				v.Addr = arr[0]
 			}
@@ -186,7 +187,7 @@ func (s *Csv) GetTask(id int) (v *Tunnel, err error) {
 
 func (s *Csv) StoreHostToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(filepath.Join(GetRunPath(), "conf", "hosts.csv"))
+	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "hosts.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -214,24 +215,24 @@ func (s *Csv) StoreHostToCsv() {
 }
 
 func (s *Csv) LoadClientFromCsv() {
-	path := filepath.Join(GetRunPath(), "conf", "clients.csv")
+	path := filepath.Join(s.RunPath, "conf", "clients.csv")
 	records, err := s.openFile(path)
 	if err != nil {
-		Fatalln("配置文件打开错误:", path)
+		lg.Fatalln("配置文件打开错误:", path)
 	}
 	var clients []*Client
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Client{
-			Id:        GetIntNoErrByStr(item[0]),
+			Id:        common.GetIntNoErrByStr(item[0]),
 			VerifyKey: item[1],
 			Remark:    item[2],
-			Status:    GetBoolByStr(item[3]),
-			RateLimit: GetIntNoErrByStr(item[8]),
+			Status:    common.GetBoolByStr(item[3]),
+			RateLimit: common.GetIntNoErrByStr(item[8]),
 			Cnf: &Config{
 				U:        item[4],
 				P:        item[5],
-				Crypt:    GetBoolByStr(item[6]),
+				Crypt:    common.GetBoolByStr(item[6]),
 				Compress: item[7],
 			},
 		}
@@ -239,21 +240,21 @@ func (s *Csv) LoadClientFromCsv() {
 			s.ClientIncreaseId = post.Id
 		}
 		if post.RateLimit > 0 {
-			post.Rate = NewRate(int64(post.RateLimit * 1024))
+			post.Rate = rate.NewRate(int64(post.RateLimit * 1024))
 			post.Rate.Start()
 		}
 		post.Flow = new(Flow)
-		post.Flow.FlowLimit = int64(GetIntNoErrByStr(item[9]))
+		post.Flow.FlowLimit = int64(common.GetIntNoErrByStr(item[9]))
 		clients = append(clients, post)
 	}
 	s.Clients = clients
 }
 
 func (s *Csv) LoadHostFromCsv() {
-	path := filepath.Join(GetRunPath(), "conf", "hosts.csv")
+	path := filepath.Join(s.RunPath, "conf", "hosts.csv")
 	records, err := s.openFile(path)
 	if err != nil {
-		Fatalln("配置文件打开错误:", path)
+		lg.Fatalln("配置文件打开错误:", path)
 	}
 	var hosts []*Host
 	// 将每一行数据保存到内存slice中
@@ -265,7 +266,7 @@ func (s *Csv) LoadHostFromCsv() {
 			HostChange:   item[4],
 			Remark:       item[5],
 		}
-		if post.Client, err = s.GetClient(GetIntNoErrByStr(item[2])); err != nil {
+		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[2])); err != nil {
 			continue
 		}
 		post.Flow = new(Flow)
@@ -387,11 +388,12 @@ func (s *Csv) GetClient(id int) (v *Client, err error) {
 	err = errors.New("未找到")
 	return
 }
+
 func (s *Csv) StoreClientsToCsv() {
 	// 创建文件
-	csvFile, err := os.Create(filepath.Join(GetRunPath(), "conf", "clients.csv"))
+	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "clients.csv"))
 	if err != nil {
-		Fatalln(err.Error())
+		lg.Fatalln(err.Error())
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
@@ -403,24 +405,15 @@ func (s *Csv) StoreClientsToCsv() {
 			strconv.FormatBool(client.Status),
 			client.Cnf.U,
 			client.Cnf.P,
-			GetStrByBool(client.Cnf.Crypt),
+			common.GetStrByBool(client.Cnf.Crypt),
 			client.Cnf.Compress,
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
 		}
 		err := writer.Write(record)
 		if err != nil {
-			Fatalln(err.Error())
+			lg.Fatalln(err.Error())
 		}
 	}
 	writer.Flush()
-}
-
-//init csv from file
-func GetCsvDb() *Csv {
-	once.Do(func() {
-		CsvDb = NewCsv()
-		CsvDb.Init()
-	})
-	return CsvDb
 }

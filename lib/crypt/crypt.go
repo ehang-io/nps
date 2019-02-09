@@ -1,4 +1,4 @@
-package lib
+package crypt
 
 import (
 	"bytes"
@@ -37,21 +37,19 @@ func AesDecrypt(crypted, key []byte) ([]byte, error) {
 	blockSize := block.BlockSize()
 	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
 	origData := make([]byte, len(crypted))
-	// origData := crypted
 	blockMode.CryptBlocks(origData, crypted)
 	err, origData = PKCS5UnPadding(origData)
-	// origData = ZeroUnPadding(origData)
 	return origData, err
 }
 
-//补全
+//Completion when the length is insufficient
 func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
 	padding := blockSize - len(ciphertext)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(ciphertext, padtext...)
 }
 
-//去补
+//Remove excess
 func PKCS5UnPadding(origData []byte) (error, []byte) {
 	length := len(origData)
 	// 去掉最后一个字节 unpadding 次
@@ -62,14 +60,14 @@ func PKCS5UnPadding(origData []byte) (error, []byte) {
 	return nil, origData[:(length - unpadding)]
 }
 
-//生成32位md5字串
+//Generate 32-bit MD5 strings
 func Md5(s string) string {
 	h := md5.New()
 	h.Write([]byte(s))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-//生成随机验证密钥
+//Generating Random Verification Key
 func GetRandomString(l int) string {
 	str := "0123456789abcdefghijklmnopqrstuvwxyz"
 	bytes := []byte(str)

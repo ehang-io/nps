@@ -45,7 +45,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
     * [与nginx配合](#与nginx配合)
     * [关闭http|https代理](#关闭代理)
     * [将nps安装到系统](#将nps安装到系统)
-* 单隧道模式及介绍
+* 单隧道模式及介绍（即将移除）
     * [tcp隧道模式](#tcp隧道模式)
     * [udp隧道模式](#udp隧道模式)
     * [socks5代理模式](#socks5代理模式)
@@ -62,6 +62,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
    * [带宽限制](#带宽限制)
    * [负载均衡](#负载均衡)
    * [守护进程](#守护进程)
+   * [KCP协议支持](#KCP协议支持)
 * [相关说明](#相关说明)
    * [流量统计](#流量统计)
    * [热更新支持](#热更新支持)
@@ -138,12 +139,13 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 ---|---
 httpport | web管理端口
 password | web界面管理密码
-tcpport  | 服务端客户端通信端口
+bridePort  | 服务端客户端通信端口
 pemPath | ssl certFile绝对路径
 keyPath | ssl keyFile绝对路径
 httpsProxyPort | 域名代理https代理监听端口
 httpProxyPort | 域名代理http代理监听端口
 authip|web api免验证IP地址
+bridgeType|客户端与服务端连接方式kcp或tcp
 
 ### 详细说明
 
@@ -539,11 +541,22 @@ authip | 免验证ip，适用于web api
 ### 守护进程
 本代理支持守护进程，使用示例如下，服务端客户端所有模式通用,支持linux，darwin，windows。
 ```
-./(nps|npc) start|stop|restart|status xxxxxx
+./(nps|npc) start|stop|restart|status 若有其他参数可加其他参数
 ```
 ```
-(nps|npc).exe start|stop|restart|status xxxxxx
+(nps|npc).exe start|stop|restart|status 若有其他参数可加其他参数
 ```
+
+### KCP协议支持
+KCP 是一个快速可靠协议，能以比 TCP浪费10%-20%的带宽的代价，换取平均延迟降低 30%-40%，在弱网环境下对性能能有一定的提升。可在app.conf中修改bridgeType为kcp
+，设置后本代理将开启udp端口（bridgePort）
+
+注意：当服务端为kcp时，客户端连接时也需要加上参数
+
+```
+-type=kcp
+```
+
 
 ## 相关说明
 

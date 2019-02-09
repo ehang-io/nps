@@ -1,7 +1,9 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/server"
 )
 
@@ -28,29 +30,29 @@ func (s *ClientController) Add() {
 		s.SetInfo("新增")
 		s.display()
 	} else {
-		t := &lib.Client{
-			VerifyKey: lib.GetRandomString(16),
-			Id:        lib.GetCsvDb().GetClientId(),
+		t := &file.Client{
+			VerifyKey: crypt.GetRandomString(16),
+			Id:        file.GetCsvDb().GetClientId(),
 			Status:    true,
 			Remark:    s.GetString("remark"),
-			Cnf: &lib.Config{
+			Cnf: &file.Config{
 				U:        s.GetString("u"),
 				P:        s.GetString("p"),
 				Compress: s.GetString("compress"),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
 			RateLimit: s.GetIntNoErr("rate_limit"),
-			Flow: &lib.Flow{
+			Flow: &file.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
 				FlowLimit:  int64(s.GetIntNoErr("flow_limit")),
 			},
 		}
 		if t.RateLimit > 0 {
-			t.Rate = lib.NewRate(int64(t.RateLimit * 1024))
+			t.Rate = rate.NewRate(int64(t.RateLimit * 1024))
 			t.Rate.Start()
 		}
-		lib.GetCsvDb().NewClient(t)
+		file.GetCsvDb().NewClient(t)
 		s.AjaxOk("添加成功")
 	}
 }
@@ -58,7 +60,7 @@ func (s *ClientController) GetClient() {
 	if s.Ctx.Request.Method == "POST" {
 		id := s.GetIntNoErr("id")
 		data := make(map[string]interface{})
-		if c, err := lib.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetCsvDb().GetClient(id); err != nil {
 			data["code"] = 0
 		} else {
 			data["code"] = 1
@@ -74,7 +76,7 @@ func (s *ClientController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		if c, err := lib.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetCsvDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			s.Data["c"] = c
@@ -82,7 +84,7 @@ func (s *ClientController) Edit() {
 		s.SetInfo("修改")
 		s.display()
 	} else {
-		if c, err := lib.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetCsvDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			c.Remark = s.GetString("remark")
@@ -96,12 +98,12 @@ func (s *ClientController) Edit() {
 				c.Rate.Stop()
 			}
 			if c.RateLimit > 0 {
-				c.Rate = lib.NewRate(int64(c.RateLimit * 1024))
+				c.Rate = rate.NewRate(int64(c.RateLimit * 1024))
 				c.Rate.Start()
 			} else {
 				c.Rate = nil
 			}
-			lib.GetCsvDb().UpdateClient(c)
+			file.GetCsvDb().UpdateClient(c)
 		}
 		s.AjaxOk("修改成功")
 	}
@@ -110,7 +112,7 @@ func (s *ClientController) Edit() {
 //更改状态
 func (s *ClientController) ChangeStatus() {
 	id := s.GetIntNoErr("id")
-	if client, err := lib.GetCsvDb().GetClient(id); err == nil {
+	if client, err := file.GetCsvDb().GetClient(id); err == nil {
 		client.Status = s.GetBoolNoErr("status")
 		if client.Status == false {
 			server.DelClientConnect(client.Id)
@@ -123,7 +125,7 @@ func (s *ClientController) ChangeStatus() {
 //删除客户端
 func (s *ClientController) Del() {
 	id := s.GetIntNoErr("id")
-	if err := lib.GetCsvDb().DelClient(id); err != nil {
+	if err := file.GetCsvDb().DelClient(id); err != nil {
 		s.AjaxErr("删除失败")
 	}
 	server.DelTunnelAndHostByClientId(id)

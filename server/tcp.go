@@ -2,9 +2,12 @@ package server
 
 import (
 	"errors"
-	"github.com/astaxie/beego"
+	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/lg"
 	"net"
 	"path/filepath"
 	"strings"
@@ -17,12 +20,12 @@ type TunnelModeServer struct {
 }
 
 //tcp|http|host
-func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *lib.Tunnel) *TunnelModeServer {
+func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *file.Tunnel) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.bridge = bridge
 	s.process = process
 	s.task = task
-	s.config = lib.DeepCopyConfig(task.Config)
+	s.config = file.DeepCopyConfig(task.Config)
 	return s
 }
 
@@ -34,22 +37,22 @@ func (s *TunnelModeServer) Start() error {
 		return err
 	}
 	for {
-		conn, err := s.listener.AcceptTCP()
+		c, err := s.listener.AcceptTCP()
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			lib.Println(err)
+			lg.Println(err)
 			continue
 		}
-		go s.process(lib.NewConn(conn), s)
+		go s.process(conn.NewConn(c), s)
 	}
 	return nil
 }
 
 //与客户端建立通道
-func (s *TunnelModeServer) dealClient(c *lib.Conn, cnf *lib.Config, addr string, method string, rb []byte) error {
-	link := lib.NewLink(s.task.Client.GetId(), lib.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
+func (s *TunnelModeServer) dealClient(c *conn.Conn, cnf *file.Config, addr string, method string, rb []byte) error {
+	link := conn.NewLink(s.task.Client.GetId(), common.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		c.Close()
@@ -73,13 +76,13 @@ type WebServer struct {
 //开始
 func (s *WebServer) Start() error {
 	p, _ := beego.AppConfig.Int("httpport")
-	if !lib.TestTcpPort(p) {
-		lib.Fatalln("web管理端口", p, "被占用!")
+	if !common.TestTcpPort(p) {
+		lg.Fatalln("web管理端口", p, "被占用!")
 	}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	lib.Println("web管理启动，访问端口为", beego.AppConfig.String("httpport"))
-	beego.SetStaticPath("/static", filepath.Join(lib.GetRunPath(), "web", "static"))
-	beego.SetViewsPath(filepath.Join(lib.GetRunPath(), "web", "views"))
+	lg.Println("web管理启动，访问端口为", p)
+	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
+	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
 	beego.Run()
 	return errors.New("web管理启动失败")
 }
@@ -91,32 +94,10 @@ func NewWebServer(bridge *bridge.Bridge) *WebServer {
 	return s
 }
 
-//host
-type HostServer struct {
-	server
-}
-
-//开始
-func (s *HostServer) Start() error {
-	return nil
-}
-
-func NewHostServer(task *lib.Tunnel) *HostServer {
-	s := new(HostServer)
-	s.task = task
-	s.config = lib.DeepCopyConfig(task.Config)
-	return s
-}
-
-//close
-func (s *HostServer) Close() error {
-	return nil
-}
-
-type process func(c *lib.Conn, s *TunnelModeServer) error
+type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
-func ProcessTunnel(c *lib.Conn, s *TunnelModeServer) error {
+func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
 	if !s.ResetConfig() {
 		c.Close()
 		return errors.New("流量超出")
@@ -125,7 +106,7 @@ func ProcessTunnel(c *lib.Conn, s *TunnelModeServer) error {
 }
 
 //http代理模式
-func ProcessHttp(c *lib.Conn, s *TunnelModeServer) error {
+func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 	if !s.ResetConfig() {
 		c.Close()
 		return errors.New("流量超出")

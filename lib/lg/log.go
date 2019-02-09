@@ -1,4 +1,4 @@
-package lib
+package lg
 
 import (
 	"log"
@@ -9,10 +9,10 @@ import (
 
 var Log *log.Logger
 
-func InitLogFile(f string, isStdout bool) {
+func InitLogFile(f string, isStdout bool, logPath string) {
 	var prefix string
 	if !isStdout {
-		logFile, err := os.OpenFile(filepath.Join(GetLogPath(), f+"_log.txt"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+		logFile, err := os.OpenFile(filepath.Join(logPath, f+"_log.txt"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
 		if err != nil {
 			log.Fatalln("open file error !", err)
 		}

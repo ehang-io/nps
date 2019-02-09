@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"github.com/astaxie/beego"
+	"github.com/cnlh/nps/lib/beego"
 )
 
 type LoginController struct {

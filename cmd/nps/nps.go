@@ -2,8 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/beego"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/daemon"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/install"
+	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/server"
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
@@ -28,58 +32,65 @@ var (
 
 func main() {
 	flag.Parse()
-	if len(os.Args) > 1 && os.Args[1] == "test" {
-		server.TestServerConfig()
-		log.Println("test ok, no error")
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "test":
+			server.TestServerConfig()
+			log.Println("test ok, no error")
+			return
+		case "start", "restart", "stop", "status":
+			daemon.InitDaemon("nps", common.GetRunPath(), common.GetPidPath())
+		case "install":
+			install.InstallNps()
+			return
+		}
 	}
-	lib.InitDaemon("nps")
 	if *logType == "stdout" {
-		lib.InitLogFile("nps", true)
+		lg.InitLogFile("nps", true, common.GetLogPath())
 	} else {
-		lib.InitLogFile("nps", false)
+		lg.InitLogFile("nps", false, common.GetLogPath())
 	}
-	task := &lib.Tunnel{
+	task := &file.Tunnel{
 		TcpPort: *httpPort,
 		Mode:    *rpMode,
 		Target:  *tunnelTarget,
-		Config: &lib.Config{
+		Config: &file.Config{
 			U:        *u,
 			P:        *p,
 			Compress: *compress,
-			Crypt:    lib.GetBoolByStr(*crypt),
+			Crypt:    common.GetBoolByStr(*crypt),
 		},
-		Flow:         &lib.Flow{},
+		Flow:         &file.Flow{},
 		UseClientCnf: false,
 	}
 	if *VerifyKey != "" {
-		c := &lib.Client{
+		c := &file.Client{
 			Id:        0,
 			VerifyKey: *VerifyKey,
 			Addr:      "",
 			Remark:    "",
 			Status:    true,
 			IsConnect: false,
-			Cnf:       &lib.Config{},
-			Flow:      &lib.Flow{},
+			Cnf:       &file.Config{},
+			Flow:      &file.Flow{},
 		}
-		c.Cnf.CompressDecode, c.Cnf.CompressEncode = lib.GetCompressType(c.Cnf.Compress)
-		lib.GetCsvDb().Clients[0] = c
+		c.Cnf.CompressDecode, c.Cnf.CompressEncode = common.GetCompressType(c.Cnf.Compress)
+		file.GetCsvDb().Clients[0] = c
 		task.Client = c
 	}
 	if *TcpPort == 0 {
-		p, err := beego.AppConfig.Int("tcpport")
+		p, err := beego.AppConfig.Int("bridgePort")
 		if err == nil && *rpMode == "webServer" {
 			*TcpPort = p
 		} else {
 			*TcpPort = 8284
 		}
 	}
-	lib.Println("服务端启动，监听tcp服务端端口：", *TcpPort)
-	task.Config.CompressDecode, task.Config.CompressEncode = lib.GetCompressType(task.Config.Compress)
+	lg.Printf("服务端启动，监听%s服务端口：%d", beego.AppConfig.String("bridgeType"), *TcpPort)
+	task.Config.CompressDecode, task.Config.CompressEncode = common.GetCompressType(task.Config.Compress)
 	if *rpMode != "webServer" {
-		lib.GetCsvDb().Tasks[0] = task
+		file.GetCsvDb().Tasks[0] = task
 	}
-	beego.LoadAppConfig("ini", filepath.Join(lib.GetRunPath(), "conf", "app.conf"))
-	server.StartNewServer(*TcpPort, task)
+	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "app.conf"))
+	server.StartNewServer(*TcpPort, task, beego.AppConfig.String("bridgeType"))
 }

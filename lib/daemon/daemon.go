@@ -1,6 +1,7 @@
-package lib
+package daemon
 
 import (
+	"github.com/cnlh/nps/lib/common"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,7 +11,7 @@ import (
 	"strings"
 )
 
-func InitDaemon(f string) {
+func InitDaemon(f string, runPath string, pidPath string) {
 	if len(os.Args) < 2 {
 		return
 	}
@@ -22,22 +23,17 @@ func InitDaemon(f string) {
 	args = append(args, "-log=file")
 	switch os.Args[1] {
 	case "start":
-		start(args, f)
+		start(args, f, pidPath, runPath)
 		os.Exit(0)
 	case "stop":
-		stop(f, args[0])
+		stop(f, args[0], pidPath)
 		os.Exit(0)
 	case "restart":
-		stop(f, args[0])
-		start(args, f)
-		os.Exit(0)
-	case "install":
-		if f == "nps" {
-			InstallNps()
-		}
+		stop(f, args[0], pidPath)
+		start(args, f, pidPath, runPath)
 		os.Exit(0)
 	case "status":
-		if status(f) {
+		if status(f, pidPath) {
 			log.Printf("%s is running", f)
 		} else {
 			log.Printf("%s is not running", f)
@@ -46,11 +42,11 @@ func InitDaemon(f string) {
 	}
 }
 
-func status(f string) bool {
+func status(f string, pidPath string) bool {
 	var cmd *exec.Cmd
-	b, err := ioutil.ReadFile(filepath.Join(GetPidPath(), f+".pid"))
+	b, err := ioutil.ReadFile(filepath.Join(pidPath, f+".pid"))
 	if err == nil {
-		if !IsWindows() {
+		if !common.IsWindows() {
 			cmd = exec.Command("/bin/sh", "-c", "ps -ax | awk '{ print $1 }' | grep "+string(b))
 		} else {
 			cmd = exec.Command("tasklist", )
@@ -63,38 +59,38 @@ func status(f string) bool {
 	return false
 }
 
-func start(osArgs []string, f string) {
-	if status(f) {
+func start(osArgs []string, f string, pidPath, runPath string) {
+	if status(f, pidPath) {
 		log.Printf(" %s is running", f)
 		return
 	}
 	cmd := exec.Command(osArgs[0], osArgs[1:]...)
 	cmd.Start()
 	if cmd.Process.Pid > 0 {
-		log.Println("start ok , pid:", cmd.Process.Pid, "config path:", GetRunPath())
+		log.Println("start ok , pid:", cmd.Process.Pid, "config path:", runPath)
 		d1 := []byte(strconv.Itoa(cmd.Process.Pid))
-		ioutil.WriteFile(filepath.Join(GetPidPath(), f+".pid"), d1, 0600)
+		ioutil.WriteFile(filepath.Join(pidPath, f+".pid"), d1, 0600)
 	} else {
 		log.Println("start error")
 	}
 }
 
-func stop(f string, p string) {
-	if !status(f) {
+func stop(f string, p string, pidPath string) {
+	if !status(f, pidPath) {
 		log.Printf(" %s is not running", f)
 		return
 	}
 	var c *exec.Cmd
 	var err error
-	if IsWindows() {
+	if common.IsWindows() {
 		p := strings.Split(p, `\`)
 		c = exec.Command("taskkill", "/F", "/IM", p[len(p)-1])
 	} else {
-		b, err := ioutil.ReadFile(filepath.Join(GetPidPath(), f+".pid"))
+		b, err := ioutil.ReadFile(filepath.Join(pidPath, f+".pid"))
 		if err == nil {
 			c = exec.Command("/bin/bash", "-c", `kill -9 `+string(b))
 		} else {
-			log.Fatalln("stop error,PID file does not exist")
+			log.Fatalln("stop error,pid file does not exist")
 		}
 	}
 	err = c.Run()

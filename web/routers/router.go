@@ -1,7 +1,7 @@
 package routers
 
 import (
-	"github.com/astaxie/beego"
+	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/web/controllers"
 )
 

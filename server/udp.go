@@ -2,7 +2,10 @@ package server
 
 import (
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/pool"
 	"net"
 	"strings"
 )
@@ -10,15 +13,15 @@ import (
 type UdpModeServer struct {
 	server
 	listener *net.UDPConn
-	udpMap   map[string]*lib.Conn
+	udpMap   map[string]*conn.Conn
 }
 
-func NewUdpModeServer(bridge *bridge.Bridge, task *lib.Tunnel) *UdpModeServer {
+func NewUdpModeServer(bridge *bridge.Bridge, task *file.Tunnel) *UdpModeServer {
 	s := new(UdpModeServer)
 	s.bridge = bridge
-	s.udpMap = make(map[string]*lib.Conn)
+	s.udpMap = make(map[string]*conn.Conn)
 	s.task = task
-	s.config = lib.DeepCopyConfig(task.Config)
+	s.config = file.DeepCopyConfig(task.Config)
 	return s
 }
 
@@ -29,7 +32,7 @@ func (s *UdpModeServer) Start() error {
 	if err != nil {
 		return err
 	}
-	buf := lib.BufPoolUdp.Get().([]byte)
+	buf := pool.BufPoolUdp.Get().([]byte)
 	for {
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
@@ -47,13 +50,14 @@ func (s *UdpModeServer) Start() error {
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	link := lib.NewLink(s.task.Client.GetId(), lib.CONN_UDP, s.task.Target, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
+	link := conn.NewLink(s.task.Client.GetId(), common.CONN_UDP, s.task.Target, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		return
 	} else {
 		s.task.Flow.Add(len(data), 0)
 		tunnel.SendMsg(data, link)
+		pool.PutBufPoolUdp(data)
 	}
 }
 

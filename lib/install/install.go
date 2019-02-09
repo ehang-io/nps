@@ -1,8 +1,9 @@
-package lib
+package install
 
 import (
 	"errors"
 	"fmt"
+	"github.com/cnlh/nps/lib/common"
 	"io"
 	"log"
 	"os"
@@ -11,22 +12,22 @@ import (
 )
 
 func InstallNps() {
-	path := GetInstallPath()
+	path := common.GetInstallPath()
 	MkidrDirAll(path, "conf", "web/static", "web/views")
 	//复制文件到对应目录
-	if err := CopyDir(filepath.Join(GetAppPath(), "web", "views"), filepath.Join(path, "web", "views")); err != nil {
+	if err := CopyDir(filepath.Join(common.GetAppPath(), "web", "views"), filepath.Join(path, "web", "views")); err != nil {
 		log.Fatalln(err)
 	}
-	if err := CopyDir(filepath.Join(GetAppPath(), "web", "static"), filepath.Join(path, "web", "static")); err != nil {
+	if err := CopyDir(filepath.Join(common.GetAppPath(), "web", "static"), filepath.Join(path, "web", "static")); err != nil {
 		log.Fatalln(err)
 	}
-	if err := CopyDir(filepath.Join(GetAppPath(), "conf"), filepath.Join(path, "conf")); err != nil {
+	if err := CopyDir(filepath.Join(common.GetAppPath(), "conf"), filepath.Join(path, "conf")); err != nil {
 		log.Fatalln(err)
 	}
 
-	if !IsWindows() {
-		if _, err := copyFile(filepath.Join(GetAppPath(), "nps"), "/usr/bin/nps"); err != nil {
-			if _, err := copyFile(filepath.Join(GetAppPath(), "nps"), "/usr/local/bin/nps"); err != nil {
+	if !common.IsWindows() {
+		if _, err := copyFile(filepath.Join(common.GetAppPath(), "nps"), "/usr/bin/nps"); err != nil {
+			if _, err := copyFile(filepath.Join(common.GetAppPath(), "nps"), "/usr/local/bin/nps"); err != nil {
 				log.Fatalln(err)
 			} else {
 				os.Chmod("/usr/local/bin/nps", 0777)
@@ -41,7 +42,7 @@ func InstallNps() {
 	log.Println("install ok!")
 	log.Println("Static files and configuration files in the current directory will be useless")
 	log.Println("The new configuration file is located in", path, "you can edit them")
-	if !IsWindows() {
+	if !common.IsWindows() {
 		log.Println("You can start with nps test|start|stop|restart|status anywhere")
 	} else {
 		log.Println("You can copy executable files to any directory and start working with nps.exe test|start|stop|restart|status")

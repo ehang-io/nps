@@ -1,11 +1,15 @@
-package lib
+package conn
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/golang/snappy"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/kcp"
+	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/lib/rate"
 	"io"
 	"net"
 	"net/http"
@@ -17,126 +21,6 @@ import (
 )
 
 const cryptKey = "1234567812345678"
-
-type CryptConn struct {
-	conn  net.Conn
-	crypt bool
-	rate  *Rate
-}
-
-func NewCryptConn(conn net.Conn, crypt bool, rate *Rate) *CryptConn {
-	c := new(CryptConn)
-	c.conn = conn
-	c.crypt = crypt
-	c.rate = rate
-	return c
-}
-
-//加密写
-func (s *CryptConn) Write(b []byte) (n int, err error) {
-	n = len(b)
-	if s.crypt {
-		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
-			return
-		}
-	}
-	if b, err = GetLenBytes(b); err != nil {
-		return
-	}
-	_, err = s.conn.Write(b)
-	if s.rate != nil {
-		s.rate.Get(int64(n))
-	}
-	return
-}
-
-//解密读
-func (s *CryptConn) Read(b []byte) (n int, err error) {
-	var lens int
-	var buf []byte
-	var rb []byte
-	c := NewConn(s.conn)
-	if lens, err = c.GetLen(); err != nil {
-		return
-	}
-	if buf, err = c.ReadLen(lens); err != nil {
-		return
-	}
-	if s.crypt {
-		if rb, err = AesDecrypt(buf, []byte(cryptKey)); err != nil {
-			return
-		}
-	} else {
-		rb = buf
-	}
-	copy(b, rb)
-	n = len(rb)
-	if s.rate != nil {
-		s.rate.Get(int64(n))
-	}
-	return
-}
-
-type SnappyConn struct {
-	w     *snappy.Writer
-	r     *snappy.Reader
-	crypt bool
-	rate  *Rate
-}
-
-func NewSnappyConn(conn net.Conn, crypt bool, rate *Rate) *SnappyConn {
-	c := new(SnappyConn)
-	c.w = snappy.NewBufferedWriter(conn)
-	c.r = snappy.NewReader(conn)
-	c.crypt = crypt
-	c.rate = rate
-	return c
-}
-
-//snappy压缩写 包含加密
-func (s *SnappyConn) Write(b []byte) (n int, err error) {
-	n = len(b)
-	if s.crypt {
-		if b, err = AesEncrypt(b, []byte(cryptKey)); err != nil {
-			Println("encode crypt error:", err)
-			return
-		}
-	}
-	if _, err = s.w.Write(b); err != nil {
-		return
-	}
-	if err = s.w.Flush(); err != nil {
-		return
-	}
-	if s.rate != nil {
-		s.rate.Get(int64(n))
-	}
-	return
-}
-
-//snappy压缩读 包含解密
-func (s *SnappyConn) Read(b []byte) (n int, err error) {
-	buf := BufPool.Get().([]byte)
-	defer BufPool.Put(buf)
-	if n, err = s.r.Read(buf); err != nil {
-		return
-	}
-	var bs []byte
-	if s.crypt {
-		if bs, err = AesDecrypt(buf[:n], []byte(cryptKey)); err != nil {
-			Println("decode crypt error:", err)
-			return
-		}
-	} else {
-		bs = buf[:n]
-	}
-	n = len(bs)
-	copy(b, bs)
-	if s.rate != nil {
-		s.rate.Get(int64(n))
-	}
-	return
-}
 
 type Conn struct {
 	Conn net.Conn
@@ -186,16 +70,16 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int) ([]byte, error) {
-	if cLen > poolSize {
+	if cLen > pool.PoolSize {
 		return nil, errors.New("长度错误" + strconv.Itoa(cLen))
 	}
 	var buf []byte
-	if cLen <= poolSizeSmall {
-		buf = BufPoolSmall.Get().([]byte)[:cLen]
-		defer BufPoolSmall.Put(buf)
+	if cLen <= pool.PoolSizeSmall {
+		buf = pool.BufPoolSmall.Get().([]byte)[:cLen]
+		defer pool.BufPoolSmall.Put(buf)
 	} else {
-		buf = BufPoolMax.Get().([]byte)[:cLen]
-		defer BufPoolMax.Put(buf)
+		buf = pool.BufPoolMax.Get().([]byte)[:cLen]
+		defer pool.BufPoolMax.Put(buf)
 	}
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
 		return buf, errors.New("读取指定长度错误" + err.Error())
@@ -231,35 +115,64 @@ func (s *Conn) GetConnStatus() (id int, status bool, err error) {
 	if b, err = s.ReadLen(1); err != nil {
 		return
 	} else {
-		status = GetBoolByStr(string(b[0]))
+		status = common.GetBoolByStr(string(b[0]))
 	}
 	return
 }
 
 //设置连接为长连接
-func (s *Conn) SetAlive() {
+func (s *Conn) SetAlive(tp string) {
+	if tp == "kcp" {
+		s.setKcpAlive()
+	} else {
+		s.setTcpAlive()
+	}
+}
+
+//设置连接为长连接
+func (s *Conn) setTcpAlive() {
 	conn := s.Conn.(*net.TCPConn)
 	conn.SetReadDeadline(time.Time{})
 	conn.SetKeepAlive(true)
 	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 }
 
+//设置连接为长连接
+func (s *Conn) setKcpAlive() {
+	conn := s.Conn.(*kcp.UDPSession)
+	conn.SetReadDeadline(time.Time{})
+}
+
+//设置连接为长连接
+func (s *Conn) SetReadDeadline(t time.Duration, tp string) {
+	if tp == "kcp" {
+		s.SetKcpReadDeadline(t)
+	} else {
+		s.SetTcpReadDeadline(t)
+	}
+}
+
 //set read dead time
-func (s *Conn) SetReadDeadline(t time.Duration) {
+func (s *Conn) SetTcpReadDeadline(t time.Duration) {
 	s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 }
 
+//set read dead time
+func (s *Conn) SetKcpReadDeadline(t time.Duration) {
+	s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+}
+
 //单独读（加密|压缩）
-func (s *Conn) ReadFrom(b []byte, compress int, crypt bool, rate *Rate) (int, error) {
-	if COMPRESS_SNAPY_DECODE == compress {
+func (s *Conn) ReadFrom(b []byte, compress int, crypt bool, rate *rate.Rate) (int, error) {
+	if common.COMPRESS_SNAPY_DECODE == compress {
 		return NewSnappyConn(s.Conn, crypt, rate).Read(b)
 	}
 	return NewCryptConn(s.Conn, crypt, rate).Read(b)
 }
 
 //单独写（加密|压缩）
-func (s *Conn) WriteTo(b []byte, compress int, crypt bool, rate *Rate) (n int, err error) {
-	if COMPRESS_SNAPY_ENCODE == compress {
+func (s *Conn) WriteTo(b []byte, compress int, crypt bool, rate *rate.Rate) (n int, err error) {
+	if common.COMPRESS_SNAPY_ENCODE == compress {
 		return NewSnappyConn(s.Conn, crypt, rate).Write(b)
 	}
 	return NewCryptConn(s.Conn, crypt, rate).Write(b)
@@ -292,7 +205,7 @@ func (s *Conn) SendMsg(content []byte, link *Link) (n int, err error) {
 func (s *Conn) GetMsgContent(link *Link) (content []byte, err error) {
 	s.Lock()
 	defer s.Unlock()
-	buf := BufPoolCopy.Get().([]byte)
+	buf := pool.BufPoolCopy.Get().([]byte)
 	if n, err := s.ReadFrom(buf, link.De, link.Crypt, link.Rate); err == nil && n > 4 {
 		content = buf[:n]
 	}
@@ -310,7 +223,7 @@ func (s *Conn) SendLinkInfo(link *Link) (int, error) {
 		+----------+------+----------+------+----+----+------+
 	*/
 	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, []byte(NEW_CONN))
+	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONN))
 	binary.Write(raw, binary.LittleEndian, int32(14+len(link.Host)))
 	binary.Write(raw, binary.LittleEndian, int32(link.Id))
 	binary.Write(raw, binary.LittleEndian, []byte(link.ConnType))
@@ -318,13 +231,13 @@ func (s *Conn) SendLinkInfo(link *Link) (int, error) {
 	binary.Write(raw, binary.LittleEndian, []byte(link.Host))
 	binary.Write(raw, binary.LittleEndian, []byte(strconv.Itoa(link.En)))
 	binary.Write(raw, binary.LittleEndian, []byte(strconv.Itoa(link.De)))
-	binary.Write(raw, binary.LittleEndian, []byte(GetStrByBool(link.Crypt)))
+	binary.Write(raw, binary.LittleEndian, []byte(common.GetStrByBool(link.Crypt)))
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
 }
 
-func (s *Conn) GetLinkInfo() (link *Link, err error) {
+func (s *Conn) GetLinkInfo() (lk *Link, err error) {
 	s.Lock()
 	defer s.Unlock()
 	var hostLen, n int
@@ -332,21 +245,69 @@ func (s *Conn) GetLinkInfo() (link *Link, err error) {
 	if n, err = s.GetLen(); err != nil {
 		return
 	}
-	link = new(Link)
+	lk = new(Link)
 	if buf, err = s.ReadLen(n); err != nil {
 		return
 	}
-	if link.Id, err = GetLenByBytes(buf[:4]); err != nil {
+	if lk.Id, err = GetLenByBytes(buf[:4]); err != nil {
 		return
 	}
-	link.ConnType = string(buf[4:7])
+	lk.ConnType = string(buf[4:7])
 	if hostLen, err = GetLenByBytes(buf[7:11]); err != nil {
 		return
 	} else {
-		link.Host = string(buf[11 : 11+hostLen])
-		link.En = GetIntNoErrByStr(string(buf[11+hostLen]))
-		link.De = GetIntNoErrByStr(string(buf[12+hostLen]))
-		link.Crypt = GetBoolByStr(string(buf[13+hostLen]))
+		lk.Host = string(buf[11 : 11+hostLen])
+		lk.En = common.GetIntNoErrByStr(string(buf[11+hostLen]))
+		lk.De = common.GetIntNoErrByStr(string(buf[12+hostLen]))
+		lk.Crypt = common.GetBoolByStr(string(buf[13+hostLen]))
+	}
+	return
+}
+
+//send task info
+func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
+	/*
+		The task info is formed as follows:
+		+----+-----+---------+
+		|type| len | content |
+		+----+---------------+
+		| 4  |  4  |   ...   |
+		+----+---------------+
+*/
+	raw := bytes.NewBuffer([]byte{})
+	binary.Write(raw, binary.LittleEndian, common.NEW_TASK)
+	common.BinaryWrite(raw, t.Mode, string(t.TcpPort), string(t.Target), string(t.Config.U), string(t.Config.P), common.GetStrByBool(t.Config.Crypt), t.Config.Compress, t.Remark)
+	s.Lock()
+	defer s.Unlock()
+	return s.Write(raw.Bytes())
+}
+
+//get task info
+func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
+	var l int
+	var b []byte
+	if l, err = s.GetLen(); err != nil {
+		return
+	} else if b, err = s.ReadLen(l); err != nil {
+		return
+	} else {
+		arr := strings.Split(string(b), "#")
+		t.Mode = arr[0]
+		t.TcpPort, _ = strconv.Atoi(arr[1])
+		t.Target = arr[2]
+		t.Config = new(file.Config)
+		t.Config.U = arr[3]
+		t.Config.P = arr[4]
+		t.Config.Compress = arr[5]
+		t.Config.CompressDecode, t.Config.CompressDecode = common.GetCompressType(arr[5])
+		t.Id = file.GetCsvDb().GetTaskId()
+		t.Status = true
+		if t.Client, err = file.GetCsvDb().GetClient(0); err != nil {
+			return
+		}
+		t.Flow = new(file.Flow)
+		t.Remark = arr[6]
+		t.UseClientCnf = false
 	}
 	return
 }
@@ -388,31 +349,31 @@ func (s *Conn) Read(b []byte) (int, error) {
 
 //write error
 func (s *Conn) WriteError() (int, error) {
-	return s.Write([]byte(RES_MSG))
+	return s.Write([]byte(common.RES_MSG))
 }
 
 //write sign flag
 func (s *Conn) WriteSign() (int, error) {
-	return s.Write([]byte(RES_SIGN))
+	return s.Write([]byte(common.RES_SIGN))
 }
 
 //write sign flag
 func (s *Conn) WriteClose() (int, error) {
-	return s.Write([]byte(RES_CLOSE))
+	return s.Write([]byte(common.RES_CLOSE))
 }
 
 //write main
 func (s *Conn) WriteMain() (int, error) {
 	s.Lock()
 	defer s.Unlock()
-	return s.Write([]byte(WORK_MAIN))
+	return s.Write([]byte(common.WORK_MAIN))
 }
 
 //write chan
 func (s *Conn) WriteChan() (int, error) {
 	s.Lock()
 	defer s.Unlock()
-	return s.Write([]byte(WORK_CHAN))
+	return s.Write([]byte(common.WORK_CHAN))
 }
 
 //获取长度+内容
@@ -435,4 +396,14 @@ func GetLenByBytes(buf []byte) (int, error) {
 		return 0, errors.New("数据长度错误")
 	}
 	return int(nlen), nil
+}
+
+func SetUdpSession(sess *kcp.UDPSession) {
+	sess.SetStreamMode(true)
+	sess.SetWindowSize(1024, 1024)
+	sess.SetReadBuffer(64 * 1024)
+	sess.SetWriteBuffer(64 * 1024)
+	sess.SetNoDelay(1, 10, 2, 1)
+	sess.SetMtu(1600)
+	sess.SetACKNoDelay(true)
 }

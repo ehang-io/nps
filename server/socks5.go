@@ -4,7 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/lg"
 	"io"
 	"net"
 	"strconv"
@@ -65,7 +68,7 @@ func (s *Sock5ModeServer) handleRequest(c net.Conn) {
 	_, err := io.ReadFull(c, header)
 
 	if err != nil {
-		lib.Println("illegal request", err)
+		lg.Println("illegal request", err)
 		c.Close()
 		return
 	}
@@ -135,18 +138,18 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
 	var ltype string
 	if command == associateMethod {
-		ltype = lib.CONN_UDP
+		ltype = common.CONN_UDP
 	} else {
-		ltype = lib.CONN_TCP
+		ltype = common.CONN_TCP
 	}
-	link := lib.NewLink(s.task.Client.GetId(), ltype, addr, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, lib.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
+	link := conn.NewLink(s.task.Client.GetId(), ltype, addr, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, conn.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		c.Close()
 		return
 	} else {
 		s.sendReply(c, succeeded)
-		s.linkCopy(link, lib.NewConn(c), nil, tunnel, s.task.Flow)
+		s.linkCopy(link, conn.NewConn(c), nil, tunnel, s.task.Flow)
 	}
 	return
 }
@@ -162,7 +165,7 @@ func (s *Sock5ModeServer) handleBind(c net.Conn) {
 
 //udp
 func (s *Sock5ModeServer) handleUDP(c net.Conn) {
-	lib.Println("UDP Associate")
+	lg.Println("UDP Associate")
 	/*
 	   +----+------+------+----------+----------+----------+
 	   |RSV | FRAG | ATYP | DST.ADDR | DST.PORT |   DATA   |
@@ -175,7 +178,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	// relay udp datagram silently, without any notification to the requesting client
 	if buf[2] != 0 {
 		// does not support fragmentation, drop it
-		lib.Println("does not support fragmentation, drop")
+		lg.Println("does not support fragmentation, drop")
 		dummy := make([]byte, maxUDPPacketSize)
 		c.Read(dummy)
 	}
@@ -187,13 +190,13 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 func (s *Sock5ModeServer) handleConn(c net.Conn) {
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(c, buf); err != nil {
-		lib.Println("negotiation err", err)
+		lg.Println("negotiation err", err)
 		c.Close()
 		return
 	}
 
 	if version := buf[0]; version != 5 {
-		lib.Println("only support socks5, request from: ", c.RemoteAddr())
+		lg.Println("only support socks5, request from: ", c.RemoteAddr())
 		c.Close()
 		return
 	}
@@ -201,7 +204,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 
 	methods := make([]byte, nMethods)
 	if len, err := c.Read(methods); len != int(nMethods) || err != nil {
-		lib.Println("wrong method")
+		lg.Println("wrong method")
 		c.Close()
 		return
 	}
@@ -210,7 +213,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Write(buf)
 		if err := s.Auth(c); err != nil {
 			c.Close()
-			lib.Println("验证失败：", err)
+			lg.Println("验证失败：", err)
 			return
 		}
 	} else {
@@ -269,7 +272,7 @@ func (s *Sock5ModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			lib.Fatalln("accept error: ", err)
+			lg.Fatalln("accept error: ", err)
 		}
 		if !s.ResetConfig() {
 			conn.Close()
@@ -286,11 +289,11 @@ func (s *Sock5ModeServer) Close() error {
 }
 
 //new
-func NewSock5ModeServer(bridge *bridge.Bridge, task *lib.Tunnel) *Sock5ModeServer {
+func NewSock5ModeServer(bridge *bridge.Bridge, task *file.Tunnel) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
 	s.task = task
-	s.config = lib.DeepCopyConfig(task.Config)
+	s.config = file.DeepCopyConfig(task.Config)
 	if s.config.U != "" && s.config.P != "" {
 		s.isVerify = true
 	} else {

@@ -1,45 +1,21 @@
-package lib
+package common
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/binary"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/lg"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
-const (
-	COMPRESS_NONE_ENCODE = iota
-	COMPRESS_NONE_DECODE
-	COMPRESS_SNAPY_ENCODE
-	COMPRESS_SNAPY_DECODE
-	VERIFY_EER        = "vkey"
-	WORK_MAIN         = "main"
-	WORK_CHAN         = "chan"
-	RES_SIGN          = "sign"
-	RES_MSG           = "msg0"
-	RES_CLOSE         = "clse"
-	NEW_CONN          = "conn" //新连接标志
-	CONN_SUCCESS      = "sucs"
-	CONN_TCP          = "tcp"
-	CONN_UDP          = "udp"
-	UnauthorizedBytes = `HTTP/1.1 401 Unauthorized
-Content-Type: text/plain; charset=utf-8
-WWW-Authenticate: Basic realm="easyProxy"
-
-401 Unauthorized`
-	IO_EOF              = "PROXYEOF"
-	ConnectionFailBytes = `HTTP/1.1 404 Not Found
-
-`
-)
-
-//判断压缩方式
+//Judging Compression Mode
 func GetCompressType(compress string) (int, int) {
 	switch compress {
 	case "":
@@ -47,12 +23,12 @@ func GetCompressType(compress string) (int, int) {
 	case "snappy":
 		return COMPRESS_SNAPY_DECODE, COMPRESS_SNAPY_ENCODE
 	default:
-		Fatalln("数据压缩格式错误")
+		lg.Fatalln("数据压缩格式错误")
 	}
 	return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
 }
 
-//通过host获取对应的ip地址
+//Get the corresponding IP address through domain name
 func GetHostByName(hostname string) string {
 	if !DomainCheck(hostname) {
 		return hostname
@@ -68,7 +44,7 @@ func GetHostByName(hostname string) string {
 	return ""
 }
 
-//检查是否是域名
+//Check the legality of domain
 func DomainCheck(domain string) bool {
 	var match bool
 	IsLine := "^((http://)|(https://))?([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,6}(/)"
@@ -80,7 +56,7 @@ func DomainCheck(domain string) bool {
 	return match
 }
 
-//检查basic认证
+//Check if the Request request is validated
 func CheckAuth(r *http.Request, user, passwd string) bool {
 	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
 	if len(s) != 2 {
@@ -122,11 +98,12 @@ func GetIntNoErrByStr(str string) int {
 	return i
 }
 
-//简单的一个校验值
+//Get verify value
 func Getverifyval(vkey string) string {
-	return Md5(vkey)
+	return crypt.Md5(vkey)
 }
 
+//Change headers and host of request
 func ChangeHostAndHeader(r *http.Request, host string, header string, addr string) {
 	if host != "" {
 		r.Host = host
@@ -145,6 +122,7 @@ func ChangeHostAndHeader(r *http.Request, host string, header string, addr strin
 	r.Header.Set("X-Real-IP", addr)
 }
 
+//Read file content by file path
 func ReadAllFromFile(filePath string) ([]byte, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -163,53 +141,7 @@ func FileExists(name string) bool {
 	return true
 }
 
-func GetRunPath() string {
-	var path string
-	if path = GetInstallPath(); !FileExists(path) {
-		return "./"
-	}
-	return path
-}
-func GetInstallPath() string {
-	var path string
-	if IsWindows() {
-		path = `C:\Program Files\nps`
-	} else {
-		path = "/etc/nps"
-	}
-	return path
-}
-func GetAppPath() string {
-	if path, err := filepath.Abs(filepath.Dir(os.Args[0])); err == nil {
-		return path
-	}
-	return os.Args[0]
-}
-func IsWindows() bool {
-	if runtime.GOOS == "windows" {
-		return true
-	}
-	return false
-}
-func GetLogPath() string {
-	var path string
-	if IsWindows() {
-		path = "./"
-	} else {
-		path = "/tmp"
-	}
-	return path
-}
-func GetPidPath() string {
-	var path string
-	if IsWindows() {
-		path = "./"
-	} else {
-		path = "/tmp"
-	}
-	return path
-}
-
+//Judge whether the TCP port can open normally
 func TestTcpPort(port int) bool {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), port, ""})
 	defer l.Close()
@@ -217,4 +149,28 @@ func TestTcpPort(port int) bool {
 		return false
 	}
 	return true
+}
+
+//Judge whether the UDP port can open normally
+func TestUdpPort(port int) bool {
+	l, err := net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), port, ""})
+	defer l.Close()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+//Write length and individual byte data
+//Length prevents sticking
+//# Characters are used to separate data
+func BinaryWrite(raw *bytes.Buffer, v ...string) {
+	buffer := new(bytes.Buffer)
+	var l int32
+	for _, v := range v {
+		l += int32(len([]byte(v))) + int32(len([]byte("#")))
+		binary.Write(buffer, binary.LittleEndian, []byte(v))
+		binary.Write(buffer, binary.LittleEndian, []byte("#"))
+	}
+	binary.Write(raw, binary.LittleEndian, buffer.Bytes())
 }
