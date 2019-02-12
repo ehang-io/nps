@@ -473,7 +473,7 @@ emitLiteralFastPath:
 	// (Encode's documentation says that dst and src must not overlap.)
 	//
 	// This always copies 16 bytes, instead of only len(lit) bytes, but that's
-	// OK. Subsequent iterations will fix up the overrun.
+	// OK. Subsequent iterations will fix up the overserver.
 	//
 	// Note that on amd64, it is legal and cheap to issue unaligned 8-byte or
 	// 16-byte loads and stores. This technique probably wouldn't be as

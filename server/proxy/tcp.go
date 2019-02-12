@@ -1,9 +1,9 @@
-package server
+package proxy
 
 import (
 	"errors"
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
@@ -25,14 +25,13 @@ func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *file.Tunn
 	s.bridge = bridge
 	s.process = process
 	s.task = task
-	s.config = file.DeepCopyConfig(task.Config)
 	return s
 }
 
 //开始
 func (s *TunnelModeServer) Start() error {
 	var err error
-	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.task.TcpPort, ""})
+	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.task.Port, ""})
 	if err != nil {
 		return err
 	}
@@ -77,14 +76,14 @@ type WebServer struct {
 func (s *WebServer) Start() error {
 	p, _ := beego.AppConfig.Int("httpport")
 	if !common.TestTcpPort(p) {
-		lg.Fatalln("web管理端口", p, "被占用!")
+		lg.Fatalf("Web management port %d is occupied", p)
 	}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	lg.Println("web管理启动，访问端口为", p)
+	lg.Println("Web management start, access port is", p)
 	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
 	beego.Run()
-	return errors.New("web管理启动失败")
+	return errors.New("Web management startup failure")
 }
 
 //new
@@ -98,26 +97,18 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	if !s.ResetConfig() {
-		c.Close()
-		return errors.New("流量超出")
-	}
-	return s.dealClient(c, s.config, s.task.Target, "", nil)
+	return s.dealClient(c, s.task.Client.Cnf, s.task.Target, "", nil)
 }
 
 //http代理模式
 func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
-	if !s.ResetConfig() {
-		c.Close()
-		return errors.New("流量超出")
-	}
 	method, addr, rb, err, r := c.GetHost()
 	if err != nil {
 		c.Close()
 		return err
 	}
-	if err := s.auth(r, c, s.config.U, s.config.P); err != nil {
+	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
 		return err
 	}
-	return s.dealClient(c, s.config, addr, method, rb)
+	return s.dealClient(c, s.task.Client.Cnf, addr, method, rb)
 }

@@ -3,15 +3,17 @@ package server
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/server/proxy"
+	"github.com/cnlh/nps/server/tool"
 	"reflect"
-	"strings"
 )
 
 var (
-	Bridge      *bridge.Bridge
-	RunList     map[int]interface{} //运行中的任务
+	Bridge  *bridge.Bridge
+	RunList map[int]interface{} //运行中的任务
 )
 
 func init() {
@@ -20,20 +22,39 @@ func init() {
 
 //从csv文件中恢复任务
 func InitFromCsv() {
+	//Add a public password
+	c := file.NewClient(beego.AppConfig.String("publicVkey"), true, true)
+	file.GetCsvDb().NewClient(c)
+	RunList[c.Id] = nil
+	//Initialize services in server-side files
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Status {
-			lg.Println("启动模式：", v.Mode, "监听端口：", v.TcpPort)
+			lg.Println("启动模式：", v.Mode, "监听端口：", v.Port)
 			AddTask(v)
+		}
+	}
+}
+func DealBridgeTask() {
+	for {
+		select {
+		case t := <-Bridge.OpenTask:
+			AddTask(t)
+		case id := <-Bridge.CloseClient:
+			DelTunnelAndHostByClientId(id)
+			file.GetCsvDb().DelClient(id)
 		}
 	}
 }
 
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
-	Bridge = bridge.NewTunnel(bridgePort, RunList, bridgeType)
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType)
 	if err := Bridge.StartTunnel(); err != nil {
 		lg.Fatalln("服务端开启失败", err)
+	} else {
+		lg.Printf("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
 	}
+	go DealBridgeTask()
 	if svr := NewMode(Bridge, cnf); svr != nil {
 		RunList[cnf.Id] = svr
 		err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
@@ -41,7 +62,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 			lg.Fatalln(err)
 		}
 	} else {
-		lg.Fatalln("启动模式不正确")
+		lg.Fatalln("启动模式%s不正确", cnf.Mode)
 	}
 }
 
@@ -49,26 +70,25 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) interface{} {
 	switch c.Mode {
 	case "tunnelServer":
-		return NewTunnelModeServer(ProcessTunnel, Bridge, c)
+		return proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
 	case "socks5Server":
-		return NewSock5ModeServer(Bridge, c)
+		return proxy.NewSock5ModeServer(Bridge, c)
 	case "httpProxyServer":
-		return NewTunnelModeServer(ProcessHttp, Bridge, c)
+		return proxy.NewTunnelModeServer(proxy.ProcessHttp, Bridge, c)
 	case "udpServer":
-		return NewUdpModeServer(Bridge, c)
+		return proxy.NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
 		t := &file.Tunnel{
-			TcpPort: 0,
-			Mode:    "httpHostServer",
-			Target:  "",
-			Config:  &file.Config{},
-			Status:  true,
+			Port:   0,
+			Mode:   "httpHostServer",
+			Target: "",
+			Status: true,
 		}
 		AddTask(t)
-		return NewWebServer(Bridge)
+		return proxy.NewWebServer(Bridge)
 	case "httpHostServer":
-		return NewHttp(Bridge, c)
+		return proxy.NewHttp(Bridge, c)
 	}
 	return nil
 }
@@ -83,6 +103,7 @@ func StopServer(id int) error {
 			t.Status = false
 			file.GetCsvDb().UpdateTask(t)
 		}
+		delete(RunList, id)
 		return nil
 	}
 	return errors.New("未在运行中")
@@ -90,17 +111,22 @@ func StopServer(id int) error {
 
 //add task
 func AddTask(t *file.Tunnel) error {
+	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
+		lg.Printf("taskId %d start error Port %d Open Failed", t.Id, t.Port)
+		return errors.New("error")
+	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		RunList[t.Id] = svr
 		go func() {
 			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
 			if err.Interface() != nil {
-				lg.Fatalln("客户端", t.Id, "启动失败，错误：", err)
+				lg.Println("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
 				delete(RunList, t.Id)
+				return
 			}
 		}()
 	} else {
-		return errors.New("启动模式不正确")
+		return errors.New("the mode is not correct")
 	}
 	return nil
 }
@@ -119,23 +145,12 @@ func StartTask(id int) error {
 
 //delete task
 func DelTask(id int) error {
-	if err := StopServer(id); err != nil {
-		return err
-	}
-	return file.GetCsvDb().DelTask(id)
-}
-
-//get key by host from x
-func GetInfoByHost(host string) (h *file.Host, err error) {
-	for _, v := range file.GetCsvDb().Hosts {
-		s := strings.Split(host, ":")
-		if s[0] == v.Host {
-			h = v
-			return
+	if _, ok := RunList[id]; ok {
+		if err := StopServer(id); err != nil {
+			return err
 		}
 	}
-	err = errors.New("未找到host对应的内网目标")
-	return
+	return file.GetCsvDb().DelTask(id)
 }
 
 //get task list by page num
@@ -155,9 +170,9 @@ func GetTunnel(start, length int, typeVal string, clientId int) ([]*file.Tunnel,
 		if start--; start < 0 {
 			if length--; length > 0 {
 				if _, ok := RunList[v.Id]; ok {
-					v.Client.Status = true
+					v.RunStatus = true
 				} else {
-					v.Client.Status = false
+					v.RunStatus = false
 				}
 				list = append(list, v)
 			}
@@ -200,10 +215,14 @@ func dealClientData(list []*file.Client) {
 
 //根据客户端id删除其所属的所有隧道和域名
 func DelTunnelAndHostByClientId(clientId int) {
+	var ids []int
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Client.Id == clientId {
-			DelTask(v.Id)
+			ids = append(ids, v.Id)
 		}
+	}
+	for _, id := range ids {
+		DelTask(id)
 	}
 	for _, v := range file.GetCsvDb().Hosts {
 		if v.Client.Id == clientId {

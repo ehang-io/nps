@@ -264,6 +264,98 @@ func (s *Conn) GetLinkInfo() (lk *Link, err error) {
 	return
 }
 
+//send host info
+func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
+	/*
+		The task info is formed as follows:
+		+----+-----+---------+
+		|type| len | content |
+		+----+---------------+
+		| 4  |  4  |   ...   |
+		+----+---------------+
+*/
+	raw := bytes.NewBuffer([]byte{})
+	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_HOST))
+	common.BinaryWrite(raw, h.Host, h.Target, h.HeaderChange, h.HostChange, h.Remark)
+	s.Lock()
+	defer s.Unlock()
+	return s.Write(raw.Bytes())
+}
+
+func (s *Conn) GetAddStatus() (b bool) {
+	binary.Read(s.Conn, binary.LittleEndian, &b)
+	return
+}
+
+func (s *Conn) WriteAddOk() error {
+	return binary.Write(s.Conn, binary.LittleEndian, true)
+}
+
+func (s *Conn) WriteAddFail() error {
+	defer s.Close()
+	return binary.Write(s.Conn, binary.LittleEndian, false)
+}
+
+//get task info
+func (s *Conn) GetHostInfo() (h *file.Host, err error) {
+	var l int
+	var b []byte
+	if l, err = s.GetLen(); err != nil {
+		return
+	} else if b, err = s.ReadLen(l); err != nil {
+		return
+	} else {
+		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
+		h = new(file.Host)
+		h.Host = arr[0]
+		h.Target = arr[1]
+		h.HeaderChange = arr[2]
+		h.HostChange = arr[3]
+		h.Remark = arr[4]
+		h.Flow = new(file.Flow)
+		h.NoStore = true
+	}
+	return
+}
+
+//send task info
+func (s *Conn) SendConfigInfo(c *file.Config) (int, error) {
+	/*
+		The task info is formed as follows:
+		+----+-----+---------+
+		|type| len | content |
+		+----+---------------+
+		| 4  |  4  |   ...   |
+		+----+---------------+
+*/
+	raw := bytes.NewBuffer([]byte{})
+	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONF))
+	common.BinaryWrite(raw, c.U, c.P, common.GetStrByBool(c.Crypt), c.Compress)
+	s.Lock()
+	defer s.Unlock()
+	return s.Write(raw.Bytes())
+}
+
+//get task info
+func (s *Conn) GetConfigInfo() (c *file.Config, err error) {
+	var l int
+	var b []byte
+	if l, err = s.GetLen(); err != nil {
+		return
+	} else if b, err = s.ReadLen(l); err != nil {
+		return
+	} else {
+		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
+		c = new(file.Config)
+		c.U = arr[0]
+		c.P = arr[1]
+		c.Crypt = common.GetBoolByStr(arr[2])
+		c.Compress = arr[3]
+		c.CompressDecode, c.CompressDecode = common.GetCompressType(arr[3])
+	}
+	return
+}
+
 //send task info
 func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 	/*
@@ -275,8 +367,8 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 		+----+---------------+
 */
 	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, common.NEW_TASK)
-	common.BinaryWrite(raw, t.Mode, string(t.TcpPort), string(t.Target), string(t.Config.U), string(t.Config.P), common.GetStrByBool(t.Config.Crypt), t.Config.Compress, t.Remark)
+	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_TASK))
+	common.BinaryWrite(raw, t.Mode, strconv.Itoa(t.Port), t.Target, t.Remark)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
@@ -291,23 +383,16 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 	} else if b, err = s.ReadLen(l); err != nil {
 		return
 	} else {
-		arr := strings.Split(string(b), "#")
+		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
+		t = new(file.Tunnel)
 		t.Mode = arr[0]
-		t.TcpPort, _ = strconv.Atoi(arr[1])
+		t.Port, _ = strconv.Atoi(arr[1])
 		t.Target = arr[2]
-		t.Config = new(file.Config)
-		t.Config.U = arr[3]
-		t.Config.P = arr[4]
-		t.Config.Compress = arr[5]
-		t.Config.CompressDecode, t.Config.CompressDecode = common.GetCompressType(arr[5])
 		t.Id = file.GetCsvDb().GetTaskId()
 		t.Status = true
-		if t.Client, err = file.GetCsvDb().GetClient(0); err != nil {
-			return
-		}
 		t.Flow = new(file.Flow)
-		t.Remark = arr[6]
-		t.UseClientCnf = false
+		t.Remark = arr[3]
+		t.NoStore = true
 	}
 	return
 }
@@ -367,6 +452,13 @@ func (s *Conn) WriteMain() (int, error) {
 	s.Lock()
 	defer s.Unlock()
 	return s.Write([]byte(common.WORK_MAIN))
+}
+
+//write main
+func (s *Conn) WriteConfig() (int, error) {
+	s.Lock()
+	defer s.Unlock()
+	return s.Write([]byte(common.WORK_CONFIG))
 }
 
 //write chan

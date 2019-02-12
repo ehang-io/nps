@@ -1,13 +1,17 @@
 package bridge
 
 import (
+	"encoding/binary"
 	"errors"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/kcp"
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/server/tool"
+	"log"
 	"net"
 	"strconv"
 	"sync"
@@ -38,19 +42,21 @@ type Bridge struct {
 	tcpListener *net.TCPListener //server端监听
 	kcpListener *kcp.Listener    //server端监听
 	Client      map[int]*Client
-	RunList     map[int]interface{} //运行中的任务
-	tunnelType  string              //bridge type kcp or tcp
+	tunnelType  string //bridge type kcp or tcp
+	OpenTask    chan *file.Tunnel
+	CloseClient chan int
 	lock        sync.Mutex
 	tunnelLock  sync.Mutex
 	clientLock  sync.RWMutex
 }
 
-func NewTunnel(tunnelPort int, runList map[int]interface{}, tunnelType string) *Bridge {
+func NewTunnel(tunnelPort int, tunnelType string) *Bridge {
 	t := new(Bridge)
 	t.TunnelPort = tunnelPort
 	t.Client = make(map[int]*Client)
-	t.RunList = runList
 	t.tunnelType = tunnelType
+	t.OpenTask = make(chan *file.Tunnel)
+	t.CloseClient = make(chan int)
 	return t
 }
 
@@ -97,6 +103,10 @@ func (s *Bridge) verifyError(c *conn.Conn) {
 	c.Conn.Close()
 }
 
+func (s *Bridge) verifySuccess(c *conn.Conn) {
+	c.Write([]byte(common.VERIFY_SUCCESS))
+}
+
 func (s *Bridge) cliProcess(c *conn.Conn) {
 	c.SetReadDeadline(5, s.tunnelType)
 	var buf []byte
@@ -111,10 +121,15 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 		lg.Println("当前客户端连接校验错误，关闭此客户端:", c.Conn.RemoteAddr())
 		s.verifyError(c)
 		return
+	} else {
+		s.verifySuccess(c)
 	}
 	//做一个判断 添加到对应的channel里面以供使用
 	if flag, err := c.ReadFlag(); err == nil {
 		s.typeDeal(flag, c, id)
+	} else {
+		log.Println(222)
+		log.Println(err, flag)
 	}
 	return
 }
@@ -123,6 +138,9 @@ func (s *Bridge) closeClient(id int) {
 	s.clientLock.Lock()
 	defer s.clientLock.Unlock()
 	if v, ok := s.Client[id]; ok {
+		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
+			s.CloseClient <- c.Id
+		}
 		v.signal.WriteClose()
 		delete(s.Client, id)
 	}
@@ -146,7 +164,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			s.Client[id] = NewClient(nil, c)
 			s.clientLock.Unlock()
 		}
-		lg.Printf("客户端%d连接成功,地址为：%s", id, c.Conn.RemoteAddr())
+		lg.Printf("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
 		go s.GetStatus(id)
 	case common.WORK_CHAN:
 		s.clientLock.Lock()
@@ -160,6 +178,8 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			s.clientLock.Unlock()
 		}
 		go s.clientCopy(id)
+	case common.WORK_CONFIG:
+		go s.GetConfig(c)
 	}
 	c.SetAlive(s.tunnelType)
 	return
@@ -198,12 +218,12 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link) (tunnel *conn.Conn,
 		s.clientLock.Unlock()
 		v.signal.SendLinkInfo(link)
 		if err != nil {
-			lg.Println("send error:", err, link.Id)
+			lg.Println("send link information error:", err, link.Id)
 			s.DelClient(clientId)
 			return
 		}
 		if v.tunnel == nil {
-			err = errors.New("tunnel获取错误")
+			err = errors.New("get tunnel connection error")
 			return
 		} else {
 			tunnel = v.tunnel
@@ -212,36 +232,12 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link) (tunnel *conn.Conn,
 		v.linkMap[link.Id] = link
 		v.Unlock()
 		if !s.waitStatus(clientId, link.Id) {
-			err = errors.New("连接失败")
+			err = errors.New("connect fail")
 			return
 		}
 	} else {
 		s.clientLock.Unlock()
-		err = errors.New("客户端未连接")
-	}
-	return
-}
-
-//得到一个tcp隧道
-func (s *Bridge) GetTunnel(id int, en, de int, crypt, mux bool) (conn *conn.Conn, err error) {
-	s.clientLock.Lock()
-	defer s.clientLock.Unlock()
-	if v, ok := s.Client[id]; !ok {
-		err = errors.New("客户端未连接")
-	} else {
-		conn = v.tunnel
-	}
-	return
-}
-
-//得到一个通信通道
-func (s *Bridge) GetSignal(id int) (conn *conn.Conn, err error) {
-	s.clientLock.Lock()
-	defer s.clientLock.Unlock()
-	if v, ok := s.Client[id]; !ok {
-		err = errors.New("客户端未连接")
-	} else {
-		conn = v.signal
+		err = errors.New("the connection is not connect")
 	}
 	return
 }
@@ -251,14 +247,91 @@ func (s *Bridge) DelClient(id int) {
 	s.closeClient(id)
 }
 
-func (s *Bridge) verify(id int) bool {
-	for k := range s.RunList {
-		if k == id {
-			return true
+//get config
+func (s *Bridge) GetConfig(c *conn.Conn) {
+	var client *file.Client
+	var fail bool
+	for {
+		flag, err := c.ReadFlag()
+		if err != nil {
+			break
+		}
+		switch flag {
+		case common.WORK_STATUS:
+			if b, err := c.ReadLen(16); err != nil {
+				break
+			} else {
+				var str string
+				id, err := file.GetCsvDb().GetClientIdByVkey(string(b))
+				if err != nil {
+					break
+				}
+				for _, v := range file.GetCsvDb().Hosts {
+					if v.Client.Id == id {
+						str += v.Remark + common.CONN_DATA_SEQ
+					}
+				}
+				for _, v := range file.GetCsvDb().Tasks {
+					if v.Client.Id == id {
+						str += v.Remark + common.CONN_DATA_SEQ
+					}
+				}
+				binary.Write(c, binary.LittleEndian, int32(len([]byte(str))))
+				binary.Write(c, binary.LittleEndian, []byte(str))
+			}
+		case common.NEW_CONF:
+			//new client ,Set the client not to store to the file
+			client = file.NewClient(crypt.GetRandomString(16), true, false)
+			client.Remark = "public veky"
+			//Send the key to the client
+			file.GetCsvDb().NewClient(client)
+			c.Write([]byte(client.VerifyKey))
+
+			if config, err := c.GetConfigInfo(); err != nil {
+				fail = true
+				c.WriteAddFail()
+				break
+			} else {
+				client.Cnf = config
+				c.WriteAddOk()
+			}
+		case common.NEW_HOST:
+			if h, err := c.GetHostInfo(); err != nil {
+				fail = true
+				c.WriteAddFail()
+				break
+			} else if file.GetCsvDb().IsHostExist(h.Host) {
+				fail = true
+				c.WriteAddFail()
+			} else {
+				h.Client = client
+				file.GetCsvDb().NewHost(h)
+				c.WriteAddOk()
+			}
+		case common.NEW_TASK:
+			if t, err := c.GetTaskInfo(); err != nil {
+				fail = true
+				c.WriteAddFail()
+				break
+			} else {
+				t.Client = client
+				file.GetCsvDb().NewTask(t)
+				if b := tool.TestServerPort(t.Port, t.Mode); !b {
+					fail = true
+					c.WriteAddFail()
+				} else {
+					s.OpenTask <- t
+				}
+				c.WriteAddOk()
+			}
 		}
 	}
-	return false
+	if fail && client != nil {
+		s.CloseClient <- client.Id
+	}
+	c.Close()
 }
+
 func (s *Bridge) GetStatus(clientId int) {
 	s.clientLock.Lock()
 	client := s.Client[clientId]

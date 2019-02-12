@@ -1,4 +1,4 @@
-package server
+package proxy
 
 import (
 	"encoding/binary"
@@ -142,7 +142,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	} else {
 		ltype = common.CONN_TCP
 	}
-	link := conn.NewLink(s.task.Client.GetId(), ltype, addr, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, conn.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
+	link := conn.NewLink(s.task.Client.GetId(), ltype, addr, s.task.Client.Cnf.CompressEncode, s.task.Client.Cnf.CompressDecode, s.task.Client.Cnf.Crypt, conn.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
 
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		c.Close()
@@ -245,7 +245,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	if _, err := io.ReadAtLeast(c, pass, passLen); err != nil {
 		return err
 	}
-	if string(pass) == s.config.U && string(user) == s.config.P {
+	if string(pass) == s.task.Client.Cnf.U && string(user) == s.task.Client.Cnf.P {
 		if _, err := c.Write([]byte{userAuthVersion, authSuccess}); err != nil {
 			return err
 		}
@@ -262,7 +262,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 //start
 func (s *Sock5ModeServer) Start() error {
 	var err error
-	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.task.TcpPort))
+	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.task.Port))
 	if err != nil {
 		return err
 	}
@@ -273,10 +273,6 @@ func (s *Sock5ModeServer) Start() error {
 				break
 			}
 			lg.Fatalln("accept error: ", err)
-		}
-		if !s.ResetConfig() {
-			conn.Close()
-			continue
 		}
 		go s.handleConn(conn)
 	}
@@ -293,8 +289,7 @@ func NewSock5ModeServer(bridge *bridge.Bridge, task *file.Tunnel) *Sock5ModeServ
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
 	s.task = task
-	s.config = file.DeepCopyConfig(task.Config)
-	if s.config.U != "" && s.config.P != "" {
+	if s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "" {
 		s.isVerify = true
 	} else {
 		s.isVerify = false

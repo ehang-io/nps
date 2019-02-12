@@ -1,14 +1,14 @@
-package server
+package proxy
 
 import (
 	"bufio"
 	"crypto/tls"
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/beego"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/lg"
-	"github.com/cnlh/nps/lib/common"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -55,7 +55,7 @@ func (s *httpServer) Start() error {
 	if s.httpPort > 0 {
 		http = s.NewServer(s.httpPort)
 		go func() {
-			lg.Println("启动http监听,端口为", s.httpPort)
+			lg.Println("Start http listener, port is", s.httpPort)
 			err := http.ListenAndServe()
 			if err != nil {
 				lg.Fatalln(err)
@@ -64,14 +64,14 @@ func (s *httpServer) Start() error {
 	}
 	if s.httpsPort > 0 {
 		if !common.FileExists(s.pemPath) {
-			lg.Fatalf("ssl certFile文件%s不存在", s.pemPath)
+			lg.Fatalf("ssl certFile %s is not exist", s.pemPath)
 		}
 		if !common.FileExists(s.keyPath) {
-			lg.Fatalf("ssl keyFile文件%s不存在", s.keyPath)
+			lg.Fatalf("ssl keyFile %s exist", s.keyPath)
 		}
 		https = s.NewServer(s.httpsPort)
 		go func() {
-			lg.Println("启动https监听,端口为", s.httpsPort)
+			lg.Println("Start https listener, port is", s.httpsPort)
 			err := https.ListenAndServeTLS(s.pemPath, s.keyPath)
 			if err != nil {
 				lg.Fatalln(err)
@@ -111,7 +111,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 	//多客户端域名代理
 	var (
 		isConn = true
-		lk   *conn.Link
+		lk     *conn.Link
 		host   *file.Host
 		tunnel *conn.Conn
 		err    error
@@ -119,7 +119,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 	for {
 		//首次获取conn
 		if isConn {
-			if host, err = GetInfoByHost(r.Host); err != nil {
+			if host, err = file.GetCsvDb().GetInfoByHost(r.Host); err != nil {
 				lg.Printf("the host %s is not found !", r.Host)
 				break
 			}

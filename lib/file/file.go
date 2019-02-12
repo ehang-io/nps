@@ -45,20 +45,17 @@ func (s *Csv) StoreTasksToCsv() {
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
 	for _, task := range s.Tasks {
+		if task.NoStore {
+			continue
+		}
+		lg.Println(task)
 		record := []string{
-			strconv.Itoa(task.TcpPort),
+			strconv.Itoa(task.Port),
 			task.Mode,
 			task.Target,
-			task.Config.U,
-			task.Config.P,
-			task.Config.Compress,
 			common.GetStrByBool(task.Status),
-			common.GetStrByBool(task.Config.Crypt),
-			strconv.Itoa(task.Config.CompressEncode),
-			strconv.Itoa(task.Config.CompressDecode),
 			strconv.Itoa(task.Id),
 			strconv.Itoa(task.Client.Id),
-			strconv.FormatBool(task.UseClientCnf),
 			task.Remark,
 		}
 		err := writer.Write(record)
@@ -97,24 +94,15 @@ func (s *Csv) LoadTaskFromCsv() {
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Tunnel{
-			TcpPort: common.GetIntNoErrByStr(item[0]),
-			Mode:    item[1],
-			Target:  item[2],
-			Config: &Config{
-				U:              item[3],
-				P:              item[4],
-				Compress:       item[5],
-				Crypt:          common.GetBoolByStr(item[7]),
-				CompressEncode: common.GetIntNoErrByStr(item[8]),
-				CompressDecode: common.GetIntNoErrByStr(item[9]),
-			},
-			Status:       common.GetBoolByStr(item[6]),
-			Id:           common.GetIntNoErrByStr(item[10]),
-			UseClientCnf: common.GetBoolByStr(item[12]),
-			Remark:       item[13],
+			Port:   common.GetIntNoErrByStr(item[0]),
+			Mode:   item[1],
+			Target: item[2],
+			Status: common.GetBoolByStr(item[3]),
+			Id:     common.GetIntNoErrByStr(item[4]),
+			Remark: item[6],
 		}
 		post.Flow = new(Flow)
-		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[11])); err != nil {
+		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[5])); err != nil {
 			continue
 		}
 		tasks = append(tasks, post)
@@ -197,6 +185,9 @@ func (s *Csv) StoreHostToCsv() {
 	// 将map中的Post转换成slice，因为csv的Write需要slice参数
 	// 并写入csv文件
 	for _, host := range s.Hosts {
+		if host.NoStore {
+			continue
+		}
 		record := []string{
 			host.Host,
 			host.Target,
@@ -286,11 +277,22 @@ func (s *Csv) DelHost(host string) error {
 	return errors.New("不存在")
 }
 
+func (s *Csv) IsHostExist(host string) bool {
+	for _, v := range s.Hosts {
+		if v.Host == host {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Csv) NewHost(t *Host) {
+	if s.IsHostExist(t.Host) {
+		return
+	}
 	t.Flow = new(Flow)
 	s.Hosts = append(s.Hosts, t)
 	s.StoreHostToCsv()
-
 }
 
 func (s *Csv) UpdateHost(t *Host) error {
@@ -333,9 +335,12 @@ func (s *Csv) DelClient(id int) error {
 }
 
 func (s *Csv) NewClient(c *Client) {
+	if c.Id == 0 {
+		c.Id = s.GetClientId()
+	}
+	c.Flow = new(Flow)
 	s.Lock()
 	defer s.Unlock()
-	c.Flow = new(Flow)
 	s.Clients = append(s.Clients, c)
 	s.StoreClientsToCsv()
 }
@@ -369,6 +374,9 @@ func (s *Csv) GetClientList(start, length int) ([]*Client, int) {
 	list := make([]*Client, 0)
 	var cnt int
 	for _, v := range s.Clients {
+		if v.NoDisplay {
+			continue
+		}
 		cnt++
 		if start--; start < 0 {
 			if length--; length > 0 {
@@ -385,10 +393,32 @@ func (s *Csv) GetClient(id int) (v *Client, err error) {
 			return
 		}
 	}
-	err = errors.New("未找到")
+	err = errors.New("未找到客户端")
+	return
+}
+func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
+	for _, v := range s.Clients {
+		if v.VerifyKey == vkey {
+			id = v.Id
+			return
+		}
+	}
+	err = errors.New("未找到客户端")
 	return
 }
 
+//get key by host from x
+func (s *Csv) GetInfoByHost(host string) (h *Host, err error) {
+	for _, v := range s.Hosts {
+		s := strings.Split(host, ":")
+		if s[0] == v.Host {
+			h = v
+			return
+		}
+	}
+	err = errors.New("未找到host对应的内网目标")
+	return
+}
 func (s *Csv) StoreClientsToCsv() {
 	// 创建文件
 	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "clients.csv"))
@@ -398,6 +428,9 @@ func (s *Csv) StoreClientsToCsv() {
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
 	for _, client := range s.Clients {
+		if client.NoStore {
+			continue
+		}
 		record := []string{
 			strconv.Itoa(client.Id),
 			client.VerifyKey,

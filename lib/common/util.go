@@ -144,7 +144,11 @@ func FileExists(name string) bool {
 //Judge whether the TCP port can open normally
 func TestTcpPort(port int) bool {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), port, ""})
-	defer l.Close()
+	defer func() {
+		if l != nil {
+			l.Close()
+		}
+	}()
 	if err != nil {
 		return false
 	}
@@ -154,7 +158,11 @@ func TestTcpPort(port int) bool {
 //Judge whether the UDP port can open normally
 func TestUdpPort(port int) bool {
 	l, err := net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), port, ""})
-	defer l.Close()
+	defer func() {
+		if l != nil {
+			l.Close()
+		}
+	}()
 	if err != nil {
 		return false
 	}
@@ -168,9 +176,28 @@ func BinaryWrite(raw *bytes.Buffer, v ...string) {
 	buffer := new(bytes.Buffer)
 	var l int32
 	for _, v := range v {
-		l += int32(len([]byte(v))) + int32(len([]byte("#")))
+		l += int32(len([]byte(v))) + int32(len([]byte(CONN_DATA_SEQ)))
 		binary.Write(buffer, binary.LittleEndian, []byte(v))
-		binary.Write(buffer, binary.LittleEndian, []byte("#"))
+		binary.Write(buffer, binary.LittleEndian, []byte(CONN_DATA_SEQ))
 	}
+	binary.Write(raw, binary.LittleEndian, l)
 	binary.Write(raw, binary.LittleEndian, buffer.Bytes())
+}
+
+func InArr(arr []string, val string) bool {
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+func InIntArr(arr []int, val int) bool {
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
 }

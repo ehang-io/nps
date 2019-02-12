@@ -121,7 +121,7 @@ doLit:
 	//
 	// This always copies 16 bytes, instead of only length bytes, but that's
 	// OK. If the input is a valid Snappy encoding then subsequent iterations
-	// will fix up the overrun. Otherwise, Decode returns a nil []byte (and a
+	// will fix up the overserver. Otherwise, Decode returns a nil []byte (and a
 	// non-nil error), so the overrun will be ignored.
 	//
 	// Note that on amd64, it is legal and cheap to issue unaligned 8-byte or

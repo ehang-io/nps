@@ -1,4 +1,4 @@
-package server
+package test
 
 import (
 	"github.com/cnlh/nps/lib/beego"
@@ -13,9 +13,9 @@ func TestServerConfig() {
 	var postUdpArr []int
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Mode == "udpServer" {
-			isInArr(&postUdpArr, v.TcpPort, v.Remark, "udp")
+			isInArr(&postUdpArr, v.Port, v.Remark, "udp")
 		} else {
-			isInArr(&postTcpArr, v.TcpPort, v.Remark, "tcp")
+			isInArr(&postTcpArr, v.Port, v.Remark, "tcp")
 		}
 	}
 	p, err := beego.AppConfig.Int("httpport")

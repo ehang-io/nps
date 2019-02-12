@@ -15,7 +15,8 @@
                         <th>用户名</th>
                         <th>密码</th>
                         <th>客户端状态</th>
-                        <th>状态</th>
+                        <th>设置状态</th>
+                        <th>运行状态</th>
                         <th>出口流量</th>
                         <th>入口流量</th>
                         <th>操作</th>
@@ -109,7 +110,7 @@
                 {data: 'Id'},
                 {data: 'Remark'},
                 {data: 'ClientId'},
-                {data: 'TcpPort'},
+                {data: 'Port'},
                 {data: 'Target'},
                 {data: 'Compress'},
                 {data: 'Crypt'},
@@ -117,6 +118,7 @@
                 {data: 'P'},
                 {data: 'ClientStatus'},
                 {data: 'Status'},
+                {data: 'RunStatus'},
                 {data: 'ExportFlow'},
                 {data: 'InletFlow'},
                 {data: "Id"}
@@ -143,29 +145,17 @@
             }, {
                 targets: 5,
                 render: function (data, type, row, meta) {
-                    if (row.UseClientCnf == true) {
-                        return row.Client.Cnf.Compress
-                    } else {
-                        return row.Config.Compress
-                    }
+                    return row.Client.Cnf.Compress
                 }
             }, {
                 targets: 7,
                 render: function (data, type, row, meta) {
-                    if (row.UseClientCnf == true) {
-                        return row.Client.Cnf.U
-                    } else {
-                        return row.Config.U
-                    }
+                    return row.Client.Cnf.U
                 }
             }, {
                 targets: 8,
                 render: function (data, type, row, meta) {
-                    if (row.UseClientCnf == true) {
-                        return row.Client.Cnf.P
-                    } else {
-                        return row.Config.P
-                    }
+                    return row.Client.Cnf.P
                 }
             },
                 {
@@ -179,13 +169,19 @@
                     }
                 },
                 {
-                    targets: -8,
+                    targets: -5,
                     render: function (data, type, row, meta) {
-                        if (row.UseClientCnf == true) {
-                            crypt = row.Client.Cnf.Crypt
+                        if (data == false) {
+                            return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
                         } else {
-                            crypt = row.Config.Crypt
+                            return "<span class=\"badge badge-pill badge-success\">正常</span>"
                         }
+                    }
+                },
+                {
+                    targets: -9,
+                    render: function (data, type, row, meta) {
+                        crypt = row.Client.Cnf.Crypt
                         if (crypt == "0") {
                             return "不加密"
                         } else {
@@ -194,7 +190,7 @@
                     }
                 },
                 {
-                    targets: -5,
+                    targets: -6,
                     render: function (data, type, row, meta) {
                         if (row.Client.IsConnect == false) {
                             return "<span class=\"badge badge-pill badge-secondary\">离线</span>"

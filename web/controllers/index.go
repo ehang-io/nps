@@ -73,17 +73,10 @@ func (s *IndexController) Add() {
 		s.display()
 	} else {
 		t := &file.Tunnel{
-			TcpPort: s.GetIntNoErr("port"),
+			Port: s.GetIntNoErr("port"),
 			Mode:    s.GetString("type"),
 			Target:  s.GetString("target"),
-			Config: &file.Config{
-				U:        s.GetString("u"),
-				P:        s.GetString("p"),
-				Compress: s.GetString("compress"),
-				Crypt:    s.GetBoolNoErr("crypt"),
-			},
 			Id:           file.GetCsvDb().GetTaskId(),
-			UseClientCnf: s.GetBoolNoErr("use_client"),
 			Status:       true,
 			Remark:       s.GetString("remark"),
 			Flow:         &file.Flow{},
@@ -126,16 +119,11 @@ func (s *IndexController) Edit() {
 		if t, err := file.GetCsvDb().GetTask(id); err != nil {
 			s.error()
 		} else {
-			t.TcpPort = s.GetIntNoErr("port")
+			t.Port = s.GetIntNoErr("port")
 			t.Mode = s.GetString("type")
 			t.Target = s.GetString("target")
 			t.Id = id
 			t.Client.Id = s.GetIntNoErr("client_id")
-			t.Config.U = s.GetString("u")
-			t.Config.P = s.GetString("p")
-			t.Config.Compress = s.GetString("compress")
-			t.Config.Crypt = s.GetBoolNoErr("crypt")
-			t.UseClientCnf = s.GetBoolNoErr("use_client")
 			t.Remark = s.GetString("remark")
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("修改失败")
@@ -187,7 +175,7 @@ func (s *IndexController) HostList() {
 func (s *IndexController) GetHost() {
 	if s.Ctx.Request.Method == "POST" {
 		data := make(map[string]interface{})
-		if h, err := server.GetInfoByHost(s.GetString("host")); err != nil {
+		if h, err := file.GetCsvDb().GetInfoByHost(s.GetString("host")); err != nil {
 			data["code"] = 0
 		} else {
 			data["data"] = h
@@ -234,7 +222,7 @@ func (s *IndexController) EditHost() {
 	host := s.GetString("host")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "host"
-		if h, err := server.GetInfoByHost(host); err != nil {
+		if h, err := file.GetCsvDb().GetInfoByHost(host); err != nil {
 			s.error()
 		} else {
 			s.Data["h"] = h
@@ -242,7 +230,7 @@ func (s *IndexController) EditHost() {
 		s.SetInfo("修改")
 		s.display("index/hedit")
 	} else {
-		if h, err := server.GetInfoByHost(host); err != nil {
+		if h, err := file.GetCsvDb().GetInfoByHost(host); err != nil {
 			s.error()
 		} else {
 			h.Host = s.GetString("nhost")

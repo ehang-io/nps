@@ -56,7 +56,7 @@ func GetLogPath() string {
 }
 
 //interface pid file path
-func GetPidPath() string {
+func GetTmpPath() string {
 	var path string
 	if IsWindows() {
 		path = "./"

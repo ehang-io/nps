@@ -1,4 +1,4 @@
-package server
+package proxy
 
 import (
 	"github.com/cnlh/nps/bridge"
@@ -21,14 +21,13 @@ func NewUdpModeServer(bridge *bridge.Bridge, task *file.Tunnel) *UdpModeServer {
 	s.bridge = bridge
 	s.udpMap = make(map[string]*conn.Conn)
 	s.task = task
-	s.config = file.DeepCopyConfig(task.Config)
 	return s
 }
 
 //开始
 func (s *UdpModeServer) Start() error {
 	var err error
-	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.task.TcpPort, ""})
+	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.task.Port, ""})
 	if err != nil {
 		return err
 	}
@@ -41,17 +40,16 @@ func (s *UdpModeServer) Start() error {
 			}
 			continue
 		}
-		if !s.ResetConfig() {
-			continue
-		}
 		go s.process(addr, buf[:n])
 	}
 	return nil
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	link := conn.NewLink(s.task.Client.GetId(), common.CONN_UDP, s.task.Target, s.config.CompressEncode, s.config.CompressDecode, s.config.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
-
+	link := conn.NewLink(s.task.Client.GetId(), common.CONN_UDP, s.task.Target, s.task.Client.Cnf.CompressEncode, s.task.Client.Cnf.CompressDecode, s.task.Client.Cnf.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
+	if err := s.checkFlow(); err != nil {
+		return
+	}
 	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
 		return
 	} else {

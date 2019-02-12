@@ -31,10 +31,30 @@ type Client struct {
 	RateLimit int        //速度限制 /kb
 	Flow      *Flow      //流量
 	Rate      *rate.Rate //速度控制
+	NoStore   bool
+	NoDisplay bool
 	id        int
 	sync.RWMutex
 }
 
+func NewClient(vKey string, noStore bool, noDisplay bool) *Client {
+	return &Client{
+		Cnf:       new(Config),
+		Id:        0,
+		VerifyKey: vKey,
+		Addr:      "",
+		Remark:    "",
+		Status:    true,
+		IsConnect: false,
+		RateLimit: 0,
+		Flow:      new(Flow),
+		Rate:      nil,
+		NoStore:   noStore,
+		id:        GetCsvDb().GetClientId(),
+		RWMutex:   sync.RWMutex{},
+		NoDisplay: noDisplay,
+	}
+}
 func (s *Client) GetId() int {
 	s.Lock()
 	defer s.Unlock()
@@ -43,16 +63,16 @@ func (s *Client) GetId() int {
 }
 
 type Tunnel struct {
-	Id           int     //Id
-	TcpPort      int     //服务端监听端口
-	Mode         string  //启动方式
-	Target       string  //目标
-	Status       bool    //是否开启
-	Client       *Client //所属客户端id
-	Flow         *Flow
-	Config       *Config
-	UseClientCnf bool   //是否继承客户端配置
-	Remark       string //备注
+	Id        int     //Id
+	Port   int     //服务端监听端口
+	Mode      string  //启动方式
+	Target    string  //目标
+	Status    bool    //设置是否开启
+	RunStatus bool    //当前运行状态
+	Client    *Client //所属客户端id
+	Flow      *Flow
+	Remark    string //备注
+	NoStore   bool
 }
 
 type Config struct {
@@ -74,6 +94,7 @@ type Host struct {
 	Remark       string //备注
 	NowIndex     int
 	TargetArr    []string
+	NoStore      bool
 	sync.RWMutex
 }
 
