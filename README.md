@@ -326,7 +326,7 @@ nps.exe test|start|stop|restart|status
 - 服务端
 
 ```
-./nps -mode=tunnelServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
+./nps -mode=tcpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
 ```
 
 名称 | 含义

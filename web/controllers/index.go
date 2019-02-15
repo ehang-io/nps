@@ -21,7 +21,7 @@ func (s *IndexController) Help() {
 
 func (s *IndexController) Tcp() {
 	s.SetInfo("tcp隧道管理")
-	s.SetType("tunnelServer")
+	s.SetType("tcpServer")
 	s.display("index/list")
 }
 
@@ -73,13 +73,13 @@ func (s *IndexController) Add() {
 		s.display()
 	} else {
 		t := &file.Tunnel{
-			Port: s.GetIntNoErr("port"),
-			Mode:    s.GetString("type"),
-			Target:  s.GetString("target"),
-			Id:           file.GetCsvDb().GetTaskId(),
-			Status:       true,
-			Remark:       s.GetString("remark"),
-			Flow:         &file.Flow{},
+			Port:   s.GetIntNoErr("port"),
+			Mode:   s.GetString("type"),
+			Target: s.GetString("target"),
+			Id:     file.GetCsvDb().GetTaskId(),
+			Status: true,
+			Remark: s.GetString("remark"),
+			Flow:   &file.Flow{},
 		}
 		var err error
 		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
@@ -175,7 +175,7 @@ func (s *IndexController) HostList() {
 func (s *IndexController) GetHost() {
 	if s.Ctx.Request.Method == "POST" {
 		data := make(map[string]interface{})
-		if h, err := file.GetCsvDb().GetInfoByHost(s.GetString("host")); err != nil {
+		if h, err := file.GetCsvDb().GetHostById(s.GetIntNoErr("id")); err != nil {
 			data["code"] = 0
 		} else {
 			data["data"] = h
@@ -187,8 +187,8 @@ func (s *IndexController) GetHost() {
 }
 
 func (s *IndexController) DelHost() {
-	host := s.GetString("host")
-	if err := file.GetCsvDb().DelHost(host); err != nil {
+	id := s.GetIntNoErr("id")
+	if err := file.GetCsvDb().DelHost(id); err != nil {
 		s.AjaxErr("删除失败")
 	}
 	s.AjaxOk("删除成功")
@@ -202,11 +202,13 @@ func (s *IndexController) AddHost() {
 		s.display("index/hadd")
 	} else {
 		h := &file.Host{
+			Id:           file.GetCsvDb().GetHostId(),
 			Host:         s.GetString("host"),
 			Target:       s.GetString("target"),
 			HeaderChange: s.GetString("header"),
 			HostChange:   s.GetString("hostchange"),
 			Remark:       s.GetString("remark"),
+			Location:     s.GetString("location"),
 			Flow:         &file.Flow{},
 		}
 		var err error
@@ -219,10 +221,10 @@ func (s *IndexController) AddHost() {
 }
 
 func (s *IndexController) EditHost() {
-	host := s.GetString("host")
+	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "host"
-		if h, err := file.GetCsvDb().GetInfoByHost(host); err != nil {
+		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
 			s.Data["h"] = h
@@ -230,15 +232,16 @@ func (s *IndexController) EditHost() {
 		s.SetInfo("修改")
 		s.display("index/hedit")
 	} else {
-		if h, err := file.GetCsvDb().GetInfoByHost(host); err != nil {
+		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
-			h.Host = s.GetString("nhost")
+			h.Host = s.GetString("host")
 			h.Target = s.GetString("target")
 			h.HeaderChange = s.GetString("header")
 			h.HostChange = s.GetString("hostchange")
 			h.Remark = s.GetString("remark")
 			h.TargetArr = nil
+			h.Location = s.GetString("location")
 			file.GetCsvDb().UpdateHost(h)
 			var err error
 			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {

@@ -64,12 +64,13 @@ func (s *Client) GetId() int {
 
 type Tunnel struct {
 	Id        int     //Id
-	Port   int     //服务端监听端口
+	Port      int     //服务端监听端口
 	Mode      string  //启动方式
 	Target    string  //目标
 	Status    bool    //设置是否开启
 	RunStatus bool    //当前运行状态
 	Client    *Client //所属客户端id
+	Ports     string  //客户端与服务端传递
 	Flow      *Flow
 	Remark    string //备注
 	NoStore   bool
@@ -85,10 +86,12 @@ type Config struct {
 }
 
 type Host struct {
+	Id           int
 	Host         string //启动方式
 	Target       string //目标
 	HeaderChange string //host修改
 	HostChange   string //host修改
+	Location     string //url 路由
 	Flow         *Flow
 	Client       *Client
 	Remark       string //备注

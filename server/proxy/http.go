@@ -110,19 +110,22 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 	//多客户端域名代理
 	var (
-		isConn = true
-		lk     *conn.Link
-		host   *file.Host
-		tunnel *conn.Conn
-		err    error
+		isConn   = true
+		lk       *conn.Link
+		host     *file.Host
+		tunnel   *conn.Conn
+		lastHost *file.Host
+		err      error
 	)
 	for {
-		//首次获取conn
+		if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
+			lg.Printf("the url %s %s is not found !", r.Host, r.RequestURI)
+			break
+		} else if host != lastHost {
+			lastHost = host
+			isConn = true
+		}
 		if isConn {
-			if host, err = file.GetCsvDb().GetInfoByHost(r.Host); err != nil {
-				lg.Printf("the host %s is not found !", r.Host)
-				break
-			}
 			//流量限制
 			if host.Client.Flow.FlowLimit > 0 && (host.Client.Flow.FlowLimit<<20) < (host.Client.Flow.ExportFlow+host.Client.Flow.InletFlow) {
 				break
@@ -147,6 +150,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		//根据设定，修改header和host
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, true)
+		lg.Println(string(b), r.RequestURI)
 		if err != nil {
 			break
 		}

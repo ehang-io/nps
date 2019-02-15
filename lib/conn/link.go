@@ -18,7 +18,6 @@ type Link struct {
 	UdpListener   *net.UDPConn
 	Rate          *rate.Rate
 	UdpRemoteAddr *net.UDPAddr
-	Stop          chan bool
 }
 
 func NewLink(id int, connType string, host string, en, de int, crypt bool, c *Conn, flow *file.Flow, udpListener *net.UDPConn, rate *rate.Rate, UdpRemoteAddr *net.UDPAddr) *Link {

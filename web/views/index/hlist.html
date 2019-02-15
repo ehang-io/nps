@@ -5,6 +5,7 @@
                 <table class="table table-hover table-bordered" id="sampleTable">
                     <thead>
                     <tr>
+                        <th>id</th>
                         <th>客户端id</th>
                         <th>备注</th>
                         <th>host</th>
@@ -30,12 +31,12 @@
 </main>
 
 <script type="text/javascript">
-    function del(host) {
+    function del(id) {
         if (confirm("确定要删除数据吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/delhost",
-                data: {"host": host},
+                data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
                     if (res.status) {
@@ -50,8 +51,8 @@
         window.location.href = "/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
     }
 
-    function edit(host) {
-        window.location.href = "/index/edithost?host=" + host
+    function edit(id) {
+        window.location.href = "/index/edithost?id=" + id
     }
 
     $(document).ready(function () {
@@ -72,6 +73,7 @@
             },
             dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
             columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
+                {data: 'Id'},
                 {data: 'Remark'},
                 {data: 'Remark'},
                 {data: 'Host'},
@@ -91,13 +93,13 @@
                 render: function (data, type, row, meta) {
 
                     return '<div class="btn-group" role="group" aria-label="..."> ' +
-                            '<button onclick="del(\'' + row.Host + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
-                            '<button onclick="edit(\'' + row.Host + '\')" type="button"   class="btn btn-primary btn-sm">编辑查看</button> '
+                            '<button onclick="del(\'' + row.Id + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
+                            '<button onclick="edit(\'' + row.Id + '\')" type="button"   class="btn btn-primary btn-sm">编辑查看</button> '
                             + ' </div>'
                 }
             },
                 {
-                    targets: 0,
+                    targets: 1,
                     render: function (data, type, row, meta) {
                         return row.Client.Id
                     }

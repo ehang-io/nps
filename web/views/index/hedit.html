@@ -4,10 +4,15 @@
             <h3 class="tile-title">修改</h3>
             <div class="tile-body">
                 <form>
+                    <input type="hidden" name="id" value="{{.h.Id}}">
                     <div class="form-group">
                         <label class="control-label">域名</label>
-                        <input class="form-control" value="{{.h.Host}}" type="hidden" name="host" placeholder="域名">
-                        <input class="form-control" value="{{.h.Host}}" type="text" name="nhost" placeholder="域名">
+                        <input class="form-control" value="{{.h.Host}}" name="host" placeholder="域名">
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">URL路由(可忽略)</label>
+                        <input class="form-control" value="{{.h.Location}}" type="text" name="location"
+                               placeholder="URL路由">
                     </div>
                     <div class="form-group">
                         <label class="control-label">备注</label>

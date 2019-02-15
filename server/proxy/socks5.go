@@ -49,7 +49,6 @@ const (
 
 type Sock5ModeServer struct {
 	server
-	isVerify bool
 	listener net.Listener
 }
 
@@ -208,12 +207,12 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Close()
 		return
 	}
-	if s.isVerify {
+	if s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "" {
 		buf[1] = UserPassAuth
 		c.Write(buf)
 		if err := s.Auth(c); err != nil {
 			c.Close()
-			lg.Println("验证失败：", err)
+			lg.Println("Validation failed:", err)
 			return
 		}
 	} else {
@@ -289,10 +288,5 @@ func NewSock5ModeServer(bridge *bridge.Bridge, task *file.Tunnel) *Sock5ModeServ
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
 	s.task = task
-	if s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "" {
-		s.isVerify = true
-	} else {
-		s.isVerify = false
-	}
 	return s
 }

@@ -103,7 +103,7 @@ func (s *ClientController) Edit() {
 			} else {
 				c.Rate = nil
 			}
-			file.GetCsvDb().UpdateClient(c)
+			file.GetCsvDb().StoreClientsToCsv()
 		}
 		s.AjaxOk("修改成功")
 	}

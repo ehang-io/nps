@@ -8,7 +8,7 @@
                     <div class="form-group">
                         <label class="control-label">模式</label>
                         <select class="form-control" name="type" id="type">
-                            <option {{if eq "tunnelServer" .t.Mode}}selected{{end}} value="tunnelServer">tcp隧道</option>
+                            <option {{if eq "tcpServer" .t.Mode}}selected{{end}} value="tcpServer">tcp隧道</option>
                             <option {{if eq "udpServer" .t.Mode}}selected{{end}} value="udpServer">udp隧道</option>
                             <option {{if eq "socks5Server" .t.Mode}}selected{{end}} value="socks5Server">socks5代理
                             </option>
@@ -48,7 +48,7 @@
 <script>
     var arr = []
     arr["all"] = ["type", "port", "compress", "u", "p", "target"]
-    arr["tunnelServer"] = ["type", "port", "target", "u", "p", "compress"]
+    arr["tcpServer"] = ["type", "port", "target", "u", "p", "compress"]
     arr["udpServer"] = ["type", "port", "target", "compress"]
     arr["socks5Server"] = ["type", "port", "compress", "u", "p"]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p"]

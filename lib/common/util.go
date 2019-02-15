@@ -201,3 +201,43 @@ func InIntArr(arr []int, val int) bool {
 	}
 	return false
 }
+
+func GetPorts(p string) []int {
+	var ps []int
+	arr := strings.Split(p, ",")
+	for _, v := range arr {
+		fw := strings.Split(v, "-")
+		if len(fw) == 2 {
+			if IsPort(fw[0]) && IsPort(fw[1]) {
+				start, _ := strconv.Atoi(fw[0])
+				end, _ := strconv.Atoi(fw[1])
+				for i := start; i <= end; i++ {
+					ps = append(ps, i)
+				}
+			} else {
+				continue
+			}
+		} else if IsPort(v) {
+			p, _ := strconv.Atoi(v)
+			ps = append(ps, p)
+		}
+	}
+	return ps
+}
+func IsPort(p string) bool {
+	pi, err := strconv.Atoi(p)
+	if err != nil {
+		return false
+	}
+	if pi > 65536 || pi < 1 {
+		return false
+	}
+	return true
+}
+
+func FormatAddress(s string) string {
+	if strings.Contains(s, ":") {
+		return s
+	}
+	return "127.0.0.1:" + s
+}

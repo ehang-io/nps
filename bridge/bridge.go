@@ -314,15 +314,37 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 				c.WriteAddFail()
 				break
 			} else {
-				t.Client = client
-				file.GetCsvDb().NewTask(t)
-				if b := tool.TestServerPort(t.Port, t.Mode); !b {
+				ports := common.GetPorts(t.Ports)
+				targets := common.GetPorts(t.Target)
+				if len(ports) > 1 && (t.Mode == "tcpServer" || t.Mode == "udpServer") && (len(ports) != len(targets)) {
 					fail = true
 					c.WriteAddFail()
-				} else {
-					s.OpenTask <- t
+					break
 				}
-				c.WriteAddOk()
+				for i := 0; i < len(ports); i++ {
+					tl := new(file.Tunnel)
+					tl.Mode = t.Mode
+					tl.Port = ports[i]
+					if len(ports) == 1 {
+						tl.Target = t.Target
+					} else {
+						tl.Target = strconv.Itoa(targets[i])
+					}
+					tl.Id = file.GetCsvDb().GetTaskId()
+					tl.Status = true
+					tl.Flow = new(file.Flow)
+					tl.Remark = t.Remark
+					tl.NoStore = true
+					tl.Client = client
+					file.GetCsvDb().NewTask(tl)
+					if b := tool.TestServerPort(tl.Port, tl.Mode); !b {
+						fail = true
+						c.WriteAddFail()
+					} else {
+						s.OpenTask <- tl
+					}
+					c.WriteAddOk()
+				}
 			}
 		}
 	}

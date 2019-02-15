@@ -54,7 +54,9 @@ func (s *TRPClient) Close() {
 	s.tunnel.Close()
 	s.stop <- true
 	for _, v := range s.linkMap {
-		v.Stop <- true
+		if v.Conn != nil {
+			v.Conn.Close()
+		}
 	}
 }
 
@@ -74,7 +76,6 @@ func (s *TRPClient) processor(c *conn.Conn) {
 			if link, err := c.GetLinkInfo(); err != nil {
 				break
 			} else {
-				link.Stop = make(chan bool)
 				s.Lock()
 				s.linkMap[link.Id] = link
 				s.Unlock()
@@ -95,6 +96,7 @@ func (s *TRPClient) processor(c *conn.Conn) {
 }
 
 func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
+	link.Host = common.FormatAddress(link.Host)
 	//与目标建立连接
 	server, err := net.DialTimeout(link.ConnType, link.Host, time.Second*3)
 
@@ -106,26 +108,23 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 
 	c.WriteSuccess(link.Id)
 
-	go func() {
-		link.Conn = conn.NewConn(server)
-		buf := pool.BufPoolCopy.Get().([]byte)
-		for {
-			if n, err := server.Read(buf); err != nil {
-				s.tunnel.SendMsg([]byte(common.IO_EOF), link)
+	link.Conn = conn.NewConn(server)
+	buf := pool.BufPoolCopy.Get().([]byte)
+	for {
+		if n, err := server.Read(buf); err != nil {
+			s.tunnel.SendMsg([]byte(common.IO_EOF), link)
+			break
+		} else {
+			if _, err := s.tunnel.SendMsg(buf[:n], link); err != nil {
+				c.Close()
 				break
-			} else {
-				if _, err := s.tunnel.SendMsg(buf[:n], link); err != nil {
-					c.Close()
-					break
-				}
 			}
 		}
-		pool.PutBufPoolCopy(buf)
-		s.Lock()
-		delete(s.linkMap, link.Id)
-		s.Unlock()
-	}()
-	<-link.Stop
+	}
+	pool.PutBufPoolCopy(buf)
+	s.Lock()
+	delete(s.linkMap, link.Id)
+	s.Unlock()
 }
 
 //隧道模式处理

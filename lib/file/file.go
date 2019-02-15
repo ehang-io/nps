@@ -6,8 +6,10 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/lib/rate"
+	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +29,7 @@ type Csv struct {
 	RunPath          string    //存储根目录
 	ClientIncreaseId int       //客户端id
 	TaskIncreaseId   int       //任务自增ID
+	HostIncreaseId   int
 	sync.Mutex
 }
 
@@ -119,6 +122,12 @@ func (s *Csv) GetTaskId() int {
 	s.TaskIncreaseId++
 	return s.TaskIncreaseId
 }
+func (s *Csv) GetHostId() int {
+	s.Lock()
+	defer s.Unlock()
+	s.HostIncreaseId++
+	return s.HostIncreaseId
+}
 
 func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 	s.Lock()
@@ -195,6 +204,8 @@ func (s *Csv) StoreHostToCsv() {
 			host.HeaderChange,
 			host.HostChange,
 			host.Remark,
+			host.Location,
+			strconv.Itoa(host.Id),
 		}
 		err1 := writer.Write(record)
 		if err1 != nil {
@@ -256,19 +267,24 @@ func (s *Csv) LoadHostFromCsv() {
 			HeaderChange: item[3],
 			HostChange:   item[4],
 			Remark:       item[5],
+			Location:     item[6],
+			Id:           common.GetIntNoErrByStr(item[7]),
 		}
 		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[2])); err != nil {
 			continue
 		}
 		post.Flow = new(Flow)
 		hosts = append(hosts, post)
+		if post.Id > s.HostIncreaseId {
+			s.HostIncreaseId = post.Id
+		}
 	}
 	s.Hosts = hosts
 }
 
-func (s *Csv) DelHost(host string) error {
+func (s *Csv) DelHost(id int) error {
 	for k, v := range s.Hosts {
-		if v.Host == host {
+		if v.Id == id {
 			s.Hosts = append(s.Hosts[:k], s.Hosts[k+1:]...)
 			s.StoreHostToCsv()
 			return nil
@@ -287,9 +303,6 @@ func (s *Csv) IsHostExist(host string) bool {
 }
 
 func (s *Csv) NewHost(t *Host) {
-	if s.IsHostExist(t.Host) {
-		return
-	}
 	t.Flow = new(Flow)
 	s.Hosts = append(s.Hosts, t)
 	s.StoreHostToCsv()
@@ -367,7 +380,7 @@ func (s *Csv) UpdateClient(t *Client) error {
 			return nil
 		}
 	}
-	return errors.New("不存在")
+	return errors.New("该客户端不存在")
 }
 
 func (s *Csv) GetClientList(start, length int) ([]*Client, int) {
@@ -407,16 +420,54 @@ func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
 	return
 }
 
-//get key by host from x
-func (s *Csv) GetInfoByHost(host string) (h *Host, err error) {
+func (s *Csv) GetHostById(id int) (h *Host, err error) {
 	for _, v := range s.Hosts {
-		s := strings.Split(host, ":")
-		if s[0] == v.Host {
+		if v.Id == id {
 			h = v
 			return
 		}
 	}
-	err = errors.New("未找到host对应的内网目标")
+	err = errors.New("The host could not be parsed")
+	return
+}
+
+//get key by host from x
+func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
+	var hosts []*Host
+	for _, v := range s.Hosts {
+		//Remove http(s) http(s)://a.proxy.com
+		//*.proxy.com *.a.proxy.com  Do some pan-parsing
+		tmp := strings.Replace(v.Host, "*", `\w+?`, -1)
+		var re *regexp.Regexp
+		if re, err = regexp.Compile(tmp); err != nil {
+			return
+		}
+		if len(re.FindAllString(host, -1)) > 0 {
+			//URL routing
+			hosts = append(hosts, v)
+		}
+	}
+	for _, v := range hosts {
+		//If not set, default matches all
+		if v.Location == "" {
+			v.Location = "/"
+		}
+		if strings.Index(r.RequestURI, v.Location) == 0 {
+			if h == nil || (len(v.Location) > len(h.Location)) {
+				h = v
+			}
+		}
+	}
+	if h != nil {
+		if h.Location != "/" {
+			r.RequestURI = strings.Replace(r.RequestURI, h.Location, "", 1)
+		}
+		if r.RequestURI == "" {
+			r.RequestURI = "/"
+		}
+		return
+	}
+	err = errors.New("The host could not be parsed")
 	return
 }
 func (s *Csv) StoreClientsToCsv() {

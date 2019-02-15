@@ -82,7 +82,7 @@ func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 		defer pool.BufPoolMax.Put(buf)
 	}
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
-		return buf, errors.New("读取指定长度错误" + err.Error())
+		return buf, errors.New("Error reading specified length" + err.Error())
 	}
 	return buf, nil
 }
@@ -368,7 +368,7 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 */
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_TASK))
-	common.BinaryWrite(raw, t.Mode, strconv.Itoa(t.Port), t.Target, t.Remark)
+	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
@@ -386,7 +386,7 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
 		t = new(file.Tunnel)
 		t.Mode = arr[0]
-		t.Port, _ = strconv.Atoi(arr[1])
+		t.Ports = arr[1]
 		t.Target = arr[2]
 		t.Id = file.GetCsvDb().GetTaskId()
 		t.Status = true

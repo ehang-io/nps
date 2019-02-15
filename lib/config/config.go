@@ -136,7 +136,7 @@ func dealTunnel(s string) *file.Tunnel {
 		}
 		switch item[0] {
 		case "port":
-			t.Port = common.GetIntNoErrByStr(item[1])
+			t.Ports = item[1]
 		case "mode":
 			t.Mode = item[1]
 		case "target":

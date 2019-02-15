@@ -69,7 +69,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 //new a server by mode name
 func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) interface{} {
 	switch c.Mode {
-	case "tunnelServer":
+	case "tcpServer":
 		return proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
 	case "socks5Server":
 		return proxy.NewSock5ModeServer(Bridge, c)
@@ -96,12 +96,15 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) interface{} {
 //stop server
 func StopServer(id int) error {
 	if v, ok := RunList[id]; ok {
-		reflect.ValueOf(v).MethodByName("Close").Call(nil)
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
-			return err
-		} else {
-			t.Status = false
-			file.GetCsvDb().UpdateTask(t)
+		if reflect.ValueOf(v).IsValid() {
+			//TODO 错误处理
+			reflect.ValueOf(v).MethodByName("Close").Call(nil)
+			if t, err := file.GetCsvDb().GetTask(id); err != nil {
+				return err
+			} else {
+				t.Status = false
+				file.GetCsvDb().UpdateTask(t)
+			}
 		}
 		delete(RunList, id)
 		return nil
@@ -113,7 +116,7 @@ func StopServer(id int) error {
 func AddTask(t *file.Tunnel) error {
 	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
 		lg.Printf("taskId %d start error Port %d Open Failed", t.Id, t.Port)
-		return errors.New("error")
+		return errors.New("the port open error")
 	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		RunList[t.Id] = svr
@@ -226,7 +229,7 @@ func DelTunnelAndHostByClientId(clientId int) {
 	}
 	for _, v := range file.GetCsvDb().Hosts {
 		if v.Client.Id == clientId {
-			file.GetCsvDb().DelHost(v.Host)
+			file.GetCsvDb().DelHost(v.Id)
 		}
 	}
 }
@@ -256,8 +259,8 @@ func GetDashboardData() map[string]int {
 	data["exportFlowCount"] = int(out)
 	for _, v := range file.GetCsvDb().Tasks {
 		switch v.Mode {
-		case "tunnelServer":
-			data["tunnelServerCount"] += 1
+		case "tcpServer":
+			data["tcpServerCount"] += 1
 		case "socks5Server":
 			data["socks5ServerCount"] += 1
 		case "httpProxyServer":
