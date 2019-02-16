@@ -50,9 +50,10 @@ type Bridge struct {
 	Register     map[string]time.Time
 	registerLock sync.RWMutex
 	ipVerify     bool
+	runList      map[int]interface{}
 }
 
-func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool) *Bridge {
+func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int]interface{}) *Bridge {
 	t := new(Bridge)
 	t.TunnelPort = tunnelPort
 	t.Client = make(map[int]*Client)
@@ -61,6 +62,7 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool) *Bridge {
 	t.CloseClient = make(chan int)
 	t.Register = make(map[string]time.Time)
 	t.ipVerify = ipVerify
+	t.runList = runList
 	return t
 }
 
@@ -195,7 +197,6 @@ func (s *Bridge) register(c *conn.Conn) {
 	if err := binary.Read(c, binary.LittleEndian, &hour); err == nil {
 		s.registerLock.Lock()
 		s.Register[common.GetIpByAddr(c.Conn.RemoteAddr().String())] = time.Now().Add(time.Hour * time.Duration(hour))
-		lg.Println(s.Register[common.GetIpByAddr(c.Conn.RemoteAddr().String())])
 		s.registerLock.Unlock()
 	}
 }
@@ -300,7 +301,7 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 					}
 				}
 				for _, v := range file.GetCsvDb().Tasks {
-					if v.Client.Id == id {
+					if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
 				}
@@ -355,13 +356,14 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 					tl.Port = ports[i]
 					if len(ports) == 1 {
 						tl.Target = t.Target
+						tl.Remark = t.Remark
 					} else {
+						tl.Remark = t.Remark + "_" + strconv.Itoa(tl.Port)
 						tl.Target = strconv.Itoa(targets[i])
 					}
 					tl.Id = file.GetCsvDb().GetTaskId()
 					tl.Status = true
 					tl.Flow = new(file.Flow)
-					tl.Remark = t.Remark
 					tl.NoStore = true
 					tl.Client = client
 					file.GetCsvDb().NewTask(tl)

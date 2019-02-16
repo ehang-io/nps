@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -41,10 +42,19 @@ func GetTaskStatus(path string) {
 			}
 		}
 		for _, v := range cnf.Tasks {
-			if common.InArr(arr, v.Remark) {
-				log.Println(v.Remark, "ok")
-			} else {
-				log.Println(v.Remark, "not running")
+			ports := common.GetPorts(v.Ports)
+			for _, vv := range ports {
+				var remark string
+				if len(ports) > 1 {
+					remark = v.Remark + "_" + strconv.Itoa(vv)
+				} else {
+					remark = v.Remark
+				}
+				if common.InArr(arr, remark) {
+					log.Println(remark, "ok")
+				} else {
+					log.Println(remark, "not running")
+				}
 			}
 		}
 	}

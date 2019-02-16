@@ -118,7 +118,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		err      error
 	)
 	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
-		lg.Printf("the url %s %s Can't be parsed!", r.Host, r.RequestURI)
+		lg.Printf("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 		goto end
 	} else {
 		lastHost = host

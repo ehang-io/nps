@@ -12,7 +12,7 @@ import (
 func GetRunPath() string {
 	var path string
 	if path = GetInstallPath(); !FileExists(path) {
-		return "./"
+		return GetAppPath()
 	}
 	return path
 }
@@ -48,7 +48,7 @@ func IsWindows() bool {
 func GetLogPath() string {
 	var path string
 	if IsWindows() {
-		path = "./"
+		path = GetAppPath()
 	} else {
 		path = "/tmp"
 	}
@@ -59,7 +59,7 @@ func GetLogPath() string {
 func GetTmpPath() string {
 	var path string
 	if IsWindows() {
-		path = GetRunPath()
+		path = GetAppPath()
 	} else {
 		path = "/tmp"
 	}

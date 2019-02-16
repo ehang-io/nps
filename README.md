@@ -1,7 +1,7 @@
 # nps
 ![](https://img.shields.io/github/stars/cnlh/nps.svg)   ![](https://img.shields.io/github/forks/cnlh/nps.svg) ![](https://img.shields.io/github/license/cnlh/nps.svg)
 
-nps是一款轻量级、高性能、功能最为强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何tcp、udp上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**，可实现在非内网环境下如同使用vpn一样访问内网资源和设备的效果。
+nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何tcp、udp上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**，可实现在非内网环境下如同使用vpn一样访问内网资源和设备的效果。
 
 目前市面上提供类似服务的有花生壳、TeamView、GoToMyCloud等等，但要使用第三方的公网服务器就必须为第三方付费，并且这些服务都有各种各样的限制，此外，由于数据包会流经第三方，因此对数据安全也是一大隐患。
 
@@ -10,16 +10,17 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 
 ## 背景
 ![image](https://github.com/cnlh/nps/blob/master/image/web.png?raw=true)
-1. web管理模式，可配置多条tcp、udp隧道，多个域名代理等等----> [web管理模式](#web管理模式)
+
+1. 做微信公众号开发、小程序开发等----> 域名代理模式
 
 
-2. 想在外网通过ssh连接内网的机器，做云服务器到内网服务器端口的映射，或者做微信公众号开发、小程序开发等---->[tcp隧道模式](#tcp隧道模式)
+2. 想在外网通过ssh连接内网的机器，做云服务器到内网服务器端口的映射，----> tcp代理模式
 
-3. 在非内网环境下使用内网dns，或者需要通过udp访问内网机器等---->[udp隧道模式](#udp隧道模式)
+3. 在非内网环境下使用内网dns，或者需要通过udp访问内网机器等----> udp代理模式
 
-4. 在外网使用HTTP代理访问内网站点---->[http代理模式](#http代理模式)
+4. 在外网使用HTTP代理访问内网站点----> http代理模式
 
-5. 搭建一个内网穿透ss，在外网如同使用内网vpn一样访问内网资源或者设备----> [socks5代理模式](#socks5代理模式)
+5. 搭建一个内网穿透ss，在外网如同使用内网vpn一样访问内网资源或者设备----> socks5代理模式
 
 
 ## 目录
@@ -27,12 +28,11 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 * [安装](#安装)
     * [编译安装](#源码安装)
     * [release安装](#release安装)
-* [web管理](#web管理模式)（多隧道时推荐）
-    * [快速启动](#启动)
+* [服务端](#web管理模式)
+    * [服务端启动](#服务端启动)
        * [服务端测试](#服务端测试)
        * [服务端启动](#服务端启动)
        * [web管理](#web管理)
-       * [客户端启动](#客户端启动)
        * [服务端停止或重启](#服务端停止或重启)
     * [配置文件说明](#服务端配置文件)
     * [详细使用说明](#详细说明)
@@ -45,11 +45,21 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
     * [与nginx配合](#与nginx配合)
     * [关闭http|https代理](#关闭代理)
     * [将nps安装到系统](#将nps安装到系统)
-* 单隧道模式及介绍（即将移除）
-    * [tcp隧道模式](#tcp隧道模式)
-    * [udp隧道模式](#udp隧道模式)
-    * [socks5代理模式](#socks5代理模式)
-    * [http代理模式](#http代理模式)
+* [客户端](#客户端)
+    * [客户端启动](#客户端启动)
+        * [无配置文件模式](#无配置文件模式)
+        * [配置文件模式](#配置文件模式)
+    * [配置文件说明](#配置文件说明)
+        * [全局配置](#全局配置)
+        * [域名代理](#域名代理)
+        * [tcp隧道模式](#tcp隧道模式)
+        * [udp隧道模式](#udp隧道模式)
+        * [http代理模式](#http代理模式)
+        * [socks5模式](#socks5模式)
+    * [断线重连](#断线重连)
+    * [状态检查](#状态检查)
+    * [重载配置文件](#重载配置文件)
+    * [通过代理连接nps](#通过代理连接nps)
 
 * [相关功能](#相关功能)
    * [数据压缩支持](#数据压缩支持)
@@ -61,8 +71,13 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
    * [流量限制](#流量限制)
    * [带宽限制](#带宽限制)
    * [负载均衡](#负载均衡)
+   * [端口白名单](#端口白名单)
+   * [端口范围映射](#端口范围映射)
    * [守护进程](#守护进程)
    * [KCP协议支持](#KCP协议支持)
+   * [域名泛解析](#域名泛解析)
+   * [URL路由](#URL路由)
+   * [限制ip访问](#限制ip访问)
 * [相关说明](#相关说明)
    * [流量统计](#流量统计)
    * [热更新支持](#热更新支持)
@@ -74,6 +89,8 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
    * [内存和cpu](#内存和cpu)
    * [额外消耗连接数](#额外消耗连接数)
 * [webAPI](#webAPI)
+* [贡献](#贡献)
+* [交流群](#交流群)
 
 
 
@@ -85,7 +102,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 下载对应的系统版本即可，服务端和客户端是单独的，go语言开发，无需任何第三方依赖
 
 ### 源码安装
-- 安装源码(另有snappy、beego包)
+- 安装源码
 > go get github.com/cnlh/nps
 - 编译
 > go build cmd/nps/nps.go
@@ -97,7 +114,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 ![image](https://github.com/cnlh/nps/blob/master/image/web2.png?raw=true)
 ### 介绍
 
-可在网页上配置和管理各个tcp、udp隧道、内网站点代理，http、https解析等，功能极为强大，操作也非常方便。
+可在网页上配置和管理各个tcp、udp隧道、内网站点代理，http、https解析等，功能强大，操作方便。
 
 
 **提示：使用web模式时，服务端执行文件必须在项目根目录，否则无法正确加载配置文件**
@@ -122,10 +139,6 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 
 进入web管理界面，有详细的说明
 
-#### 客户端启动
-```
- ./npc -server=ip:port -vkey=web界面中显示的密钥
-```
 #### 服务端停止或重启
 如果是daemon启动
 ```
@@ -146,6 +159,8 @@ httpsProxyPort | 域名代理https代理监听端口
 httpProxyPort | 域名代理http代理监听端口
 authip|web api免验证IP地址
 bridgeType|客户端与服务端连接方式kcp或tcp
+publicVkey|客户端以配置文件模式启动时的密钥，设置为空表示关闭客户端配置文件连接模式
+ipLimit|是否限制ip访问，true或false或忽略
 
 ### 详细说明
 
@@ -300,186 +315,137 @@ nps test|start|stop|restart|status
 nps.exe test|start|stop|restart|status
 ```
 
+## 客户端
 
-
-
-## tcp隧道模式
-
-### 场景及原理
-较为适用于处理tcp连接，例如ssh，同时也适用于http等，访问服务端的8024端口相当于访问内网10.1.50.202机器的4000端口，构成如下所示的隧道。
-
-![image](https://github.com/cnlh/nps/blob/master/image/tcp.png?raw=true)
-
-例如：
-
-**背景:**
-
-- 内网机器10.1.50.203提供了web服务80端口
-
-- 有VPS一个,公网IP:123.206.77.88
-
-**需求:**
-
-在家里能够通过访问VPS的8024端口访问到内网机器A的80端口
-
-### 使用
-- 服务端
-
+### 客户端启动
+#### 无配置文件模式
+此模式的各种配置在服务端web管理中完成
 ```
-./nps -mode=tcpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024 -target=10.1.50.203:80
+ ./npc -server=ip:port -vkey=web界面中显示的密钥
 ```
-
-名称 | 含义
+#### 配置文件模式
+此模式使用nps的公钥验证，各种配置在客户端完成，同时服务端web也可以进行管理
+```
+ ./npc -config=npc配置文件路径
+```
+#### 配置文件说明
+[示例配置文件](https://github.com/cnlh/nps/tree/master/conf/npc.conf)
+##### 全局配置
+```
+[common]
+server=127.0.0.1:8284
+tp=tcp
+vkey=123
+username=111
+password=222
+compress=snappy
+crypt=true
+```
+项 | 含义
 ---|---
-mode | 运行模式
-vkey | 验证密钥
-tcpport | 服务端与客户端通信端口
-httpport | 外部访问端口
-target | 目标地址，格式如上
-
-- 客户端
-
-
-```
-./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
-```
-
-- 与nginx配合实现访问a.ourcauc.com等同访问10.1.50.203:80效果，将该域名解析道云服务器，nginx配置
-```
-server {
-    listen 80;
-    server_name a.ourcauc.com;
-    location / {
-            proxy_pass http://127.0.0.1:8024;
-        }
-}
-```
-## udp隧道模式
-
-### 场景及原理
-
-**背景**
-- 内网机器A提供了DNS解析服务,10.1.50.210:53端口
-
-- 有VPS一个,公网IP:123.206.77.88
-
-**需求:**
-在家里能够通过设置本地dns为123.206.77.88,使用内网机器A进行域名解析服务.
-
-访问vps的53端口相当于访问10.1.50.210的53端口，构成如下所示的隧道。
-
-![image](https://github.com/cnlh/nps/blob/master/image/udp.png?raw=true)
-
-
-### 使用
-- 服务端
+server | 服务端ip:port
+tp | 与服务端通信模式(tcp或kcp)
+vkey|服务端配置文件中的密钥(非web)
+username|socks5或http(s)密码保护用户名(可忽略)
+username|socks5或http(s)密码保护密码(可忽略)
+compress|是否压缩传输(snappy或空或忽略)
+crypt|是否加密传输(true或false或忽略)
+##### 域名代理
 
 ```
-./nps -mode=udpServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=53 -target=10.1.50.210:53
+[web1]
+host=a.o.com
+target=127.0.0.1:8080,127.0.0.1:8082
+host_change=www.proxy.com
+header_set_proxy=nps
 ```
-
-名称 | 含义
+项 | 含义
 ---|---
-mode | 运行模式
-vkey | 验证密钥
-tcpport | 服务端与客户端通信端口
-httpport | 公网vps的访问端口
-target | 目标地址，格式如上
+web1 | 备注
+host | 域名(http|https都可解析)
+target|内网目标，负载均衡时多个目标，逗号隔开
+host_change|请求host修改
+header_xxx|请求header修改或添加，header_proxy表示添加header proxy:nps
 
-- 客户端
-
-
-```
-./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
-```
-
-
-
-
-## socks5代理模式
-
-### 场景及原理
-
-**原理**
-
-主要用于socks5代理，也就是和ss类似，不过是代理内网。使用此模式时，可在非内网环境下配置本机的socks5代理（服务器ip、sock5代理端口），即可实现socks5代理，达到访问内网的网站的效果，配合proxifier等全局代理软件，即可如同使用内网vpn一样，访问内网网站，通过ssh连接内网机器等等……。
-![image](https://github.com/cnlh/nps/blob/master/image/sock5.png?raw=true)
-
-### 使用
-- 服务端
+##### tcp隧道模式
 
 ```
-./nps -mode=socks5Server -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
+[tcp]
+mode=tcpServer
+target=127.0.0.1:8080
+port=9001
 ```
-
-名称 | 含义
+项 | 含义
 ---|---
-mode | 运行模式
-vkey | 验证密钥
-tcpport | 服务端与客户端通信端口
-httpport | 代理的http端口（socks5连接端口）
-u | 验证的用户名
-p | 验证的密码
+mode | tcpServer
+port | 在服务端的代理端口
+target|内网目标
 
-**说明**：用户名和密码验证模式，仅部分socks5客户端支持，例如proxifier。命令行执行加上，web管理模式中可单独配置
-
+##### udp隧道模式
 
 ```
--u=user -p=password
+[udp]
+mode=udpServer
+target=127.0.0.1:8080
+port=9002
 ```
-
-- 客户端
-
-
-```
-./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
-```
-
-- 需要使用内网代理的机器
-
-```
-配置socks5代理即可，ip为外网服务器ip，端口为httpport，即可在外网环境使用内网啦！也可使用proxifier等全局代理软件。
-```
-如果设置了用户名和密码，记得填上用户名和密码(仅部分客户端支持密码验证)
-
-
-
-## http代理模式
-
-### 场景及原理
-主要用于HTTP代理，区别也就是HTTP代理和sock5代理的区别。使用此模式时，可在非内网环境下配置本机的HTTP代理（服务器ip、HTTP代理端口），即可实现HTTP代理，达到访问内网的网站的效果。
-![image](https://github.com/cnlh/nps/blob/master/image/httpProxy.png?raw=true)
-
-
-### 使用
-- 服务端
-
-```
-./nps -mode=httpProxyServer -vkey=DKibZF5TXvic1g3kY -tcpport=8284 -httpport=8024
-```
-
-名称 | 含义
+项 | 含义
 ---|---
-mode | 运行模式
-vkey | 验证密钥
-tcpport | 服务端与客户端通信端口
-httpport | http代理连接端口
-authip | 免验证ip，适用于web api
-
-- 客户端
-
-
+mode | udpServer
+port | 在服务端的代理端口
+target|内网目标
+##### http代理模式
 
 ```
-./npc -server=ip:port -vkey=DKibZF5TXvic1g3kY
+[http]
+mode=httpProxyServer
+port=9003
+```
+项 | 含义
+---|---
+mode | httpProxyServer
+port | 在服务端的代理端口
+##### socks5代理模式
+
+```
+[socks5]
+mode=socks5Server
+port=9004
+```
+项 | 含义
+---|---
+mode | socks5Server
+port | 在服务端的代理端口
+
+#### 断线重连
+```
+[common]
+auto_reconnection=true
 ```
 
-- 需要使用内网代理的机器
+#### 状态检查
+```
+ ./npc status -config=npc配置文件路径
+```
+#### 配置文件重载
+```
+ ./npc restart -config=npc配置文件路径
+```
 
+#### 通过代理连接nps
+有时候运行npc的内网机器无法直接访问外网，此时可以可以通过socks5代理连接nps
+
+对于配置文件方式启动,设置
+```
+[common]
+proxy_socks5_url=socks5://111:222@127.0.0.1:8024
+```
+对于无配置文件模式,加上参数
 
 ```
-配置HTTP代理即可，ip为外网服务器ip，端口为httpport，即可在外网环境访问内网啦！
+-proxy=socks5://111:222@127.0.0.1:8024
 ```
+即socks5://username:password@ip:port
 
 ## 相关功能
 
@@ -490,20 +456,16 @@ authip | 免验证ip，适用于web api
 
 - 所有模式均支持数据压缩，可以与加密同时使用
 - 开启此功能会增加cpu和内存消耗
-- 在server端加上参数 -compress=snappy（或在web管理中设置）
-```
--compress=snappy
-```
+- 在web管理或客户端配置文件中设置
+
 
 ### 加密传输
 
 如果公司内网防火墙对外网访问进行了流量识别与屏蔽，例如禁止了ssh协议等，通过设置 配置文件，将服务端与客户端之间的通信内容加密传输，将会有效防止流量被拦截。
 
 - 开启此功能会增加cpu和内存消耗
-- 在server端加上参数 -crypt=true（或在web管理中设置）
-```
--crypt=true
-```
+- 在server端加上参数
+- 在web管理或客户端配置文件中设置
 
 
 
@@ -511,7 +473,7 @@ authip | 免验证ip，适用于web api
 域名代理模式所有客户端共用一个http服务端口，在知道域名后任何人都可访问，一些开发或者测试环境需要保密，所以可以设置用户名和密码，nps将通过 Http Basic Auth 来保护，访问时需要输入正确的用户名和密码。
 
 
-- web管理中可配置
+- 在web管理或客户端配置文件中设置
 
 ### host修改
 
@@ -538,6 +500,24 @@ authip | 免验证ip，适用于web api
 ### 负载均衡
 本代理支持域名解析模式的负载均衡，在web域名添加或者编辑中内网目标分行填写多个目标即可实现轮训级别的负载均衡
 
+### 端口白名单
+为了防止服务端上的端口被滥用，可在app.conf中配置allowPorts限制可开启的端口，忽略或者不填表示端口不受限制，格式：
+
+```
+allowPorts=9001-9009,10001,11000-12000
+```
+
+### 端口范围映射
+当客户端以配置文件的方式启动时，可以将本地的端口进行范围映射，仅支持tcp和udp模式，例如：
+
+```
+[tcp]
+mode=tcpServer
+port=9001-9009,10001,11000-12000
+target=8001-8009,10002,13000-14000
+```
+
+逗号分隔，可单个或者范围，注意上下端口的对应关系，无法一一对应将不能成功
 ### 守护进程
 本代理支持守护进程，使用示例如下，服务端客户端所有模式通用,支持linux，darwin，windows。
 ```
@@ -546,17 +526,45 @@ authip | 免验证ip，适用于web api
 ```
 (nps|npc).exe start|stop|restart|status 若有其他参数可加其他参数
 ```
-
 ### KCP协议支持
+
 KCP 是一个快速可靠协议，能以比 TCP浪费10%-20%的带宽的代价，换取平均延迟降低 30%-40%，在弱网环境下对性能能有一定的提升。可在app.conf中修改bridgeType为kcp
 ，设置后本代理将开启udp端口（bridgePort）
 
-注意：当服务端为kcp时，客户端连接时也需要加上参数
+注意：当服务端为kcp时，客户端连接时也需要使用相同配置，无配置文件模式加上参数type=kcp,配置文件模式在配置文件中设置tp=kcp
+
+### 域名泛解析
+支持域名泛解析，例如将host设置为*.proxy.com，a.proxy.com、b.proxy.com等都将解析到同一目标，在web管理中或客户端配置文件中将host设置为此格式即可。
+
+### URL路由
+本代理支持根据URL将同一域名转发到不同的内网服务器，可在web中或客户端配置文件中设置，此参数也可忽略，例如在客户端配置文件中
 
 ```
--type=kcp
+[web1]
+host=a.proxy.com
+target=127.0.0.1:7001
+location=/test
+[web2]
+host=a.proxy.com
+target=127.0.0.1:7002
+location=/static
+```
+对于a.proxy.com/test将转发到web1，对于a.proxy.com/static将转发到web2
+
+### 限制ip访问
+如果将一些危险性高的端口例如ssh端口暴露在公网上，可能会带来一些风险，本代理支持限制ip访问。
+
+**使用方法:** 在配置文件app.conf中设置ipLimit=true，设置后仅通过注册的ip方可访问。
+
+**ip注册**： 在需要访问的机器上，运行客户端
+
+```
+./npc register -server=ip:port -vkey=公钥或客户端密钥 time=2
 ```
 
+time为有效小时数，例如time=2，在当前时间后的两小时内，本机公网ip都可以访问nps代理.
+
+**注意：** 本机公网ip并不是一成不变的，请自行注意有效期的设置，同时同一网络下，多人也可能是在公用同一个公网ip。
 
 ## 相关说明
 
@@ -580,7 +588,7 @@ KCP 是一个快速可靠协议，能以比 TCP浪费10%-20%的带宽的代价�
 ### qps
 ![image](https://github.com/cnlh/nps/blob/master/image/qps.png?raw=true)
 ### 速度测试
-**测试环境：** 1M带宽云服务器，理论125kb/s，带宽与代理无关，与服务器关系较大。
+**测试环境：** 1M带宽云服务器，理论125kb/s，带宽与代理无关，与服务器带宽和内网客户端外网带宽关系较大。
 ![image](https://github.com/cnlh/nps/blob/master/image/speed.png?raw=true)
 
 
@@ -599,3 +607,15 @@ KCP 是一个快速可靠协议，能以比 TCP浪费10%-20%的带宽的代价�
 
 为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见
 [webAPI文档](https://github.com/cnlh/nps/wiki/webAPI%E6%96%87%E6%A1%A3)
+
+## 贡献
+- 如果遇到bug可以直接提交至dev分支
+- 使用遇到问题可以通过issues反馈
+- 项目处于开发阶段，还有很多待完善的地方，如果可以贡献代码，请提交 PR 至 dev 分支
+- 如果有新的功能特性反馈，可以通过issues或者qq群反馈
+
+
+
+## 交流群
+
+![二维码.jpeg](https://i.loli.net/2019/02/15/5c66c32a42074.jpeg)

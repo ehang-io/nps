@@ -51,7 +51,6 @@ func (s *Csv) StoreTasksToCsv() {
 		if task.NoStore {
 			continue
 		}
-		lg.Println(task)
 		record := []string{
 			strconv.Itoa(task.Port),
 			task.Mode,

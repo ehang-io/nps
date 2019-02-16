@@ -51,7 +51,7 @@ func DealBridgeTask() {
 
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
-	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")))
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")), RunList)
 	if err := Bridge.StartTunnel(); err != nil {
 		lg.Fatalln("服务端开启失败", err)
 	} else {
@@ -244,8 +244,8 @@ func DelClientConnect(clientId int) {
 
 func GetDashboardData() map[string]int {
 	data := make(map[string]int)
-	data["hostCount"] = len(file.GetCsvDb().Hosts) - 1 //Remove the public key client
-	data["clientCount"] = len(file.GetCsvDb().Clients)
+	data["hostCount"] = len(file.GetCsvDb().Hosts)
+	data["clientCount"] = len(file.GetCsvDb().Clients) - 1 //Remove the public key client
 	list := file.GetCsvDb().Clients
 	dealClientData(list)
 	c := 0

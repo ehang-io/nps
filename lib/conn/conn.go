@@ -307,6 +307,7 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 	} else {
 		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
 		h = new(file.Host)
+		h.Id = file.GetCsvDb().GetHostId()
 		h.Host = arr[0]
 		h.Target = arr[1]
 		h.HeaderChange = arr[2]

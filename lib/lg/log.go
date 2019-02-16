@@ -26,12 +26,12 @@ func InitLogFile(f string, isStdout bool, logPath string) {
 }
 
 func Println(v ...interface{}) {
-	Log.Println(v ...)
+	Log.Println(v...)
 }
 
 func Fatalln(v ...interface{}) {
 	Log.SetPrefix("error ")
-	Log.Fatalln(v ...)
+	Log.Fatalln(v...)
 	Log.SetPrefix("")
 }
 func Fatalf(format string, v ...interface{}) {

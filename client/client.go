@@ -123,6 +123,7 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 				c.Close()
 				break
 			}
+			lg.Println("send ok", link.Id)
 		}
 	}
 	pool.PutBufPoolCopy(buf)
