@@ -1,8 +1,8 @@
 package tool
 
 import (
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 )
 
 var ports []int

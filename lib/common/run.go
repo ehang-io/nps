@@ -59,7 +59,7 @@ func GetLogPath() string {
 func GetTmpPath() string {
 	var path string
 	if IsWindows() {
-		path = "./"
+		path = GetRunPath()
 	} else {
 		path = "/tmp"
 	}

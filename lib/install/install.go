@@ -48,7 +48,7 @@ func InstallNps() {
 		log.Println("You can copy executable files to any directory and start working with nps.exe test|start|stop|restart|status")
 	}
 }
-func MkidrDirAll(path string, v ... string) {
+func MkidrDirAll(path string, v ...string) {
 	for _, item := range v {
 		if err := os.MkdirAll(filepath.Join(path, item), 0755); err != nil {
 			log.Fatalf("Failed to create directory %s error:%s", path, err.Error())

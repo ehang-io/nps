@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"crypto/tls"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -117,14 +117,14 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		lastHost *file.Host
 		err      error
 	)
+	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
+		lg.Printf("the url %s %s Can't be parsed!", r.Host, r.RequestURI)
+		goto end
+	} else {
+		lastHost = host
+	}
 	for {
-		if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
-			lg.Printf("the url %s %s is not found !", r.Host, r.RequestURI)
-			break
-		} else if host != lastHost {
-			lastHost = host
-			isConn = true
-		}
+	start:
 		if isConn {
 			//流量限制
 			if host.Client.Flow.FlowLimit > 0 && (host.Client.Flow.FlowLimit<<20) < (host.Client.Flow.ExportFlow+host.Client.Flow.InletFlow) {
@@ -136,7 +136,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				break
 			}
 			lk = conn.NewLink(host.Client.GetId(), common.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
-			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, lk); err != nil {
+			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String()); err != nil {
 				log.Println(err)
 				break
 			}
@@ -146,11 +146,18 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			if err != nil {
 				break
 			}
+			if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
+				lg.Printf("the url %s %s is not found !", r.Host, r.RequestURI)
+				break
+			} else if host != lastHost {
+				lastHost = host
+				isConn = true
+				goto start
+			}
 		}
 		//根据设定，修改header和host
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, true)
-		lg.Println(string(b), r.RequestURI)
 		if err != nil {
 			break
 		}
@@ -160,7 +167,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			break
 		}
 	}
-
+end:
 	if isConn {
 		s.writeConnFail(c.Conn)
 	} else {

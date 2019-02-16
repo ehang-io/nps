@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
@@ -10,6 +9,7 @@ import (
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/server/test"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
 	"os"

@@ -3,14 +3,15 @@ package bridge
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/kcp"
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/server/tool"
+	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"log"
 	"net"
 	"strconv"
@@ -38,25 +39,28 @@ func NewClient(t *conn.Conn, s *conn.Conn) *Client {
 }
 
 type Bridge struct {
-	TunnelPort  int              //通信隧道端口
-	tcpListener *net.TCPListener //server端监听
-	kcpListener *kcp.Listener    //server端监听
-	Client      map[int]*Client
-	tunnelType  string //bridge type kcp or tcp
-	OpenTask    chan *file.Tunnel
-	CloseClient chan int
-	lock        sync.Mutex
-	tunnelLock  sync.Mutex
-	clientLock  sync.RWMutex
+	TunnelPort   int              //通信隧道端口
+	tcpListener  *net.TCPListener //server端监听
+	kcpListener  *kcp.Listener    //server端监听
+	Client       map[int]*Client
+	tunnelType   string //bridge type kcp or tcp
+	OpenTask     chan *file.Tunnel
+	CloseClient  chan int
+	clientLock   sync.RWMutex
+	Register     map[string]time.Time
+	registerLock sync.RWMutex
+	ipVerify     bool
 }
 
-func NewTunnel(tunnelPort int, tunnelType string) *Bridge {
+func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool) *Bridge {
 	t := new(Bridge)
 	t.TunnelPort = tunnelPort
 	t.Client = make(map[int]*Client)
 	t.tunnelType = tunnelType
 	t.OpenTask = make(chan *file.Tunnel)
 	t.CloseClient = make(chan int)
+	t.Register = make(map[string]time.Time)
+	t.ipVerify = ipVerify
 	return t
 }
 
@@ -128,7 +132,6 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	if flag, err := c.ReadFlag(); err == nil {
 		s.typeDeal(flag, c, id)
 	} else {
-		log.Println(222)
 		log.Println(err, flag)
 	}
 	return
@@ -180,13 +183,25 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		go s.clientCopy(id)
 	case common.WORK_CONFIG:
 		go s.GetConfig(c)
+	case common.WORK_REGISTER:
+		go s.register(c)
 	}
 	c.SetAlive(s.tunnelType)
 	return
 }
 
+func (s *Bridge) register(c *conn.Conn) {
+	var hour int32
+	if err := binary.Read(c, binary.LittleEndian, &hour); err == nil {
+		s.registerLock.Lock()
+		s.Register[common.GetIpByAddr(c.Conn.RemoteAddr().String())] = time.Now().Add(time.Hour * time.Duration(hour))
+		lg.Println(s.Register[common.GetIpByAddr(c.Conn.RemoteAddr().String())])
+		s.registerLock.Unlock()
+	}
+}
+
 //等待
-func (s *Bridge) waitStatus(clientId, id int) (bool) {
+func (s *Bridge) waitStatus(clientId, id int) bool {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	stop := time.After(time.Second * 10)
 	for {
@@ -209,13 +224,26 @@ func (s *Bridge) waitStatus(clientId, id int) (bool) {
 			return false
 		}
 	}
-	return false
 }
 
-func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link) (tunnel *conn.Conn, err error) {
+func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (tunnel *conn.Conn, err error) {
 	s.clientLock.Lock()
 	if v, ok := s.Client[clientId]; ok {
 		s.clientLock.Unlock()
+		if s.ipVerify {
+			s.registerLock.Lock()
+			ip := common.GetIpByAddr(linkAddr)
+			if v, ok := s.Register[ip]; !ok {
+				s.registerLock.Unlock()
+				return nil, errors.New(fmt.Sprintf("The ip %s is not in the validation list", ip))
+			} else {
+				if !v.After(time.Now()) {
+					return nil, errors.New(fmt.Sprintf("The validity of the ip %s has expired", ip))
+				}
+			}
+			s.registerLock.Unlock()
+		}
+
 		v.signal.SendLinkInfo(link)
 		if err != nil {
 			lg.Println("send link information error:", err, link.Id)
@@ -300,7 +328,7 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 				fail = true
 				c.WriteAddFail()
 				break
-			} else if file.GetCsvDb().IsHostExist(h.Host) {
+			} else if file.GetCsvDb().IsHostExist(h) {
 				fail = true
 				c.WriteAddFail()
 			} else {
@@ -383,7 +411,6 @@ func (s *Bridge) clientCopy(clientId int) {
 	for {
 		if id, err := client.tunnel.GetLen(); err != nil {
 			s.closeClient(clientId)
-			lg.Println("读取msg id 错误", err, id)
 			break
 		} else {
 			client.Lock()

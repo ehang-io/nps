@@ -3,11 +3,11 @@ package proxy
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"net"
 	"path/filepath"
 	"strings"
@@ -53,7 +53,7 @@ func (s *TunnelModeServer) Start() error {
 func (s *TunnelModeServer) dealClient(c *conn.Conn, cnf *file.Config, addr string, method string, rb []byte) error {
 	link := conn.NewLink(s.task.Client.GetId(), common.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
 
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
+	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String()); err != nil {
 		c.Close()
 		return err
 	} else {
@@ -105,7 +105,12 @@ func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 	method, addr, rb, err, r := c.GetHost()
 	if err != nil {
 		c.Close()
+		lg.Println(err)
 		return err
+	}
+	if r.Method == "CONNECT" {
+		c.Write([]byte("HTTP/1.1 200 Connection Established\r\n"))
+		rb = nil //reset
 	}
 	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
 		return err

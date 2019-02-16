@@ -13,6 +13,7 @@ type CommonConfig struct {
 	Tp               string //bridgeType kcp or tcp
 	AutoReconnection bool
 	Cnf              *file.Config
+	ProxyUrl         string
 }
 type Config struct {
 	content      string
@@ -94,6 +95,8 @@ func dealCommon(s string) *CommonConfig {
 			c.Cnf.Compress = item[1]
 		case "crypt":
 			c.Cnf.Crypt = common.GetBoolByStr(item[1])
+		case "proxy_socks5_url":
+			c.ProxyUrl = item[1]
 		}
 	}
 	return c
@@ -115,6 +118,8 @@ func dealHost(s string) *file.Host {
 			h.Target = strings.Replace(item[1], ",", "\n", -1)
 		case "host_change":
 			h.HostChange = item[1]
+		case "location":
+			h.Location = item[1]
 		default:
 			if strings.Contains(item[0], "header") {
 				headerChange += strings.Replace(item[0], "header_", "", -1) + ":" + item[1] + "\n"

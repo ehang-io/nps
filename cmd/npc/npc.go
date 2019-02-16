@@ -4,23 +4,23 @@ import (
 	"flag"
 	"github.com/cnlh/nps/client"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/lg"
-	"log"
 	"os"
-	"path/filepath"
 	"strings"
+	"time"
 )
 
 const VERSION = "v0.0.15"
 
 var (
-	serverAddr = flag.String("server", "", "Server addr (ip:port)")
-	configPath = flag.String("config", "npc.conf", "Configuration file path")
-	verifyKey  = flag.String("vkey", "", "Authentication key")
-	logType    = flag.String("log", "stdout", "Log output mode（stdout|file）")
-	connType   = flag.String("type", "tcp", "Connection type with the server（kcp|tcp）")
+	serverAddr   = flag.String("server", "", "Server addr (ip:port)")
+	configPath   = flag.String("config", "npc.conf", "Configuration file path")
+	verifyKey    = flag.String("vkey", "", "Authentication key")
+	logType      = flag.String("log", "stdout", "Log output mode（stdout|file）")
+	connType     = flag.String("type", "tcp", "Connection type with the server（kcp|tcp）")
+	proxyUrl     = flag.String("proxy", "", "proxy socks5 url(eg:socks5://111:222@127.0.0.1:9007)")
+	registerTime = flag.Int("time", 2, "register time long /h")
 )
 
 func main() {
@@ -29,44 +29,10 @@ func main() {
 		switch os.Args[1] {
 		case "status":
 			path := strings.Replace(os.Args[2], "-config=", "", -1)
-			cnf, err := config.NewConfig(path)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			c, err := client.NewConn(cnf.CommonConfig.Tp, cnf.CommonConfig.VKey, cnf.CommonConfig.Server, common.WORK_CONFIG)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			if _, err := c.Write([]byte(common.WORK_STATUS)); err != nil {
-				log.Fatalln(err)
-			}
-			if f, err := common.ReadAllFromFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt")); err != nil {
-				log.Fatalln(err)
-			} else if _, err := c.Write([]byte(string(f))); err != nil {
-				log.Fatalln(err)
-			}
-			if l, err := c.GetLen(); err != nil {
-				log.Fatalln(err)
-			} else if b, err := c.ReadLen(l); err != nil {
-				lg.Fatalln(err)
-			} else {
-				arr := strings.Split(string(b), common.CONN_DATA_SEQ)
-				for _, v := range cnf.Hosts {
-					if common.InArr(arr, v.Remark) {
-						log.Println(v.Remark, "ok")
-					} else {
-						log.Println(v.Remark, "not running")
-					}
-				}
-				for _, v := range cnf.Tasks {
-					if common.InArr(arr, v.Remark) {
-						log.Println(v.Remark, "ok")
-					} else {
-						log.Println(v.Remark, "not running")
-					}
-				}
-			}
-			return
+			client.GetTaskStatus(path)
+		case "register":
+			flag.CommandLine.Parse(os.Args[2:])
+			client.RegisterLocalIp(*serverAddr, *verifyKey, *connType, *proxyUrl, *registerTime)
 		}
 	}
 	daemon.InitDaemon("npc", common.GetRunPath(), common.GetTmpPath())
@@ -76,7 +42,11 @@ func main() {
 		lg.InitLogFile("npc", false, common.GetLogPath())
 	}
 	if *verifyKey != "" && *serverAddr != "" {
-		client.NewRPClient(*serverAddr, *verifyKey, *connType).Start()
+		for {
+			client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl).Start()
+			lg.Println("It will be reconnected in five seconds")
+			time.Sleep(time.Second * 5)
+		}
 	} else {
 		client.StartFromFile(*configPath)
 	}

@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
+	"github.com/cnlh/nps/server/tool"
 )
 
 type IndexController struct {
@@ -80,6 +81,9 @@ func (s *IndexController) Add() {
 			Status: true,
 			Remark: s.GetString("remark"),
 			Flow:   &file.Flow{},
+		}
+		if !tool.TestServerPort(t.Port, t.Mode) {
+			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
 		}
 		var err error
 		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {

@@ -9,6 +9,7 @@ var (
 	CsvDb *Csv
 	once  sync.Once
 )
+
 //init csv from file
 func GetCsvDb() *Csv {
 	once.Do(func() {

@@ -5,7 +5,7 @@ import (
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
-	"github.com/cnlh/nps/lib/snappy"
+	"github.com/cnlh/nps/vender/github.com/golang/snappy"
 	"log"
 	"net"
 )

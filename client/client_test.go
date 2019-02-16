@@ -42,10 +42,10 @@ func TestConfig(t *testing.T) {
 		RWMutex:      sync.RWMutex{},
 	}
 	tunnel := &file.Tunnel{
-		Port: 9001,
-		Mode:    "tcpServer",
-		Target:  "127.0.0.1:8082",
-		Remark:  "333",
+		Port:   9001,
+		Mode:   "tcpServer",
+		Target: "127.0.0.1:8082",
+		Remark: "333",
 	}
 	var b []byte
 	if b, err = c.ReadLen(16); err != nil {

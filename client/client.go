@@ -5,11 +5,13 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/kcp"
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
+	"github.com/cnlh/nps/vender/golang.org/x/net/proxy"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"path/filepath"
 	"sync"
 	"time"
@@ -21,12 +23,13 @@ type TRPClient struct {
 	tunnel         *conn.Conn
 	bridgeConnType string
 	stop           chan bool
+	proxyUrl       string
 	sync.Mutex
 	vKey string
 }
 
 //new client
-func NewRPClient(svraddr string, vKey string, bridgeConnType string) *TRPClient {
+func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string) *TRPClient {
 	return &TRPClient{
 		svrAddr:        svraddr,
 		linkMap:        make(map[int]*conn.Link),
@@ -34,13 +37,14 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string) *TRPClient 
 		vKey:           vKey,
 		bridgeConnType: bridgeConnType,
 		stop:           make(chan bool),
+		proxyUrl:       proxyUrl,
 	}
 }
 
 //start
 func (s *TRPClient) Start() {
 retry:
-	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN)
+	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
 		lg.Println("The connection server failed and will be reconnected in five seconds")
 		time.Sleep(time.Second * 5)
@@ -130,7 +134,7 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 //隧道模式处理
 func (s *TRPClient) dealChan() {
 	var err error
-	s.tunnel, err = NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_CHAN)
+	s.tunnel, err = NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_CHAN, s.proxyUrl)
 	if err != nil {
 		lg.Println("connect to ", s.svrAddr, "error:", err)
 		return
@@ -184,7 +188,7 @@ re:
 		return
 	}
 	first = false
-	c, err := NewConn(cnf.CommonConfig.Tp, cnf.CommonConfig.VKey, cnf.CommonConfig.Server, common.WORK_CONFIG)
+	c, err := NewConn(cnf.CommonConfig.Tp, cnf.CommonConfig.VKey, cnf.CommonConfig.Server, common.WORK_CONFIG, cnf.CommonConfig.ProxyUrl)
 	if err != nil {
 		lg.Println(err)
 		goto re
@@ -220,24 +224,36 @@ re:
 			goto re
 		}
 		if !c.GetAddStatus() {
-			lg.Println(errAdd, v.Port)
+			lg.Println(errAdd, v.Ports)
 			goto re
 		}
 	}
 
 	c.Close()
 
-	NewRPClient(cnf.CommonConfig.Server, string(b), cnf.CommonConfig.Tp).Start()
+	NewRPClient(cnf.CommonConfig.Server, string(b), cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl).Start()
 	goto re
 }
 
 //Create a new connection with the server and verify it
-func NewConn(tp string, vkey string, server string, connType string) (*conn.Conn, error) {
+func NewConn(tp string, vkey string, server string, connType string, proxyUrl string) (*conn.Conn, error) {
 	var err error
 	var connection net.Conn
 	var sess *kcp.UDPSession
 	if tp == "tcp" {
-		connection, err = net.Dial("tcp", server)
+		if proxyUrl != "" {
+			u, er := url.Parse(proxyUrl)
+			if er != nil {
+				return nil, er
+			}
+			n, er := proxy.FromURL(u, nil)
+			if er != nil {
+				return nil, er
+			}
+			connection, err = n.Dial("tcp", server)
+		} else {
+			connection, err = net.Dial("tcp", server)
+		}
 	} else {
 		sess, err = kcp.DialWithOptions(server, nil, 10, 3)
 		conn.SetUdpSession(sess)

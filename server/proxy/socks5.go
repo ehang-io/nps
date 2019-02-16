@@ -143,7 +143,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	}
 	link := conn.NewLink(s.task.Client.GetId(), ltype, addr, s.task.Client.Cnf.CompressEncode, s.task.Client.Cnf.CompressDecode, s.task.Client.Cnf.Crypt, conn.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
 
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
+	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.RemoteAddr().String()); err != nil {
 		c.Close()
 		return
 	} else {
@@ -244,7 +244,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	if _, err := io.ReadAtLeast(c, pass, passLen); err != nil {
 		return err
 	}
-	if string(pass) == s.task.Client.Cnf.U && string(user) == s.task.Client.Cnf.P {
+	if string(user) == s.task.Client.Cnf.U && string(pass) == s.task.Client.Cnf.P {
 		if _, err := c.Write([]byte{userAuthVersion, authSuccess}); err != nil {
 			return err
 		}
@@ -255,7 +255,6 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 		}
 		return errors.New("验证不通过")
 	}
-	return errors.New("未知错误")
 }
 
 //start

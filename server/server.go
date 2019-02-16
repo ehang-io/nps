@@ -3,11 +3,12 @@ package server
 import (
 	"errors"
 	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/beego"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/server/proxy"
 	"github.com/cnlh/nps/server/tool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"reflect"
 )
 
@@ -23,13 +24,15 @@ func init() {
 //从csv文件中恢复任务
 func InitFromCsv() {
 	//Add a public password
-	c := file.NewClient(beego.AppConfig.String("publicVkey"), true, true)
-	file.GetCsvDb().NewClient(c)
-	RunList[c.Id] = nil
+	if vkey := beego.AppConfig.String("publicVkey"); vkey != "" {
+		c := file.NewClient(vkey, true, true)
+		file.GetCsvDb().NewClient(c)
+		RunList[c.Id] = nil
+	}
 	//Initialize services in server-side files
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Status {
-			lg.Println("启动模式：", v.Mode, "监听端口：", v.Port)
+			lg.Println("task start info: mode：", v.Mode, "port：", v.Port)
 			AddTask(v)
 		}
 	}
@@ -48,7 +51,7 @@ func DealBridgeTask() {
 
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
-	Bridge = bridge.NewTunnel(bridgePort, bridgeType)
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")))
 	if err := Bridge.StartTunnel(); err != nil {
 		lg.Fatalln("服务端开启失败", err)
 	} else {
@@ -241,7 +244,7 @@ func DelClientConnect(clientId int) {
 
 func GetDashboardData() map[string]int {
 	data := make(map[string]int)
-	data["hostCount"] = len(file.GetCsvDb().Hosts)
+	data["hostCount"] = len(file.GetCsvDb().Hosts) - 1 //Remove the public key client
 	data["clientCount"] = len(file.GetCsvDb().Clients)
 	list := file.GetCsvDb().Clients
 	dealClientData(list)

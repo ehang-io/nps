@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib/beego"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/server"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"strconv"
 	"strings"
 )
@@ -90,7 +90,7 @@ func (s *BaseController) AjaxErr(str string) {
 }
 
 //组装ajax
-func ajax(str string, status int) (map[string]interface{}) {
+func ajax(str string, status int) map[string]interface{} {
 	json := make(map[string]interface{})
 	json["status"] = status
 	json["msg"] = str

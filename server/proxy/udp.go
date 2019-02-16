@@ -50,7 +50,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 	if err := s.checkFlow(); err != nil {
 		return
 	}
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link); err != nil {
+	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, addr.String()); err != nil {
 		return
 	} else {
 		s.task.Flow.Add(len(data), 0)

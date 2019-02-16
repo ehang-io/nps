@@ -293,9 +293,9 @@ func (s *Csv) DelHost(id int) error {
 	return errors.New("不存在")
 }
 
-func (s *Csv) IsHostExist(host string) bool {
+func (s *Csv) IsHostExist(h *Host) bool {
 	for _, v := range s.Hosts {
-		if v.Host == host {
+		if v.Host == h.Host && h.Location == v.Location {
 			return true
 		}
 	}
@@ -459,12 +459,6 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 		}
 	}
 	if h != nil {
-		if h.Location != "/" {
-			r.RequestURI = strings.Replace(r.RequestURI, h.Location, "", 1)
-		}
-		if r.RequestURI == "" {
-			r.RequestURI = "/"
-		}
 		return
 	}
 	err = errors.New("The host could not be parsed")

@@ -49,7 +49,7 @@ func status(f string, pidPath string) bool {
 		if !common.IsWindows() {
 			cmd = exec.Command("/bin/sh", "-c", "ps -ax | awk '{ print $1 }' | grep "+string(b))
 		} else {
-			cmd = exec.Command("tasklist", )
+			cmd = exec.Command("tasklist")
 		}
 		out, _ := cmd.Output()
 		if strings.Index(string(out), string(b)) > -1 {

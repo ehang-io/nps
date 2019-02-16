@@ -241,3 +241,8 @@ func FormatAddress(s string) string {
 	}
 	return "127.0.0.1:" + s
 }
+
+func GetIpByAddr(addr string) string {
+	arr := strings.Split(addr, ":")
+	return arr[0]
+}

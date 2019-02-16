@@ -7,9 +7,9 @@ import (
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/kcp"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
+	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"io"
 	"net"
 	"net/http"
@@ -82,7 +82,7 @@ func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 		defer pool.BufPoolMax.Put(buf)
 	}
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
-		return buf, errors.New("Error reading specified length" + err.Error())
+		return buf, errors.New("Error reading specified length " + err.Error())
 	}
 	return buf, nil
 }
@@ -187,7 +187,7 @@ func (s *Conn) SendMsg(content []byte, link *Link) (n int, err error) {
 		+----+--------+
 		| 4  |  ...   |
 		+----+--------+
-*/
+	*/
 	s.Lock()
 	defer s.Unlock()
 	raw := bytes.NewBuffer([]byte{})
@@ -273,10 +273,10 @@ func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
 		+----+---------------+
 		| 4  |  4  |   ...   |
 		+----+---------------+
-*/
+	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_HOST))
-	common.BinaryWrite(raw, h.Host, h.Target, h.HeaderChange, h.HostChange, h.Remark)
+	common.BinaryWrite(raw, h.Host, h.Target, h.HeaderChange, h.HostChange, h.Remark, h.Location)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
@@ -312,6 +312,7 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 		h.HeaderChange = arr[2]
 		h.HostChange = arr[3]
 		h.Remark = arr[4]
+		h.Location = arr[5]
 		h.Flow = new(file.Flow)
 		h.NoStore = true
 	}
@@ -327,7 +328,7 @@ func (s *Conn) SendConfigInfo(c *file.Config) (int, error) {
 		+----+---------------+
 		| 4  |  4  |   ...   |
 		+----+---------------+
-*/
+	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONF))
 	common.BinaryWrite(raw, c.U, c.P, common.GetStrByBool(c.Crypt), c.Compress)
@@ -365,7 +366,7 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 		+----+---------------+
 		| 4  |  4  |   ...   |
 		+----+---------------+
-*/
+	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_TASK))
 	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark)

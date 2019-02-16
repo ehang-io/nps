@@ -11,6 +11,7 @@ const (
 	WORK_MAIN      = "main"
 	WORK_CHAN      = "chan"
 	WORK_CONFIG    = "conf"
+	WORK_REGISTER  = "rgst"
 	WORK_STATUS    = "stus"
 	RES_SIGN       = "sign"
 	RES_MSG        = "msg0"
