@@ -309,7 +309,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (t
 		v.linkMap[link.Id] = link
 		v.Unlock()
 		if !s.waitStatus(clientId, link.Id) {
-			err = errors.New("connect fail")
+			err = errors.New(fmt.Sprintf("connect target %s fail", link.Host))
 			return
 		}
 	} else {

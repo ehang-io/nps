@@ -54,6 +54,9 @@ func (s *Link) Run(flow bool) {
 					}
 					return
 				} else {
+					if s.Conn == nil {
+						return
+					}
 					if s.UdpListener != nil && s.UdpRemoteAddr != nil {
 						s.UdpListener.WriteToUDP(content, s.UdpRemoteAddr)
 					} else {
