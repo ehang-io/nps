@@ -89,8 +89,9 @@ func (s *httpServer) Start() error {
 	return nil
 }
 
-func (s *httpServer) Close() {
+func (s *httpServer) Close() error {
 	s.stop <- true
+	return nil
 }
 
 func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {

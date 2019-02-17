@@ -23,7 +23,6 @@ var (
 )
 
 func main() {
-	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 	if len(os.Args) > 1 {
 		switch os.Args[1] {

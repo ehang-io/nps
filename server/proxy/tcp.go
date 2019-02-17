@@ -87,6 +87,10 @@ func (s *WebServer) Start() error {
 	return errors.New("Web management startup failure")
 }
 
+func (s *WebServer) Close() error {
+	return nil
+}
+
 //new
 func NewWebServer(bridge *bridge.Bridge) *WebServer {
 	s := new(WebServer)

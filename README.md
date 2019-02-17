@@ -272,6 +272,7 @@ server {
     listen 80;
     server_name *.proxy.com;
     location / {
+        proxy_set_header Host  $http_host;
         proxy_pass http://127.0.0.1:8024;
     }
 }
@@ -290,6 +291,7 @@ server {
     ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
     ssl_prefer_server_ciphers on;
     location / {
+        proxy_set_header Host  $http_host;
         proxy_pass http://127.0.0.1:8024;
     }
 }

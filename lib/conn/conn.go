@@ -89,11 +89,9 @@ func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 
 //read length or id (content length=4)
 func (s *Conn) GetLen() (int, error) {
-	val, err := s.ReadLen(4)
-	if err != nil {
-		return 0, err
-	}
-	return GetLenByBytes(val)
+	var l int32
+	err := binary.Read(s, binary.LittleEndian, &l)
+	return int(l), err
 }
 
 //read flag

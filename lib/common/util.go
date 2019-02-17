@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/lg"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -23,7 +22,7 @@ func GetCompressType(compress string) (int, int) {
 	case "snappy":
 		return COMPRESS_SNAPY_DECODE, COMPRESS_SNAPY_ENCODE
 	default:
-		lg.Fatalln("数据压缩格式错误")
+		return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
 	}
 	return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
 }
@@ -184,7 +183,7 @@ func BinaryWrite(raw *bytes.Buffer, v ...string) {
 	binary.Write(raw, binary.LittleEndian, buffer.Bytes())
 }
 
-func InArr(arr []string, val string) bool {
+func InStrArr(arr []string, val string) bool {
 	for _, v := range arr {
 		if v == val {
 			return true
@@ -224,6 +223,7 @@ func GetPorts(p string) []int {
 	}
 	return ps
 }
+
 func IsPort(p string) bool {
 	pi, err := strconv.Atoi(p)
 	if err != nil {

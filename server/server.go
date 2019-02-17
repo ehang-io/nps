@@ -9,7 +9,6 @@ import (
 	"github.com/cnlh/nps/server/proxy"
 	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"reflect"
 )
 
 var (
@@ -37,6 +36,7 @@ func InitFromCsv() {
 		}
 	}
 }
+
 func DealBridgeTask() {
 	for {
 		select {
@@ -59,27 +59,27 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 	}
 	go DealBridgeTask()
 	if svr := NewMode(Bridge, cnf); svr != nil {
-		RunList[cnf.Id] = svr
-		err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
-		if err.Interface() != nil {
+		if err := svr.Start(); err != nil {
 			lg.Fatalln(err)
 		}
+		RunList[cnf.Id] = svr
 	} else {
 		lg.Fatalln("启动模式%s不正确", cnf.Mode)
 	}
 }
 
 //new a server by mode name
-func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) interface{} {
+func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
+	var service proxy.Service
 	switch c.Mode {
 	case "tcpServer":
-		return proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
+		service = proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
 	case "socks5Server":
-		return proxy.NewSock5ModeServer(Bridge, c)
+		service = proxy.NewSock5ModeServer(Bridge, c)
 	case "httpProxyServer":
-		return proxy.NewTunnelModeServer(proxy.ProcessHttp, Bridge, c)
+		service = proxy.NewTunnelModeServer(proxy.ProcessHttp, Bridge, c)
 	case "udpServer":
-		return proxy.NewUdpModeServer(Bridge, c)
+		service = proxy.NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
 		t := &file.Tunnel{
@@ -89,19 +89,20 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) interface{} {
 			Status: true,
 		}
 		AddTask(t)
-		return proxy.NewWebServer(Bridge)
+		service = proxy.NewWebServer(Bridge)
 	case "httpHostServer":
-		return proxy.NewHttp(Bridge, c)
+		service = proxy.NewHttp(Bridge, c)
 	}
-	return nil
+	return service
 }
 
 //stop server
 func StopServer(id int) error {
 	if v, ok := RunList[id]; ok {
-		if reflect.ValueOf(v).IsValid() {
-			//TODO 错误处理
-			reflect.ValueOf(v).MethodByName("Close").Call(nil)
+		if svr, ok := v.(proxy.Service); ok {
+			if err := svr.Close(); err != nil {
+				return err
+			}
 			if t, err := file.GetCsvDb().GetTask(id); err != nil {
 				return err
 			} else {
@@ -118,14 +119,13 @@ func StopServer(id int) error {
 //add task
 func AddTask(t *file.Tunnel) error {
 	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
-		lg.Printf("taskId %d start error Port %d Open Failed", t.Id, t.Port)
+		lg.Printf("taskId %d start error port %d Open Failed", t.Id, t.Port)
 		return errors.New("the port open error")
 	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		RunList[t.Id] = svr
 		go func() {
-			err := reflect.ValueOf(svr).MethodByName("Start").Call(nil)[0]
-			if err.Interface() != nil {
+			if err := svr.Start(); err != nil {
 				lg.Println("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
 				delete(RunList, t.Id)
 				return

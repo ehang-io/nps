@@ -12,6 +12,11 @@ import (
 	"sync"
 )
 
+type Service interface {
+	Start() error
+	Close() error
+}
+
 //server base struct
 type server struct {
 	id           int

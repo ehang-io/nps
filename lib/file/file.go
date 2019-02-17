@@ -157,7 +157,7 @@ func (s *Csv) UpdateTask(t *Tunnel) error {
 			return nil
 		}
 	}
-	return errors.New("不存在")
+	return errors.New("the task is not exist")
 }
 
 func (s *Csv) DelTask(id int) error {
