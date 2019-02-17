@@ -22,19 +22,21 @@ import (
 type Client struct {
 	tunnel        *conn.Conn
 	signal        *conn.Conn
+	msg           *conn.Conn
 	linkMap       map[int]*conn.Link
 	linkStatusMap map[int]bool
 	stop          chan bool
 	sync.RWMutex
 }
 
-func NewClient(t *conn.Conn, s *conn.Conn) *Client {
+func NewClient(t *conn.Conn, s *conn.Conn, m *conn.Conn) *Client {
 	return &Client{
 		linkMap:       make(map[int]*conn.Link),
 		stop:          make(chan bool),
 		linkStatusMap: make(map[int]bool),
 		signal:        s,
 		tunnel:        t,
+		msg:           m,
 	}
 }
 
@@ -150,6 +152,17 @@ func (s *Bridge) closeClient(id int) {
 		delete(s.Client, id)
 	}
 }
+func (s *Bridge) delClient(id int) {
+	s.clientLock.Lock()
+	defer s.clientLock.Unlock()
+	if v, ok := s.Client[id]; ok {
+		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
+			s.CloseClient <- c.Id
+		}
+		v.signal.Close()
+		delete(s.Client, id)
+	}
+}
 
 //tcp连接类型区分
 func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
@@ -166,7 +179,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			v.signal = c
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(nil, c)
+			s.Client[id] = NewClient(nil, c, nil)
 			s.clientLock.Unlock()
 		}
 		lg.Printf("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
@@ -179,7 +192,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			v.tunnel = c
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(c, nil)
+			s.Client[id] = NewClient(c, nil, nil)
 			s.clientLock.Unlock()
 		}
 		go s.clientCopy(id)
@@ -187,11 +200,44 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		go s.GetConfig(c)
 	case common.WORK_REGISTER:
 		go s.register(c)
+	case common.WORK_SEND_STATUS:
+		s.clientLock.Lock()
+		if v, ok := s.Client[id]; ok {
+			s.clientLock.Unlock()
+			v.Lock()
+			v.msg = c
+			v.Unlock()
+		} else {
+			s.Client[id] = NewClient(nil, nil, c)
+			s.clientLock.Unlock()
+		}
+		go s.getMsgStatus(id)
 	}
 	c.SetAlive(s.tunnelType)
 	return
 }
 
+func (s *Bridge) getMsgStatus(clientId int) {
+	s.clientLock.Lock()
+	client := s.Client[clientId]
+	s.clientLock.Unlock()
+
+	if client == nil {
+		return
+	}
+	for {
+		if id, err := client.msg.GetLen(); err != nil {
+			s.closeClient(clientId)
+			return
+		} else {
+			client.Lock()
+			if v, ok := client.linkMap[id]; ok {
+				v.StatusCh <- true
+			}
+			client.Unlock()
+		}
+	}
+}
 func (s *Bridge) register(c *conn.Conn) {
 	var hour int32
 	if err := binary.Read(c, binary.LittleEndian, &hour); err == nil {
@@ -251,12 +297,14 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (t
 			s.DelClient(clientId)
 			return
 		}
+
 		if v.tunnel == nil {
 			err = errors.New("get tunnel connection error")
 			return
 		} else {
 			tunnel = v.tunnel
 		}
+		link.MsgConn = v.msg
 		v.Lock()
 		v.linkMap[link.Id] = link
 		v.Unlock()
@@ -412,7 +460,8 @@ func (s *Bridge) clientCopy(clientId int) {
 
 	for {
 		if id, err := client.tunnel.GetLen(); err != nil {
-			s.closeClient(clientId)
+			lg.Println("read msg content length error close client")
+			s.delClient(clientId)
 			break
 		} else {
 			client.Lock()
@@ -420,23 +469,11 @@ func (s *Bridge) clientCopy(clientId int) {
 				client.Unlock()
 				if content, err := client.tunnel.GetMsgContent(link); err != nil {
 					pool.PutBufPoolCopy(content)
-					s.closeClient(clientId)
+					s.delClient(clientId)
 					lg.Println("read msg content error", err, "close client")
 					break
 				} else {
-					if len(content) == len(common.IO_EOF) && string(content) == common.IO_EOF {
-						if link.Conn != nil {
-							link.Conn.Close()
-						}
-					} else {
-						if link.UdpListener != nil && link.UdpRemoteAddr != nil {
-							link.UdpListener.WriteToUDP(content, link.UdpRemoteAddr)
-						} else {
-							link.Conn.Write(content)
-						}
-						link.Flow.Add(0, len(content))
-					}
-					pool.PutBufPoolCopy(content)
+					link.MsgCh <- content
 				}
 			} else {
 				client.Unlock()

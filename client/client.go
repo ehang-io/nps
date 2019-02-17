@@ -21,6 +21,7 @@ type TRPClient struct {
 	svrAddr        string
 	linkMap        map[int]*conn.Link
 	tunnel         *conn.Conn
+	msgTunnel      *conn.Conn
 	bridgeConnType string
 	stop           chan bool
 	proxyUrl       string
@@ -67,6 +68,7 @@ func (s *TRPClient) Close() {
 //处理
 func (s *TRPClient) processor(c *conn.Conn) {
 	go s.dealChan()
+	go s.getMsgStatus()
 	for {
 		flags, err := c.ReadFlag()
 		if err != nil {
@@ -83,7 +85,9 @@ func (s *TRPClient) processor(c *conn.Conn) {
 				s.Lock()
 				s.linkMap[link.Id] = link
 				s.Unlock()
+				link.MsgConn = s.msgTunnel
 				go s.linkProcess(link, c)
+				link.Run(false)
 			}
 		case common.RES_CLOSE:
 			lg.Fatalln("The authentication key is connected by another client or the server closes the client.")
@@ -109,9 +113,7 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 		lg.Println("connect to ", link.Host, "error:", err)
 		return
 	}
-
 	c.WriteSuccess(link.Id)
-
 	link.Conn = conn.NewConn(server)
 	buf := pool.BufPoolCopy.Get().([]byte)
 	for {
@@ -123,13 +125,41 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 				c.Close()
 				break
 			}
-			lg.Println("send ok", link.Id)
+			if link.ConnType == common.CONN_UDP {
+				break
+			}
 		}
+		<-link.StatusCh
 	}
 	pool.PutBufPoolCopy(buf)
 	s.Lock()
 	delete(s.linkMap, link.Id)
 	s.Unlock()
+}
+
+func (s *TRPClient) getMsgStatus() {
+	var err error
+	s.msgTunnel, err = NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_SEND_STATUS, s.proxyUrl)
+	if err != nil {
+		lg.Println("connect to ", s.svrAddr, "error:", err)
+		return
+	}
+	go func() {
+		for {
+			if id, err := s.msgTunnel.GetLen(); err != nil {
+				break
+			} else {
+				s.Lock()
+				if v, ok := s.linkMap[id]; ok {
+					s.Unlock()
+					v.StatusCh <- true
+				} else {
+					s.Unlock()
+				}
+			}
+		}
+	}()
+	<-s.stop
 }
 
 //隧道模式处理
@@ -140,26 +170,20 @@ func (s *TRPClient) dealChan() {
 		lg.Println("connect to ", s.svrAddr, "error:", err)
 		return
 	}
-
 	go func() {
 		for {
 			if id, err := s.tunnel.GetLen(); err != nil {
+				lg.Println("get id error", err, id)
 				break
 			} else {
 				s.Lock()
 				if v, ok := s.linkMap[id]; ok {
 					s.Unlock()
 					if content, err := s.tunnel.GetMsgContent(v); err != nil {
-						lg.Println("get msg content error:", err, id)
 						pool.PutBufPoolCopy(content)
 						break
 					} else {
-						if len(content) == len(common.IO_EOF) && string(content) == common.IO_EOF {
-							v.Conn.Close()
-						} else if v.Conn != nil {
-							v.Conn.Write(content)
-						}
-						pool.PutBufPoolCopy(content)
+						v.MsgCh <- content
 					}
 				} else {
 					s.Unlock()

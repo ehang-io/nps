@@ -57,6 +57,7 @@ func (s *TunnelModeServer) dealClient(c *conn.Conn, cnf *file.Config, addr strin
 		c.Close()
 		return err
 	} else {
+		link.Run(true)
 		s.linkCopy(link, c, rb, tunnel, s.task.Flow)
 	}
 	return nil

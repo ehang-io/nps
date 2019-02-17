@@ -6,20 +6,21 @@ const (
 	COMPRESS_NONE_DECODE
 	COMPRESS_SNAPY_ENCODE
 	COMPRESS_SNAPY_DECODE
-	VERIFY_EER     = "vkey"
-	VERIFY_SUCCESS = "sucs"
-	WORK_MAIN      = "main"
-	WORK_CHAN      = "chan"
-	WORK_CONFIG    = "conf"
-	WORK_REGISTER  = "rgst"
-	WORK_STATUS    = "stus"
-	RES_SIGN       = "sign"
-	RES_MSG        = "msg0"
-	RES_CLOSE      = "clse"
-	NEW_CONN       = "conn" //新连接标志
-	NEW_TASK       = "task" //新连接标志
-	NEW_CONF       = "conf" //新连接标志
-	NEW_HOST       = "host" //新连接标志
+	VERIFY_EER       = "vkey"
+	VERIFY_SUCCESS   = "sucs"
+	WORK_MAIN        = "main"
+	WORK_CHAN        = "chan"
+	WORK_SEND_STATUS = "sdst"
+	WORK_CONFIG      = "conf"
+	WORK_REGISTER    = "rgst"
+	WORK_STATUS      = "stus"
+	RES_SIGN         = "sign"
+	RES_MSG          = "msg0"
+	RES_CLOSE        = "clse"
+	NEW_CONN         = "conn" //新连接标志
+	NEW_TASK         = "task" //新连接标志
+	NEW_CONF         = "conf" //新连接标志
+	NEW_HOST         = "host" //新连接标志
 
 	CONN_TCP          = "tcp"
 	CONN_UDP          = "udp"

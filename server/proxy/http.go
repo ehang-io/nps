@@ -9,7 +9,6 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"path/filepath"
@@ -137,9 +136,10 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			}
 			lk = conn.NewLink(host.Client.GetId(), common.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
 			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String()); err != nil {
-				log.Println(err)
+				lg.Println(err)
 				break
 			}
+			lk.Run(true)
 			isConn = false
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
@@ -166,6 +166,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			c.Close()
 			break
 		}
+		<-lk.StatusCh
 	}
 end:
 	if isConn {
@@ -173,9 +174,7 @@ end:
 	} else {
 		tunnel.SendMsg([]byte(common.IO_EOF), lk)
 	}
-
 	c.Close()
-
 }
 
 func (s *httpServer) NewServer(port int) *http.Server {

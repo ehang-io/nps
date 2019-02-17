@@ -36,14 +36,26 @@ var BufPoolCopy = sync.Pool{
 	},
 }
 
+func PutBufPoolUdp(buf []byte) {
+	if cap(buf) == PoolSizeUdp {
+		BufPoolUdp.Put(buf[:PoolSizeUdp])
+	}
+}
+
 func PutBufPoolCopy(buf []byte) {
 	if cap(buf) == PoolSizeCopy {
 		BufPoolCopy.Put(buf[:PoolSizeCopy])
 	}
 }
 
-func PutBufPoolUdp(buf []byte) {
-	if cap(buf) == PoolSizeUdp {
-		BufPoolUdp.Put(buf[:PoolSizeUdp])
+func PutBufPoolSmall(buf []byte) {
+	if cap(buf) == PoolSizeSmall {
+		BufPoolSmall.Put(buf[:PoolSizeSmall])
+	}
+}
+
+func PutBufPoolMax(buf []byte) {
+	if cap(buf) == PoolSize {
+		BufPoolMax.Put(buf[:PoolSize])
 	}
 }

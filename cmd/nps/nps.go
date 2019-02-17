@@ -12,6 +12,8 @@ import (
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 )
@@ -38,6 +40,9 @@ func main() {
 			return
 		}
 	}
+	go func() {
+		http.ListenAndServe("0.0.0.0:8899", nil)
+	}()
 	if *logType == "stdout" {
 		lg.InitLogFile("nps", true, common.GetLogPath())
 	} else {

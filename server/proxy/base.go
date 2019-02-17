@@ -60,6 +60,7 @@ func (s *server) linkCopy(link *conn.Link, c *conn.Conn, rb []byte, tunnel *conn
 			}
 			flow.Add(n, 0)
 		}
+		<-link.StatusCh
 	}
 	pool.PutBufPoolCopy(buf)
 }
