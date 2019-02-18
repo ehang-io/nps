@@ -127,7 +127,6 @@ func (s *IndexController) Edit() {
 			t.Mode = s.GetString("type")
 			t.Target = s.GetString("target")
 			t.Id = id
-			t.Client.Id = s.GetIntNoErr("client_id")
 			t.Remark = s.GetString("remark")
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("修改失败")
