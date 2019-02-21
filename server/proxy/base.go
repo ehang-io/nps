@@ -47,6 +47,7 @@ func (s *server) linkCopy(link *conn.Link, c *conn.Conn, rb []byte, tunnel *conn
 			return
 		}
 		flow.Add(len(rb), 0)
+		<-link.StatusCh
 	}
 
 	buf := pool.BufPoolCopy.Get().([]byte)
