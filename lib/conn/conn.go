@@ -200,7 +200,7 @@ func (s *Conn) GetMsgContent(link *Link) (content []byte, err error) {
 	s.Lock()
 	defer s.Unlock()
 	buf := pool.BufPoolCopy.Get().([]byte)
-	if n, err := s.ReadFrom(buf, link.De, link.Crypt, link.Rate); err == nil && n > 4 {
+	if n, err := s.ReadFrom(buf, link.De, link.Crypt, link.Rate); err == nil {
 		content = buf[:n]
 	}
 	return
