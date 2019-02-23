@@ -6,15 +6,16 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
 type TunnelModeServer struct {
-	server
+	BaseServer
 	process  process
 	listener *net.TCPListener
 }
@@ -41,24 +42,16 @@ func (s *TunnelModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			lg.Println(err)
+			logs.Info(err)
 			continue
 		}
-		go s.process(conn.NewConn(c), s)
-	}
-	return nil
-}
-
-//与客户端建立通道
-func (s *TunnelModeServer) dealClient(c *conn.Conn, cnf *file.Config, addr string, method string, rb []byte) error {
-	link := conn.NewLink(s.task.Client.GetId(), common.CONN_TCP, addr, cnf.CompressEncode, cnf.CompressDecode, cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
-
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String()); err != nil {
-		c.Close()
-		return err
-	} else {
-		link.Run(true)
-		s.linkCopy(link, c, rb, tunnel, s.task.Flow)
+		if s.task.Client.GetConn() {
+			logs.Trace("New tcp connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
+			go s.process(conn.NewConn(c), s)
+		} else {
+			logs.Info("Connections exceed the current client %d limit", s.task.Client.Id)
+			c.Close()
+		}
 	}
 	return nil
 }
@@ -70,17 +63,18 @@ func (s *TunnelModeServer) Close() error {
 
 //web管理方式
 type WebServer struct {
-	server
+	BaseServer
 }
 
 //开始
 func (s *WebServer) Start() error {
 	p, _ := beego.AppConfig.Int("httpport")
 	if !common.TestTcpPort(p) {
-		lg.Fatalf("Web management port %d is occupied", p)
+		logs.Error("Web management port %d is occupied", p)
+		os.Exit(0)
 	}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	lg.Println("Web management start, access port is", p)
+	logs.Info("Web management start, access port is", p)
 	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
 	beego.Run()
@@ -102,23 +96,23 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	return s.dealClient(c, s.task.Client.Cnf, s.task.Target, "", nil)
+	return s.DealClient(c, s.task.Target, nil)
 }
 
 //http代理模式
 func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
-	method, addr, rb, err, r := c.GetHost()
+	_, addr, rb, err, r := c.GetHost()
 	if err != nil {
 		c.Close()
-		lg.Println(err)
+		logs.Info(err)
 		return err
 	}
 	if r.Method == "CONNECT" {
 		c.Write([]byte("HTTP/1.1 200 Connection Established\r\n"))
-		rb = nil //reset
+		rb = nil
 	}
 	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
 		return err
 	}
-	return s.dealClient(c, s.task.Client.Cnf, addr, method, rb)
+	return s.DealClient(c, addr, rb)
 }

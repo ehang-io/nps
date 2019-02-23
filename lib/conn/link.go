@@ -8,6 +8,18 @@ import (
 	"net"
 )
 
+type Secret struct {
+	Password string
+	Conn     *Conn
+}
+
+func NewSecret(p string, conn *Conn) *Secret {
+	return &Secret{
+		Password: p,
+		Conn:     conn,
+	}
+}
+
 type Link struct {
 	Id            int    //id
 	ConnType      string //连接类型

@@ -33,6 +33,8 @@ type Client struct {
 	Rate      *rate.Rate //速度控制
 	NoStore   bool
 	NoDisplay bool
+	MaxConn   int //客户端最大连接数
+	NowConn   int //当前连接数
 	id        int
 	sync.RWMutex
 }
@@ -62,18 +64,40 @@ func (s *Client) GetId() int {
 	return s.id
 }
 
+func (s *Client) CutConn() {
+	s.Lock()
+	defer s.Unlock()
+	s.NowConn++
+}
+
+func (s *Client) AddConn() {
+	s.Lock()
+	defer s.Unlock()
+	s.NowConn--
+}
+
+func (s *Client) GetConn() bool {
+	s.CutConn()
+	if s.MaxConn == 0 || s.NowConn < s.MaxConn {
+		return true
+	}
+	return false
+}
+
 type Tunnel struct {
-	Id        int     //Id
-	Port      int     //服务端监听端口
-	Mode      string  //启动方式
-	Target    string  //目标
-	Status    bool    //设置是否开启
-	RunStatus bool    //当前运行状态
-	Client    *Client //所属客户端id
-	Ports     string  //客户端与服务端传递
-	Flow      *Flow
-	Remark    string //备注
-	NoStore   bool
+	Id         int     //Id
+	Port       int     //服务端监听端口
+	Mode       string  //启动方式
+	Target     string  //目标
+	Status     bool    //设置是否开启
+	RunStatus  bool    //当前运行状态
+	Client     *Client //所属客户端id
+	Ports      string  //客户端与服务端传递
+	Flow       *Flow
+	Password   string //私密模式密码，唯一
+	Remark     string //备注
+	TargetAddr string
+	NoStore    bool
 }
 
 type Config struct {
@@ -113,16 +137,4 @@ func (s *Host) GetRandomTarget() string {
 		s.NowIndex++
 	}
 	return s.TargetArr[s.NowIndex]
-}
-
-//深拷贝Config
-func DeepCopyConfig(c *Config) *Config {
-	return &Config{
-		U:              c.U,
-		P:              c.P,
-		Compress:       c.Compress,
-		Crypt:          c.Crypt,
-		CompressEncode: c.CompressEncode,
-		CompressDecode: c.CompressDecode,
-	}
 }

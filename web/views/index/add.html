@@ -11,6 +11,7 @@
                             <option {{if eq "udpServer" .type}}selected{{end}} value="udpServer">udp隧道</option>
                             <option {{if eq "socks5Server" .type}}selected{{end}} value="socks5Server">socks5代理</option>
                             <option {{if eq "httpProxyServer" .type}}selected{{end}} value="httpProxyServer">http代理
+                            <option {{if eq "secretServer" .type}}selected{{end}} value="secretServer">私密代理
                         </select>
                     </div>
                     <div class="form-group">
@@ -30,6 +31,11 @@
                         <input value="{{.client_id}}" class="form-control" type="text" name="client_id"
                                placeholder="客户端id">
                     </div>
+                    <div class="form-group" id="password">
+                        <label class="control-label">私密模式唯一密钥</label>
+                        <input class="form-control" type="text" name="password"
+                               placeholder="私密模式唯一密钥">
+                    </div>
                 </form>
             </div>
             <div class="tile-footer">
@@ -48,6 +54,7 @@
     arr["udpServer"] = ["type", "port", "target", "compress", "udp隧道模式，提供一条udp隧道，适用于dns、内网dns访问等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的udp目标端口"]
     arr["socks5Server"] = ["type", "port", "compress", "u", "p", "socks5代理模式，内网socks5代理，配合proxifer，可如同使用vpn一样访问内网设备或资源，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置socks5代理，即访问内网设备或者资源 "]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p", " http代理模式，内网http代理，可访问内网网站，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置http代理，即访问内网站点"]
+    arr["secretServer"] = ["type", "target", "compress", "password", "u", "p", " http代理模式，内网http代理，可访问内网网站，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置http代理，即访问内网站点"]
     arrClientHide = ["compress", "u", "p", "crypt", "mux"]
 
     function resetForm() {

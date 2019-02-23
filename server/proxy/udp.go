@@ -6,12 +6,13 @@ import (
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
 	"strings"
 )
 
 type UdpModeServer struct {
-	server
+	BaseServer
 	listener *net.UDPConn
 	udpMap   map[string]*conn.Conn
 }
@@ -40,6 +41,7 @@ func (s *UdpModeServer) Start() error {
 			}
 			continue
 		}
+		logs.Trace("New ydo connection,client %d,remote address %s", s.task.Client.Id, addr)
 		go s.process(addr, buf[:n])
 	}
 	return nil

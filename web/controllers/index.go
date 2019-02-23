@@ -44,6 +44,12 @@ func (s *IndexController) Http() {
 	s.display("index/list")
 }
 
+func (s *IndexController) Secret() {
+	s.SetInfo("私密代理管理")
+	s.SetType("secretServer")
+	s.display("index/list")
+}
+
 func (s *IndexController) Host() {
 	s.SetInfo("host模式管理")
 	s.SetType("hostServer")
@@ -74,13 +80,14 @@ func (s *IndexController) Add() {
 		s.display()
 	} else {
 		t := &file.Tunnel{
-			Port:   s.GetIntNoErr("port"),
-			Mode:   s.GetString("type"),
-			Target: s.GetString("target"),
-			Id:     file.GetCsvDb().GetTaskId(),
-			Status: true,
-			Remark: s.GetString("remark"),
-			Flow:   &file.Flow{},
+			Port:     s.GetIntNoErr("port"),
+			Mode:     s.GetString("type"),
+			Target:   s.GetString("target"),
+			Id:       file.GetCsvDb().GetTaskId(),
+			Status:   true,
+			Remark:   s.GetString("remark"),
+			Password: s.GetString("password"),
+			Flow:     &file.Flow{},
 		}
 		if !tool.TestServerPort(t.Port, t.Mode) {
 			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
@@ -126,6 +133,7 @@ func (s *IndexController) Edit() {
 			t.Port = s.GetIntNoErr("port")
 			t.Mode = s.GetString("type")
 			t.Target = s.GetString("target")
+			t.Password = s.GetString("password")
 			t.Id = id
 			t.Remark = s.GetString("remark")
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {

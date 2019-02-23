@@ -13,6 +13,7 @@
                             <option {{if eq "socks5Server" .t.Mode}}selected{{end}} value="socks5Server">socks5代理
                             </option>
                             <option {{if eq "httpProxyServer" .t.Mode}}selected{{end}} value="httpProxyServer">http代理
+                            <option {{if eq "secretServer" .t.Mode}}selected{{end}} value="secretServer">私密代理
                         </select>
                     </div>
                     <div class="form-group">
@@ -34,6 +35,11 @@
                         <input class="form-control" value="{{.t.Client.Id}}" type="text" name="client_id"
                                placeholder="客户端id">
                     </div>
+                    <div class="form-group" id="password">
+                        <label class="control-label">私密模式唯一密钥</label>
+                        <input class="form-control" value="{{.t.Password}}" type="text" name="password"
+                               placeholder="私密模式唯一密钥">
+                    </div>
                 </form>
             </div>
             <div class="tile-footer">
@@ -52,6 +58,7 @@
     arr["udpServer"] = ["type", "port", "target", "compress"]
     arr["socks5Server"] = ["type", "port", "compress", "u", "p"]
     arr["httpProxyServer"] = ["type", "port", "compress", "u", "p"]
+    arr["secretServer"] = ["type", "target", "compress", "u", "p","password"]
     arrClientHide = ["compress", "u", "p", "crypt", "mux"]
 
     function resetForm() {

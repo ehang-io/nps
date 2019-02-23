@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
 	"regexp"
@@ -14,6 +15,11 @@ type CommonConfig struct {
 	AutoReconnection bool
 	Cnf              *file.Config
 	ProxyUrl         string
+	Client           *file.Client
+}
+type LocalServer struct {
+	Port     int
+	Password string
 }
 type Config struct {
 	content      string
@@ -21,6 +27,7 @@ type Config struct {
 	CommonConfig *CommonConfig
 	Hosts        []*file.Host
 	Tasks        []*file.Tunnel
+	LocalServer  []*LocalServer
 }
 
 func NewConfig(path string) (c *Config, err error) {
@@ -44,6 +51,11 @@ func NewConfig(path string) (c *Config, err error) {
 				nextIndex = len(c.content)
 			}
 			nowContent = c.content[nowIndex:nextIndex]
+
+			if strings.Index(getTitleContent(c.title[i]), "secret") == 0 {
+				c.LocalServer = append(c.LocalServer, delLocalService(nowContent))
+				continue
+			}
 			switch c.title[i] {
 			case "[common]":
 				c.CommonConfig = dealCommon(nowContent)
@@ -68,9 +80,11 @@ func getTitleContent(s string) string {
 	re, _ := regexp.Compile(`[\[\]]`)
 	return re.ReplaceAllString(s, "")
 }
+
 func dealCommon(s string) *CommonConfig {
 	c := &CommonConfig{}
 	c.Cnf = new(file.Config)
+	c.Client = file.NewClient("", true, true)
 	for _, v := range strings.Split(s, "\n") {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
@@ -97,10 +111,19 @@ func dealCommon(s string) *CommonConfig {
 			c.Cnf.Crypt = common.GetBoolByStr(item[1])
 		case "proxy_socks5_url":
 			c.ProxyUrl = item[1]
+		case "rate_limit":
+			c.Client.RateLimit = common.GetIntNoErrByStr(item[1])
+		case "flow_limit":
+			c.Client.Flow.FlowLimit = int64(common.GetIntNoErrByStr(item[1]))
+		case "max_conn":
+			c.Client.MaxConn = common.GetIntNoErrByStr(item[1])
+		case "remark":
+			c.Client.Remark = item[1]
 		}
 	}
 	return c
 }
+
 func dealHost(s string) *file.Host {
 	h := &file.Host{}
 	var headerChange string
@@ -146,10 +169,33 @@ func dealTunnel(s string) *file.Tunnel {
 			t.Mode = item[1]
 		case "target":
 			t.Target = item[1]
+		case "targetAddr":
+			t.TargetAddr = item[1]
+		case "password":
+			t.Password = item[1]
 		}
 	}
 	return t
 
+}
+
+func delLocalService(s string) *LocalServer {
+	l := new(LocalServer)
+	for _, v := range strings.Split(s, "\n") {
+		item := strings.Split(v, "=")
+		if len(item) == 0 {
+			continue
+		} else if len(item) == 1 {
+			item = append(item, "")
+		}
+		switch item[0] {
+		case "port":
+			l.Port = common.GetIntNoErrByStr(item[1])
+		case "password":
+			l.Password = item[1]
+		}
+	}
+	return l
 }
 
 func getAllTitle(content string) (arr []string, err error) {
@@ -159,5 +205,13 @@ func getAllTitle(content string) (arr []string, err error) {
 		return
 	}
 	arr = re.FindAllString(content, -1)
+	m := make(map[string]bool)
+	for _, v := range arr {
+		if _, ok := m[v]; ok {
+			err = errors.New("Item names are not allowed to be duplicated")
+			return
+		}
+		m[v] = true
+	}
 	return
 }

@@ -7,17 +7,18 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 )
 
 type httpServer struct {
-	server
+	BaseServer
 	httpPort  int //http端口
 	httpsPort int //https监听端口
 	pemPath   string
@@ -31,7 +32,7 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 	pemPath := beego.AppConfig.String("pemPath")
 	keyPath := beego.AppConfig.String("keyPath")
 	return &httpServer{
-		server: server{
+		BaseServer: BaseServer{
 			task:   c,
 			bridge: bridge,
 			Mutex:  sync.Mutex{},
@@ -54,26 +55,30 @@ func (s *httpServer) Start() error {
 	if s.httpPort > 0 {
 		http = s.NewServer(s.httpPort)
 		go func() {
-			lg.Println("Start http listener, port is", s.httpPort)
+			logs.Info("Start http listener, port is", s.httpPort)
 			err := http.ListenAndServe()
 			if err != nil {
-				lg.Fatalln(err)
+				logs.Error(err)
+				os.Exit(0)
 			}
 		}()
 	}
 	if s.httpsPort > 0 {
 		if !common.FileExists(s.pemPath) {
-			lg.Fatalf("ssl certFile %s is not exist", s.pemPath)
+			logs.Error("ssl certFile %s is not exist", s.pemPath)
+			os.Exit(0)
 		}
 		if !common.FileExists(s.keyPath) {
-			lg.Fatalf("ssl keyFile %s exist", s.keyPath)
+			logs.Error("ssl keyFile %s exist", s.keyPath)
+			os.Exit(0)
 		}
 		https = s.NewServer(s.httpsPort)
 		go func() {
-			lg.Println("Start https listener, port is", s.httpsPort)
+			logs.Info("Start https listener, port is", s.httpsPort)
 			err := https.ListenAndServeTLS(s.pemPath, s.keyPath)
 			if err != nil {
-				lg.Fatalln(err)
+				logs.Error(err)
+				os.Exit(0)
 			}
 		}()
 	}
@@ -118,9 +123,14 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		err      error
 	)
 	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
-		lg.Printf("the url %s %s can't be parsed!", r.Host, r.RequestURI)
+		logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 		goto end
+	} else if !host.Client.GetConn() {
+		logs.Notice("Connections exceed the current client %d limit", host.Client.Id)
+		c.Close()
+		return
 	} else {
+		logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 		lastHost = host
 	}
 	for {
@@ -137,22 +147,24 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			}
 			lk = conn.NewLink(host.Client.GetId(), common.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
 			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String()); err != nil {
-				lg.Println(err)
+				logs.Notice(err)
 				break
 			}
 			lk.Run(true)
 			isConn = false
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
+			logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 			if err != nil {
 				break
 			}
 			if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
-				lg.Printf("the url %s %s is not found !", r.Host, r.RequestURI)
+				logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 				break
 			} else if host != lastHost {
 				lastHost = host
 				isConn = true
+				host.Client.AddConn()
 				goto start
 			}
 		}
@@ -176,6 +188,9 @@ end:
 		tunnel.SendMsg([]byte(common.IO_EOF), lk)
 	}
 	c.Close()
+	if host != nil {
+		host.Client.AddConn()
+	}
 }
 
 func (s *httpServer) NewServer(port int) *http.Server {

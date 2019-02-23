@@ -14,7 +14,9 @@ var (
 func GetCsvDb() *Csv {
 	once.Do(func() {
 		CsvDb = NewCsv(common.GetRunPath())
-		CsvDb.Init()
+		CsvDb.LoadClientFromCsv()
+		CsvDb.LoadTaskFromCsv()
+		CsvDb.LoadHostFromCsv()
 	})
 	return CsvDb
 }

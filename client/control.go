@@ -1,11 +1,14 @@
 package client
 
 import (
+	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/version"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"github.com/cnlh/nps/vender/golang.org/x/net/proxy"
 	"io/ioutil"
@@ -39,7 +42,7 @@ func GetTaskStatus(path string) {
 	if l, err := c.GetLen(); err != nil {
 		log.Fatalln(err)
 	} else if b, err := c.ReadLen(l); err != nil {
-		lg.Fatalln(err)
+		log.Fatalln(err)
 	} else {
 		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
 		for _, v := range cnf.Hosts {
@@ -74,14 +77,16 @@ var errAdd = errors.New("The server returned an error, which port or host may ha
 func StartFromFile(path string) {
 	first := true
 	cnf, err := config.NewConfig(path)
-	if err != nil {
-		lg.Fatalln(err)
+	if err != nil || cnf.CommonConfig == nil {
+		logs.Error("Config file %s loading error", path)
+		os.Exit(0)
 	}
-	lg.Printf("Loading configuration file %s successfully", path)
+
+	logs.Info("Loading configuration file %s successfully", path)
 re:
 	if first || cnf.CommonConfig.AutoReconnection {
 		if !first {
-			lg.Println("Reconnecting...")
+			logs.Info("Reconnecting...")
 			time.Sleep(time.Second * 5)
 		}
 	} else {
@@ -90,48 +95,51 @@ re:
 	first = false
 	c, err := NewConn(cnf.CommonConfig.Tp, cnf.CommonConfig.VKey, cnf.CommonConfig.Server, common.WORK_CONFIG, cnf.CommonConfig.ProxyUrl)
 	if err != nil {
-		lg.Println(err)
+		logs.Error(err)
 		goto re
 	}
-	if _, err := c.SendConfigInfo(cnf.CommonConfig.Cnf); err != nil {
-		lg.Println(err)
+	if _, err := c.SendConfigInfo(cnf.CommonConfig); err != nil {
+		logs.Error(err)
 		goto re
 	}
 	var b []byte
 	if b, err = c.ReadLen(16); err != nil {
-		lg.Println(err)
+		logs.Error(err)
 		goto re
 	} else {
 		ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(string(b)), 0600)
 	}
 	if !c.GetAddStatus() {
-		lg.Println(errAdd)
+		logs.Error(errAdd)
 		goto re
 	}
+
 	for _, v := range cnf.Hosts {
 		if _, err := c.SendHostInfo(v); err != nil {
-			lg.Println(err)
+			logs.Error(err)
 			goto re
 		}
 		if !c.GetAddStatus() {
-			lg.Println(errAdd, v.Host)
+			logs.Error(errAdd, v.Host)
 			goto re
 		}
 	}
 	for _, v := range cnf.Tasks {
 		if _, err := c.SendTaskInfo(v); err != nil {
-			lg.Println(err)
+			logs.Error(err)
 			goto re
 		}
 		if !c.GetAddStatus() {
-			lg.Println(errAdd, v.Ports)
+			logs.Error(errAdd, v.Ports)
 			goto re
 		}
 	}
-
+	for _, v := range cnf.LocalServer {
+		go StartLocalServer(v, cnf.CommonConfig)
+	}
 	c.Close()
-
 	NewRPClient(cnf.CommonConfig.Server, string(b), cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl).Start()
+	CloseLocalServer()
 	goto re
 }
 
@@ -163,16 +171,30 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 		return nil, err
 	}
 	c := conn.NewConn(connection)
+	if b, err := c.ReadLen(32); err != nil {
+		logs.Error(err)
+		os.Exit(0)
+	} else if crypt.Md5(version.GetVersion()) != string(b) {
+		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
+		os.Exit(0)
+	} else if binary.Write(c, binary.LittleEndian, []byte(version.VERSION_OK)); err != nil {
+		logs.Error(err)
+		os.Exit(0)
+	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
-		lg.Println(err)
+		logs.Error(err)
+		os.Exit(0)
 	}
 	if s, err := c.ReadFlag(); err != nil {
-		lg.Println(err)
+		logs.Error(err)
+		os.Exit(0)
 	} else if s == common.VERIFY_EER {
-		lg.Fatalf("Validation key %s incorrect", vkey)
+		logs.Error("Validation key %s incorrect", vkey)
+		os.Exit(0)
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
-		lg.Println(err)
+		logs.Error(err)
+		os.Exit(0)
 	}
 	c.SetAlive(tp)
 

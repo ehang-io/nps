@@ -6,19 +6,18 @@ import (
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/install"
-	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/server/test"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
 	"os"
 	"path/filepath"
 )
 
-const VERSION = "v0.0.15"
-
 var (
+	level   string
 	logType = flag.String("log", "stdout", "Log output mode（stdout|file）")
 )
 
@@ -37,17 +36,22 @@ func main() {
 			return
 		}
 	}
+	if level = beego.AppConfig.String("logLevel"); level == "" {
+		level = "7"
+	}
+	logs.Reset()
 	if *logType == "stdout" {
-		lg.InitLogFile("nps", true, common.GetLogPath())
+		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	} else {
-		lg.InitLogFile("nps", false, common.GetLogPath())
+		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"nps_log.log"}`)
 	}
 	task := &file.Tunnel{
 		Mode: "webServer",
 	}
 	bridgePort, err := beego.AppConfig.Int("bridgePort")
 	if err != nil {
-		lg.Fatalln("Getting bridgePort error", err)
+		logs.Error("Getting bridgePort error", err)
+		os.Exit(0)
 	}
 	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "app.conf"))
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridgeType"))

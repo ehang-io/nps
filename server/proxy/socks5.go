@@ -7,7 +7,7 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"strconv"
@@ -48,7 +48,7 @@ const (
 )
 
 type Sock5ModeServer struct {
-	server
+	BaseServer
 	listener net.Listener
 }
 
@@ -67,7 +67,7 @@ func (s *Sock5ModeServer) handleRequest(c net.Conn) {
 	_, err := io.ReadFull(c, header)
 
 	if err != nil {
-		lg.Println("illegal request", err)
+		logs.Warn("illegal request", err)
 		c.Close()
 		return
 	}
@@ -165,7 +165,6 @@ func (s *Sock5ModeServer) handleBind(c net.Conn) {
 
 //udp
 func (s *Sock5ModeServer) handleUDP(c net.Conn) {
-	lg.Println("UDP Associate")
 	/*
 	   +----+------+------+----------+----------+----------+
 	   |RSV | FRAG | ATYP | DST.ADDR | DST.PORT |   DATA   |
@@ -178,7 +177,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	// relay udp datagram silently, without any notification to the requesting client
 	if buf[2] != 0 {
 		// does not support fragmentation, drop it
-		lg.Println("does not support fragmentation, drop")
+		logs.Warn("does not support fragmentation, drop")
 		dummy := make([]byte, maxUDPPacketSize)
 		c.Read(dummy)
 	}
@@ -190,13 +189,13 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 func (s *Sock5ModeServer) handleConn(c net.Conn) {
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(c, buf); err != nil {
-		lg.Println("negotiation err", err)
+		logs.Warn("negotiation err", err)
 		c.Close()
 		return
 	}
 
 	if version := buf[0]; version != 5 {
-		lg.Println("only support socks5, request from: ", c.RemoteAddr())
+		logs.Warn("only support socks5, request from: ", c.RemoteAddr())
 		c.Close()
 		return
 	}
@@ -204,7 +203,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 
 	methods := make([]byte, nMethods)
 	if len, err := c.Read(methods); len != int(nMethods) || err != nil {
-		lg.Println("wrong method")
+		logs.Warn("wrong method")
 		c.Close()
 		return
 	}
@@ -213,7 +212,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Write(buf)
 		if err := s.Auth(c); err != nil {
 			c.Close()
-			lg.Println("Validation failed:", err)
+			logs.Warn("Validation failed:", err)
 			return
 		}
 	} else {
@@ -271,9 +270,15 @@ func (s *Sock5ModeServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
-			lg.Fatalln("accept error: ", err)
+			logs.Warn("accept error: ", err)
 		}
-		go s.handleConn(conn)
+		if s.task.Client.GetConn() {
+			logs.Trace("New socks5 connection,client %d,remote address %s", s.task.Client.Id, conn.RemoteAddr())
+			go s.handleConn(conn)
+		} else {
+			logs.Warn("Connections exceed the current client %d limit", s.task.Client.Id)
+			conn.Close()
+		}
 	}
 	return nil
 }

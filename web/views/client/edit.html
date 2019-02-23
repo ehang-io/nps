@@ -19,6 +19,11 @@
                         <input class="form-control" value="{{.c.RateLimit}}" type="text" name="rate_limit"
                                placeholder="为空不限制">
                     </div>
+                    <div class="form-group" id="max_conn">
+                        <label class="control-label">最大客户端连接数</label>
+                        <input class="form-control" value="{{.c.MaxConn}}" type="text" name="max_conn"
+                               placeholder="为空不限制">
+                    </div>
                     <div class="form-group" id="u">
                         <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
                         <input class="form-control" value="{{.c.Cnf.U}}" type="text" name="u"

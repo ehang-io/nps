@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/config"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
@@ -317,7 +319,7 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 }
 
 //send task info
-func (s *Conn) SendConfigInfo(c *file.Config) (int, error) {
+func (s *Conn) SendConfigInfo(c *config.CommonConfig) (int, error) {
 	/*
 		The task info is formed as follows:
 		+----+-----+---------+
@@ -328,14 +330,15 @@ func (s *Conn) SendConfigInfo(c *file.Config) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONF))
-	common.BinaryWrite(raw, c.U, c.P, common.GetStrByBool(c.Crypt), c.Compress)
+	common.BinaryWrite(raw, c.Cnf.U, c.Cnf.P, common.GetStrByBool(c.Cnf.Crypt), c.Cnf.Compress, strconv.Itoa(c.Client.RateLimit),
+		strconv.Itoa(int(c.Client.Flow.FlowLimit)), strconv.Itoa(c.Client.MaxConn), c.Client.Remark)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
 }
 
 //get task info
-func (s *Conn) GetConfigInfo() (c *file.Config, err error) {
+func (s *Conn) GetConfigInfo() (c *file.Client, err error) {
 	var l int
 	var b []byte
 	if l, err = s.GetLen(); err != nil {
@@ -344,12 +347,16 @@ func (s *Conn) GetConfigInfo() (c *file.Config, err error) {
 		return
 	} else {
 		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
-		c = new(file.Config)
-		c.U = arr[0]
-		c.P = arr[1]
-		c.Crypt = common.GetBoolByStr(arr[2])
-		c.Compress = arr[3]
-		c.CompressDecode, c.CompressDecode = common.GetCompressType(arr[3])
+		c = file.NewClient(crypt.GetRandomString(16), true, false)
+		c.Cnf.U = arr[0]
+		c.Cnf.P = arr[1]
+		c.Cnf.Crypt = common.GetBoolByStr(arr[2])
+		c.Cnf.Compress = arr[3]
+		c.RateLimit = common.GetIntNoErrByStr(arr[4])
+		c.Flow.FlowLimit = int64(common.GetIntNoErrByStr(arr[5]))
+		c.MaxConn = common.GetIntNoErrByStr(arr[6])
+		c.Remark = arr[7]
+		c.Cnf.CompressDecode, c.Cnf.CompressDecode = common.GetCompressType(arr[3])
 	}
 	return
 }
@@ -366,7 +373,7 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_TASK))
-	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark)
+	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark, t.TargetAddr, t.Password)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
@@ -390,6 +397,8 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 		t.Status = true
 		t.Flow = new(file.Flow)
 		t.Remark = arr[3]
+		t.TargetAddr = arr[4]
+		t.Password = arr[5]
 		t.NoStore = true
 	}
 	return

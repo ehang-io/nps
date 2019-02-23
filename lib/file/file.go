@@ -3,9 +3,11 @@ package file
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/rate"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,17 +35,11 @@ type Csv struct {
 	sync.Mutex
 }
 
-func (s *Csv) Init() {
-	s.LoadClientFromCsv()
-	s.LoadTaskFromCsv()
-	s.LoadHostFromCsv()
-}
-
 func (s *Csv) StoreTasksToCsv() {
 	// 创建文件
 	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "tasks.csv"))
 	if err != nil {
-		lg.Fatalf(err.Error())
+		logs.Error(err.Error())
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
@@ -59,10 +55,13 @@ func (s *Csv) StoreTasksToCsv() {
 			strconv.Itoa(task.Id),
 			strconv.Itoa(task.Client.Id),
 			task.Remark,
+			strconv.Itoa(int(task.Flow.ExportFlow)),
+			strconv.Itoa(int(task.Flow.InletFlow)),
+			task.Password,
 		}
 		err := writer.Write(record)
 		if err != nil {
-			lg.Fatalf(err.Error())
+			logs.Error(err.Error())
 		}
 	}
 	writer.Flush()
@@ -90,20 +89,24 @@ func (s *Csv) LoadTaskFromCsv() {
 	path := filepath.Join(s.RunPath, "conf", "tasks.csv")
 	records, err := s.openFile(path)
 	if err != nil {
-		lg.Fatalln("配置文件打开错误:", path)
+		logs.Error("Profile Opening Error:", path)
+		os.Exit(0)
 	}
 	var tasks []*Tunnel
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Tunnel{
-			Port:   common.GetIntNoErrByStr(item[0]),
-			Mode:   item[1],
-			Target: item[2],
-			Status: common.GetBoolByStr(item[3]),
-			Id:     common.GetIntNoErrByStr(item[4]),
-			Remark: item[6],
+			Port:     common.GetIntNoErrByStr(item[0]),
+			Mode:     item[1],
+			Target:   item[2],
+			Status:   common.GetBoolByStr(item[3]),
+			Id:       common.GetIntNoErrByStr(item[4]),
+			Remark:   item[6],
+			Password: item[9],
 		}
 		post.Flow = new(Flow)
+		post.Flow.ExportFlow = int64(common.GetIntNoErrByStr(item[7]))
+		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[8]))
 		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[5])); err != nil {
 			continue
 		}
@@ -142,10 +145,16 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 	return 0, errors.New("not found")
 }
 
-func (s *Csv) NewTask(t *Tunnel) {
+func (s *Csv) NewTask(t *Tunnel) error {
+	for _, v := range s.Tasks {
+		if v.Mode == "secretServer" && v.Password == t.Password {
+			return errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
+		}
+	}
 	t.Flow = new(Flow)
 	s.Tasks = append(s.Tasks, t)
 	s.StoreTasksToCsv()
+	return nil
 }
 
 func (s *Csv) UpdateTask(t *Tunnel) error {
@@ -169,6 +178,16 @@ func (s *Csv) DelTask(id int) error {
 		}
 	}
 	return errors.New("不存在")
+}
+
+//md5 password
+func (s *Csv) GetSecretTask(p string) *Tunnel {
+	for _, v := range s.Tasks {
+		if crypt.Md5(v.Password) == p {
+			return v
+		}
+	}
+	return nil
 }
 
 func (s *Csv) GetTask(id int) (v *Tunnel, err error) {
@@ -205,6 +224,8 @@ func (s *Csv) StoreHostToCsv() {
 			host.Remark,
 			host.Location,
 			strconv.Itoa(host.Id),
+			strconv.Itoa(int(host.Flow.ExportFlow)),
+			strconv.Itoa(int(host.Flow.InletFlow)),
 		}
 		err1 := writer.Write(record)
 		if err1 != nil {
@@ -219,7 +240,8 @@ func (s *Csv) LoadClientFromCsv() {
 	path := filepath.Join(s.RunPath, "conf", "clients.csv")
 	records, err := s.openFile(path)
 	if err != nil {
-		lg.Fatalln("配置文件打开错误:", path)
+		logs.Error("Profile Opening Error:", path)
+		os.Exit(0)
 	}
 	var clients []*Client
 	// 将每一行数据保存到内存slice中
@@ -236,6 +258,7 @@ func (s *Csv) LoadClientFromCsv() {
 				Crypt:    common.GetBoolByStr(item[6]),
 				Compress: item[7],
 			},
+			MaxConn: common.GetIntNoErrByStr(item[10]),
 		}
 		if post.Id > s.ClientIncreaseId {
 			s.ClientIncreaseId = post.Id
@@ -255,7 +278,8 @@ func (s *Csv) LoadHostFromCsv() {
 	path := filepath.Join(s.RunPath, "conf", "hosts.csv")
 	records, err := s.openFile(path)
 	if err != nil {
-		lg.Fatalln("配置文件打开错误:", path)
+		logs.Error("Profile Opening Error:", path)
+		os.Exit(0)
 	}
 	var hosts []*Host
 	// 将每一行数据保存到内存slice中
@@ -273,6 +297,8 @@ func (s *Csv) LoadHostFromCsv() {
 			continue
 		}
 		post.Flow = new(Flow)
+		post.Flow.ExportFlow = int64(common.GetIntNoErrByStr(item[8]))
+		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[9]))
 		hosts = append(hosts, post)
 		if post.Id > s.HostIncreaseId {
 			s.HostIncreaseId = post.Id
@@ -350,7 +376,9 @@ func (s *Csv) NewClient(c *Client) {
 	if c.Id == 0 {
 		c.Id = s.GetClientId()
 	}
-	c.Flow = new(Flow)
+	if c.Flow == nil {
+		c.Flow = new(Flow)
+	}
 	s.Lock()
 	defer s.Unlock()
 	s.Clients = append(s.Clients, c)
@@ -433,6 +461,8 @@ func (s *Csv) GetHostById(id int) (h *Host, err error) {
 //get key by host from x
 func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 	var hosts []*Host
+	//Handling Ported Access
+	host = common.GetIpByAddr(host)
 	for _, v := range s.Hosts {
 		//Remove http(s) http(s)://a.proxy.com
 		//*.proxy.com *.a.proxy.com  Do some pan-parsing
@@ -467,7 +497,7 @@ func (s *Csv) StoreClientsToCsv() {
 	// 创建文件
 	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "clients.csv"))
 	if err != nil {
-		lg.Fatalln(err.Error())
+		logs.Error(err.Error())
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
@@ -486,10 +516,11 @@ func (s *Csv) StoreClientsToCsv() {
 			client.Cnf.Compress,
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
+			strconv.Itoa(int(client.MaxConn)),
 		}
 		err := writer.Write(record)
 		if err != nil {
-			lg.Fatalln(err.Error())
+			logs.Error(err.Error())
 		}
 	}
 	writer.Flush()

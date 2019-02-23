@@ -3,9 +3,10 @@ package client
 import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -40,11 +41,11 @@ func (s *TRPClient) Start() {
 retry:
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
-		lg.Println("The connection server failed and will be reconnected in five seconds")
+		logs.Error("The connection server failed and will be reconnected in five seconds")
 		time.Sleep(time.Second * 5)
 		goto retry
 	}
-	lg.Printf("Successful connection with server %s", s.svrAddr)
+	logs.Info("Successful connection with server %s", s.svrAddr)
 	s.processor(c)
 }
 
@@ -65,12 +66,13 @@ func (s *TRPClient) processor(c *conn.Conn) {
 	for {
 		flags, err := c.ReadFlag()
 		if err != nil {
-			lg.Printf("Accept server data error %s, end this service", err.Error())
+			logs.Error("Accept server data error %s, end this service", err.Error())
 			break
 		}
 		switch flags {
 		case common.VERIFY_EER:
-			lg.Fatalf("VKey:%s is incorrect, the server refuses to connect, please check", s.vKey)
+			logs.Error("VKey:%s is incorrect, the server refuses to connect, please check", s.vKey)
+			os.Exit(0)
 		case common.NEW_CONN:
 			if link, err := c.GetLinkInfo(); err != nil {
 				break
@@ -83,12 +85,13 @@ func (s *TRPClient) processor(c *conn.Conn) {
 				link.Run(false)
 			}
 		case common.RES_CLOSE:
-			lg.Fatalln("The authentication key is connected by another client or the server closes the client.")
+			logs.Error("The authentication key is connected by another client or the server closes the client.")
+			os.Exit(0)
 		case common.RES_MSG:
-			lg.Println("Server-side return error")
+			logs.Error("Server-side return error")
 			break
 		default:
-			lg.Println("The error could not be resolved")
+			logs.Warn("The error could not be resolved")
 			break
 		}
 	}
@@ -103,7 +106,7 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 
 	if err != nil {
 		c.WriteFail(link.Id)
-		lg.Println("connect to ", link.Host, "error:", err)
+		logs.Warn("connect to ", link.Host, "error:", err)
 		return
 	}
 	c.WriteSuccess(link.Id)
@@ -134,7 +137,7 @@ func (s *TRPClient) getMsgStatus() {
 	var err error
 	s.msgTunnel, err = NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_SEND_STATUS, s.proxyUrl)
 	if err != nil {
-		lg.Println("connect to ", s.svrAddr, "error:", err)
+		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
 	go func() {
@@ -160,7 +163,7 @@ func (s *TRPClient) dealChan() {
 	var err error
 	s.tunnel, err = NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_CHAN, s.proxyUrl)
 	if err != nil {
-		lg.Println("connect to ", s.svrAddr, "error:", err)
+		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
 	go func() {

@@ -42,6 +42,7 @@ func (s *ClientController) Add() {
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
 			RateLimit: s.GetIntNoErr("rate_limit"),
+			MaxConn:   s.GetIntNoErr("max_conn"),
 			Flow: &file.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
@@ -94,6 +95,7 @@ func (s *ClientController) Edit() {
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
 			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
 			c.RateLimit = s.GetIntNoErr("rate_limit")
+			c.MaxConn = s.GetIntNoErr("max_conn")
 			if c.Rate != nil {
 				c.Rate.Stop()
 			}

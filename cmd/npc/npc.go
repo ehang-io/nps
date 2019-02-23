@@ -5,13 +5,11 @@ import (
 	"github.com/cnlh/nps/client"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/daemon"
-	"github.com/cnlh/nps/lib/lg"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"os"
 	"strings"
 	"time"
 )
-
-const VERSION = "v0.0.15"
 
 var (
 	serverAddr   = flag.String("server", "", "Server addr (ip:port)")
@@ -20,6 +18,7 @@ var (
 	logType      = flag.String("log", "stdout", "Log output mode（stdout|file）")
 	connType     = flag.String("type", "tcp", "Connection type with the server（kcp|tcp）")
 	proxyUrl     = flag.String("proxy", "", "proxy socks5 url(eg:socks5://111:222@127.0.0.1:9007)")
+	logLevel     = flag.String("log_level", "7", "log level 0~7")
 	registerTime = flag.Int("time", 2, "register time long /h")
 )
 
@@ -37,14 +36,14 @@ func main() {
 	}
 	daemon.InitDaemon("npc", common.GetRunPath(), common.GetTmpPath())
 	if *logType == "stdout" {
-		lg.InitLogFile("npc", true, common.GetLogPath())
+		logs.SetLogger(logs.AdapterConsole, `{"level":`+*logLevel+`,"color":true}`)
 	} else {
-		lg.InitLogFile("npc", false, common.GetLogPath())
+		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"npc_log.log"}`)
 	}
 	if *verifyKey != "" && *serverAddr != "" {
 		for {
 			client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl).Start()
-			lg.Println("It will be reconnected in five seconds")
+			logs.Info("It will be reconnected in five seconds")
 			time.Sleep(time.Second * 5)
 		}
 	} else {

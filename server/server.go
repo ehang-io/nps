@@ -5,10 +5,12 @@ import (
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/lg"
 	"github.com/cnlh/nps/server/proxy"
 	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"os"
+	"time"
 )
 
 var (
@@ -31,7 +33,6 @@ func InitFromCsv() {
 	//Initialize services in server-side files
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Status {
-			lg.Println("task start info: mode：", v.Mode, "port：", v.Port)
 			AddTask(v)
 		}
 	}
@@ -45,6 +46,19 @@ func DealBridgeTask() {
 		case id := <-Bridge.CloseClient:
 			DelTunnelAndHostByClientId(id)
 			file.GetCsvDb().DelClient(id)
+		case s := <-Bridge.SecretChan:
+			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
+			if t := file.GetCsvDb().GetSecretTask(s.Password); t != nil {
+				if !t.Client.GetConn() {
+					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
+					s.Conn.Close()
+				} else {
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Target, nil)
+				}
+			} else {
+				logs.Trace("This key %s cannot be processed", s.Password)
+				s.Conn.Close()
+			}
 		}
 	}
 }
@@ -53,18 +67,19 @@ func DealBridgeTask() {
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")), RunList)
 	if err := Bridge.StartTunnel(); err != nil {
-		lg.Fatalln("服务端开启失败", err)
+		logs.Error("服务端开启失败", err)
+		os.Exit(0)
 	} else {
-		lg.Printf("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
+		logs.Info("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
 	}
 	go DealBridgeTask()
 	if svr := NewMode(Bridge, cnf); svr != nil {
 		if err := svr.Start(); err != nil {
-			lg.Fatalln(err)
+			logs.Error(err)
 		}
 		RunList[cnf.Id] = svr
 	} else {
-		lg.Fatalln("启动模式%s不正确", cnf.Mode)
+		logs.Error("Incorrect startup mode %s", cnf.Mode)
 	}
 }
 
@@ -103,12 +118,12 @@ func StopServer(id int) error {
 			if err := svr.Close(); err != nil {
 				return err
 			}
-			if t, err := file.GetCsvDb().GetTask(id); err != nil {
-				return err
-			} else {
-				t.Status = false
-				file.GetCsvDb().UpdateTask(t)
-			}
+		}
+		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+			return err
+		} else {
+			t.Status = false
+			file.GetCsvDb().UpdateTask(t)
 		}
 		delete(RunList, id)
 		return nil
@@ -118,15 +133,24 @@ func StopServer(id int) error {
 
 //add task
 func AddTask(t *file.Tunnel) error {
+	if t.Mode == "secretServer" {
+		logs.Info("secret task %s start ", t.Remark)
+		RunList[t.Id] = nil
+		return nil
+	}
 	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
-		lg.Printf("taskId %d start error port %d Open Failed", t.Id, t.Port)
+		logs.Error("taskId %d start error port %d open failed", t.Id, t.Port)
 		return errors.New("the port open error")
 	}
+	if minute, err := beego.AppConfig.Int("flowStoreInterval"); err == nil && minute > 0 {
+		go flowSession(time.Minute * time.Duration(minute))
+	}
 	if svr := NewMode(Bridge, t); svr != nil {
+		logs.Info("tunnel task %s start mode：%s port %d", t.Remark, t.Mode, t.Port)
 		RunList[t.Id] = svr
 		go func() {
 			if err := svr.Start(); err != nil {
-				lg.Println("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
+				logs.Error("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
 				delete(RunList, t.Id)
 				return
 			}
@@ -272,5 +296,21 @@ func GetDashboardData() map[string]int {
 			data["udpServerCount"] += 1
 		}
 	}
+	tcpCount := 0
+	for _, v := range file.GetCsvDb().Clients {
+		tcpCount += v.NowConn
+	}
+	data["tcpCount"] = tcpCount
 	return data
+}
+
+func flowSession(m time.Duration) {
+	ticker := time.NewTicker(m)
+	for {
+		select {
+		case <-ticker.C:
+			file.GetCsvDb().StoreHostToCsv()
+			file.GetCsvDb().StoreTasksToCsv()
+		}
+	}
 }

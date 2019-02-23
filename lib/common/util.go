@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/pool"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -245,4 +247,11 @@ func FormatAddress(s string) string {
 func GetIpByAddr(addr string) string {
 	arr := strings.Split(addr, ":")
 	return arr[0]
+}
+
+func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := pool.BufPoolCopy.Get().([]byte)
+	io.CopyBuffer(dst, src, buf)
+	pool.PutBufPoolCopy(buf)
+	return written, err
 }
