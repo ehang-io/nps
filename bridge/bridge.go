@@ -525,7 +525,7 @@ func (s *Bridge) linkCleanSession() {
 				}
 				v.Unlock()
 			}
-			s.clientLock.RUnlock()
+			s.clientLock.Unlock()
 		}
 	}
 }
