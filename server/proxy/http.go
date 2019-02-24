@@ -154,10 +154,10 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			isConn = false
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
-			logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 			if err != nil {
 				break
 			}
+			logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 			if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
 				logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 				break

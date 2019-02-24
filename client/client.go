@@ -38,6 +38,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 
 //start
 func (s *TRPClient) Start() {
+	go s.linkCleanSession()
 retry:
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
@@ -129,7 +130,6 @@ func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
 	}
 	pool.PutBufPoolCopy(buf)
 	s.Lock()
-	//TODO 删除map
 	s.Unlock()
 }
 
@@ -187,4 +187,20 @@ func (s *TRPClient) dealChan() {
 		}
 	}()
 	<-s.stop
+}
+
+func (s *TRPClient) linkCleanSession() {
+	ticker := time.NewTicker(time.Minute * 5)
+	for {
+		select {
+		case <-ticker.C:
+			s.Lock()
+			for _, v := range s.linkMap {
+				if v.FinishUse {
+					delete(s.linkMap, v.Id)
+				}
+			}
+			s.Unlock()
+		}
+	}
 }

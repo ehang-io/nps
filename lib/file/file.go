@@ -372,7 +372,19 @@ func (s *Csv) DelClient(id int) error {
 	return errors.New("不存在")
 }
 
-func (s *Csv) NewClient(c *Client) {
+func (s *Csv) NewClient(c *Client) error {
+	var isNotSet bool
+reset:
+	if c.VerifyKey == "" || isNotSet {
+		isNotSet = true
+		c.VerifyKey = crypt.GetRandomString(16)
+	}
+	if !s.VerifyVkey(c.VerifyKey, c.id) {
+		if isNotSet {
+			goto reset
+		}
+		return errors.New("Vkey duplicate, please reset")
+	}
 	if c.Id == 0 {
 		c.Id = s.GetClientId()
 	}
@@ -383,6 +395,16 @@ func (s *Csv) NewClient(c *Client) {
 	defer s.Unlock()
 	s.Clients = append(s.Clients, c)
 	s.StoreClientsToCsv()
+	return nil
+}
+
+func (s *Csv) VerifyVkey(vkey string, id int) bool {
+	for _, v := range s.Clients {
+		if v.VerifyKey == vkey && v.Id != id {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Csv) GetClientId() int {

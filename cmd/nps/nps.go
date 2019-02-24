@@ -13,6 +13,7 @@ import (
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
 	"os"
+
 	"path/filepath"
 )
 
@@ -36,10 +37,13 @@ func main() {
 			return
 		}
 	}
+	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf"))
 	if level = beego.AppConfig.String("logLevel"); level == "" {
 		level = "7"
 	}
 	logs.Reset()
+	logs.EnableFuncCallDepth(true)
+	logs.SetLogFuncCallDepth(3)
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	} else {
@@ -53,6 +57,5 @@ func main() {
 		logs.Error("Getting bridgePort error", err)
 		os.Exit(0)
 	}
-	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "app.conf"))
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridgeType"))
 }

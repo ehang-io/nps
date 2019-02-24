@@ -21,7 +21,6 @@ var (
 	logLevel     = flag.String("log_level", "7", "log level 0~7")
 	registerTime = flag.Int("time", 2, "register time long /h")
 )
-
 func main() {
 	flag.Parse()
 	if len(os.Args) > 2 {
@@ -35,6 +34,8 @@ func main() {
 		}
 	}
 	daemon.InitDaemon("npc", common.GetRunPath(), common.GetTmpPath())
+	logs.EnableFuncCallDepth(true)
+	logs.SetLogFuncCallDepth(3)
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+*logLevel+`,"color":true}`)
 	} else {

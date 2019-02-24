@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/server"
@@ -31,7 +30,7 @@ func (s *ClientController) Add() {
 		s.display()
 	} else {
 		t := &file.Client{
-			VerifyKey: crypt.GetRandomString(16),
+			VerifyKey: s.GetString("vkey"),
 			Id:        file.GetCsvDb().GetClientId(),
 			Status:    true,
 			Remark:    s.GetString("remark"),
@@ -53,7 +52,9 @@ func (s *ClientController) Add() {
 			t.Rate = rate.NewRate(int64(t.RateLimit * 1024))
 			t.Rate.Start()
 		}
-		file.GetCsvDb().NewClient(t)
+		if err := file.GetCsvDb().NewClient(t); err != nil {
+			s.AjaxErr(err.Error())
+		}
 		s.AjaxOk("添加成功")
 	}
 }
@@ -88,6 +89,10 @@ func (s *ClientController) Edit() {
 		if c, err := file.GetCsvDb().GetClient(id); err != nil {
 			s.error()
 		} else {
+			if !file.GetCsvDb().VerifyVkey(s.GetString("vkey"), c.Id) {
+				s.AjaxErr("Vkey duplicate, please reset")
+			}
+			c.VerifyKey = s.GetString("vkey")
 			c.Remark = s.GetString("remark")
 			c.Cnf.U = s.GetString("u")
 			c.Cnf.P = s.GetString("p")

@@ -2,6 +2,7 @@ package file
 
 import (
 	"github.com/cnlh/nps/lib/rate"
+	"math"
 	"strings"
 	"sync"
 )
@@ -60,6 +61,9 @@ func NewClient(vKey string, noStore bool, noDisplay bool) *Client {
 func (s *Client) GetId() int {
 	s.Lock()
 	defer s.Unlock()
+	if s.id == math.MaxInt32 {
+		s.id = 0
+	}
 	s.id++
 	return s.id
 }

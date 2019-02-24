@@ -35,6 +35,7 @@ type Link struct {
 	MsgCh         chan []byte
 	MsgConn       *Conn
 	StatusCh      chan bool
+	FinishUse     bool
 }
 
 func NewLink(id int, connType string, host string, en, de int, crypt bool, c *Conn, flow *file.Flow, udpListener *net.UDPConn, rate *rate.Rate, UdpRemoteAddr *net.UDPAddr) *Link {
@@ -61,6 +62,7 @@ func (s *Link) Run(flow bool) {
 			select {
 			case content := <-s.MsgCh:
 				if len(content) == len(common.IO_EOF) && string(content) == common.IO_EOF {
+					s.FinishUse = true
 					if s.Conn != nil {
 						s.Conn.Close()
 					}
@@ -81,8 +83,8 @@ func (s *Link) Run(flow bool) {
 						return
 					}
 					s.MsgConn.WriteWriteSuccess(s.Id)
-					pool.PutBufPoolCopy(content)
 				}
+				pool.PutBufPoolCopy(content)
 			}
 		}
 	}()

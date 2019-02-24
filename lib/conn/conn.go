@@ -7,7 +7,6 @@ import (
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
@@ -347,7 +346,7 @@ func (s *Conn) GetConfigInfo() (c *file.Client, err error) {
 		return
 	} else {
 		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
-		c = file.NewClient(crypt.GetRandomString(16), true, false)
+		c = file.NewClient("", true, false)
 		c.Cnf.U = arr[0]
 		c.Cnf.P = arr[1]
 		c.Cnf.Crypt = common.GetBoolByStr(arr[2])

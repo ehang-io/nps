@@ -34,6 +34,11 @@
                         <input class="form-control" value="{{.c.Cnf.P}}" type="text" name="p"
                                placeholder="不填则无需验证">
                     </div>
+                    <div class="form-group" id="vkey">
+                        <label class="control-label">客户端连接密钥(唯一、不填将会自动生成)</label>
+                        <input class="form-control" value="{{.c.VerifyKey}}" type="text" name="vkey"
+                               placeholder="客户端连接密钥">
+                    </div>
                     <div class="form-group" id="compress">
                         <label class="control-label">数据压缩方式(所有模式均支持)</label>
                         <select class="form-control" name="compress">

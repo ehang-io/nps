@@ -71,6 +71,7 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int
 }
 
 func (s *Bridge) StartTunnel() error {
+	go s.linkCleanSession()
 	var err error
 	if s.tunnelType == "kcp" {
 		s.kcpListener, err = kcp.ListenWithOptions(":"+strconv.Itoa(s.TunnelPort), nil, 150, 3)
@@ -118,12 +119,12 @@ func (s *Bridge) verifySuccess(c *conn.Conn) {
 }
 
 func (s *Bridge) cliProcess(c *conn.Conn) {
-	c.Write([]byte(crypt.Md5(version.GetVersion())))
-	if b, err := c.ReadFlag(); err != nil || string(b) != version.VERSION_OK {
+	if b, err := c.ReadLen(32); err != nil || string(b) != crypt.Md5(version.GetVersion()) {
 		logs.Info("The client %s version does not match", c.Conn.RemoteAddr())
 		c.Close()
 		return
 	}
+	c.Write([]byte(crypt.Md5(version.GetVersion())))
 	c.SetReadDeadline(5, s.tunnelType)
 	var buf []byte
 	var err error
@@ -372,14 +373,17 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 		case common.NEW_CONF:
 			var err error
 			if client, err = c.GetConfigInfo(); err != nil {
-				c.Write([]byte(client.VerifyKey))
 				fail = true
 				c.WriteAddFail()
 				break
 			} else {
-				c.Write([]byte(client.VerifyKey))
-				file.GetCsvDb().NewClient(client)
+				if err = file.GetCsvDb().NewClient(client); err != nil {
+					fail = true
+					c.WriteAddFail()
+					break
+				}
 				c.WriteAddOk()
+				c.Write([]byte(client.VerifyKey))
 			}
 		case common.NEW_HOST:
 			if h, err := c.GetHostInfo(); err != nil {
@@ -503,6 +507,26 @@ func (s *Bridge) clientCopy(clientId int) {
 				client.Unlock()
 				continue
 			}
+		}
+	}
+}
+
+func (s *Bridge) linkCleanSession() {
+	ticker := time.NewTicker(time.Minute * 5)
+	for {
+		select {
+		case <-ticker.C:
+			s.clientLock.Lock()
+			for _, v := range s.Client {
+				v.Lock()
+				for _, vv := range v.linkMap {
+					if vv.FinishUse {
+						delete(v.linkMap, vv.Id)
+					}
+				}
+				v.Unlock()
+			}
+			s.clientLock.RUnlock()
 		}
 	}
 }

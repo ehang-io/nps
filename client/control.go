@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
@@ -54,6 +53,9 @@ func GetTaskStatus(path string) {
 		}
 		for _, v := range cnf.Tasks {
 			ports := common.GetPorts(v.Ports)
+			if v.Mode == "secretServer" {
+				ports = append(ports, 0)
+			}
 			for _, vv := range ports {
 				var remark string
 				if len(ports) > 1 {
@@ -102,6 +104,10 @@ re:
 		logs.Error(err)
 		goto re
 	}
+	if !c.GetAddStatus() {
+		logs.Error(errAdd)
+		goto re
+	}
 	var b []byte
 	if b, err = c.ReadLen(16); err != nil {
 		logs.Error(err)
@@ -109,11 +115,6 @@ re:
 	} else {
 		ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(string(b)), 0600)
 	}
-	if !c.GetAddStatus() {
-		logs.Error(errAdd)
-		goto re
-	}
-
 	for _, v := range cnf.Hosts {
 		if _, err := c.SendHostInfo(v); err != nil {
 			logs.Error(err)
@@ -171,14 +172,12 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 		return nil, err
 	}
 	c := conn.NewConn(connection)
-	if b, err := c.ReadLen(32); err != nil {
+	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
 		logs.Error(err)
 		os.Exit(0)
-	} else if crypt.Md5(version.GetVersion()) != string(b) {
+	}
+	if b, err := c.ReadLen(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
 		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
-		os.Exit(0)
-	} else if binary.Write(c, binary.LittleEndian, []byte(version.VERSION_OK)); err != nil {
-		logs.Error(err)
 		os.Exit(0)
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
