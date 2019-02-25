@@ -71,6 +71,7 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int
 }
 
 func (s *Bridge) StartTunnel() error {
+	go s.linkCleanSession()
 	var err error
 	if s.tunnelType == "kcp" {
 		s.kcpListener, err = kcp.ListenWithOptions(":"+strconv.Itoa(s.TunnelPort), nil, 150, 3)

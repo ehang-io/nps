@@ -38,6 +38,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 
 //start
 func (s *TRPClient) Start() {
+	go s.linkCleanSession()
 retry:
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
