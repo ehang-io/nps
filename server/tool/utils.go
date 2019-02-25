@@ -13,7 +13,7 @@ func init() {
 }
 
 func TestServerPort(p int, m string) (b bool) {
-	if p > 65535 || p <= 0 {
+	if p > 65535 || p < 0 {
 		return false
 	}
 	if len(ports) != 0 {
