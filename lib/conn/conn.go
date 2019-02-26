@@ -69,6 +69,15 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 	return
 }
 
+func (s *Conn) GetLenContent() (b []byte, err error) {
+	var l int
+	if l, err = s.GetLen(); err != nil {
+		return
+	}
+	b, err = s.ReadLen(l)
+	return
+}
+
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 	if cLen > pool.PoolSize {
@@ -77,10 +86,11 @@ func (s *Conn) ReadLen(cLen int) ([]byte, error) {
 	var buf []byte
 	if cLen < pool.PoolSizeSmall {
 		buf = pool.BufPoolSmall.Get().([]byte)[:cLen]
-		defer pool.PutBufPoolSmall(buf)
+		//TODO 回收
+		//defer pool.PutBufPoolSmall(buf)
 	} else {
 		buf = pool.BufPoolMax.Get().([]byte)[:cLen]
-		defer pool.PutBufPoolMax(buf)
+		//defer pool.PutBufPoolMax(buf)
 	}
 	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
 		return buf, errors.New("Error reading specified length " + err.Error())
@@ -93,6 +103,14 @@ func (s *Conn) GetLen() (int, error) {
 	var l int32
 	err := binary.Read(s, binary.LittleEndian, &l)
 	return int(l), err
+}
+
+func (s *Conn) WriteLenContent(buf []byte) (err error) {
+	var b []byte
+	if b, err = GetLenBytes(buf); err != nil {
+		return
+	}
+	return binary.Write(s.Conn, binary.LittleEndian, b)
 }
 
 //read flag
@@ -477,7 +495,6 @@ func (s *Conn) WriteChan() (int, error) {
 	defer s.Unlock()
 	return s.Write([]byte(common.WORK_CHAN))
 }
-
 //获取长度+内容
 func GetLenBytes(buf []byte) (b []byte, err error) {
 	raw := bytes.NewBuffer([]byte{})
@@ -490,6 +507,7 @@ func GetLenBytes(buf []byte) (b []byte, err error) {
 	b = raw.Bytes()
 	return
 }
+
 
 //解析出长度
 func GetLenByBytes(buf []byte) (int, error) {
@@ -508,4 +526,5 @@ func SetUdpSession(sess *kcp.UDPSession) {
 	sess.SetNoDelay(1, 10, 2, 1)
 	sess.SetMtu(1600)
 	sess.SetACKNoDelay(true)
+	sess.SetWriteDelay(false)
 }

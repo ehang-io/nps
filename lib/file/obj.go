@@ -53,7 +53,6 @@ func NewClient(vKey string, noStore bool, noDisplay bool) *Client {
 		Flow:      new(Flow),
 		Rate:      nil,
 		NoStore:   noStore,
-		id:        GetCsvDb().GetClientId(),
 		RWMutex:   sync.RWMutex{},
 		NoDisplay: noDisplay,
 	}

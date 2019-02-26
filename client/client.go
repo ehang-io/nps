@@ -5,6 +5,7 @@ import (
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"os"
 	"sync"
@@ -38,7 +39,6 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 
 //start
 func (s *TRPClient) Start() {
-	go s.linkCleanSession()
 retry:
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
@@ -82,8 +82,8 @@ func (s *TRPClient) processor(c *conn.Conn) {
 				s.linkMap[link.Id] = link
 				s.Unlock()
 				link.MsgConn = s.msgTunnel
-				go s.linkProcess(link, c)
-				link.Run(false)
+				go linkProcess(link, c, s.tunnel)
+				link.RunWrite()
 			}
 		case common.RES_CLOSE:
 			logs.Error("The authentication key is connected by another client or the server closes the client.")
@@ -91,6 +91,14 @@ func (s *TRPClient) processor(c *conn.Conn) {
 		case common.RES_MSG:
 			logs.Error("Server-side return error")
 			break
+		case common.NEW_UDP_CONN:
+			//读取服务端地址、密钥 继续做处理
+			if lAddr, err := c.GetLenContent(); err != nil {
+				return
+			} else if pwd, err := c.GetLenContent(); err == nil {
+				logs.Warn(string(lAddr), string(pwd))
+				go s.newUdpConn(string(lAddr), string(pwd))
+			}
 		default:
 			logs.Warn("The error could not be resolved")
 			break
@@ -100,37 +108,112 @@ func (s *TRPClient) processor(c *conn.Conn) {
 	s.Close()
 }
 
-func (s *TRPClient) linkProcess(link *conn.Link, c *conn.Conn) {
+func (s *TRPClient) newUdpConn(rAddr string, md5Password string) {
+	tmpConn, err := net.Dial("udp", "114.114.114.114:53")
+	if err != nil {
+		logs.Warn(err)
+		return
+	}
+	tmpConn.Close()
+	//与服务端建立udp连接
+	localAddr, _ := net.ResolveUDPAddr("udp", tmpConn.LocalAddr().String())
+	localConn, err := net.ListenUDP("udp", localAddr)
+	if err != nil {
+		logs.Warn(err)
+		return
+	}
+	localKcpConn, err := kcp.NewConn(rAddr, nil, 150, 3, localConn)
+	logs.Warn(localConn.RemoteAddr(), rAddr)
+	conn.SetUdpSession(localKcpConn)
+	if err != nil {
+		logs.Warn(err)
+		return
+	}
+	localToolConn := conn.NewConn(localKcpConn)
+	//写入密钥、provider身份
+	if _, err := localToolConn.Write([]byte(md5Password)); err != nil {
+		logs.Warn(err)
+		return
+	}
+	if _, err := localToolConn.Write([]byte(common.WORK_P2P_PROVIDER)); err != nil {
+		logs.Warn(err)
+		return
+	}
+	//接收服务端传的visitor地址
+	if b, err := localToolConn.GetLenContent(); err != nil {
+		logs.Warn(err)
+		return
+	} else {
+		logs.Warn("收到服务端回传地址", string(b))
+		//向visitor地址发送测试消息
+		visitorAddr, err := net.ResolveUDPAddr("udp", string(b))
+		if err != nil {
+			logs.Warn(err)
+		}
+		logs.Warn(visitorAddr.String())
+		if n, err := localConn.WriteTo([]byte("test"), visitorAddr); err != nil {
+			logs.Warn(err)
+		} else {
+			logs.Warn("write", n)
+		}
+		//给服务端发反馈
+		if _, err := localToolConn.Write([]byte(common.VERIFY_SUCCESS)); err != nil {
+			logs.Warn(err)
+		}
+		//关闭与服务端的连接
+		localConn.Close()
+		//关闭与服务端udp conn，建立新的监听
+		localConn, err = net.ListenUDP("udp", localAddr)
+
+		if err != nil {
+			logs.Warn(err)
+		}
+		l, err := kcp.ServeConn(nil, 150, 3, localConn)
+		if err != nil {
+			logs.Warn(err)
+			return
+		}
+		for {
+			//接收新的监听，得到conn，
+			udpTunnel, err := l.AcceptKCP()
+			logs.Warn(udpTunnel.RemoteAddr(), udpTunnel.LocalAddr())
+			if err != nil {
+				logs.Warn(err)
+				l.Close()
+				return
+			}
+			conn.SetUdpSession(udpTunnel)
+			if udpTunnel.RemoteAddr().String() == string(b) {
+				//读取link,设置msgCh 设置msgConn消息回传响应机制
+				c, e := net.Dial("tcp", "123.206.77.88:22")
+				if e != nil {
+					logs.Warn(e)
+					return
+				}
+
+				go common.CopyBuffer(c, udpTunnel)
+				common.CopyBuffer(udpTunnel, c)
+				//读取flag ping/new/msg/msgConn//分别对于不同的做法
+				break
+			}
+		}
+
+	}
+}
+
+func linkProcess(link *conn.Link, statusConn, msgConn *conn.Conn) {
 	link.Host = common.FormatAddress(link.Host)
 	//与目标建立连接
 	server, err := net.DialTimeout(link.ConnType, link.Host, time.Second*3)
 
 	if err != nil {
-		c.WriteFail(link.Id)
+		statusConn.WriteFail(link.Id)
 		logs.Warn("connect to ", link.Host, "error:", err)
 		return
 	}
-	c.WriteSuccess(link.Id)
+	statusConn.WriteSuccess(link.Id)
 	link.Conn = conn.NewConn(server)
-	buf := pool.BufPoolCopy.Get().([]byte)
-	for {
-		if n, err := server.Read(buf); err != nil {
-			s.tunnel.SendMsg([]byte(common.IO_EOF), link)
-			break
-		} else {
-			if _, err := s.tunnel.SendMsg(buf[:n], link); err != nil {
-				c.Close()
-				break
-			}
-			if link.ConnType == common.CONN_UDP {
-				break
-			}
-		}
-		<-link.StatusCh
-	}
-	pool.PutBufPoolCopy(buf)
-	s.Lock()
-	s.Unlock()
+	link.RunRead(msgConn)
 }
 
 func (s *TRPClient) getMsgStatus() {

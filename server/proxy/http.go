@@ -150,7 +150,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Notice(err)
 				break
 			}
-			lk.Run(true)
+			lk.RunWrite()
 			isConn = false
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))

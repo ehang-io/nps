@@ -6,7 +6,6 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/pool"
 	"net"
 	"net/http"
 	"sync"
@@ -58,27 +57,11 @@ func (s *BaseServer) linkCopy(link *conn.Link, c *conn.Conn, rb []byte, tunnel *
 		flow.Add(len(rb), 0)
 		<-link.StatusCh
 	}
-
-	buf := pool.BufPoolCopy.Get().([]byte)
-	for {
-		if err := s.checkFlow(); err != nil {
-			c.Close()
-			break
-		}
-		if n, err := c.Read(buf); err != nil {
-			tunnel.SendMsg([]byte(common.IO_EOF), link)
-			break
-		} else {
-			if _, err := tunnel.SendMsg(buf[:n], link); err != nil {
-				c.Close()
-				break
-			}
-			flow.Add(n, 0)
-		}
-		<-link.StatusCh
+	if err := s.checkFlow(); err != nil {
+		c.Close()
 	}
+	link.RunRead(tunnel)
 	s.task.Client.AddConn()
-	pool.PutBufPoolCopy(buf)
 }
 
 func (s *BaseServer) writeConnFail(c net.Conn) {
@@ -111,7 +94,7 @@ func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte) error {
 		c.Close()
 		return err
 	} else {
-		link.Run(true)
+		link.RunWrite()
 		s.linkCopy(link, c, rb, tunnel, s.task.Flow)
 	}
 	return nil

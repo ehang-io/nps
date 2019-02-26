@@ -11,6 +11,7 @@ import (
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/server/tool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
@@ -71,7 +72,6 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int
 }
 
 func (s *Bridge) StartTunnel() error {
-	go s.linkCleanSession()
 	var err error
 	if s.tunnelType == "kcp" {
 		s.kcpListener, err = kcp.ListenWithOptions(":"+strconv.Itoa(s.TunnelPort), nil, 150, 3)
@@ -209,9 +209,34 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		go s.GetConfig(c)
 	case common.WORK_REGISTER:
 		go s.register(c)
-	case common.WORD_SECRET:
+	case common.WORK_SECRET:
 		if b, err := c.ReadLen(32); err == nil {
 			s.SecretChan <- conn.NewSecret(string(b), c)
+		}
+	case common.WORK_P2P:
+		//读取md5密钥
+		if b, err := c.ReadLen(32); err != nil {
+			return
+		} else if t := file.GetCsvDb().GetTaskByMd5Password(string(b)); t == nil {
+			return
+		} else {
+			s.clientLock.Lock()
+			if v, ok := s.Client[t.Client.Id]; !ok {
+				logs.Error("未获取到对应客户端")
+				s.clientLock.Unlock()
+				return
+			} else {
+				logs.Warn("获取到对应客户端")
+				s.clientLock.Unlock()
+				//向密钥对应的客户端发送与服务端udp建立连接信息，地址，密钥
+				logs.Warn(v.signal.Write([]byte(common.NEW_UDP_CONN)))
+				svrAddr := beego.AppConfig.String("serverIp") + ":" + beego.AppConfig.String("p2pPort")
+				logs.Warn(svrAddr)
+				logs.Warn(v.signal.WriteLenContent([]byte(svrAddr)))
+				logs.Warn(string(b), v.signal.WriteLenContent(b))
+				//向该请求者发送建立连接请求,服务器地址
+				c.WriteLenContent([]byte(svrAddr))
+			}
 		}
 	case common.WORK_SEND_STATUS:
 		s.clientLock.Lock()
@@ -511,6 +536,7 @@ func (s *Bridge) clientCopy(clientId int) {
 	}
 }
 
+//TODO 清除有一个未知bug待处理
 func (s *Bridge) linkCleanSession() {
 	ticker := time.NewTicker(time.Minute * 5)
 	for {
@@ -526,7 +552,7 @@ func (s *Bridge) linkCleanSession() {
 				}
 				v.Unlock()
 			}
-			s.clientLock.RUnlock()
+			s.clientLock.Unlock()
 		}
 	}
 }

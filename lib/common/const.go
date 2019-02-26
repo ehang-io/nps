@@ -13,12 +13,16 @@ const (
 	WORK_SEND_STATUS  = "sdst"
 	WORK_CONFIG       = "conf"
 	WORK_REGISTER     = "rgst"
-	WORD_SECRET       = "sert"
+	WORK_SECRET       = "sert"
+	WORK_P2P          = "p2pm"
+	WORK_P2P_VISITOR  = "p2pv"
+	WORK_P2P_PROVIDER = "p2pp"
 	WORK_STATUS       = "stus"
 	RES_SIGN          = "sign"
 	RES_MSG           = "msg0"
 	RES_CLOSE         = "clse"
 	NEW_CONN          = "conn" //新连接标志
+	NEW_UDP_CONN      = "udpc" //p2p udp conn
 	NEW_TASK          = "task" //新连接标志
 	NEW_CONF          = "conf" //新连接标志
 	NEW_HOST          = "host" //新连接标志
@@ -33,4 +37,5 @@ WWW-Authenticate: Basic realm="easyProxy"
 	ConnectionFailBytes = `HTTP/1.1 404 Not Found
 
 `
+
 )

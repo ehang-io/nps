@@ -18,6 +18,7 @@ type CommonConfig struct {
 	Client           *file.Client
 }
 type LocalServer struct {
+	Type     string
 	Port     int
 	Password string
 }
@@ -53,7 +54,15 @@ func NewConfig(path string) (c *Config, err error) {
 			nowContent = c.content[nowIndex:nextIndex]
 
 			if strings.Index(getTitleContent(c.title[i]), "secret") == 0 {
-				c.LocalServer = append(c.LocalServer, delLocalService(nowContent))
+				local := delLocalService(nowContent)
+				local.Type = "secret"
+				c.LocalServer = append(c.LocalServer, local)
+				continue
+			}
+			if strings.Index(getTitleContent(c.title[i]), "p2p") == 0 {
+				local := delLocalService(nowContent)
+				local.Type = "p2p"
+				c.LocalServer = append(c.LocalServer, local)
 				continue
 			}
 			switch c.title[i] {

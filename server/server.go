@@ -48,7 +48,7 @@ func DealBridgeTask() {
 			file.GetCsvDb().DelClient(id)
 		case s := <-Bridge.SecretChan:
 			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
-			if t := file.GetCsvDb().GetSecretTask(s.Password); t != nil {
+			if t := file.GetCsvDb().GetTaskByMd5Password(s.Password); t != nil {
 				if !t.Client.GetConn() {
 					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
 					s.Conn.Close()
@@ -74,6 +74,9 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		os.Exit(0)
 	} else {
 		logs.Info("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
+	}
+	if p, err := beego.AppConfig.Int("p2pPort"); err == nil {
+		go proxy.NewP2PServer(p).Start()
 	}
 	go DealBridgeTask()
 	if svr := NewMode(Bridge, cnf); svr != nil {

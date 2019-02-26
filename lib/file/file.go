@@ -181,7 +181,7 @@ func (s *Csv) DelTask(id int) error {
 }
 
 //md5 password
-func (s *Csv) GetSecretTask(p string) *Tunnel {
+func (s *Csv) GetTaskByMd5Password(p string) *Tunnel {
 	for _, v := range s.Tasks {
 		if crypt.Md5(v.Password) == p {
 			return v

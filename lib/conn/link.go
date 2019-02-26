@@ -56,7 +56,7 @@ func NewLink(id int, connType string, host string, en, de int, crypt bool, c *Co
 	}
 }
 
-func (s *Link) Run(flow bool) {
+func (s *Link) RunWrite() {
 	go func() {
 		for {
 			select {
@@ -76,7 +76,7 @@ func (s *Link) Run(flow bool) {
 					} else {
 						s.Conn.Write(content)
 					}
-					if flow {
+					if s.Flow != nil {
 						s.Flow.Add(0, len(content))
 					}
 					if s.ConnType == common.CONN_UDP {
@@ -88,4 +88,26 @@ func (s *Link) Run(flow bool) {
 			}
 		}
 	}()
+}
+func (s *Link) RunRead(msgConn *Conn) {
+	buf := pool.BufPoolCopy.Get().([]byte)
+	for {
+		if n, err := s.Conn.Read(buf); err != nil {
+			msgConn.SendMsg([]byte(common.IO_EOF), s)
+			break
+		} else {
+			if _, err := msgConn.SendMsg(buf[:n], s); err != nil {
+				msgConn.Close()
+				break
+			}
+			if s.ConnType == common.CONN_UDP {
+				break
+			}
+			if s.Flow != nil {
+				s.Flow.Add(n, 0)
+			}
+		}
+		<-s.StatusCh
+	}
+	pool.PutBufPoolCopy(buf)
 }

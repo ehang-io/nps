@@ -58,7 +58,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		s.task.Flow.Add(len(data), 0)
 		tunnel.SendMsg(data, link)
 		pool.PutBufPoolUdp(data)
-		link.Run(true)
+		link.RunWrite()
 	}
 }
 

@@ -148,7 +148,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 		return
 	} else {
 		s.sendReply(c, succeeded)
-		link.Run(true)
+		link.RunWrite()
 		s.linkCopy(link, conn.NewConn(c), nil, tunnel, s.task.Flow)
 	}
 	return
