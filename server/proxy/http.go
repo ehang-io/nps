@@ -174,12 +174,23 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		if err != nil {
 			break
 		}
-		host.Flow.Add(len(b), 0)
-		if _, err := tunnel.SendMsg(b, lk); err != nil {
-			c.Close()
-			break
+		l := len(b)
+		var start int
+		host.Flow.Add(l, 0)
+		for {
+			if l-start > 32*1024 {
+				_, err = tunnel.SendMsg(b[start:start+32*1024], lk)
+				start += 32 * 1024
+				<-lk.StatusCh
+			} else {
+				_, err = tunnel.SendMsg(b[start:l], lk)
+				<-lk.StatusCh
+				break
+			}
+			if err != nil {
+				break
+			}
 		}
-		<-lk.StatusCh
 	}
 end:
 	if isConn {
