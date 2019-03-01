@@ -23,7 +23,7 @@ func NewConnMap() *connMap {
 func (s *connMap) Get(id int32) (*conn, bool) {
 	s.Lock()
 	defer s.Unlock()
-	if v, ok := s.connMap[id]; ok {
+	if v, ok := s.connMap[id]; ok && v != nil {
 		return v, true
 	}
 	return nil, false

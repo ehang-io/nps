@@ -10,4 +10,5 @@ func init() {
 	beego.AutoRouter(&controllers.IndexController{})
 	beego.AutoRouter(&controllers.LoginController{})
 	beego.AutoRouter(&controllers.ClientController{})
+	beego.AutoRouter(&controllers.AuthController{})
 }

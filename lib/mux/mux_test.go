@@ -2,6 +2,7 @@ package mux
 
 import (
 	"github.com/cnlh/nps/lib/common"
+	conn3 "github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"log"
 	"net"
@@ -35,8 +36,8 @@ func TestNewMux(t *testing.T) {
 				if err != nil {
 					log.Fatalln(err)
 				}
-				go common.CopyBuffer(c2, c)
-				common.CopyBuffer(c, c2)
+				go common.CopyBuffer(c2, conn3.NewCryptConn(c, true, nil))
+				common.CopyBuffer(conn3.NewCryptConn(c, true, nil), c2)
 				c.Close()
 				c2.Close()
 			}(c)
@@ -59,8 +60,8 @@ func TestNewMux(t *testing.T) {
 				if err != nil {
 					log.Fatalln(err)
 				}
-				go common.CopyBuffer(tmpCpnn, conn)
-				common.CopyBuffer(conn, tmpCpnn)
+				go common.CopyBuffer(conn3.NewCryptConn(tmpCpnn, true, nil), conn)
+				common.CopyBuffer(conn, conn3.NewCryptConn(tmpCpnn, true, nil))
 				conn.Close()
 				tmpCpnn.Close()
 			}(conn)

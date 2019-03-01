@@ -45,6 +45,10 @@ func (s *TunnelModeServer) Start() error {
 			logs.Info(err)
 			continue
 		}
+		if err := s.checkFlow(); err != nil {
+			logs.Warn("client id %d  task id %d  error  %s", s.task.Client.Id, s.task.Id, err.Error())
+			c.Close()
+		}
 		if s.task.Client.GetConn() {
 			logs.Trace("New tcp connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
 			go s.process(conn.NewConn(c), s)
@@ -69,6 +73,10 @@ type WebServer struct {
 //开始
 func (s *WebServer) Start() error {
 	p, _ := beego.AppConfig.Int("httpport")
+	if p == 0 {
+		stop := make(chan struct{})
+		<-stop
+	}
 	if !common.TestTcpPort(p) {
 		logs.Error("Web management port %d is occupied", p)
 		os.Exit(0)
@@ -96,7 +104,7 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	return s.DealClient(c, s.task.Target, nil)
+	return s.DealClient(c, s.task.Target, nil, common.CONN_TCP)
 }
 
 //http代理模式
@@ -114,5 +122,5 @@ func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
 		return err
 	}
-	return s.DealClient(c, addr, rb)
+	return s.DealClient(c, addr, rb, common.CONN_TCP)
 }

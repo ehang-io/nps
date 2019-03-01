@@ -13,7 +13,6 @@ import (
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
 	"os"
-
 	"path/filepath"
 )
 
@@ -24,6 +23,7 @@ var (
 
 func main() {
 	flag.Parse()
+	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf"))
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "test":
@@ -37,7 +37,6 @@ func main() {
 			return
 		}
 	}
-	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf"))
 	if level = beego.AppConfig.String("logLevel"); level == "" {
 		level = "7"
 	}

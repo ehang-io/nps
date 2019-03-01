@@ -21,6 +21,7 @@ type LocalServer struct {
 	Type     string
 	Port     int
 	Password string
+	Target   string
 }
 type Config struct {
 	content      string
@@ -115,7 +116,7 @@ func dealCommon(s string) *CommonConfig {
 		case "password":
 			c.Cnf.P = item[1]
 		case "compress":
-			c.Cnf.Compress = item[1]
+			c.Cnf.Compress = common.GetBoolByStr(item[1])
 		case "crypt":
 			c.Cnf.Crypt = common.GetBoolByStr(item[1])
 		case "proxy_socks5_url":
@@ -202,6 +203,8 @@ func delLocalService(s string) *LocalServer {
 			l.Port = common.GetIntNoErrByStr(item[1])
 		case "password":
 			l.Password = item[1]
+		case "target":
+			l.Target = item[1]
 		}
 	}
 	return l

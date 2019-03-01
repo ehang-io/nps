@@ -1,64 +1,89 @@
 <div class="row tile">
-    <div class="col-md-6 col-md-auto">
-        <div>
-            <h3 class="tile-title">修改</h3>
-            <div class="tile-body">
-                <form>
+    <div class="col-md-12 col-md-auto">
+        <div class="ibox float-e-margins">
+            <h3 class="ibox-title">编辑</h3>
+            <div class="ibox-content">
+                <form class="form-horizontal">
                     <input type="hidden" name="id" value="{{.t.Id}}">
                     <div class="form-group">
-                        <label class="control-label">模式</label>
-                        <select class="form-control" name="type" id="type">
-                            <option {{if eq "tcpServer" .t.Mode}}selected{{end}} value="tcpServer">tcp隧道</option>
-                            <option {{if eq "udpServer" .t.Mode}}selected{{end}} value="udpServer">udp隧道</option>
-                            <option {{if eq "socks5Server" .t.Mode}}selected{{end}} value="socks5Server">socks5代理
-                            </option>
-                            <option {{if eq "httpProxyServer" .t.Mode}}selected{{end}} value="httpProxyServer">http代理
-                            <option {{if eq "secretServer" .t.Mode}}selected{{end}} value="secretServer">私密代理
-                        </select>
+                        <label class="col-sm-2 control-label">mode </label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="type" id="type">
+                                <option {{if eq "tcp" .t.Mode}}selected{{end}} value="tcp">tcp</option>
+                                <option {{if eq "udp" .t.Mode}}selected{{end}} value="udp">udp</option>
+                                <option {{if eq "socks5" .t.Mode}}selected{{end}} value="socks5">socks5
+                                </option>
+                                <option {{if eq "httpProxy" .t.Mode}}selected{{end}} value="httpProxy">http
+                                <option {{if eq "secret" .t.Mode}}selected{{end}} value="secret">secret
+                                <option {{if eq "p2p" .t.Mode}}selected{{end}} value="p2p">p2p
+                            </select>
+                        </div>
                     </div>
+
                     <div class="form-group">
-                        <label class="control-label">备注</label>
-                        <input class="form-control" value="{{.t.Remark}}" type="text" name="remark" placeholder="备注">
+                        <label class="col-sm-2 control-label">remark</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.Remark}}" class="form-control" type="text" name="remark"
+                                   placeholder="empty means to be unrestricted">
+                        </div>
                     </div>
+
                     <div class="form-group" id="port">
-                        <label class="control-label">监听的端口</label>
-                        <input class="form-control" value="{{.t.Port}}" type="text" name="port"
-                               placeholder="公网服务器对外访问端口，例如8024">
+                        <label class="col-sm-2 control-label">port of server</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.Port}}" class="form-control" type="text" name="port" placeholder="such as 8024">
+                        </div>
                     </div>
                     <div class="form-group" id="target">
-                        <label class="control-label">内网目标(仅tcp、udp隧道模式需填写)</label>
-                        <input class="form-control" value="{{.t.Target}}" type="text" name="target"
-                               placeholder="内网隧道目标，例如10.1.50.203:22">
+                        <label class="col-sm-2 control-label">target of Intranet(ip:port)</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.Target}}" class="form-control" type="text" name="target"
+                                   placeholder="such as 10.1.50.203:22 ">
+                            <span class="help-block m-b-none">can only fill in ports if it is local machine proxy</span>
+                        </div>
                     </div>
+
                     <div class="form-group" id="client_id">
-                        <label class="control-label">客户端ID</label>
-                        <input class="form-control" value="{{.t.Client.Id}}" type="text" name="client_id"
-                               placeholder="客户端id">
+                        <label class="col-sm-2 control-label">id of client</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.Client.Id}}" value="{{.client_id}}" class="form-control" type="text" name="client_id"
+                                   placeholder="id of client">
+                        </div>
                     </div>
+
                     <div class="form-group" id="password">
-                        <label class="control-label">私密模式唯一密钥</label>
-                        <input class="form-control" value="{{.t.Password}}" type="text" name="password"
-                               placeholder="私密模式唯一密钥">
+                        <label class="col-sm-2 control-label">unique identification key</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.Password}}" class="form-control" type="text" name="password"
+                                   placeholder="unique identification key">
+                            <span class="help-block m-b-none">when p2p or secret</span>
+                        </div>
                     </div>
+                    <div class="hr-line-dashed"></div>
+                    <div class="form-group">
+                        <div class="col-sm-4 col-sm-offset-2">
+                            <button class="btn btn-success" href="#" id="add"><i
+                                class="fa fa-fw fa-lg fa-eye"></i>save
+                        </button>
+                        </div>
+                    </div>
+
                 </form>
-            </div>
-            <div class="tile-footer">
-                &nbsp;&nbsp;<button class="btn btn-success" href="#" id="add"><i
-                    class="fa fa-fw fa-lg fa-eye"></i>保存
-            </button>
             </div>
         </div>
     </div>
 </div>
+
 </main>
 <script>
     var arr = []
-    arr["all"] = ["type", "port", "compress", "u", "p", "target"]
-    arr["tcpServer"] = ["type", "port", "target", "u", "p", "compress"]
-    arr["udpServer"] = ["type", "port", "target", "compress"]
-    arr["socks5Server"] = ["type", "port", "compress", "u", "p"]
-    arr["httpProxyServer"] = ["type", "port", "compress", "u", "p"]
-    arr["secretServer"] = ["type", "target", "compress", "u", "p","password"]
+    arr["all"] = ["type", "port", "compress", "u", "p", "target","password"]
+    arr["tcp"] = ["type", "port", "target", "u", "p", "compress"]
+    arr["udp"] = ["type", "port", "target", "compress"]
+    arr["socks5"] = ["type", "port", "compress", "u", "p"]
+    arr["httpProxy"] = ["type", "port", "compress", "u", "p"]
+    arr["secret"] = ["type", "target", "compress", "u", "p","password"]
+    arr["p2p"] = ["type", "compress", "u", "p","password"]
     arrClientHide = ["compress", "u", "p", "crypt", "mux"]
 
     function resetForm() {

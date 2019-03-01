@@ -43,7 +43,7 @@ func TestConfig(t *testing.T) {
 	}
 	tunnel := &file.Tunnel{
 		Port:   9001,
-		Mode:   "tcpServer",
+		Mode:   "tcp",
 		Target: "127.0.0.1:8082",
 		Remark: "333",
 	}

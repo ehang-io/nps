@@ -9,6 +9,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -116,17 +117,16 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 	//多客户端域名代理
 	var (
 		isConn   = true
-		lk       *conn.Link
 		host     *file.Host
-		tunnel   *conn.Conn
+		target   net.Conn
 		lastHost *file.Host
 		err      error
 	)
 	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 		goto end
-	} else if !host.Client.GetConn() {
-		logs.Notice("Connections exceed the current client %d limit", host.Client.Id)
+	} else if !host.Client.GetConn() { //conn num limit
+		logs.Notice("Connections exceed the current client %d limit %d ,now connection num %d", host.Client.Id, host.Client.MaxConn, host.Client.NowConn)
 		c.Close()
 		return
 	} else {
@@ -138,20 +138,26 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		if isConn {
 			//流量限制
 			if host.Client.Flow.FlowLimit > 0 && (host.Client.Flow.FlowLimit<<20) < (host.Client.Flow.ExportFlow+host.Client.Flow.InletFlow) {
+				logs.Warn("Traffic exceeded client id %s", host.Client.Id)
 				break
 			}
-			host.Client.Cnf.CompressDecode, host.Client.Cnf.CompressEncode = common.GetCompressType(host.Client.Cnf.Compress)
 			//权限控制
 			if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
+				logs.Warn("auth error", err, r.RemoteAddr)
 				break
 			}
-			lk = conn.NewLink(host.Client.GetId(), common.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.CompressEncode, host.Client.Cnf.CompressDecode, host.Client.Cnf.Crypt, c, host.Flow, nil, host.Client.Rate, nil)
-			if tunnel, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String()); err != nil {
-				logs.Notice(err)
+			lk := conn.NewLink(common.CONN_TCP, host.Target, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
+			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String()); err != nil {
+				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
 			}
-			lk.RunWrite()
 			isConn = false
+			go func() {
+				w, _ := common.CopyBuffer(c, conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate))
+				host.Flow.Add(0, w)
+				c.Close()
+				target.Close()
+			}()
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
 			if err != nil {
@@ -174,20 +180,18 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		if err != nil {
 			break
 		}
-		host.Flow.Add(len(b), 0)
-		if _, err := tunnel.SendMsg(b, lk); err != nil {
-			c.Close()
-			break
-		}
-		<-lk.StatusCh
+		host.Flow.Add(int64(len(b)), 0)
+		//write
+		target.Write(b)
 	}
 end:
 	if isConn {
 		s.writeConnFail(c.Conn)
-	} else {
-		tunnel.SendMsg([]byte(common.IO_EOF), lk)
 	}
 	c.Close()
+	if target != nil {
+		target.Close()
+	}
 	if host != nil {
 		host.Client.AddConn()
 	}

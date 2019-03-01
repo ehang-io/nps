@@ -141,16 +141,18 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	} else {
 		ltype = common.CONN_TCP
 	}
-	link := conn.NewLink(s.task.Client.GetId(), ltype, addr, s.task.Client.Cnf.CompressEncode, s.task.Client.Cnf.CompressDecode, s.task.Client.Cnf.Crypt, conn.NewConn(c), s.task.Flow, nil, s.task.Client.Rate, nil)
+	//s.DealClient(conn.NewConn(c), addr, nil, ltype)
+	link := conn.NewLink(ltype, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.RemoteAddr().String())
 
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.RemoteAddr().String()); err != nil {
+	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.RemoteAddr().String()); err != nil {
 		c.Close()
 		return
 	} else {
 		s.sendReply(c, succeeded)
-		link.RunWrite()
-		s.linkCopy(link, conn.NewConn(c), nil, tunnel, s.task.Flow)
+		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow)
 	}
+
+	s.task.Client.AddConn()
 	return
 }
 
@@ -271,6 +273,10 @@ func (s *Sock5ModeServer) Start() error {
 				break
 			}
 			logs.Warn("accept error: ", err)
+		}
+		if err := s.checkFlow(); err != nil {
+			logs.Warn("client id %d  task id %d  error  %s", s.task.Client.Id, s.task.Id, err.Error())
+			conn.Close()
 		}
 		if s.task.Client.GetConn() {
 			logs.Trace("New socks5 connection,client %d,remote address %s", s.task.Client.Id, conn.RemoteAddr())

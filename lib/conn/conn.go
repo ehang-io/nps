@@ -69,36 +69,34 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 	return
 }
 
-func (s *Conn) GetLenContent() (b []byte, err error) {
+func (s *Conn) GetShortLenContent() (b []byte, err error) {
 	var l int
 	if l, err = s.GetLen(); err != nil {
 		return
 	}
-	b, err = s.ReadLen(l)
-	return
+	if l < 0 || l > 32<<10 {
+		err = errors.New("read length error")
+		return
+	}
+	return s.GetShortContent(l)
+}
+
+func (s *Conn) GetShortContent(l int) (b []byte, err error) {
+	buf := make([]byte, l)
+	return buf, binary.Read(s, binary.LittleEndian, &buf)
 }
 
 //读取指定长度内容
-func (s *Conn) ReadLen(cLen int) ([]byte, error) {
-	if cLen > pool.PoolSize {
-		return nil, errors.New("长度错误" + strconv.Itoa(cLen))
+func (s *Conn) ReadLen(cLen int, buf []byte) (int, error) {
+	if cLen > len(buf) {
+		return 0, errors.New("长度错误" + strconv.Itoa(cLen))
 	}
-	var buf []byte
-	if cLen < pool.PoolSizeSmall {
-		buf = pool.BufPoolSmall.Get().([]byte)[:cLen]
-		//TODO 回收
-		//defer pool.PutBufPoolSmall(buf)
-	} else {
-		buf = pool.BufPoolMax.Get().([]byte)[:cLen]
-		//defer pool.PutBufPoolMax(buf)
+	if n, err := io.ReadFull(s, buf[:cLen]); err != nil || n != cLen {
+		return n, errors.New("Error reading specified length " + err.Error())
 	}
-	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
-		return buf, errors.New("Error reading specified length " + err.Error())
-	}
-	return buf, nil
+	return cLen, nil
 }
 
-//read length or id (content length=4)
 func (s *Conn) GetLen() (int, error) {
 	var l int32
 	err := binary.Read(s, binary.LittleEndian, &l)
@@ -115,26 +113,8 @@ func (s *Conn) WriteLenContent(buf []byte) (err error) {
 
 //read flag
 func (s *Conn) ReadFlag() (string, error) {
-	val, err := s.ReadLen(4)
-	if err != nil {
-		return "", err
-	}
-	return string(val), err
-}
-
-//read connect status
-func (s *Conn) GetConnStatus() (id int, status bool, err error) {
-	id, err = s.GetLen()
-	if err != nil {
-		return
-	}
-	var b []byte
-	if b, err = s.ReadLen(1); err != nil {
-		return
-	} else {
-		status = common.GetBoolByStr(string(b[0]))
-	}
-	return
+	buf := make([]byte, 4)
+	return string(buf), binary.Read(s, binary.LittleEndian, &buf)
 }
 
 //设置连接为长连接
@@ -179,102 +159,32 @@ func (s *Conn) SetKcpReadDeadline(t time.Duration) {
 	s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 }
 
-//单独读（加密|压缩）
-func (s *Conn) ReadFrom(b []byte, compress int, crypt bool, rate *rate.Rate) (int, error) {
-	if common.COMPRESS_SNAPY_DECODE == compress {
-		return NewSnappyConn(s.Conn, crypt, rate).Read(b)
-	}
-	return NewCryptConn(s.Conn, crypt, rate).Read(b)
-}
-
-//单独写（加密|压缩）
-func (s *Conn) WriteTo(b []byte, compress int, crypt bool, rate *rate.Rate) (n int, err error) {
-	if common.COMPRESS_SNAPY_ENCODE == compress {
-		return NewSnappyConn(s.Conn, crypt, rate).Write(b)
-	}
-	return NewCryptConn(s.Conn, crypt, rate).Write(b)
-}
-
-//send msg
-func (s *Conn) SendMsg(content []byte, link *Link) (n int, err error) {
-	/*
-		The msg info is formed as follows:
-		+----+--------+
-		|id | content |
-		+----+--------+
-		| 4  |  ...   |
-		+----+--------+
-	*/
-	s.Lock()
-	defer s.Unlock()
-	if err = binary.Write(s.Conn, binary.LittleEndian, int32(link.Id)); err != nil {
-		return
-	}
-	n, err = s.WriteTo(content, link.En, link.Crypt, link.Rate)
-	return
-}
-
-//get msg content from conn
-func (s *Conn) GetMsgContent(link *Link) (content []byte, err error) {
-	s.Lock()
-	defer s.Unlock()
-	buf := pool.BufPoolCopy.Get().([]byte)
-	if n, err := s.ReadFrom(buf, link.De, link.Crypt, link.Rate); err == nil {
-		content = buf[:n]
-	}
-	return
-}
-
 //send info for link
 func (s *Conn) SendLinkInfo(link *Link) (int, error) {
-	/*
-		The  link info is formed as follows:
-		+----------+------+----------+------+----------+-----+
-		| id | len | type |  hostlen | host | en | de |crypt |
-		+----------+------+----------+------+---------+------+
-		| 4  |  4  |  3   |     4    | host | 1  | 1  |   1  |
-		+----------+------+----------+------+----+----+------+
-	*/
 	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONN))
-	binary.Write(raw, binary.LittleEndian, int32(14+len(link.Host)))
-	binary.Write(raw, binary.LittleEndian, int32(link.Id))
-	binary.Write(raw, binary.LittleEndian, []byte(link.ConnType))
-	binary.Write(raw, binary.LittleEndian, int32(len(link.Host)))
-	binary.Write(raw, binary.LittleEndian, []byte(link.Host))
-	binary.Write(raw, binary.LittleEndian, []byte(strconv.Itoa(link.En)))
-	binary.Write(raw, binary.LittleEndian, []byte(strconv.Itoa(link.De)))
-	binary.Write(raw, binary.LittleEndian, []byte(common.GetStrByBool(link.Crypt)))
+	common.BinaryWrite(raw, link.ConnType, link.Host, common.GetStrByBool(link.Compress), common.GetStrByBool(link.Crypt), link.RemoteAddr)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
 }
 
+//get link info from conn
 func (s *Conn) GetLinkInfo() (lk *Link, err error) {
-	s.Lock()
-	defer s.Unlock()
-	var hostLen, n int
-	var buf []byte
-	if n, err = s.GetLen(); err != nil {
-		return
-	}
 	lk = new(Link)
-	if buf, err = s.ReadLen(n); err != nil {
+	var l int
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
+	if l, err = s.GetLen(); err != nil {
 		return
-	}
-	if lk.Id, err = GetLenByBytes(buf[:4]); err != nil {
-		return
-	}
-	lk.ConnType = string(buf[4:7])
-	if hostLen, err = GetLenByBytes(buf[7:11]); err != nil {
+	} else if _, err = s.ReadLen(l, buf); err != nil {
 		return
 	} else {
-		lk.Host = string(buf[11 : 11+hostLen])
-		lk.En = common.GetIntNoErrByStr(string(buf[11+hostLen]))
-		lk.De = common.GetIntNoErrByStr(string(buf[12+hostLen]))
-		lk.Crypt = common.GetBoolByStr(string(buf[13+hostLen]))
-		lk.MsgCh = make(chan []byte)
-		lk.StatusCh = make(chan bool)
+		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
+		lk.ConnType = arr[0]
+		lk.Host = arr[1]
+		lk.Compress = common.GetBoolByStr(arr[2])
+		lk.Crypt = common.GetBoolByStr(arr[3])
+		lk.RemoteAddr = arr[4]
 	}
 	return
 }
@@ -297,6 +207,7 @@ func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
 	return s.Write(raw.Bytes())
 }
 
+//get task or host result of add
 func (s *Conn) GetAddStatus() (b bool) {
 	binary.Read(s.Conn, binary.LittleEndian, &b)
 	return
@@ -314,13 +225,14 @@ func (s *Conn) WriteAddFail() error {
 //get task info
 func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 	var l int
-	var b []byte
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
-	} else if b, err = s.ReadLen(l); err != nil {
+	} else if _, err = s.ReadLen(l, buf); err != nil {
 		return
 	} else {
-		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
+		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		h = new(file.Host)
 		h.Id = file.GetCsvDb().GetHostId()
 		h.Host = arr[0]
@@ -347,7 +259,7 @@ func (s *Conn) SendConfigInfo(c *config.CommonConfig) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONF))
-	common.BinaryWrite(raw, c.Cnf.U, c.Cnf.P, common.GetStrByBool(c.Cnf.Crypt), c.Cnf.Compress, strconv.Itoa(c.Client.RateLimit),
+	common.BinaryWrite(raw, c.Cnf.U, c.Cnf.P, common.GetStrByBool(c.Cnf.Crypt), common.GetStrByBool(c.Cnf.Compress), strconv.Itoa(c.Client.RateLimit),
 		strconv.Itoa(int(c.Client.Flow.FlowLimit)), strconv.Itoa(c.Client.MaxConn), c.Client.Remark)
 	s.Lock()
 	defer s.Unlock()
@@ -357,23 +269,23 @@ func (s *Conn) SendConfigInfo(c *config.CommonConfig) (int, error) {
 //get task info
 func (s *Conn) GetConfigInfo() (c *file.Client, err error) {
 	var l int
-	var b []byte
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
-	} else if b, err = s.ReadLen(l); err != nil {
+	} else if _, err = s.ReadLen(l, buf); err != nil {
 		return
 	} else {
-		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
+		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		c = file.NewClient("", true, false)
 		c.Cnf.U = arr[0]
 		c.Cnf.P = arr[1]
 		c.Cnf.Crypt = common.GetBoolByStr(arr[2])
-		c.Cnf.Compress = arr[3]
+		c.Cnf.Compress = common.GetBoolByStr(arr[3])
 		c.RateLimit = common.GetIntNoErrByStr(arr[4])
 		c.Flow.FlowLimit = int64(common.GetIntNoErrByStr(arr[5]))
 		c.MaxConn = common.GetIntNoErrByStr(arr[6])
 		c.Remark = arr[7]
-		c.Cnf.CompressDecode, c.Cnf.CompressDecode = common.GetCompressType(arr[3])
 	}
 	return
 }
@@ -399,13 +311,14 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 //get task info
 func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 	var l int
-	var b []byte
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
-	} else if b, err = s.ReadLen(l); err != nil {
+	} else if _, err = s.ReadLen(l, buf); err != nil {
 		return
 	} else {
-		arr := strings.Split(string(b), common.CONN_DATA_SEQ)
+		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		t = new(file.Tunnel)
 		t.Mode = arr[0]
 		t.Ports = arr[1]
@@ -421,30 +334,6 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 	return
 }
 
-func (s *Conn) WriteWriteSuccess(id int) error {
-	return binary.Write(s.Conn, binary.LittleEndian, int32(id))
-}
-
-//write connect success
-func (s *Conn) WriteSuccess(id int) (int, error) {
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, int32(id))
-	binary.Write(raw, binary.LittleEndian, []byte("1"))
-	s.Lock()
-	defer s.Unlock()
-	return s.Write(raw.Bytes())
-}
-
-//write connect fail
-func (s *Conn) WriteFail(id int) (int, error) {
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, int32(id))
-	binary.Write(raw, binary.LittleEndian, []byte("0"))
-	s.Lock()
-	defer s.Unlock()
-	return s.Write(raw.Bytes())
-}
-
 //close
 func (s *Conn) Close() error {
 	return s.Conn.Close()
@@ -458,16 +347,6 @@ func (s *Conn) Write(b []byte) (int, error) {
 //read
 func (s *Conn) Read(b []byte) (int, error) {
 	return s.Conn.Read(b)
-}
-
-//write error
-func (s *Conn) WriteError() (int, error) {
-	return s.Write([]byte(common.RES_MSG))
-}
-
-//write sign flag
-func (s *Conn) WriteSign() (int, error) {
-	return s.Write([]byte(common.RES_SIGN))
 }
 
 //write sign flag
@@ -495,6 +374,7 @@ func (s *Conn) WriteChan() (int, error) {
 	defer s.Unlock()
 	return s.Write([]byte(common.WORK_CHAN))
 }
+
 //获取长度+内容
 func GetLenBytes(buf []byte) (b []byte, err error) {
 	raw := bytes.NewBuffer([]byte{})
@@ -508,16 +388,6 @@ func GetLenBytes(buf []byte) (b []byte, err error) {
 	return
 }
 
-
-//解析出长度
-func GetLenByBytes(buf []byte) (int, error) {
-	nlen := binary.LittleEndian.Uint32(buf)
-	if nlen <= 0 {
-		return 0, errors.New("数据长度错误")
-	}
-	return int(nlen), nil
-}
-
 func SetUdpSession(sess *kcp.UDPSession) {
 	sess.SetStreamMode(true)
 	sess.SetWindowSize(1024, 1024)
@@ -527,4 +397,41 @@ func SetUdpSession(sess *kcp.UDPSession) {
 	sess.SetMtu(1600)
 	sess.SetACKNoDelay(true)
 	sess.SetWriteDelay(false)
+}
+
+//conn1 mux conn
+func CopyWaitGroup(conn1, conn2 io.ReadWriteCloser, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow) {
+	var in, out int64
+	var wg sync.WaitGroup
+	conn1 = GetConn(conn1, crypt, snappy, rate)
+	go func(in *int64) {
+		wg.Add(1)
+		*in, _ = common.CopyBuffer(conn1, conn2)
+		conn1.Close()
+		conn2.Close()
+		wg.Done()
+	}(&in)
+	out, _ = common.CopyBuffer(conn2, conn1)
+	conn1.Close()
+	conn2.Close()
+	wg.Wait()
+	if flow != nil {
+		flow.Add(in, out)
+	}
+}
+
+//get crypt or snappy conn
+func GetConn(conn io.ReadWriteCloser, crypt, snappy bool, rate *rate.Rate) (io.ReadWriteCloser) {
+	if crypt {
+		conn = NewCryptConn(conn, true, rate)
+	} else if snappy {
+		conn = NewSnappyConn(conn, crypt, rate)
+	}
+	return conn
+}
+
+//read length or id (content length=4)
+func GetLen(reader io.Reader) (int, error) {
+	var l int32
+	return int(l), binary.Read(reader, binary.LittleEndian, &l)
 }

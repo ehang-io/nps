@@ -124,6 +124,7 @@ func (s *Csv) GetTaskId() int {
 	s.TaskIncreaseId++
 	return s.TaskIncreaseId
 }
+
 func (s *Csv) GetHostId() int {
 	s.Lock()
 	defer s.Unlock()
@@ -147,7 +148,7 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 
 func (s *Csv) NewTask(t *Tunnel) error {
 	for _, v := range s.Tasks {
-		if v.Mode == "secretServer" && v.Password == t.Password {
+		if v.Mode == "secret" && v.Password == t.Password {
 			return errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
 		}
 	}
@@ -256,7 +257,7 @@ func (s *Csv) LoadClientFromCsv() {
 				U:        item[4],
 				P:        item[5],
 				Crypt:    common.GetBoolByStr(item[6]),
-				Compress: item[7],
+				Compress: common.GetBoolByStr(item[7]),
 			},
 			MaxConn: common.GetIntNoErrByStr(item[10]),
 		}
@@ -327,10 +328,14 @@ func (s *Csv) IsHostExist(h *Host) bool {
 	return false
 }
 
-func (s *Csv) NewHost(t *Host) {
+func (s *Csv) NewHost(t *Host) error {
+	if s.IsHostExist(t) {
+		return errors.New("host has exist")
+	}
 	t.Flow = new(Flow)
 	s.Hosts = append(s.Hosts, t)
 	s.StoreHostToCsv()
+	return nil
 }
 
 func (s *Csv) UpdateHost(t *Host) error {
@@ -535,7 +540,7 @@ func (s *Csv) StoreClientsToCsv() {
 			client.Cnf.U,
 			client.Cnf.P,
 			common.GetStrByBool(client.Cnf.Crypt),
-			client.Cnf.Compress,
+			strconv.FormatBool(client.Cnf.Compress),
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
 			strconv.Itoa(int(client.MaxConn)),

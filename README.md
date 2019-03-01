@@ -432,13 +432,13 @@ header_xxx|请求header修改或添加，header_proxy表示添加header proxy:np
 
 ```ini
 [tcp]
-mode=tcpServer
+mode=tcp
 target=127.0.0.1:8080
 port=9001
 ```
 项 | 含义
 ---|---
-mode | tcpServer
+mode | tcp
 port | 在服务端的代理端口
 target|内网目标
 
@@ -446,48 +446,48 @@ target|内网目标
 
 ```ini
 [udp]
-mode=udpServer
+mode=udp
 target=127.0.0.1:8080
 port=9002
 ```
 项 | 含义
 ---|---
-mode | udpServer
+mode | udp
 port | 在服务端的代理端口
 target|内网目标
 ##### http代理模式
 
 ```ini
 [http]
-mode=httpProxyServer
+mode=httpProxy
 port=9003
 ```
 项 | 含义
 ---|---
-mode | httpProxyServer
+mode | httpProxy
 port | 在服务端的代理端口
 ##### socks5代理模式
 
 ```ini
 [socks5]
-mode=socks5Server
+mode=socks5
 port=9004
 ```
 项 | 含义
 ---|---
-mode | socks5Server
+mode | socks5
 port | 在服务端的代理端口
 ##### 私密代理模式
 
 ```ini
 [secret_ssh]
-mode=secretServer
+mode=secret
 password=ssh2
 target=10.1.50.2:22
 ```
 项 | 含义
 ---|---
-mode | secretServer
+mode | secret
 password | 唯一密钥
 target|内网目标
 
@@ -600,7 +600,7 @@ allowPorts=9001-9009,10001,11000-12000
 
 ```ini
 [tcp]
-mode=tcpServer
+mode=tcp
 port=9001-9009,10001,11000-12000
 target=8001-8009,10002,13000-14000
 ```
@@ -609,7 +609,7 @@ target=8001-8009,10002,13000-14000
 ### 端口范围映射到其他机器
 ```ini
 [tcp]
-mode=tcpServer
+mode=tcp
 port=9001-9009,10001,11000-12000
 target=8001-8009,10002,13000-14000
 targetAddr=10.1.50.2

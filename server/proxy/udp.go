@@ -14,13 +14,11 @@ import (
 type UdpModeServer struct {
 	BaseServer
 	listener *net.UDPConn
-	udpMap   map[string]*conn.Conn
 }
 
 func NewUdpModeServer(bridge *bridge.Bridge, task *file.Tunnel) *UdpModeServer {
 	s := new(UdpModeServer)
 	s.bridge = bridge
-	s.udpMap = make(map[string]*conn.Conn)
 	s.task = task
 	return s
 }
@@ -41,24 +39,31 @@ func (s *UdpModeServer) Start() error {
 			}
 			continue
 		}
-		logs.Trace("New ydo connection,client %d,remote address %s", s.task.Client.Id, addr)
+		logs.Trace("New udp connection,client %d,remote address %s", s.task.Client.Id, addr)
 		go s.process(addr, buf[:n])
 	}
 	return nil
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	link := conn.NewLink(s.task.Client.GetId(), common.CONN_UDP, s.task.Target, s.task.Client.Cnf.CompressEncode, s.task.Client.Cnf.CompressDecode, s.task.Client.Cnf.Crypt, nil, s.task.Flow, s.listener, s.task.Client.Rate, addr)
+	link := conn.NewLink(common.CONN_UDP, s.task.Target, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String())
 	if err := s.checkFlow(); err != nil {
 		return
 	}
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, addr.String()); err != nil {
+	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, addr.String()); err != nil {
 		return
 	} else {
-		s.task.Flow.Add(len(data), 0)
-		tunnel.SendMsg(data, link)
-		pool.PutBufPoolUdp(data)
-		link.RunWrite()
+		s.task.Flow.Add(int64(len(data)), 0)
+		buf := pool.BufPoolUdp.Get().([]byte)
+		defer pool.BufPoolUdp.Put(buf)
+		target.Write(data)
+		if n, err := target.Read(buf); err != nil {
+			logs.Warn(err)
+			return
+		} else {
+			s.listener.WriteTo(buf[:n], addr)
+			s.task.Flow.Add(0, int64(n))
+		}
 	}
 }
 

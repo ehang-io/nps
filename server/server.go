@@ -9,17 +9,26 @@ import (
 	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/load"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/net"
+	"math"
 	"os"
+	"strconv"
 	"time"
 )
 
 var (
-	Bridge  *bridge.Bridge
-	RunList map[int]interface{} //运行中的任务
+	Bridge       *bridge.Bridge
+	RunList      map[int]interface{} //运行中的任务
+	serverStatus []map[string]interface{}
 )
 
 func init() {
 	RunList = make(map[int]interface{})
+	serverStatus = make([]map[string]interface{}, 0, 1500)
+	go getSeverStatus()
 }
 
 //从csv文件中恢复任务
@@ -53,7 +62,7 @@ func DealBridgeTask() {
 					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
 					s.Conn.Close()
 				} else if t.Status {
-					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Target, nil)
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Target, nil, common.CONN_TCP)
 				} else {
 					s.Conn.Close()
 					logs.Trace("This key %s cannot be processed,status is close", s.Password)
@@ -76,6 +85,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		logs.Info("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
 	}
 	if p, err := beego.AppConfig.Int("p2pPort"); err == nil {
+		logs.Info("start p2p server port", p)
 		go proxy.NewP2PServer(p).Start()
 	}
 	go DealBridgeTask()
@@ -93,13 +103,13 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 	var service proxy.Service
 	switch c.Mode {
-	case "tcpServer":
+	case "tcp":
 		service = proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
-	case "socks5Server":
+	case "socks5":
 		service = proxy.NewSock5ModeServer(Bridge, c)
-	case "httpProxyServer":
+	case "httpProxy":
 		service = proxy.NewTunnelModeServer(proxy.ProcessHttp, Bridge, c)
-	case "udpServer":
+	case "udp":
 		service = proxy.NewUdpModeServer(Bridge, c)
 	case "webServer":
 		InitFromCsv()
@@ -139,7 +149,7 @@ func StopServer(id int) error {
 
 //add task
 func AddTask(t *file.Tunnel) error {
-	if t.Mode == "secretServer" {
+	if t.Mode == "secret" || t.Mode == "p2p" {
 		logs.Info("secret task %s start ", t.Remark)
 		RunList[t.Id] = nil
 		return nil
@@ -269,11 +279,11 @@ func DelTunnelAndHostByClientId(clientId int) {
 
 //关闭客户端连接
 func DelClientConnect(clientId int) {
-	Bridge.DelClient(clientId)
+	Bridge.DelClient(clientId, false)
 }
 
-func GetDashboardData() map[string]int {
-	data := make(map[string]int)
+func GetDashboardData() map[string]interface{} {
+	data := make(map[string]interface{})
 	data["hostCount"] = len(file.GetCsvDb().Hosts)
 	data["clientCount"] = len(file.GetCsvDb().Clients) - 1 //Remove the public key client
 	list := file.GetCsvDb().Clients
@@ -290,23 +300,74 @@ func GetDashboardData() map[string]int {
 	data["clientOnlineCount"] = c
 	data["inletFlowCount"] = int(in)
 	data["exportFlowCount"] = int(out)
+	var tcp, udp, secret, socks5, p2p, http int
 	for _, v := range file.GetCsvDb().Tasks {
 		switch v.Mode {
-		case "tcpServer":
-			data["tcpServerCount"] += 1
-		case "socks5Server":
-			data["socks5ServerCount"] += 1
-		case "httpProxyServer":
-			data["httpProxyServerCount"] += 1
-		case "udpServer":
-			data["udpServerCount"] += 1
+		case "tcp":
+			tcp += 1
+		case "socks5":
+			udp += 1
+		case "httpProxy":
+			http += 1
+		case "udp":
+			udp += 1
+		case "p2p":
+			p2p += 1
+		case "secret":
+			secret += 1
 		}
 	}
+	data["tcpC"] = tcp
+	data["udpCount"] = udp
+	data["socks5Count"] = socks5
+	data["httpProxyCount"] = http
+	data["secretCount"] = secret
+	data["p2pCount"] = p2p
+	data["bridgeType"] = beego.AppConfig.String("bridgeType")
+	data["httpProxyPort"] = beego.AppConfig.String("httpProxyPort")
+	data["httpsProxyPort"] = beego.AppConfig.String("httpsProxyPort")
+	data["ipLimit"] = beego.AppConfig.String("ipLimit")
+	data["flowStoreInterval"] = beego.AppConfig.String("flowStoreInterval")
+	data["serverIp"] = beego.AppConfig.String("serverIp")
+	data["p2pPort"] = beego.AppConfig.String("p2pPort")
+	data["logLevel"] = beego.AppConfig.String("logLevel")
 	tcpCount := 0
 	for _, v := range file.GetCsvDb().Clients {
 		tcpCount += v.NowConn
 	}
 	data["tcpCount"] = tcpCount
+	cpuPercet, _ := cpu.Percent(0, true)
+	var cpuAll float64
+	for _, v := range cpuPercet {
+		cpuAll += v
+	}
+	loads, _ := load.Avg()
+	data["load"] = loads.String()
+	data["cpu"] = math.Round(cpuAll / float64(len(cpuPercet)))
+	swap, _ := mem.SwapMemory()
+	data["swap_mem"] = math.Round(swap.UsedPercent)
+	vir, _ := mem.VirtualMemory()
+	data["virtual_mem"] = math.Round(vir.UsedPercent)
+	conn, _ := net.ProtoCounters(nil)
+	io1, _ := net.IOCounters(false)
+	time.Sleep(time.Millisecond * 500)
+	io2, _ := net.IOCounters(false)
+	if len(io2) > 0 && len(io1) > 0 {
+		data["io_send"] = (io2[0].BytesSent - io1[0].BytesSent) * 2
+		data["io_recv"] = (io2[0].BytesRecv - io1[0].BytesRecv) * 2
+	}
+	for _, v := range conn {
+		data[v.Protocol] = v.Stats["CurrEstab"]
+	}
+	//chart
+	var fg int
+	if len(serverStatus) >= 10 {
+		fg = len(serverStatus) / 10
+		for i := 0; i <= 9; i++ {
+			data["sys"+strconv.Itoa(i+1)] = serverStatus[i*fg]
+		}
+	}
+
 	return data
 }
 
@@ -318,5 +379,48 @@ func flowSession(m time.Duration) {
 			file.GetCsvDb().StoreHostToCsv()
 			file.GetCsvDb().StoreTasksToCsv()
 		}
+	}
+}
+
+func getSeverStatus() {
+	for {
+		if len(serverStatus) < 10 {
+			time.Sleep(time.Second)
+		} else {
+			time.Sleep(time.Minute)
+		}
+		cpuPercet, _ := cpu.Percent(0, true)
+		var cpuAll float64
+		for _, v := range cpuPercet {
+			cpuAll += v
+		}
+		m := make(map[string]interface{})
+		loads, _ := load.Avg()
+		m["load1"] = loads.Load1
+		m["load5"] = loads.Load5
+		m["load15"] = loads.Load15
+		m["cpu"] = math.Round(cpuAll / float64(len(cpuPercet)))
+		swap, _ := mem.SwapMemory()
+		m["swap_mem"] = math.Round(swap.UsedPercent)
+		vir, _ := mem.VirtualMemory()
+		m["virtual_mem"] = math.Round(vir.UsedPercent)
+		conn, _ := net.ProtoCounters(nil)
+		io1, _ := net.IOCounters(false)
+		time.Sleep(time.Millisecond * 500)
+		io2, _ := net.IOCounters(false)
+		if len(io2) > 0 && len(io1) > 0 {
+			m["io_send"] = (io2[0].BytesSent - io1[0].BytesSent) * 2
+			m["io_recv"] = (io2[0].BytesRecv - io1[0].BytesRecv) * 2
+		}
+		t := time.Now()
+		m["time"] = strconv.Itoa(t.Hour()) + ":" + strconv.Itoa(t.Minute()) + ":" + strconv.Itoa(t.Second())
+
+		for _, v := range conn {
+			m[v.Protocol] = v.Stats["CurrEstab"]
+		}
+		if len(serverStatus) >= 1440 {
+			serverStatus = serverStatus[1:]
+		}
+		serverStatus = append(serverStatus, m)
 	}
 }

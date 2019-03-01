@@ -1,39 +1,147 @@
-<div class="row">
-    <div class="col-md-12">
-        <div class="tile">
-            <div class="tile-body">
-                <table class="table table-hover table-bordered" id="sampleTable">
-                    <thead>
-                    <tr>
-                        <th>id</th>
-                        <th>客户端id</th>
-                        <th>备注</th>
-                        <th>host</th>
-                        <th>location</th>
-                        <th>内网目标</th>
-                        <th>host改写</th>
-                        <th>压缩方式</th>
-                        <th>加密</th>
-                        <th>用户名</th>
-                        <th>密码</th>
-                        <th>出口流量</th>
-                        <th>入口流量</th>
-                        <th>操作</th>
-                    </tr>
-                    </thead>
-                    <tbody>
+<div class="wrapper wrapper-content animated fadeInRight">
 
-                    </tbody>
-                </table>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>host list</h5>
+
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="content">
+                    <div class="table-responsive">
+                        <div id="toolbar">
+                            <a href="/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
+                               class="btn btn-primary dim"
+                               type="button">new</a>
+                        </div>
+                        <table id="taskList_table" class="table-striped table-hover"
+                               data-mobile-responsive="true"></table>
+                    </div>
+                </div>
+                <div class="ibox-content">
+
+                    <table id="table"></table>
+
+                </div>
             </div>
         </div>
     </div>
 </div>
-</main>
+
+<script>
+    /*bootstrap table*/
+    $('#table').bootstrapTable({
+        toolbar: "#toolbar",
+        method: 'post', // 服务器数据的请求方式 get or post
+        url: window.location, // 服务器数据的加载地址
+        queryParams: function (params) {
+            return {
+                "offset": params.offset,
+                "limit": params.limit,
+            }
+        },
+        contentType: "application/x-www-form-urlencoded",
+        striped: true, // 设置为true会有隔行变色效果
+        showHeader: true,
+        showColumns: true,
+        showRefresh: true,
+        pagination: true,//分页
+        sidePagination: 'server',//服务器端分页
+        pageNumber: 1,
+        pageList: [5, 10, 20, 50],//分页步进值
+        detailView: true,
+        smartDisplay: true, // 智能显示 pagination 和 cardview 等
+        detailFormatter: function (index, row, element) {
+            return '<b>export flow: </b>' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b>inlet flow: </b>' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b>crypt: </b>' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b>compress: </b>' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b>username: </b>' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b>password: </b>' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b>header_change: </b>' + row.HeaderChange + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+        },
+        //表格的列
+        columns: [
+            {
+                field: 'Id',//域值
+                title: 'id',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+            },
+            {
+                field: 'Id',//域值
+                title: 'client id',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    return row.Client.Id
+                }
+            },
+            {
+                field: 'Remark',//域值
+                title: 'remark',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+            },
+            {
+                field: 'Host',//域值
+                title: 'host',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+            },
+            {
+                field: 'Target',//域值
+                title: 'target',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+            },
+            {
+                field: 'Location',//域值
+                title: 'location',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+            },
+            {
+                field: '',//域值
+                title: 'client status',//内容
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    if (row.Client.IsConnect) {
+                        return '<span class="badge badge-primary">online</span>'
+                    } else {
+                        return '<span class="badge badge-badge">offline</span>'
+                    }
+                }
+            },
+            {
+                field: 'option',//域值
+                title: 'option',//内容
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    btn_group = '<div class="btn-group">'
+                    btn = `<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button><button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
+                    return btn_group + btn
+                }
+            }
+        ]
+    });
+
+
+</script>
 
 <script type="text/javascript">
     function del(id) {
-        if (confirm("确定要删除数据吗？")) {
+        if (confirm("Are you sure you want to delete it？？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/delhost",
@@ -48,112 +156,9 @@
         }
     }
 
-    function add() {
-        window.location.href = "/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
-    }
-
     function edit(id) {
         window.location.href = "/index/edithost?id=" + id
     }
-
-    $(document).ready(function () {
-        var table = $('#sampleTable').DataTable({
-            responsive: {
-                details: {
-                    display: $.fn.dataTable.Responsive.display.childRowImmediate
-                }
-            },
-            dom: 'Bfrtip',
-            processing: true,
-            serverSide: true,
-            autoWidth: false,
-            ordering: false,
-            ajax: {
-                url: window.location,
-                type: 'POST'
-            },
-            dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
-            columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
-                {data: 'Id'},
-                {data: 'Remark'},
-                {data: 'Remark'},
-                {data: 'Host'},
-                {data: 'Location'},
-                {data: 'Target'},
-                {data: 'HostChange'},
-                {data: 'HostChange'},
-                {data: 'HostChange'},
-                {data: 'HostChange'},
-                {data: 'HostChange'},
-                {data: 'HostChange'},
-                {data: 'HostChange'},
-                {data: 'Target'},
-            ],
-            bFilter: false,
-            columnDefs: [{
-                targets: -1,
-                render: function (data, type, row, meta) {
-
-                    return '<div class="btn-group" role="group" aria-label="..."> ' +
-                            '<button onclick="del(\'' + row.Id + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
-                            '<button onclick="edit(\'' + row.Id + '\')" type="button"   class="btn btn-primary btn-sm">编辑查看</button> '
-                            + ' </div>'
-                }
-            },
-                {
-                    targets: 1,
-                    render: function (data, type, row, meta) {
-                        return row.Client.Id
-                    }
-                },
-                {
-                    targets: -2,
-                    render: function (data, type, row, meta) {
-                        return change(row.Flow.InletFlow)
-                    }
-                },
-                {
-                    targets: -3,
-                    render: function (data, type, row, meta) {
-                        return change(row.Flow.ExportFlow)
-                    }
-                },
-                {
-                    targets: -4,
-                    render: function (data, type, row, meta) {
-                        return row.Client.Cnf.P
-                    }
-                },
-                {
-                    targets: -5,
-                    render: function (data, type, row, meta) {
-                        return row.Client.Cnf.U
-                    }
-                }
-                ,
-                {
-                    targets: -6,
-                    render: function (data, type, row, meta) {
-                        if (row.Client.Cnf.Crypt == "0") {
-                            return "不加密"
-                        } else {
-                            return "加密"
-                        }
-                    }
-                }
-                ,
-                {
-                    targets: -7,
-                    render: function (data, type, row, meta) {
-                        return row.Client.Cnf.Compress
-                    }
-                }
-            ],
-            buttons: []
-        });
-        $("#sampleTable_length").html('<button class="btn btn-primary" onclick="add()" type="button">新增</button>')
-    })
-    ;
 
 
 </script>

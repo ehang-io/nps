@@ -2,17 +2,18 @@ package conn
 
 import (
 	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
-	"net"
+	"io"
 )
 
 type CryptConn struct {
-	conn  net.Conn
+	conn  io.ReadWriteCloser
 	crypt bool
 	rate  *rate.Rate
 }
 
-func NewCryptConn(conn net.Conn, crypt bool, rate *rate.Rate) *CryptConn {
+func NewCryptConn(conn io.ReadWriteCloser, crypt bool, rate *rate.Rate) *CryptConn {
 	c := new(CryptConn)
 	c.conn = conn
 	c.crypt = crypt
@@ -43,19 +44,20 @@ func (s *CryptConn) Read(b []byte) (n int, err error) {
 	var lens int
 	var buf []byte
 	var rb []byte
-	c := NewConn(s.conn)
-	if lens, err = c.GetLen(); err != nil {
+	if lens, err = GetLen(s.conn); err != nil || lens > len(b) || lens < 0 {
 		return
 	}
-	if buf, err = c.ReadLen(lens); err != nil {
+	buf = pool.BufPool.Get().([]byte)
+	defer pool.BufPool.Put(buf)
+	if n, err = io.ReadFull(s.conn, buf[:lens]); err != nil {
 		return
 	}
 	if s.crypt {
-		if rb, err = crypt.AesDecrypt(buf, []byte(cryptKey)); err != nil {
+		if rb, err = crypt.AesDecrypt(buf[:lens], []byte(cryptKey)); err != nil {
 			return
 		}
 	} else {
-		rb = buf
+		rb = buf[:lens]
 	}
 	copy(b, rb)
 	n = len(rb)
@@ -63,4 +65,8 @@ func (s *CryptConn) Read(b []byte) (n int, err error) {
 		s.rate.Get(int64(n))
 	}
 	return
+}
+
+func (s *CryptConn) Close() error {
+	return s.conn.Close()
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
@@ -12,6 +13,8 @@ import (
 )
 
 var LocalServer []*net.TCPListener
+var udpConn net.Conn
+var muxSession *mux.Mux
 
 func CloseLocalServer() {
 	for _, v := range LocalServer {
@@ -36,86 +39,102 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 			logs.Info(err)
 			continue
 		}
-		go process(c, config, l)
+		if l.Type == "secret" {
+			go processSecret(c, config, l)
+		} else {
+			go processP2P(c, config, l)
+		}
 	}
 	return nil
 }
 
-func process(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
-	var workType string
-	if l.Type == "secret" {
-		workType = common.WORK_SECRET
-	} else {
-		workType = common.WORK_P2P
-	}
-	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, workType, config.ProxyUrl)
+func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
+	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_SECRET, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
 	}
 	if _, err := remoteConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
 		logs.Error("Local connection server failed ", err.Error())
 	}
-	if l.Type == "secret" {
-		go common.CopyBuffer(remoteConn, localTcpConn)
-		common.CopyBuffer(localTcpConn, remoteConn)
-		remoteConn.Close()
-		localTcpConn.Close()
+	conn.CopyWaitGroup(remoteConn, localTcpConn, false, false, nil, nil)
+}
+
+func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
+	if udpConn == nil {
+		newUdpConn(config, l)
+		muxSession = mux.NewMux(udpConn)
+	}
+	nowConn, err := muxSession.NewConn()
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	link := conn.NewLink(common.CONN_TCP, l.Target, config.Cnf.Crypt, config.Cnf.Compress, localTcpConn.LocalAddr().String())
+	if _, err := conn.NewConn(nowConn).SendLinkInfo(link); err != nil {
+		logs.Error(err)
+		return
+	}
+	conn.CopyWaitGroup(nowConn, localTcpConn, config.Cnf.Crypt, config.Cnf.Compress, nil, nil)
+}
+
+func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
+	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_P2P, config.ProxyUrl)
+	if err != nil {
+		logs.Error("Local connection server failed ", err.Error())
+		return
+	}
+	if _, err := remoteConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
+		logs.Error("Local connection server failed ", err.Error())
+		return
+	}
+	var rAddr []byte
+	//读取服务端地址、密钥 继续做处理
+	if rAddr, err = remoteConn.GetShortLenContent(); err != nil {
+		logs.Error(err)
+		return
+	}
+	//与服务端udp建立连接
+	tmpConn, err := common.GetLocalUdpAddr()
+	if err != nil {
+		logs.Warn(err)
+		return
+	}
+	//与服务端建立udp连接
+	localAddr, _ := net.ResolveUDPAddr("udp", tmpConn.LocalAddr().String())
+	localConn, err := net.ListenUDP("udp", localAddr)
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	localKcpConn, err := kcp.NewConn(string(rAddr), nil, 150, 3, localConn)
+	conn.SetUdpSession(localKcpConn)
+	if err != nil {
+		logs.Error(err)
+	}
+	//写入密钥、provider身份
+	if _, err := localKcpConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
+		logs.Error(err)
+		return
+	}
+	if _, err := localKcpConn.Write([]byte(common.WORK_P2P_VISITOR)); err != nil {
+		logs.Error(err)
+		return
+	}
+	//接收服务端传的visitor地址
+	if b, err := conn.NewConn(localKcpConn).GetShortLenContent(); err != nil {
+		logs.Error(err)
+		return
 	} else {
-		//读取服务端地址、密钥 继续做处理
-		logs.Warn(111)
-		if rAddr, err := remoteConn.GetLenContent(); err != nil {
+		//关闭与服务端连接
+		localConn.Close()
+		//建立新的连接
+		localConn, err = net.ListenUDP("udp", localAddr)
+		udpTunnel, err := kcp.NewConn(string(b), nil, 150, 3, localConn)
+		if err != nil || udpTunnel == nil {
+			logs.Warn(err)
 			return
-		} else {
-			logs.Warn(222)
-			//与服务端udp建立连接
-			tmpConn, err := net.Dial("udp", "114.114.114.114:53")
-			if err != nil {
-				logs.Warn(err)
-			}
-			tmpConn.Close()
-			//与服务端建立udp连接
-			localAddr, _ := net.ResolveUDPAddr("udp", tmpConn.LocalAddr().String())
-			localConn, err := net.ListenUDP("udp", localAddr)
-			if err != nil {
-				return
-			}
-			logs.Warn(333)
-			localKcpConn, err := kcp.NewConn(string(rAddr), nil, 150, 3, localConn)
-			conn.SetUdpSession(localKcpConn)
-			if err != nil {
-				logs.Warn(err)
-			}
-			localToolConn := conn.NewConn(localKcpConn)
-			//写入密钥、provider身份
-			if _, err := localToolConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
-				return
-			}
-			if _, err := localToolConn.Write([]byte(common.WORK_P2P_VISITOR)); err != nil {
-				return
-			}
-			logs.Warn(444)
-			//接收服务端传的visitor地址
-			if b, err := localToolConn.GetLenContent(); err != nil {
-				logs.Warn(err)
-				return
-			} else {
-				logs.Warn("收到服务回传地址", string(b))
-				//关闭与服务端连接
-				localConn.Close()
-				//建立新的连接
-				localConn, err = net.ListenUDP("udp", localAddr)
-				udpTunnel, err := kcp.NewConn(string(b), nil, 150, 3, localConn)
-				if err != nil || udpTunnel == nil {
-					logs.Warn(err)
-					return
-				}
-				conn.SetUdpSession(udpTunnel)
-				logs.Warn(udpTunnel.RemoteAddr(), string(b), udpTunnel.LocalAddr())
-
-				go common.CopyBuffer(udpTunnel, localTcpConn)
-				common.CopyBuffer(localTcpConn, udpTunnel)
-			}
 		}
-
+		conn.SetUdpSession(udpTunnel)
+		udpConn = udpTunnel
 	}
 }

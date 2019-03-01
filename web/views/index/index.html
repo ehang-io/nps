@@ -1,55 +1,451 @@
-<div class="row">
-    <div class="col-md-3">
-        <div class="widget-small warning coloured-icon"><i class="icon fa fa-html5 fa-3x"></i>
-            <div class="info">
-                <h4>客户端连接端口</h4>
-                <p><b>{{.p}}</b></p>
+{{/*<div class="row">*/}}
+{{/*<div class="col-md-3">*/}}
+{{/*<div class="widget-small warning coloured-icon"><i class="icon fa fa-html5 fa-3x"></i>*/}}
+{{/*<div class="info">*/}}
+{{/*<h4>客户端连接端口</h4>*/}}
+{{/*<p><b>{{.p}}</b></p>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*<div class="col-md-3">*/}}
+{{/*<div class="widget-small danger coloured-icon"><i class="icon fa fa-home fa-3x"></i>*/}}
+{{/*<div class="info">*/}}
+{{/*<h4>当前TCP连接总数</h4>*/}}
+{{/*<p><b>{{.data.tcpCount}}</b></p>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*<div class="col-md-3">*/}}
+{{/*<div class="widget-small primary coloured-icon"><i class="icon fa fa-users fa-3x"></i>*/}}
+{{/*<div class="info">*/}}
+{{/*<h4>总客户端数</h4>*/}}
+{{/*<p><b>{{.data.clientCount}}</b></p>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*<div class="col-md-3">*/}}
+{{/*<div class="widget-small info coloured-icon"><i class="icon fa fa-user-secret fa-3x"></i>*/}}
+{{/*<div class="info">*/}}
+{{/*<h4>在线客户端数</h4>*/}}
+{{/*<p><b>{{.data.clientOnlineCount}}</b></p>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*<div class="row">*/}}
+{{/*<div class="col-md-6">*/}}
+{{/*<div class="tile">*/}}
+{{/*<h3 class="tile-title">流量</h3>*/}}
+{{/*<div id="flow" style="width: 600px;height:400px;"></div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*<div class="col-md-6">*/}}
+{{/*<div class="tile">*/}}
+{{/*<h3 class="tile-title">代理类型</h3>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+{{/*</div>*/}}
+
+
+
+<div class="wrapper wrapper-content">
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                {{/*<span class="label label-success pull-right">月</span>*/}}
+                    <h5>client connection port</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">{{.p}}</h1>
+                {{/*<div class="stat-percent font-bold text-success">98% <i class="fa fa-bolt"></i></div>*/}}
+                {{/*<small>总收入</small>*/}}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                {{/*<span class="label label-info pull-right">季</span>*/}}
+                    <h5>number of clients</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">{{.data.clientCount}}</h1>
+                {{/*<div class="stat-percent font-bold text-info">20% <i class="fa fa-level-up"></i></div>*/}}
+                {{/*<small>新订单</small>*/}}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                {{/*<span class="label label-primary pull-right">今日</span>*/}}
+                    <h5>number of online clients</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">{{.data.clientOnlineCount}}</h1>
+                {{/*<div class="stat-percent font-bold text-navy">44% <i class="fa fa-level-up"></i></div>*/}}
+                {{/*<small>新访客</small>*/}}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                {{/*<span class="label label-danger pull-right">低值</span>*/}}
+                    <h5>number of tcp connections</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">{{.data.tcpCount}}</h1>
+                {{/*<div class="stat-percent font-bold text-danger">38% <i class="fa fa-level-down"></i></div>*/}}
+                {{/*<small>第一个月</small>*/}}
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="widget-small danger coloured-icon"><i class="icon fa fa-home fa-3x"></i>
-            <div class="info">
-                <h4>当前TCP连接总数</h4>
-                <p><b>{{.data.tcpCount}}</b></p>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>config information</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content no-padding">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>bridge type</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.bridgeType}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>httpProxyPort</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.httpProxyPort}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>httpsProxyPort</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.httpsProxyPort}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>ipLimit</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.ipLimit}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>flowStoreInterval</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.flowStoreInterval}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>logLevel</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.logLevel}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>p2pPort</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.p2pPort}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>serverIp</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.serverIp}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="ibox-title">
+                <h5>system now</h5>
+                <div class="ibox-tools">
+                    <a class="collapse-link">
+                        <i class="fa fa-chevron-up"></i>
+                    </a>
+                    <a class="close-link">
+                        <i class="fa fa-times"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="ibox-content">
+
+                <div>
+                    <div>
+                        <span>cpu</span>
+                        <small class="pull-right">{{.data.cpu}}%</small>
+                    </div>
+                    <div class="progress progress-small">
+                        <div style="width: {{.data.cpu}}%;" class="progress-bar"></div>
+                    </div>
+
+
+                    <div>
+                        <span>virtual memory</span>
+                        <small class="pull-right">{{.data.virtual_mem}}%</small>
+                    </div>
+                    <div class="progress progress-small">
+                        <div style="width: {{.data.virtual_mem}}%;" class="progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-content no-padding">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>load</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.load}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>tcp num(establish)</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.tcp}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>udp num(establish)</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong>{{.data.udp}}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>out</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong id="send"></strong>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="list-group-item ">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>in</strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong id="recv"></strong>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="widget-small primary coloured-icon"><i class="icon fa fa-users fa-3x"></i>
-            <div class="info">
-                <h4>总客户端数</h4>
-                <p><b>{{.data.clientCount}}</b></p>
+
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>load</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="load" style="height: 300px"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>cpu</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="cpu" style="height: 300px"></div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="widget-small info coloured-icon"><i class="icon fa fa-user-secret fa-3x"></i>
-            <div class="info">
-                <h4>在线客户端数</h4>
-                <p><b>{{.data.clientOnlineCount}}</b></p>
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>virtual_mem</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="virtual_mem" style="height: 300px"></div>
+                </div>
             </div>
         </div>
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>connection num</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="conn_num" style="height: 300px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>bandwidth</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="bandwidth" style="height: 300px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>traffic</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="flow" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>types</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div id="tj" style="height:400px;"></div>
+                </div>
+            </div>
+        </div>
+
+
     </div>
 </div>
-<div class="row">
-    <div class="col-md-6">
-        <div class="tile">
-            <h3 class="tile-title">流量</h3>
-            <div id="flow" style="width: 600px;height:400px;"></div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="tile">
-            <h3 class="tile-title">代理类型</h3>
-            <div id="tj" style="width: 600px;height:400px;"></div>
-        </div>
-    </div>
-</div>
+
 <script>
     option = {
-        title : {
-            x:'center'
+        title: {
+            x: 'center'
         },
         tooltip: {
             trigger: 'item',
@@ -60,17 +456,17 @@
         legend: {
             orient: 'vertical',
             left: 'left',
-            data: ['入口流量', '出口流量']
+            data: ['inlet flow', 'export flow']
         },
-        series : [
+        series: [
             {
-                name: '类型 统计',
+                name: 'traffic',
                 type: 'pie',
-                radius : '55%',
+                radius: '55%',
                 center: ['50%', '60%'],
-                data:[
-                    {value:{{.data.inletFlowCount}}, name: '入口流量'},
-                    {value:{{.data.exportFlowCount}}, name: '出口流量'},
+                data: [
+                    {value:{{.data.inletFlowCount}}, name: 'inlet flow'},
+                    {value:{{.data.exportFlowCount}}, name: 'export flow'},
                 ],
                 itemStyle: {
                     emphasis: {
@@ -83,35 +479,37 @@
         ]
     };
 
-    var myChart = echarts.init(document.getElementById('flow'));
-    myChart.setOption(option);
+    var myChart1 = echarts.init(document.getElementById('flow'));
+    myChart1.setOption(option);
 
 
     option = {
-        title : {
-            x:'center'
+        title: {
+            x: 'center'
         },
-        tooltip : {
+        tooltip: {
             trigger: 'item',
             formatter: "{a} <br/>{b} : {c} ({d}%)"
         },
         legend: {
             orient: 'vertical',
             left: 'left',
-            data: ['tcp隧道数','socks5隧道数','http代理隧道数','udp隧道数','域名解析数']
+            data: ['tcp', 'socks5', 'http', 'udp', 'host', 'secret', 'p2p']
         },
-        series : [
+        series: [
             {
-                name: '类型 统计',
+                name: 'types',
                 type: 'pie',
-                radius : '55%',
+                radius: '55%',
                 center: ['50%', '60%'],
-                data:[
-                    {value:{{.data.tcpServerCount}}, name:'tcp隧道数'},
-                    {value:{{.data.socks5ServerCount}}, name:'socks5隧道数'},
-                    {value:{{.data.httpProxyServerCount}}, name:'http隧道数'},
-                    {value:{{.data.udpServerCount}}, name:'udp隧道数'},
-                    {value:{{.data.hostCount}}, name:'域名解析数'}
+                data: [
+                    {value:{{.data.tcpC}}, name: 'tcp'},
+                    {value:{{.data.socks5Count}}, name: 'socks5'},
+                    {value:{{.data.httpProxyCount}}, name: 'http'},
+                    {value:{{.data.udpCount}}, name: 'udp'},
+                    {value:{{.data.hostCount}}, name: 'host'},
+                    {value:{{.data.secretCount}}, name: 'secret'},
+                    {value:{{.data.p2pCount}}, name: 'p2p'},
                 ],
                 itemStyle: {
                     emphasis: {
@@ -124,7 +522,294 @@
         ]
     };
 
-    var myChart = echarts.init(document.getElementById('tj'));
-    myChart.setOption(option);
+    var myChart2 = echarts.init(document.getElementById('tj'));
+    myChart2.setOption(option);
+    $(function () {
+        $("#send").html(change({{.data.io_send}}) + "/s")
+        $("#recv").html(change({{.data.io_recv}}) + "/s")
+    })
+
+
+    var dom = document.getElementById("load");
+    var myChart3 = echarts.init(dom);
+    var app = {};
+    option = null;
+    option = {
+        title: {
+            text: 'load'
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [
+            {
+                name: 'load1',
+                type: 'line',
+                stack: 'load1',
+                smooth: true,
+                data: [{{.data.sys1.load1}}, {{.data.sys2.load1}}, {{.data.sys3.load1}}, {{.data.sys4.load1}}, {{.data.sys5.load1}}, {{.data.sys6.load1}}, {{.data.sys7.load1}}, {{.data.sys8.load1}}, {{.data.sys9.load1}}, {{.data.sys10.load1}}],
+            },
+            {
+                name: 'load5',
+                type: 'line',
+                stack: 'load5',
+                smooth: true,
+                data: [{{.data.sys1.load5}}, {{.data.sys2.load5}}, {{.data.sys3.load5}}, {{.data.sys4.load5}}, {{.data.sys5.load5}}, {{.data.sys6.load5}}, {{.data.sys7.load5}}, {{.data.sys8.load5}}, {{.data.sys9.load5}}, {{.data.sys10.load5}}],
+            },
+            {
+                name: 'load15',
+                type: 'line',
+                stack: 'load15',
+                smooth: true,
+                data: [{{.data.sys1.load15}}, {{.data.sys2.load15}}, {{.data.sys3.load15}}, {{.data.sys4.load15}}, {{.data.sys5.load15}}, {{.data.sys6.load15}}, {{.data.sys7.load15}}, {{.data.sys8.load15}}, {{.data.sys9.load15}}, {{.data.sys10.load15}}],
+            }
+        ]
+    };
+    if (option && typeof option === "object") {
+        myChart3.setOption(option, true);
+    }
+
+    var dom = document.getElementById("cpu");
+    var myChart4 = echarts.init(dom);
+    var app = {};
+    option = null;
+    option = {
+        title: {
+            text: 'cpu'
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [
+            {
+                name: 'cpu',
+                type: 'line',
+                stack: 'cpu',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.cpu}}, {{.data.sys2.cpu}}, {{.data.sys3.cpu}}, {{.data.sys4.cpu}}, {{.data.sys5.cpu}}, {{.data.sys6.cpu}}, {{.data.sys7.cpu}}, {{.data.sys8.cpu}}, {{.data.sys9.cpu}}, {{.data.sys10.cpu}}],
+            }
+        ]
+    };
+    if (option && typeof option === "object") {
+        myChart4.setOption(option, true);
+    }
+
+
+    var dom = document.getElementById("virtual_mem");
+    var myChart5 = echarts.init(dom);
+    var app = {};
+    option = null;
+    option = {
+        title: {
+            text: 'memory'
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [
+            {
+                name: 'virtual_mem',
+                type: 'line',
+                stack: 'virtual_mem',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.virtual_mem}}, {{.data.sys2.virtual_mem}}, {{.data.sys3.virtual_mem}}, {{.data.sys4.virtual_mem}}, {{.data.sys5.virtual_mem}}, {{.data.sys6.virtual_mem}}, {{.data.sys7.virtual_mem}}, {{.data.sys8.virtual_mem}}, {{.data.sys9.virtual_mem}}, {{.data.sys10.virtual_mem}}],
+            },
+            {
+                name: 'swap_mem',
+                type: 'line',
+                stack: 'swap_mem',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.swap_mem}}, {{.data.sys2.swap_mem}}, {{.data.sys3.swap_mem}}, {{.data.sys4.swap_mem}}, {{.data.sys5.swap_mem}}, {{.data.sys6.swap_mem}}, {{.data.sys7.swap_mem}}, {{.data.sys8.swap_mem}}, {{.data.sys9.swap_mem}}, {{.data.sys10.swap_mem}}],
+            }
+        ],
+    };
+    if (option && typeof option === "object") {
+        myChart5.setOption(option, true);
+    }
+
+    var dom = document.getElementById("conn_num");
+    var myChart6 = echarts.init(dom);
+    var app = {};
+    option = null;
+    option = {
+        title: {
+            text: 'connection num(establish)'
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [
+            {
+                name: 'tcp',
+                type: 'line',
+                stack: 'tcp',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.tcp}}, {{.data.sys2.tcp}}, {{.data.sys3.tcp}}, {{.data.sys4.tcp}}, {{.data.sys5.tcp}}, {{.data.sys6.tcp}}, {{.data.sys7.tcp}}, {{.data.sys8.tcp}}, {{.data.sys9.tcp}}, {{.data.sys10.tcp}}],
+            },
+            {
+                name: 'udp',
+                type: 'line',
+                stack: 'udp',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.udp}}, {{.data.sys2.udp}}, {{.data.sys3.udp}}, {{.data.sys4.udp}}, {{.data.sys5.udp}}, {{.data.sys6.udp}}, {{.data.sys7.udp}}, {{.data.sys8.udp}}, {{.data.sys9.udp}}, {{.data.sys10.udp}}],
+            }
+        ]
+    };
+    if (option && typeof option === "object") {
+        myChart6.setOption(option, true);
+    }
+
+    var dom = document.getElementById("bandwidth");
+    var myChart7 = echarts.init(dom);
+    var app = {};
+    option = null;
+    option = {
+        title: {
+            text: 'bandwidth'
+        },
+        tooltip: {
+            trigger: 'axis',
+            formatter: function (a) {
+                return "in:" + change(a[0].data) + "/s<br/>" + "out:" + change(a[1].data) + "/s<br/>" + a[0].axisValue;
+            }
+        },
+
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                saveAsImage: {}
+            }
+        },
+
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [
+            {
+                name: 'in',
+                type: 'line',
+                stack: 'in',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.io_recv}}, {{.data.sys2.io_recv}}, {{.data.sys3.io_recv}}, {{.data.sys4.io_recv}}, {{.data.sys5.io_recv}}, {{.data.sys6.io_recv}}, {{.data.sys7.io_recv}}, {{.data.sys8.io_recv}}, {{.data.sys9.io_recv}}, {{.data.sys10.io_recv}}],
+            },
+            {
+                name: 'out',
+                type: 'line',
+                stack: 'out',
+                smooth: true,
+                areas: {},
+                data: [{{.data.sys1.io_send}}, {{.data.sys2.io_send}}, {{.data.sys3.io_send}}, {{.data.sys4.io_send}}, {{.data.sys5.io_send}}, {{.data.sys6.io_send}}, {{.data.sys7.io_send}}, {{.data.sys8.io_send}}, {{.data.sys9.io_send}}, {{.data.sys10.io_send}}],
+            }
+        ]
+    };
+    if (option && typeof option === "object") {
+        myChart7.setOption(option, true);
+    }
+
+    window.addEventListener("resize", () => {
+        this.myChart1.resize();
+        this.myChart2.resize();
+        this.myChart3.resize();
+        this.myChart4.resize();
+        this.myChart5.resize();
+        this.myChart6.resize();
+        this.myChart7.resize();
+    });
 
 </script>

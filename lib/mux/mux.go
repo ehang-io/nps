@@ -125,6 +125,9 @@ func (s *Mux) writeSession() {
 			raw.Reset()
 			select {
 			case msg := <-s.sendMsgCh:
+				if msg == nil {
+					break
+				}
 				if msg.content == nil { //close
 					binary.Write(raw, binary.LittleEndian, MUX_CONN_CLOSE)
 					binary.Write(raw, binary.LittleEndian, msg.connId)
@@ -152,8 +155,12 @@ func (s *Mux) writeSession() {
 func (s *Mux) readSession() {
 	go func() {
 		raw := bytes.NewBuffer([]byte{})
+		buf := pool.BufPoolCopy.Get().([]byte)
+		defer pool.PutBufPoolCopy(buf)
 		for {
 			var flag, i int32
+			var n int
+			var err error
 			if binary.Read(s.conn, binary.LittleEndian, &flag) == nil {
 				if binary.Read(s.conn, binary.LittleEndian, &i) != nil {
 					break
@@ -170,19 +177,18 @@ func (s *Mux) readSession() {
 					continue
 				case MUX_PING_FLAG: //ping
 					continue
+				case MUX_NEW_MSG:
+					if n, err = ReadLenBytes(buf, s.conn); err != nil {
+						break
+					}
 				}
-				if conn, ok := s.connMap.Get(i); ok {
+				if conn, ok := s.connMap.Get(i); ok && !conn.isClose {
 					switch flag {
 					case MUX_NEW_MSG: //new msg from remote conn
-						buf := pool.BufPoolCopy.Get().([]byte)
-						if n, err := ReadLenBytes(buf, s.conn); err == nil {
-							if !conn.isClose {
-								conn.readMsgCh <- buf[:n]
-							} else {
-								pool.PutBufPoolCopy(buf)
-							}
-						} else { //read len bytes error,the mux has broken
-							break
+						copy(conn.readBuffer, buf[:n])
+						conn.endRead = n
+						if conn.readWait {
+							conn.readCh <- struct{}{}
 						}
 					case MUX_MSG_SEND_OK: //the remote has read
 						conn.getStatusCh <- struct{}{}

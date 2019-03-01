@@ -48,7 +48,6 @@ func (s *P2PServer) Start() error {
 }
 
 func (s *P2PServer) p2pProcess(c *conn.Conn) {
-	logs.Warn("new link", c.Conn.RemoteAddr())
 	//获取密钥
 	var (
 		f   string
@@ -57,19 +56,17 @@ func (s *P2PServer) p2pProcess(c *conn.Conn) {
 		v   *p2p
 		ok  bool
 	)
-	if b, err = c.ReadLen(32); err != nil {
+	if b, err = c.GetShortContent(32); err != nil {
 		return
 	}
 	//获取角色
 	if f, err = c.ReadFlag(); err != nil {
 		return
 	}
-	logs.Warn("收到", string(b), f)
 	if v, ok = s.p2p[string(b)]; !ok {
 		v = new(p2p)
 		s.p2p[string(b)] = v
 	}
-	logs.Warn(f, c.Conn.RemoteAddr().String())
 	//存储
 	if f == common.WORK_P2P_VISITOR {
 		v.visitorAddr = c.Conn.RemoteAddr().String()
@@ -80,13 +77,10 @@ func (s *P2PServer) p2pProcess(c *conn.Conn) {
 				break
 			}
 		}
-		logs.Warn("等待确认")
 		if _, err := v.provider.ReadFlag(); err == nil {
 			v.visitor.WriteLenContent([]byte(v.providerAddr))
-			logs.Warn("收到确认")
 			delete(s.p2p, string(b))
 		} else {
-			logs.Warn("收到确认失败", err)
 		}
 	} else {
 		v.providerAddr = c.Conn.RemoteAddr().String()
@@ -99,6 +93,4 @@ func (s *P2PServer) p2pProcess(c *conn.Conn) {
 			}
 		}
 	}
-	//假设是连接者、等待对应的被连接者连上后，发送被连接者信息
-	//假设是被连接者，等待对应的连接者脸上后，发送连接者信息
 }

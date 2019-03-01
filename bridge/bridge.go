@@ -8,7 +8,7 @@ import (
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
@@ -21,23 +21,15 @@ import (
 )
 
 type Client struct {
-	tunnel        *conn.Conn
-	signal        *conn.Conn
-	msg           *conn.Conn
-	linkMap       map[int]*conn.Link
-	linkStatusMap map[int]bool
-	stop          chan bool
+	tunnel *mux.Mux
+	signal *conn.Conn
 	sync.RWMutex
 }
 
-func NewClient(t *conn.Conn, s *conn.Conn, m *conn.Conn) *Client {
+func NewClient(t *mux.Mux, s *conn.Conn) *Client {
 	return &Client{
-		linkMap:       make(map[int]*conn.Link),
-		stop:          make(chan bool),
-		linkStatusMap: make(map[int]bool),
-		signal:        s,
-		tunnel:        t,
-		msg:           m,
+		signal: s,
+		tunnel: t,
 	}
 }
 
@@ -119,7 +111,8 @@ func (s *Bridge) verifySuccess(c *conn.Conn) {
 }
 
 func (s *Bridge) cliProcess(c *conn.Conn) {
-	if b, err := c.ReadLen(32); err != nil || string(b) != crypt.Md5(version.GetVersion()) {
+	//version check
+	if b, err := c.GetShortContent(32); err != nil || string(b) != crypt.Md5(version.GetVersion()) {
 		logs.Info("The client %s version does not match", c.Conn.RemoteAddr())
 		c.Close()
 		return
@@ -128,7 +121,7 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	c.SetReadDeadline(5, s.tunnelType)
 	var buf []byte
 	var err error
-	if buf, err = c.ReadLen(32); err != nil {
+	if buf, err = c.GetShortContent(32); err != nil {
 		c.Close()
 		return
 	}
@@ -150,18 +143,7 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	return
 }
 
-func (s *Bridge) closeClient(id int) {
-	s.clientLock.Lock()
-	defer s.clientLock.Unlock()
-	if v, ok := s.Client[id]; ok {
-		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
-			s.CloseClient <- c.Id
-		}
-		v.signal.WriteClose()
-		delete(s.Client, id)
-	}
-}
-func (s *Bridge) delClient(id int) {
+func (s *Bridge) DelClient(id int, isOther bool) {
 	s.clientLock.Lock()
 	defer s.clientLock.Unlock()
 	if v, ok := s.Client[id]; ok {
@@ -173,11 +155,11 @@ func (s *Bridge) delClient(id int) {
 	}
 }
 
-//tcp连接类型区分
+//use different
 func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 	switch typeVal {
 	case common.WORK_MAIN:
-		//客户端已经存在，下线
+		//the vKey connect by another ,close the client of before
 		s.clientLock.Lock()
 		if v, ok := s.Client[id]; ok {
 			s.clientLock.Unlock()
@@ -188,94 +170,65 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			v.signal = c
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(nil, c, nil)
+			s.Client[id] = NewClient(nil, c)
 			s.clientLock.Unlock()
 		}
+		go func(id int) {
+			binary.Read(c, binary.LittleEndian, true)
+			s.DelClient(id, false)
+		}(id)
 		logs.Info("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
-		go s.GetStatus(id)
 	case common.WORK_CHAN:
 		s.clientLock.Lock()
 		if v, ok := s.Client[id]; ok {
 			s.clientLock.Unlock()
 			v.Lock()
-			v.tunnel = c
+			v.tunnel = mux.NewMux(c.Conn)
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(c, nil, nil)
+			s.Client[id] = NewClient(mux.NewMux(c.Conn), nil)
 			s.clientLock.Unlock()
 		}
-		go s.clientCopy(id)
 	case common.WORK_CONFIG:
-		go s.GetConfig(c)
+		go s.getConfig(c)
 	case common.WORK_REGISTER:
 		go s.register(c)
 	case common.WORK_SECRET:
-		if b, err := c.ReadLen(32); err == nil {
+		if b, err := c.GetShortContent(32); err == nil {
 			s.SecretChan <- conn.NewSecret(string(b), c)
 		}
 	case common.WORK_P2P:
-		//读取md5密钥
-		if b, err := c.ReadLen(32); err != nil {
+		//read md5 secret
+		if b, err := c.GetShortContent(32); err != nil {
 			return
 		} else if t := file.GetCsvDb().GetTaskByMd5Password(string(b)); t == nil {
 			return
 		} else {
 			s.clientLock.Lock()
 			if v, ok := s.Client[t.Client.Id]; !ok {
-				logs.Error("未获取到对应客户端")
 				s.clientLock.Unlock()
 				return
 			} else {
-				logs.Warn("获取到对应客户端")
 				s.clientLock.Unlock()
 				//向密钥对应的客户端发送与服务端udp建立连接信息，地址，密钥
-				logs.Warn(v.signal.Write([]byte(common.NEW_UDP_CONN)))
+				v.signal.Write([]byte(common.NEW_UDP_CONN))
 				svrAddr := beego.AppConfig.String("serverIp") + ":" + beego.AppConfig.String("p2pPort")
-				logs.Warn(svrAddr)
-				logs.Warn(v.signal.WriteLenContent([]byte(svrAddr)))
-				logs.Warn(string(b), v.signal.WriteLenContent(b))
+				if err != nil {
+					logs.Warn("get local udp addr error")
+					return
+				}
+				v.signal.WriteLenContent([]byte(svrAddr))
+				v.signal.WriteLenContent(b)
 				//向该请求者发送建立连接请求,服务器地址
 				c.WriteLenContent([]byte(svrAddr))
 			}
 		}
-	case common.WORK_SEND_STATUS:
-		s.clientLock.Lock()
-		if v, ok := s.Client[id]; ok {
-			s.clientLock.Unlock()
-			v.Lock()
-			v.msg = c
-			v.Unlock()
-		} else {
-			s.Client[id] = NewClient(nil, nil, c)
-			s.clientLock.Unlock()
-		}
-		go s.getMsgStatus(id)
 	}
 	c.SetAlive(s.tunnelType)
 	return
 }
 
-func (s *Bridge) getMsgStatus(clientId int) {
-	s.clientLock.Lock()
-	client := s.Client[clientId]
-	s.clientLock.Unlock()
-
-	if client == nil {
-		return
-	}
-	for {
-		if id, err := client.msg.GetLen(); err != nil {
-			s.closeClient(clientId)
-			return
-		} else {
-			client.Lock()
-			if v, ok := client.linkMap[id]; ok {
-				v.StatusCh <- true
-			}
-			client.Unlock()
-		}
-	}
-}
+//register ip
 func (s *Bridge) register(c *conn.Conn) {
 	var hour int32
 	if err := binary.Read(c, binary.LittleEndian, &hour); err == nil {
@@ -285,33 +238,7 @@ func (s *Bridge) register(c *conn.Conn) {
 	}
 }
 
-//等待
-func (s *Bridge) waitStatus(clientId, id int) bool {
-	ticker := time.NewTicker(time.Millisecond * 100)
-	stop := time.After(time.Second * 10)
-	for {
-		select {
-		case <-ticker.C:
-			s.clientLock.Lock()
-			if v, ok := s.Client[clientId]; ok {
-				s.clientLock.Unlock()
-				v.Lock()
-				if vv, ok := v.linkStatusMap[id]; ok {
-					ticker.Stop()
-					v.Unlock()
-					return vv
-				}
-				v.Unlock()
-			} else {
-				s.clientLock.Unlock()
-			}
-		case <-stop:
-			return false
-		}
-	}
-}
-
-func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (tunnel *conn.Conn, err error) {
+func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (target net.Conn, err error) {
 	s.clientLock.Lock()
 	if v, ok := s.Client[clientId]; ok {
 		s.clientLock.Unlock()
@@ -329,27 +256,20 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (t
 			s.registerLock.Unlock()
 		}
 
-		v.signal.SendLinkInfo(link)
-		if err != nil {
-			logs.Warn("send link information error:", err, link.Id)
-			s.DelClient(clientId)
+		if v.tunnel == nil {
+			err = errors.New("the client connect error")
 			return
 		}
 
-		if v.tunnel == nil {
-			err = errors.New("get tunnel connection error")
-			return
-		} else {
-			tunnel = v.tunnel
-		}
-		link.MsgConn = v.msg
-		v.Lock()
-		v.linkMap[link.Id] = link
-		v.Unlock()
-		if !s.waitStatus(clientId, link.Id) {
-			err = errors.New(fmt.Sprintf("connect target %s fail", link.Host))
+		if target, err = v.tunnel.NewConn(); err != nil {
 			return
 		}
+
+		if _, err = conn.NewConn(target).SendLinkInfo(link); err != nil {
+			logs.Warn("new connect error ,the target %s refuse to connect", link.Host)
+			return
+		}
+
 	} else {
 		s.clientLock.Unlock()
 		err = errors.New(fmt.Sprintf("the client %d is not connect", clientId))
@@ -357,13 +277,8 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (t
 	return
 }
 
-//删除通信通道
-func (s *Bridge) DelClient(id int) {
-	s.closeClient(id)
-}
-
-//get config
-func (s *Bridge) GetConfig(c *conn.Conn) {
+//get config and add task from client config
+func (s *Bridge) getConfig(c *conn.Conn) {
 	var client *file.Client
 	var fail bool
 
@@ -374,9 +289,10 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 		}
 		switch flag {
 		case common.WORK_STATUS:
-			if b, err := c.ReadLen(16); err != nil {
+			if b, err := c.GetShortContent(32); err != nil {
 				break
 			} else {
+				logs.Warn(string(b))
 				var str string
 				id, err := file.GetCsvDb().GetClientIdByVkey(string(b))
 				if err != nil {
@@ -432,11 +348,11 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 			} else {
 				ports := common.GetPorts(t.Ports)
 				targets := common.GetPorts(t.Target)
-				if len(ports) > 1 && (t.Mode == "tcpServer" || t.Mode == "udpServer") && (len(ports) != len(targets)) {
+				if len(ports) > 1 && (t.Mode == "tcp" || t.Mode == "udp") && (len(ports) != len(targets)) {
 					fail = true
 					c.WriteAddFail()
 					break
-				} else if t.Mode == "secretServer" {
+				} else if t.Mode == "secret" {
 					ports = append(ports, 0)
 				}
 				if len(ports) == 0 {
@@ -453,7 +369,11 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 						tl.Remark = t.Remark
 					} else {
 						tl.Remark = t.Remark + "_" + strconv.Itoa(tl.Port)
-						tl.Target = t.TargetAddr + ":" + strconv.Itoa(targets[i])
+						if t.TargetAddr != "" {
+							tl.Target = t.TargetAddr + ":" + strconv.Itoa(targets[i])
+						} else {
+							tl.Target = strconv.Itoa(targets[i])
+						}
 					}
 					tl.Id = file.GetCsvDb().GetTaskId()
 					tl.Status = true
@@ -467,7 +387,7 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 						c.WriteAddFail()
 						break
 					}
-					if b := tool.TestServerPort(tl.Port, tl.Mode); !b && t.Mode != "secretServer" {
+					if b := tool.TestServerPort(tl.Port, tl.Mode); !b && t.Mode != "secret" {
 						fail = true
 						c.WriteAddFail()
 						break
@@ -483,76 +403,4 @@ func (s *Bridge) GetConfig(c *conn.Conn) {
 		s.CloseClient <- client.Id
 	}
 	c.Close()
-}
-
-func (s *Bridge) GetStatus(clientId int) {
-	s.clientLock.Lock()
-	client := s.Client[clientId]
-	s.clientLock.Unlock()
-
-	if client == nil {
-		return
-	}
-	for {
-		if id, status, err := client.signal.GetConnStatus(); err != nil {
-			s.closeClient(clientId)
-			return
-		} else {
-			client.Lock()
-			client.linkStatusMap[id] = status
-			client.Unlock()
-		}
-	}
-}
-
-func (s *Bridge) clientCopy(clientId int) {
-
-	s.clientLock.Lock()
-	client := s.Client[clientId]
-	s.clientLock.Unlock()
-
-	for {
-		if id, err := client.tunnel.GetLen(); err != nil {
-			logs.Info("read msg content length error close client")
-			s.delClient(clientId)
-			break
-		} else {
-			client.Lock()
-			if link, ok := client.linkMap[id]; ok {
-				client.Unlock()
-				if content, err := client.tunnel.GetMsgContent(link); err != nil {
-					pool.PutBufPoolCopy(content)
-					s.delClient(clientId)
-					logs.Notice("read msg content error", err, "close client")
-					break
-				} else {
-					link.MsgCh <- content
-				}
-			} else {
-				client.Unlock()
-				continue
-			}
-		}
-	}
-}
-
-//TODO 清除有一个未知bug待处理
-func (s *Bridge) linkCleanSession() {
-	ticker := time.NewTicker(time.Minute * 5)
-	for {
-		select {
-		case <-ticker.C:
-			s.clientLock.Lock()
-			for _, v := range s.Client {
-				v.Lock()
-				for _, vv := range v.linkMap {
-					if vv.FinishUse {
-						delete(v.linkMap, vv.Id)
-					}
-				}
-				v.Unlock()
-			}
-			s.clientLock.Unlock()
-		}
-	}
 }
