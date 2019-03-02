@@ -144,7 +144,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	//s.DealClient(conn.NewConn(c), addr, nil, ltype)
 	link := conn.NewLink(ltype, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.RemoteAddr().String())
 
-	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.RemoteAddr().String()); err != nil {
+	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.RemoteAddr().String(),s.task); err != nil {
 		c.Close()
 		return
 	} else {

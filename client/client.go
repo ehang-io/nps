@@ -17,6 +17,8 @@ type TRPClient struct {
 	stop           chan bool
 	proxyUrl       string
 	vKey           string
+	tunnel         *mux.Mux
+	signal         *conn.Conn
 }
 
 //new client
@@ -39,16 +41,19 @@ retry:
 		time.Sleep(time.Second * 5)
 		goto retry
 	}
+
 	logs.Info("Successful connection with server %s", s.svrAddr)
+	go s.ping()
 	s.processor(c)
 }
 
 func (s *TRPClient) Close() {
-	s.stop <- true
+	s.signal.Close()
 }
 
 //处理
 func (s *TRPClient) processor(c *conn.Conn) {
+	s.signal = c
 	go s.dealChan()
 	for {
 		flags, err := c.ReadFlag()
@@ -176,9 +181,9 @@ func (s *TRPClient) dealChan() {
 		return
 	}
 	go func() {
-		l := mux.NewMux(tunnel.Conn)
+		s.tunnel = mux.NewMux(tunnel.Conn)
 		for {
-			src, err := l.Accept()
+			src, err := s.tunnel.Accept()
 			if err != nil {
 				logs.Warn(err)
 				break
@@ -196,6 +201,7 @@ func (s *TRPClient) srcProcess(src net.Conn) {
 		logs.Error("get connection info from server error ", err)
 		return
 	}
+	//host for target processing
 	lk.Host = common.FormatAddress(lk.Host)
 	//connect to target
 	if targetConn, err := net.Dial(lk.ConnType, lk.Host); err != nil {
@@ -204,5 +210,20 @@ func (s *TRPClient) srcProcess(src net.Conn) {
 	} else {
 		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
 		conn.CopyWaitGroup(src, targetConn, lk.Crypt, lk.Compress, nil, nil)
+	}
+}
+
+func (s *TRPClient) ping() {
+	ticker := time.NewTicker(time.Second * 5)
+loop:
+	for {
+		select {
+		case <-ticker.C:
+			if s.tunnel.IsClose {
+				s.Close()
+				ticker.Stop()
+				break loop
+			}
+		}
 	}
 }

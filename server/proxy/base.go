@@ -6,6 +6,7 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
 	"net/http"
 	"sync"
@@ -74,13 +75,17 @@ func (s *BaseServer) checkFlow() error {
 func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte, tp string) error {
 	link := conn.NewLink(tp, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.Conn.RemoteAddr().String())
 
-	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String()); err != nil {
+	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
+		logs.Warn("task id %d get connection from client id %d  error %s", s.task.Id, s.task.Client.Id, err.Error())
 		c.Close()
 		return err
 	} else {
+		if rb != nil {
+			target.Write(rb)
+		}
 		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow)
 	}
-	
+
 	s.task.Client.AddConn()
 	return nil
 }

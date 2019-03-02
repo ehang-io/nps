@@ -150,6 +150,13 @@
                 title: 'key',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    if (!row.NoStore) {
+                        return value
+                    } else {
+                        return "public vkey"
+                    }
+                }
             },
             {
                 field: 'Addr',//域值

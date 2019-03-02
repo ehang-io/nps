@@ -49,6 +49,7 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
     * [流量数据持久化](#流量数据持久化)
     * [自定义客户端连接密钥](#自定义客户端连接密钥)
     * [关闭公钥访问](#关闭公钥访问)
+    * [关闭web管理](#关闭web管理)
 * [客户端](#客户端)
     * [客户端启动](#客户端启动)
         * [无配置文件模式](#无配置文件模式)
@@ -60,7 +61,9 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
         * [udp隧道](#udp隧道模式)
         * [http正向代理](#http代理模式)
         * [socks5代理](#socks5代理模式)
-        * [私密代理](#私密代理)
+        * [私密代理](#私密代理模式)
+        * [p2p服务](#p2p代理)
+        * [文件访问代理](#文件访问模式)
     * [断线重连](#断线重连)
     * [状态检查](#状态检查)
     * [重载配置文件](#重载配置文件)
@@ -161,17 +164,21 @@ go语言编写，无第三方依赖，各个平台都已经编译在release中�
 ---|---
 httpport | web管理端口
 password | web界面管理密码
-bridePort  | 服务端客户端通信端口
+username | web界面管理账号
+bridgePort  | 服务端客户端通信端口
 pemPath | ssl certFile绝对路径
 keyPath | ssl keyFile绝对路径
 httpsProxyPort | 域名代理https代理监听端口
 httpProxyPort | 域名代理http代理监听端口
-authip|web api免验证IP地址
+authKey|web api密钥
 bridgeType|客户端与服务端连接方式kcp或tcp
 publicVkey|客户端以配置文件模式启动时的密钥，设置为空表示关闭客户端配置文件连接模式
 ipLimit|是否限制ip访问，true或false或忽略
 flowStoreInterval|服务端流量数据持久化间隔，单位分钟，忽略表示不持久化
 logLevel|日志输出级别
+cryptKey | 获取服务端authKey时的aes加密密钥，16位
+serverIp| 服务端Ip，使用p2p模式必填
+p2pPort|p2p模式开启的udp端口
 
 ### 详细说明
 
@@ -213,7 +220,7 @@ logLevel|日志输出级别
 ./npc -server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
 - 在该客户端隧道管理中添加一条tcp隧道，填写监听的端口（8001）、内网目标ip和目标端口（10.1.50.101:22），选择压缩方式，保存。
-- 访问公网服务器ip（127.0.0.1）,填写的监听端口(8001)，相当于访问内网ip(10.1.50.101):目标端口(22)，例如：`ssh -p 8001 root@127.0.0.1`
+- 访问公网服务器ip（127.0.0.1）,填写的监听端口(8001)，相当于访问内网ip(10.1.50.101):目标端口(22)，例如：`ssh -p 8001 root@1.1.1.1`
 
 #### udp隧道
 
@@ -271,7 +278,7 @@ logLevel|日志输出级别
 **适用范围：**  无需占用多余的端口、安全性要求较高可以防止其他人连接的TCP服务，例如ssh。
 
 **假设场景：**
-无需新增多的端将映射内网服务器10.1.50.2的22端口
+无需新增多的端将映射内网服务器10.1.50.2的22端口，公网服务器ip为1.1.1.1,网桥端口为8284
 
 **使用步骤**
 - 在客户端管理中创建一个客户端，记录下验证密钥
@@ -284,7 +291,7 @@ logLevel|日志输出级别
 
 ```ini
 [common]
-server=127.0.0.1:8284
+server=1.1.1.1:8284
 tp=tcp
 vkey=123
 [secret_ssh]
@@ -294,6 +301,37 @@ port=1000
 **注意：** secret前缀必须存在，password为web管理上添加的唯一密钥
 
 假设用户名为root，现在执行`ssh -p 1000 root@127.0.0.1`即可访问ssh
+
+#### p2p服务
+
+**适用范围：**  大流量传输场景，流量不经过公网服务器，但是由于p2p穿透和nat类型关系较大，成功率不高。
+
+**假设场景：**
+内网1机器ip为10.1.50.2    内网2机器ip为10.2.50.2  口，公网服务器ip为1.1.1.1,网桥端口为8284
+
+想通过访问机器1的2001端口---->访问到内网2机器的22端口
+
+**使用步骤**
+- 在客户端管理中创建一个客户端，记录下验证密钥
+- 内网机器2客户端运行
+```
+./npc -server=1.1.1.1:8284 -vkey=客户端的密钥
+```
+- 添加一条p2p代理，并设置唯一密钥p2pssh
+- 在需要连接的机器上(即机器1)以配置文件模式启动客户端，内容如下
+
+```ini
+[common]
+server=1.1.1.1:8284
+tp=tcp
+vkey=123
+[p2p_ssh]
+password=p2pssh
+port=2001
+```
+**注意：** p2p前缀必须存在，password为web管理上添加的唯一密钥
+
+假设机器2用户名为root，现在执行`ssh -p 2001 root@127.0.0.1`即可访问机器2的ssh
 
 
 
@@ -368,6 +406,9 @@ web上可以自定义客户端连接的密钥，但是必须具有唯一性
 ### 关闭公钥访问
 可以将`nps.conf`中的`publicVkey`设置为空或者删除
 
+### 关闭web管理
+可以将`nps.conf`中的`httpport`设置为空或者删除
+
 ## 客户端
 
 ### 客户端启动
@@ -432,7 +473,7 @@ header_xxx|请求header修改或添加，header_proxy表示添加header proxy:np
 
 ```ini
 [tcp]
-mode=tcp
+mode=tcpServer
 target=127.0.0.1:8080
 port=9001
 ```
@@ -446,7 +487,7 @@ target|内网目标
 
 ```ini
 [udp]
-mode=udp
+mode=udpServer
 target=127.0.0.1:8080
 port=9002
 ```
@@ -459,7 +500,7 @@ target|内网目标
 
 ```ini
 [http]
-mode=httpProxy
+mode=httpProxyServer
 port=9003
 ```
 项 | 含义
@@ -470,7 +511,7 @@ port | 在服务端的代理端口
 
 ```ini
 [socks5]
-mode=socks5
+mode=socks5Server
 port=9004
 ```
 项 | 含义
@@ -487,9 +528,43 @@ target=10.1.50.2:22
 ```
 项 | 含义
 ---|---
-mode | secret
+mode | secretServer
 password | 唯一密钥
 target|内网目标
+
+##### p2p代理模式
+
+```ini
+[p2p_ssh]
+mode=p2p
+password=ssh2
+target=10.1.50.2:22
+```
+项 | 含义
+---|---
+mode | p2p
+password | 唯一密钥
+target|内网目标
+
+##### 文件访问模式
+利用nps提供一个公网可访问的本地文件服务
+
+```ini
+[file]
+mode=file
+port=9100
+local_path=/tmp/
+strip_pre=/web/
+````
+
+项 | 含义
+---|---
+mode | file
+port | 服务端开启的端口
+local_path|本地文件目录
+strip_pre|前缀
+
+对于`strip_pre`，访问公网`ip:9100/web/`相当于访问`/tmp/`目录
 
 #### 断线重连
 ```ini
@@ -600,7 +675,7 @@ allowPorts=9001-9009,10001,11000-12000
 
 ```ini
 [tcp]
-mode=tcp
+mode=tcpServer
 port=9001-9009,10001,11000-12000
 target=8001-8009,10002,13000-14000
 ```
@@ -609,7 +684,7 @@ target=8001-8009,10002,13000-14000
 ### 端口范围映射到其他机器
 ```ini
 [tcp]
-mode=tcp
+mode=tcpServer
 port=9001-9009,10001,11000-12000
 target=8001-8009,10002,13000-14000
 targetAddr=10.1.50.2
@@ -706,6 +781,33 @@ time为有效小时数，例如time=2，在当前时间后的两小时内，本�
 为了最大化的提升效率和并发，客户端与服务端之间仅两条tcp连接，减少建立连接的时间消耗和多余tcp连接对机器性能的影响。
 
 ## webAPI
+
+### webAPI验证说明
+- 采用auth_key的验证方式
+- 在提交的每个请求后面附带两个参数，`auth_key` 和`timestamp`
+
+```
+auth_key的生成方式为：md5(配置文件中的auth_key+当前时间戳)
+```
+
+```
+timestamp为当前时间戳
+```
+
+**注意：** 为保证安全，时间戳的有效范围为20秒内，所以每次提交请求必须重新生成。
+
+### 获取服务端authKey
+
+如果想获取authKey，服务端提供获取authKey的接口
+
+```
+POST /auth/getauthkey
+```
+将返回加密后的authKey，采用aes cbc加密，请使用与服务端配置文件中cryptKey相同的密钥进行解密
+
+
+### 详细文档
+- 此文档近期可能更新较慢，建议自行抓包
 
 为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见
 [webAPI文档](https://github.com/cnlh/nps/wiki/webAPI%E6%96%87%E6%A1%A3)

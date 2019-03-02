@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
@@ -41,7 +42,8 @@ func GetTaskStatus(path string) {
 	} else if _, err := c.Write([]byte(crypt.Md5(string(f)))); err != nil {
 		log.Fatalln(err)
 	}
-
+	var isPub bool
+	binary.Read(c, binary.LittleEndian, &isPub)
 	if l, err := c.GetLen(); err != nil {
 		log.Fatalln(err)
 	} else if b, err := c.GetShortContent(l); err != nil {
@@ -104,25 +106,30 @@ re:
 		logs.Error(err)
 		goto re
 	}
-
-	// send global configuration to server and get status of config setting
-	if _, err := c.SendConfigInfo(cnf.CommonConfig); err != nil {
-		logs.Error(err)
-		goto re
-	}
-	if !c.GetAddStatus() {
-		logs.Error(errAdd)
-		goto re
-	}
+	var isPub bool
+	binary.Read(c, binary.LittleEndian, &isPub)
 
 	// get tmp password
 	var b []byte
-	if b, err = c.GetShortContent(16); err != nil {
-		logs.Error(err)
-		goto re
-	} else {
-		ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(string(b)), 0600)
+	vkey := cnf.CommonConfig.VKey
+	if isPub {
+		// send global configuration to server and get status of config setting
+		if _, err := c.SendConfigInfo(cnf.CommonConfig); err != nil {
+			logs.Error(err)
+			goto re
+		}
+		if !c.GetAddStatus() {
+			logs.Error(errAdd)
+			goto re
+		}
+
+		if b, err = c.GetShortContent(16); err != nil {
+			logs.Error(err)
+			goto re
+		}
+		vkey = string(b)
 	}
+	ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(vkey), 0600)
 
 	//send hosts to server
 	for _, v := range cnf.Hosts {
@@ -146,6 +153,10 @@ re:
 			logs.Error(errAdd, v.Ports)
 			goto re
 		}
+		if v.Mode == "file" {
+			//start local file server
+			go startLocalFileServer(cnf.CommonConfig, v, vkey)
+		}
 	}
 
 	//create local server secret or p2p
@@ -154,7 +165,7 @@ re:
 	}
 
 	c.Close()
-	NewRPClient(cnf.CommonConfig.Server, string(b), cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl).Start()
+	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl).Start()
 	CloseLocalServer()
 	goto re
 }

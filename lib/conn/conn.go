@@ -302,7 +302,7 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_TASK))
-	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark, t.TargetAddr, t.Password)
+	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark, t.TargetAddr, t.Password, t.LocalPath, t.StripPre)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
@@ -329,6 +329,8 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 		t.Remark = arr[3]
 		t.TargetAddr = arr[4]
 		t.Password = arr[5]
+		t.LocalPath = arr[6]
+		t.StripPre = arr[7]
 		t.NoStore = true
 	}
 	return

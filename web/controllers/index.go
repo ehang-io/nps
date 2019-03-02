@@ -43,6 +43,11 @@ func (s *IndexController) Http() {
 	s.SetType("httpProxy")
 	s.display("index/list")
 }
+func (s *IndexController) File() {
+	s.SetInfo("file server")
+	s.SetType("file")
+	s.display("index/list")
+}
 
 func (s *IndexController) Secret() {
 	s.SetInfo("secret")
@@ -85,14 +90,16 @@ func (s *IndexController) Add() {
 		s.display()
 	} else {
 		t := &file.Tunnel{
-			Port:     s.GetIntNoErr("port"),
-			Mode:     s.GetString("type"),
-			Target:   s.GetString("target"),
-			Id:       file.GetCsvDb().GetTaskId(),
-			Status:   true,
-			Remark:   s.GetString("remark"),
-			Password: s.GetString("password"),
-			Flow:     &file.Flow{},
+			Port:      s.GetIntNoErr("port"),
+			Mode:      s.GetString("type"),
+			Target:    s.GetString("target"),
+			Id:        file.GetCsvDb().GetTaskId(),
+			Status:    true,
+			Remark:    s.GetString("remark"),
+			Password:  s.GetString("password"),
+			LocalPath: s.GetString("local_path"),
+			StripPre:  s.GetString("strip_pre"),
+			Flow:      &file.Flow{},
 		}
 		if !tool.TestServerPort(t.Port, t.Mode) {
 			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
@@ -101,7 +108,9 @@ func (s *IndexController) Add() {
 		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		file.GetCsvDb().NewTask(t)
+		if err := file.GetCsvDb().NewTask(t); err != nil {
+			s.AjaxErr(err.Error())
+		}
 		if err := server.AddTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		} else {
@@ -140,11 +149,15 @@ func (s *IndexController) Edit() {
 			t.Target = s.GetString("target")
 			t.Password = s.GetString("password")
 			t.Id = id
+			t.LocalPath = s.GetString("local_path")
+			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error")
 			}
 			file.GetCsvDb().UpdateTask(t)
+			server.StopServer(t.Id)
+			server.StartTask(t.Id)
 		}
 		s.AjaxOk("modified success")
 	}

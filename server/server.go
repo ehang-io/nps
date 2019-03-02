@@ -79,7 +79,7 @@ func DealBridgeTask() {
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")), RunList)
 	if err := Bridge.StartTunnel(); err != nil {
-		logs.Error("服务端开启失败", err)
+		logs.Error("start server bridge error", err)
 		os.Exit(0)
 	} else {
 		logs.Info("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
@@ -103,7 +103,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 	var service proxy.Service
 	switch c.Mode {
-	case "tcp":
+	case "tcp", "file":
 		service = proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
 	case "socks5":
 		service = proxy.NewSock5ModeServer(Bridge, c)
@@ -134,6 +134,7 @@ func StopServer(id int) error {
 			if err := svr.Close(); err != nil {
 				return err
 			}
+			logs.Info("stop server id %d", id)
 		}
 		if t, err := file.GetCsvDb().GetTask(id); err != nil {
 			return err
@@ -144,7 +145,7 @@ func StopServer(id int) error {
 		delete(RunList, id)
 		return nil
 	}
-	return errors.New("未在运行中")
+	return errors.New("task is not running")
 }
 
 //add task

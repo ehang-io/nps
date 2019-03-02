@@ -147,7 +147,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				break
 			}
 			lk := conn.NewLink(common.CONN_TCP, host.Target, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
-			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String()); err != nil {
+			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String(), nil); err != nil {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
 			}

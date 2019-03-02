@@ -1,78 +1,22 @@
-{{/*<div class="row">*/}}
-{{/*<div class="col-md-3">*/}}
-{{/*<div class="widget-small warning coloured-icon"><i class="icon fa fa-html5 fa-3x"></i>*/}}
-{{/*<div class="info">*/}}
-{{/*<h4>客户端连接端口</h4>*/}}
-{{/*<p><b>{{.p}}</b></p>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*<div class="col-md-3">*/}}
-{{/*<div class="widget-small danger coloured-icon"><i class="icon fa fa-home fa-3x"></i>*/}}
-{{/*<div class="info">*/}}
-{{/*<h4>当前TCP连接总数</h4>*/}}
-{{/*<p><b>{{.data.tcpCount}}</b></p>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*<div class="col-md-3">*/}}
-{{/*<div class="widget-small primary coloured-icon"><i class="icon fa fa-users fa-3x"></i>*/}}
-{{/*<div class="info">*/}}
-{{/*<h4>总客户端数</h4>*/}}
-{{/*<p><b>{{.data.clientCount}}</b></p>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*<div class="col-md-3">*/}}
-{{/*<div class="widget-small info coloured-icon"><i class="icon fa fa-user-secret fa-3x"></i>*/}}
-{{/*<div class="info">*/}}
-{{/*<h4>在线客户端数</h4>*/}}
-{{/*<p><b>{{.data.clientOnlineCount}}</b></p>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*<div class="row">*/}}
-{{/*<div class="col-md-6">*/}}
-{{/*<div class="tile">*/}}
-{{/*<h3 class="tile-title">流量</h3>*/}}
-{{/*<div id="flow" style="width: 600px;height:400px;"></div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*<div class="col-md-6">*/}}
-{{/*<div class="tile">*/}}
-{{/*<h3 class="tile-title">代理类型</h3>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-{{/*</div>*/}}
-
-
-
 <div class="wrapper wrapper-content">
     <div class="row">
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                {{/*<span class="label label-success pull-right">月</span>*/}}
                     <h5>client connection port</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.p}}</h1>
-                {{/*<div class="stat-percent font-bold text-success">98% <i class="fa fa-bolt"></i></div>*/}}
-                {{/*<small>总收入</small>*/}}
                 </div>
             </div>
         </div>
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                {{/*<span class="label label-info pull-right">季</span>*/}}
                     <h5>number of clients</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.clientCount}}</h1>
-                {{/*<div class="stat-percent font-bold text-info">20% <i class="fa fa-level-up"></i></div>*/}}
-                {{/*<small>新订单</small>*/}}
                 </div>
             </div>
         </div>
@@ -92,13 +36,10 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                {{/*<span class="label label-danger pull-right">低值</span>*/}}
                     <h5>number of tcp connections</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.tcpCount}}</h1>
-                {{/*<div class="stat-percent font-bold text-danger">38% <i class="fa fa-level-down"></i></div>*/}}
-                {{/*<small>第一个月</small>*/}}
                 </div>
             </div>
         </div>

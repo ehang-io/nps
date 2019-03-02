@@ -9,6 +9,7 @@ const (
 	WORK_CONFIG       = "conf"
 	WORK_REGISTER     = "rgst"
 	WORK_SECRET       = "sert"
+	WORK_FILE         = "file"
 	WORK_P2P          = "p2pm"
 	WORK_P2P_VISITOR  = "p2pv"
 	WORK_P2P_PROVIDER = "p2pp"

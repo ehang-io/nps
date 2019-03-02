@@ -148,7 +148,7 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 
 func (s *Csv) NewTask(t *Tunnel) error {
 	for _, v := range s.Tasks {
-		if v.Mode == "secret" && v.Password == t.Password {
+		if (v.Mode == "secret" || v.Mode == "p2p") && v.Password == t.Password {
 			return errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
 		}
 	}
@@ -159,10 +159,8 @@ func (s *Csv) NewTask(t *Tunnel) error {
 }
 
 func (s *Csv) UpdateTask(t *Tunnel) error {
-	for k, v := range s.Tasks {
+	for _, v := range s.Tasks {
 		if v.Id == t.Id {
-			s.Tasks = append(s.Tasks[:k], s.Tasks[k+1:]...)
-			s.Tasks = append(s.Tasks, t)
 			s.StoreTasksToCsv()
 			return nil
 		}
@@ -332,6 +330,9 @@ func (s *Csv) NewHost(t *Host) error {
 	if s.IsHostExist(t) {
 		return errors.New("host has exist")
 	}
+	if t.Location == "" {
+		t.Location = "/"
+	}
 	t.Flow = new(Flow)
 	s.Hosts = append(s.Hosts, t)
 	s.StoreHostToCsv()
@@ -339,10 +340,8 @@ func (s *Csv) NewHost(t *Host) error {
 }
 
 func (s *Csv) UpdateHost(t *Host) error {
-	for k, v := range s.Hosts {
+	for _, v := range s.Hosts {
 		if v.Host == t.Host {
-			s.Hosts = append(s.Hosts[:k], s.Hosts[k+1:]...)
-			s.Hosts = append(s.Hosts, t)
 			s.StoreHostToCsv()
 			return nil
 		}
@@ -465,7 +464,7 @@ func (s *Csv) GetClient(id int) (v *Client, err error) {
 }
 func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
 	for _, v := range s.Clients {
-		if v.VerifyKey == vkey {
+		if crypt.Md5(v.VerifyKey) == vkey {
 			id = v.Id
 			return
 		}

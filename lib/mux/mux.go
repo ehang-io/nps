@@ -21,6 +21,8 @@ const (
 	MUX_NEW_CONN
 	MUX_PING
 	MUX_CONN_CLOSE
+	MUX_PING_RETURN
+	RETRY_TIME = 2 //Heart beat allowed fault tolerance times
 )
 
 type Mux struct {
@@ -32,7 +34,8 @@ type Mux struct {
 	newConnCh    chan *conn
 	id           int32
 	closeChan    chan struct{}
-	isClose      bool
+	IsClose      bool
+	pingOk       int
 	sync.Mutex
 }
 
@@ -45,7 +48,7 @@ func NewMux(c net.Conn) *Mux {
 		id:           0,
 		closeChan:    make(chan struct{}),
 		newConnCh:    make(chan *conn),
-		isClose:      false,
+		IsClose:      false,
 	}
 	//read session by flag
 	go m.readSession()
@@ -57,7 +60,7 @@ func NewMux(c net.Conn) *Mux {
 }
 
 func (s *Mux) NewConn() (*conn, error) {
-	if s.isClose {
+	if s.IsClose {
 		return nil, errors.New("the mux has closed")
 	}
 	conn := NewConn(s.getId(), s, s.sendMsgCh, s.sendStatusCh)
@@ -82,7 +85,7 @@ func (s *Mux) NewConn() (*conn, error) {
 }
 
 func (s *Mux) Accept() (net.Conn, error) {
-	if s.isClose {
+	if s.IsClose {
 		return nil, errors.New("accpet error,the conn has closed")
 	}
 	return <-s.newConnCh, nil
@@ -107,10 +110,11 @@ func (s *Mux) ping() {
 			raw.Reset()
 			binary.Write(raw, binary.LittleEndian, MUX_PING_FLAG)
 			binary.Write(raw, binary.LittleEndian, MUX_PING)
-			if _, err := s.conn.Write(raw.Bytes()); err != nil {
+			if _, err := s.conn.Write(raw.Bytes()); err != nil || s.pingOk > RETRY_TIME {
 				s.Close()
 				break
 			}
+			s.pingOk += 1
 		}
 	}()
 	select {
@@ -176,6 +180,13 @@ func (s *Mux) readSession() {
 					s.conn.Write(raw.Bytes())
 					continue
 				case MUX_PING_FLAG: //ping
+					raw.Reset()
+					binary.Write(raw, binary.LittleEndian, MUX_PING_RETURN)
+					binary.Write(raw, binary.LittleEndian, MUX_PING)
+					s.conn.Write(raw.Bytes())
+					continue
+				case MUX_PING_RETURN:
+					s.pingOk -= 1
 					continue
 				case MUX_NEW_MSG:
 					if n, err = ReadLenBytes(buf, s.conn); err != nil {
@@ -212,10 +223,10 @@ func (s *Mux) readSession() {
 }
 
 func (s *Mux) Close() error {
-	if s.isClose {
+	if s.IsClose {
 		return errors.New("the mux has closed")
 	}
-	s.isClose = true
+	s.IsClose = true
 	s.connMap.Close()
 	s.closeChan <- struct{}{}
 	s.closeChan <- struct{}{}

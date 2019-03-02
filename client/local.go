@@ -5,31 +5,52 @@ import (
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
+	"net/http"
 	"strings"
 )
 
 var LocalServer []*net.TCPListener
 var udpConn net.Conn
 var muxSession *mux.Mux
+var fileServer []*http.Server
 
 func CloseLocalServer() {
 	for _, v := range LocalServer {
 		v.Close()
 	}
+	for _, v := range fileServer {
+		v.Close()
+	}
+}
+
+func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey string) {
+	remoteConn, err := NewConn(config.Tp, vkey, config.Server, common.WORK_FILE, config.ProxyUrl)
+	if err != nil {
+		logs.Error("Local connection server failed ", err.Error())
+		return
+	}
+	srv := &http.Server{
+		Handler: http.StripPrefix(t.StripPre, http.FileServer(http.Dir(t.LocalPath))),
+	}
+	logs.Info("start local file system, local path %s, strip prefix %s ,remote port %s ", t.LocalPath, t.StripPre, t.Ports)
+	fileServer = append(fileServer, srv)
+	listener := mux.NewMux(remoteConn.Conn)
+	logs.Warn(srv.Serve(listener))
 }
 
 func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
 	listener, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), l.Port, ""})
 	if err != nil {
-		logs.Error("Local listener startup failed port %d, error %s", l.Port, err.Error())
+		logs.Error("local listener startup failed port %d, error %s", l.Port, err.Error())
 		return err
 	}
 	LocalServer = append(LocalServer, listener)
-	logs.Info("Successful start-up of local monitoring, port", l.Port)
+	logs.Info("successful start-up of local monitoring, port", l.Port)
 	for {
 		c, err := listener.AcceptTCP()
 		if err != nil {
@@ -52,9 +73,11 @@ func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_SECRET, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
+		return
 	}
 	if _, err := remoteConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
 		logs.Error("Local connection server failed ", err.Error())
+		return
 	}
 	conn.CopyWaitGroup(remoteConn, localTcpConn, false, false, nil, nil)
 }
@@ -62,6 +85,9 @@ func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config
 func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
 	if udpConn == nil {
 		newUdpConn(config, l)
+		if udpConn == nil {
+			return
+		}
 		muxSession = mux.NewMux(udpConn)
 	}
 	nowConn, err := muxSession.NewConn()
@@ -110,6 +136,7 @@ func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
 	conn.SetUdpSession(localKcpConn)
 	if err != nil {
 		logs.Error(err)
+		return
 	}
 	//写入密钥、provider身份
 	if _, err := localKcpConn.Write([]byte(crypt.Md5(l.Password))); err != nil {

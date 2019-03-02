@@ -140,7 +140,7 @@ func (s *conn) Close() error {
 	close(s.connStatusOkCh)
 	close(s.connStatusFailCh)
 	close(s.readCh)
-	if !s.mux.isClose {
+	if !s.mux.IsClose {
 		s.sendMsgCh <- NewMsg(s.connId, nil)
 	}
 	return nil

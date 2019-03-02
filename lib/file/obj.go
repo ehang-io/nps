@@ -77,6 +77,24 @@ func (s *Client) GetConn() bool {
 	return false
 }
 
+func (s *Client) HasTunnel(t *Tunnel) bool {
+	for _, v := range GetCsvDb().Tasks {
+		if v.Client.Id == s.Id && v.Port == t.Port {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Client) HasHost(h *Host) bool {
+	for _, v := range GetCsvDb().Hosts {
+		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
+			return true
+		}
+	}
+	return false
+}
+
 type Tunnel struct {
 	Id         int     //Id
 	Port       int     //服务端监听端口
@@ -91,6 +109,8 @@ type Tunnel struct {
 	Remark     string //备注
 	TargetAddr string
 	NoStore    bool
+	LocalPath  string
+	StripPre   string
 }
 
 type Config struct {

@@ -183,6 +183,10 @@ func dealTunnel(s string) *file.Tunnel {
 			t.TargetAddr = item[1]
 		case "password":
 			t.Password = item[1]
+		case "local_path":
+			t.LocalPath = item[1]
+		case "strip_pre":
+			t.StripPre = item[1]
 		}
 	}
 	return t

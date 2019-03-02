@@ -21,15 +21,18 @@ import (
 )
 
 type Client struct {
-	tunnel *mux.Mux
-	signal *conn.Conn
+	tunnel    *mux.Mux
+	signal    *conn.Conn
+	file      *mux.Mux
+	retryTime int // it will be add 1 when ping not ok until to 3 will close the client
 	sync.RWMutex
 }
 
-func NewClient(t *mux.Mux, s *conn.Conn) *Client {
+func NewClient(t, f *mux.Mux, s *conn.Conn) *Client {
 	return &Client{
 		signal: s,
 		tunnel: t,
+		file:   f,
 	}
 }
 
@@ -64,6 +67,7 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int
 }
 
 func (s *Bridge) StartTunnel() error {
+	go s.ping()
 	var err error
 	if s.tunnelType == "kcp" {
 		s.kcpListener, err = kcp.ListenWithOptions(":"+strconv.Itoa(s.TunnelPort), nil, 150, 3)
@@ -117,15 +121,17 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 		c.Close()
 		return
 	}
+	//write server version to client
 	c.Write([]byte(crypt.Md5(version.GetVersion())))
 	c.SetReadDeadline(5, s.tunnelType)
 	var buf []byte
 	var err error
+	//get vkey from client
 	if buf, err = c.GetShortContent(32); err != nil {
 		c.Close()
 		return
 	}
-	//验证
+	//verify
 	id, err := file.GetCsvDb().GetIdByVerifyKey(string(buf), c.Conn.RemoteAddr().String())
 	if err != nil {
 		logs.Info("Current client connection validation error, close this client:", c.Conn.RemoteAddr())
@@ -150,7 +156,9 @@ func (s *Bridge) DelClient(id int, isOther bool) {
 		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
 			s.CloseClient <- c.Id
 		}
-		v.signal.Close()
+		if v.signal != nil {
+			v.signal.Close()
+		}
 		delete(s.Client, id)
 	}
 }
@@ -170,13 +178,9 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			v.signal = c
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(nil, c)
+			s.Client[id] = NewClient(nil, nil, c)
 			s.clientLock.Unlock()
 		}
-		go func(id int) {
-			binary.Read(c, binary.LittleEndian, true)
-			s.DelClient(id, false)
-		}(id)
 		logs.Info("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
 	case common.WORK_CHAN:
 		s.clientLock.Lock()
@@ -186,16 +190,37 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			v.tunnel = mux.NewMux(c.Conn)
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(mux.NewMux(c.Conn), nil)
+			s.Client[id] = NewClient(mux.NewMux(c.Conn), nil, nil)
 			s.clientLock.Unlock()
 		}
 	case common.WORK_CONFIG:
-		go s.getConfig(c)
+		var isPub bool
+		client, err := file.GetCsvDb().GetClient(id);
+		if err == nil {
+			if client.VerifyKey == beego.AppConfig.String("publicVkey") {
+				isPub = true
+			} else {
+				isPub = false
+			}
+		}
+		binary.Write(c, binary.LittleEndian, isPub)
+		go s.getConfig(c, isPub, client)
 	case common.WORK_REGISTER:
 		go s.register(c)
 	case common.WORK_SECRET:
 		if b, err := c.GetShortContent(32); err == nil {
 			s.SecretChan <- conn.NewSecret(string(b), c)
+		}
+	case common.WORK_FILE:
+		s.clientLock.Lock()
+		if v, ok := s.Client[id]; ok {
+			s.clientLock.Unlock()
+			v.Lock()
+			v.file = mux.NewMux(c.Conn)
+			v.Unlock()
+		} else {
+			s.Client[id] = NewClient(nil, mux.NewMux(c.Conn), nil)
+			s.clientLock.Unlock()
 		}
 	case common.WORK_P2P:
 		//read md5 secret
@@ -238,10 +263,12 @@ func (s *Bridge) register(c *conn.Conn) {
 	}
 }
 
-func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (target net.Conn, err error) {
+func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string, t *file.Tunnel) (target net.Conn, err error) {
 	s.clientLock.Lock()
 	if v, ok := s.Client[clientId]; ok {
 		s.clientLock.Unlock()
+
+		//If ip is restricted to do ip verification
 		if s.ipVerify {
 			s.registerLock.Lock()
 			ip := common.GetIpByAddr(linkAddr)
@@ -255,18 +282,27 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (t
 			}
 			s.registerLock.Unlock()
 		}
-
-		if v.tunnel == nil {
+		var tunnel *mux.Mux
+		if t != nil && t.Mode == "file" {
+			tunnel = v.file
+		} else {
+			tunnel = v.tunnel
+		}
+		if tunnel == nil {
 			err = errors.New("the client connect error")
 			return
 		}
 
-		if target, err = v.tunnel.NewConn(); err != nil {
+		if target, err = tunnel.NewConn(); err != nil {
+			return
+		}
+
+		if t != nil && t.Mode == "file" {
 			return
 		}
 
 		if _, err = conn.NewConn(target).SendLinkInfo(link); err != nil {
-			logs.Warn("new connect error ,the target %s refuse to connect", link.Host)
+			logs.Info("new connect error ,the target %s refuse to connect", link.Host)
 			return
 		}
 
@@ -277,9 +313,36 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string) (t
 	return
 }
 
+func (s *Bridge) ping() {
+	ticker := time.NewTicker(time.Second * 5)
+	for {
+		select {
+		case <-ticker.C:
+			s.clientLock.Lock()
+			arr := make([]int, 0)
+			for k, v := range s.Client {
+				if v.tunnel == nil {
+					v.retryTime += 1
+					if v.retryTime >= 3 {
+						arr = append(arr, k)
+					}
+					continue
+				}
+				if v.tunnel.IsClose {
+					arr = append(arr, k)
+				}
+			}
+			s.clientLock.Unlock()
+			for _, v := range arr {
+				logs.Info("the client %d closed", v)
+				s.DelClient(v, false)
+			}
+		}
+	}
+}
+
 //get config and add task from client config
-func (s *Bridge) getConfig(c *conn.Conn) {
-	var client *file.Client
+func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 	var fail bool
 
 	for {
@@ -292,7 +355,6 @@ func (s *Bridge) getConfig(c *conn.Conn) {
 			if b, err := c.GetShortContent(32); err != nil {
 				break
 			} else {
-				logs.Warn(string(b))
 				var str string
 				id, err := file.GetCsvDb().GetClientIdByVkey(string(b))
 				if err != nil {
@@ -327,17 +389,26 @@ func (s *Bridge) getConfig(c *conn.Conn) {
 				c.Write([]byte(client.VerifyKey))
 			}
 		case common.NEW_HOST:
-			if h, err := c.GetHostInfo(); err != nil {
+			h, err := c.GetHostInfo()
+			if err != nil {
 				fail = true
 				c.WriteAddFail()
 				break
-			} else if file.GetCsvDb().IsHostExist(h) {
-				fail = true
-				c.WriteAddFail()
-				break
+			}
+			h.Client = client
+			if h.Location == "" {
+				h.Location = "/"
+			}
+			if !client.HasHost(h) {
+				if file.GetCsvDb().IsHostExist(h) {
+					fail = true
+					c.WriteAddFail()
+					break
+				} else {
+					file.GetCsvDb().NewHost(h)
+					c.WriteAddOk()
+				}
 			} else {
-				h.Client = client
-				file.GetCsvDb().NewHost(h)
 				c.WriteAddOk()
 			}
 		case common.NEW_TASK:
@@ -381,18 +452,22 @@ func (s *Bridge) getConfig(c *conn.Conn) {
 					tl.NoStore = true
 					tl.Client = client
 					tl.Password = t.Password
-					if err := file.GetCsvDb().NewTask(tl); err != nil {
-						logs.Notice("Add task error ", err.Error())
-						fail = true
-						c.WriteAddFail()
-						break
-					}
-					if b := tool.TestServerPort(tl.Port, tl.Mode); !b && t.Mode != "secret" {
-						fail = true
-						c.WriteAddFail()
-						break
-					} else {
-						s.OpenTask <- tl
+					tl.LocalPath = t.LocalPath
+					tl.StripPre = t.StripPre
+					if !client.HasTunnel(tl) {
+						if err := file.GetCsvDb().NewTask(tl); err != nil {
+							logs.Notice("Add task error ", err.Error())
+							fail = true
+							c.WriteAddFail()
+							break
+						}
+						if b := tool.TestServerPort(tl.Port, tl.Mode); !b && t.Mode != "secret" && t.Mode != "p2p" {
+							fail = true
+							c.WriteAddFail()
+							break
+						} else {
+							s.OpenTask <- tl
+						}
 					}
 					c.WriteAddOk()
 				}
@@ -400,7 +475,7 @@ func (s *Bridge) getConfig(c *conn.Conn) {
 		}
 	}
 	if fail && client != nil {
-		s.CloseClient <- client.Id
+		s.DelClient(client.Id, false)
 	}
 	c.Close()
 }
