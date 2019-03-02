@@ -344,7 +344,7 @@ func (s *Bridge) ping() {
 //get config and add task from client config
 func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 	var fail bool
-
+loop:
 	for {
 		flag, err := c.ReadFlag()
 		if err != nil {
@@ -353,12 +353,12 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 		switch flag {
 		case common.WORK_STATUS:
 			if b, err := c.GetShortContent(32); err != nil {
-				break
+				break loop
 			} else {
 				var str string
 				id, err := file.GetCsvDb().GetClientIdByVkey(string(b))
 				if err != nil {
-					break
+					break loop
 				}
 				for _, v := range file.GetCsvDb().Hosts {
 					if v.Client.Id == id {
@@ -378,12 +378,12 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 			if client, err = c.GetConfigInfo(); err != nil {
 				fail = true
 				c.WriteAddFail()
-				break
+				break loop
 			} else {
 				if err = file.GetCsvDb().NewClient(client); err != nil {
 					fail = true
 					c.WriteAddFail()
-					break
+					break loop
 				}
 				c.WriteAddOk()
 				c.Write([]byte(client.VerifyKey))
@@ -396,7 +396,7 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 			if err != nil {
 				fail = true
 				c.WriteAddFail()
-				break
+				break loop
 			}
 			h.Client = client
 			if h.Location == "" {
@@ -406,7 +406,7 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 				if file.GetCsvDb().IsHostExist(h) {
 					fail = true
 					c.WriteAddFail()
-					break
+					break loop
 				} else {
 					file.GetCsvDb().NewHost(h)
 					c.WriteAddOk()
@@ -418,21 +418,21 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 			if t, err := c.GetTaskInfo(); err != nil {
 				fail = true
 				c.WriteAddFail()
-				break
+				break loop
 			} else {
 				ports := common.GetPorts(t.Ports)
 				targets := common.GetPorts(t.Target)
 				if len(ports) > 1 && (t.Mode == "tcp" || t.Mode == "udp") && (len(ports) != len(targets)) {
 					fail = true
 					c.WriteAddFail()
-					break
+					break loop
 				} else if t.Mode == "secret" {
 					ports = append(ports, 0)
 				}
 				if len(ports) == 0 {
 					fail = true
 					c.WriteAddFail()
-					break
+					break loop
 				}
 				for i := 0; i < len(ports); i++ {
 					tl := new(file.Tunnel)
@@ -462,12 +462,12 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 							logs.Notice("Add task error ", err.Error())
 							fail = true
 							c.WriteAddFail()
-							break
+							break loop
 						}
 						if b := tool.TestServerPort(tl.Port, tl.Mode); !b && t.Mode != "secret" && t.Mode != "p2p" {
 							fail = true
 							c.WriteAddFail()
-							break
+							break loop
 						} else {
 							s.OpenTask <- tl
 						}
@@ -478,6 +478,7 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 		}
 	}
 	if fail && client != nil {
+		file.GetCsvDb().DelClient(client.Id)
 		s.DelClient(client.Id, false)
 	}
 	c.Close()
