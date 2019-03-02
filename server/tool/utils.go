@@ -21,7 +21,7 @@ func TestServerPort(p int, m string) (b bool) {
 			return false
 		}
 	}
-	if m == "udpServer" {
+	if m == "udp" {
 		b = common.TestUdpPort(p)
 	} else {
 		b = common.TestTcpPort(p)

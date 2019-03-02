@@ -1,78 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta name="description"
-          content="Vali is a responsive and free admin theme built with Bootstrap 4, SASS and PUG.js. It's fully customizable and modular.">
-    <link rel="shortcut icon" href="/static/img/favicon.ico">
-    <title>nps内网穿透</title>
+
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Font-icon css-->
-    <link rel="stylesheet" type="text/css" href="/static/css/font-awesome.min.css">
-    <!-- Main CSS-->
-    <link rel="stylesheet" type="text/css" href="/static/css/main.css">
+
+    <title>nps admin</title>
+
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/font-awesome/css/font-awesome.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+    <script src="/static/js/main.js"></script>
+    <!-- Mainly scripts -->
+    <script src="/static/js/jquery-2.1.1.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/echarts.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="/static/css/bootstrap-table.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="/static/js/bootstrap-table.min.js"></script>
+    <script src="/static/js/inspinia.js"></script>
+    <!-- Latest compiled and minified Locales -->
+
+
 </head>
-<body class="app sidebar-mini rtl">
-<!-- Navbar-->
-<header class="app-header">
-    <a class="app-header__logo" href="/"></a>
-    <!-- Sidebar toggle button--><a class="app-sidebar__toggle" href="#" data-toggle="sidebar"
-                                    aria-label="Hide Sidebar"></a>
-    <ul class="app-nav">
-        <!--Notification Menu-->
-        <!-- User Menu-->
-        <li class="dropdown"><a class="app-nav__item" href="/login/out" data-toggle="dropdown"
-                                aria-label="Open Profile Menu"><i class="fa fa-sign-out fa-lg"></i>退出登陆</a>
 
-        </li>
-    </ul>
-</header>
-<!-- Sidebar menu-->
-<div class="app-sidebar__overlay" data-toggle="sidebar"></div>
-<aside class="app-sidebar">
-    <div class="app-sidebar__user"><img class="app-sidebar__user-avatar"
-                                        src="/static/img/48.jpg"
-                                        alt="User Image">
-        <div>
-            <p class="app-sidebar__user-name">System</p>
-            <p class="app-sidebar__user-designation">欢迎使用</p>
+<body>
+<div id="wrapper">
+    <nav class="navbar-default navbar-static-side" style="position: fixed" role="navigation">
+        <div class="sidebar-collapse">
+            <ul class="nav metismenu" id="side-menu">
+                <li class="nav-header">
+                    <div class="dropdown profile-element"> <span>
+                    {{/*<img alt="image" class="img-circle" src="/static/img/profile_small.jpg"/>*/}}
+                    </span>
+                        <a href="#">
+                            <span class="clear"> <span class="block m-t-xs"> <strong class="font-bold">admin</strong>
+                             </span> <span class="text-muted text-xs block">system </span> </span>
+                        </a>
+                    </div>
+                    <div class="logo-element">
+                        IN+
+                    </div>
+                </li>
+                <li class="{{if eq "index" .menu}}active{{end}}">
+                    <a href="/"><i class="fa fa-dashboard"></i> <span class="nav-label">dashboard</span></a>
+                </li>
+                <li class="{{if eq "client" .menu}}active{{end}}">
+                    <a href="/client/list"><i class="fa fa-clipboard"></i> <span class="nav-label">client</span></a>
+                </li>
+                <li class="{{if eq "host" .menu}}active{{end}}">
+                    <a href="/index/hostlist"><i class="fa fa-paperclip"></i> <span class="nav-label">host</span></a>
+                </li>
+                <li class="{{if eq "tcp" .menu}}active{{end}}">
+                    <a href="/index/tcp"><i class="fa fa-line-chart"></i> <span class="nav-label">tcp</span></a>
+                </li>
+                <li class="{{if eq "udp" .menu}}active{{end}}">
+                    <a href="/index/udp"><i class="fa fa-server"></i> <span class="nav-label">udp</span></a>
+                </li>
+                <li class="{{if eq "http" .menu}}active{{end}}">
+                    <a href="/index/http"><i class="fa fa-html5"></i> <span class="nav-label">http</span></a>
+                </li>
+                <li class="{{if eq "socks5" .menu}}active{{end}}">
+                    <a href="/index/socks5"><i class="fa fa-table"></i> <span class="nav-label">socks5</span></a>
+                </li>
+                <li class="{{if eq "secret" .menu}}active{{end}}">
+                    <a href="/index/secret"><i class="fa fa-backward"></i> <span class="nav-label">secret</span></a>
+                </li>
+                <li class="{{if eq "p2p" .menu}}active{{end}}">
+                    <a href="/index/p2p"><i class="fa fa-dashcube"></i> <span class="nav-label">p2p</span></a>
+                </li>
+                <li class="{{if eq "file" .menu}}active{{end}}">
+                    <a href="/index/file"><i class="fa fa-laptop"></i> <span class="nav-label">file</span></a>
+                </li>
+            </ul>
+
+        </div>
+    </nav>
+    <div id="page-wrapper" class="gray-bg dashbard-1">
+        <div class="row border-bottom">
+            <nav class="navbar navbar-static-top" role="navigation" style="margin-bottom: 0">
+                <div class="navbar-header">
+                    <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i>
+                    </a>
+                </div>
+                <ul class="nav navbar-top-links navbar-right">
+                    <li>
+                        <span class="m-r-sm text-muted welcome-message">Welcome to use <a
+                                href="https://github.com/cnlh/nps">NPS</a></span>
+                    </li>
+
+                    <li>
+                        <a href="/login/out">
+                            <i class="fa fa-sign-out"></i> logout
+                        </a>
+                    </li>
+                </ul>
+
+            </nav>
+        </div>
+
+
+    {{.LayoutContent}}
+        <div class="footer">
+            <div class="pull-right">
+                read more <strong><a href="https://github.com/cnlh/nps">go</a></strong>
+            </div>
+            <div>
+                <strong>Copyright</strong> nps &copy; 2018-2019
+            </div>
         </div>
     </div>
-    <ul class="app-menu">
-        <li><a class="app-menu__item {{if eq "index" .menu}}active{{end}}" href="/"><i
-                class="app-menu__icon fa fa-dashboard"></i><span class="app-menu__label">dashboard</span></a></li>
-        <li><a class="app-menu__item {{if eq "client" .menu}}active{{end}}" href="/client/list"><i
-                class="app-menu__icon fa fa-dot-circle-o"></i><span class="app-menu__label">客户端管理</span></a></li>
-        <li><a class="app-menu__item {{if eq "host" .menu}}active{{end}}" href="/index/hostlist"><i
-                class="app-menu__icon fa fa-lemon-o"></i><span class="app-menu__label">域名代理</span></a></li>
-        <li><a class="app-menu__item {{if eq "tcp" .menu}}active{{end}}" href="/index/tcp"><i
-                class="app-menu__icon fa fa-life-buoy"></i><span class="app-menu__label">tcp隧道管理</span></a></li>
-        <li><a class="app-menu__item {{if eq "udp" .menu}}active{{end}}" href="/index/udp"><i
-                class="app-menu__icon fa fa-laptop"></i><span class="app-menu__label">udp隧道管理</span></a></li>
-        <li><a class="app-menu__item {{if eq "socks5" .menu}}active{{end}}" href="/index/socks5"><i
-                class="app-menu__icon fa fa-lightbulb-o"></i><span class="app-menu__label">socks5代理管理</span></a></li>
-        <li><a class="app-menu__item {{if eq "http" .menu}}active{{end}}" href="/index/http"><i
-                class="app-menu__icon fa fa-magic"></i><span class="app-menu__label">http代理管理</span></a></li>
-        <li><a class="app-menu__item {{if eq "secret" .menu}}active{{end}}" href="/index/secret"><i
-                class="app-menu__icon fa fa-dashcube"></i><span class="app-menu__label">私密代理管理</span></a></li>
-        <li><a class="app-menu__item {{if eq "help" .menu}}active{{end}}" href="/index/help"><i
-                class="app-menu__icon fa fa-question-circle"></i><span class="app-menu__label">使用说明</span></a></li>
-    </ul>
-</aside>
 
-<script type="text/javascript" src="/static/js/datatables.min.js"></script>
-<script src="/static/js/main.js"></script>
-<script src="/static/js/echarts.min.js"></script>
-<main class="app-content">
-    <div class="app-title">
-        <div>
-            <h1><i class="fa fa-th-list"></i> {{.name}}</h1>
-            <a href="javascript:history.back(-1);"><i class="fa fa-mail-reply"></i>返回</a>
-        </div>
-
-    </div>
-{{.LayoutContent}}
+</div>
 
 </body>
 </html>
+
+

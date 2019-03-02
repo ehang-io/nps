@@ -16,42 +16,52 @@ func (s *IndexController) Index() {
 	s.display("index/index")
 }
 func (s *IndexController) Help() {
-	s.SetInfo("使用说明")
+	s.SetInfo("about")
 	s.display("index/help")
 }
 
 func (s *IndexController) Tcp() {
-	s.SetInfo("tcp隧道管理")
-	s.SetType("tcpServer")
+	s.SetInfo("tcp")
+	s.SetType("tcp")
 	s.display("index/list")
 }
 
 func (s *IndexController) Udp() {
-	s.SetInfo("udp隧道管理")
-	s.SetType("udpServer")
+	s.SetInfo("udp")
+	s.SetType("udp")
 	s.display("index/list")
 }
 
 func (s *IndexController) Socks5() {
-	s.SetInfo("socks5管理")
-	s.SetType("socks5Server")
+	s.SetInfo("socks5")
+	s.SetType("socks5")
 	s.display("index/list")
 }
 
 func (s *IndexController) Http() {
-	s.SetInfo("http代理管理")
-	s.SetType("httpProxyServer")
+	s.SetInfo("http proxy")
+	s.SetType("httpProxy")
+	s.display("index/list")
+}
+func (s *IndexController) File() {
+	s.SetInfo("file server")
+	s.SetType("file")
 	s.display("index/list")
 }
 
 func (s *IndexController) Secret() {
-	s.SetInfo("私密代理管理")
-	s.SetType("secretServer")
+	s.SetInfo("secret")
+	s.SetType("secret")
+	s.display("index/list")
+}
+func (s *IndexController) P2p() {
+	s.SetInfo("p2p")
+	s.SetType("p2p")
 	s.display("index/list")
 }
 
 func (s *IndexController) Host() {
-	s.SetInfo("host模式管理")
+	s.SetInfo("host")
 	s.SetType("hostServer")
 	s.display("index/list")
 }
@@ -60,7 +70,7 @@ func (s *IndexController) All() {
 	s.Data["menu"] = "client"
 	clientId := s.GetString("client_id")
 	s.Data["client_id"] = clientId
-	s.SetInfo("客户端" + clientId + "的所有隧道")
+	s.SetInfo("client id:" + clientId)
 	s.display("index/list")
 }
 
@@ -76,18 +86,20 @@ func (s *IndexController) Add() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["type"] = s.GetString("type")
 		s.Data["client_id"] = s.GetString("client_id")
-		s.SetInfo("新增")
+		s.SetInfo("add tunnel")
 		s.display()
 	} else {
 		t := &file.Tunnel{
-			Port:     s.GetIntNoErr("port"),
-			Mode:     s.GetString("type"),
-			Target:   s.GetString("target"),
-			Id:       file.GetCsvDb().GetTaskId(),
-			Status:   true,
-			Remark:   s.GetString("remark"),
-			Password: s.GetString("password"),
-			Flow:     &file.Flow{},
+			Port:      s.GetIntNoErr("port"),
+			Mode:      s.GetString("type"),
+			Target:    s.GetString("target"),
+			Id:        file.GetCsvDb().GetTaskId(),
+			Status:    true,
+			Remark:    s.GetString("remark"),
+			Password:  s.GetString("password"),
+			LocalPath: s.GetString("local_path"),
+			StripPre:  s.GetString("strip_pre"),
+			Flow:      &file.Flow{},
 		}
 		if !tool.TestServerPort(t.Port, t.Mode) {
 			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
@@ -96,11 +108,13 @@ func (s *IndexController) Add() {
 		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		file.GetCsvDb().NewTask(t)
+		if err := file.GetCsvDb().NewTask(t); err != nil {
+			s.AjaxErr(err.Error())
+		}
 		if err := server.AddTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		} else {
-			s.AjaxOk("添加成功")
+			s.AjaxOk("add success")
 		}
 	}
 }
@@ -124,7 +138,7 @@ func (s *IndexController) Edit() {
 		} else {
 			s.Data["t"] = t
 		}
-		s.SetInfo("修改")
+		s.SetInfo("edit tunnel")
 		s.display()
 	} else {
 		if t, err := file.GetCsvDb().GetTask(id); err != nil {
@@ -135,45 +149,49 @@ func (s *IndexController) Edit() {
 			t.Target = s.GetString("target")
 			t.Password = s.GetString("password")
 			t.Id = id
+			t.LocalPath = s.GetString("local_path")
+			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("修改失败")
+				s.AjaxErr("modified error")
 			}
 			file.GetCsvDb().UpdateTask(t)
+			server.StopServer(t.Id)
+			server.StartTask(t.Id)
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("modified success")
 	}
 }
 
 func (s *IndexController) Stop() {
 	id := s.GetIntNoErr("id")
 	if err := server.StopServer(id); err != nil {
-		s.AjaxErr("停止失败")
+		s.AjaxErr("stop error")
 	}
-	s.AjaxOk("停止成功")
+	s.AjaxOk("stop success")
 }
 
 func (s *IndexController) Del() {
 	id := s.GetIntNoErr("id")
 	if err := server.DelTask(id); err != nil {
-		s.AjaxErr("删除失败")
+		s.AjaxErr("delete error")
 	}
-	s.AjaxOk("删除成功")
+	s.AjaxOk("delete success")
 }
 
 func (s *IndexController) Start() {
 	id := s.GetIntNoErr("id")
 	if err := server.StartTask(id); err != nil {
-		s.AjaxErr("开启失败")
+		s.AjaxErr("start error")
 	}
-	s.AjaxOk("开启成功")
+	s.AjaxOk("start success")
 }
 
 func (s *IndexController) HostList() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["client_id"] = s.GetString("client_id")
 		s.Data["menu"] = "host"
-		s.SetInfo("域名列表")
+		s.SetInfo("host list")
 		s.display("index/hlist")
 	} else {
 		start, length := s.GetAjaxParams()
@@ -200,16 +218,16 @@ func (s *IndexController) GetHost() {
 func (s *IndexController) DelHost() {
 	id := s.GetIntNoErr("id")
 	if err := file.GetCsvDb().DelHost(id); err != nil {
-		s.AjaxErr("删除失败")
+		s.AjaxErr("delete error")
 	}
-	s.AjaxOk("删除成功")
+	s.AjaxOk("delete success")
 }
 
 func (s *IndexController) AddHost() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["client_id"] = s.GetString("client_id")
 		s.Data["menu"] = "host"
-		s.SetInfo("新增")
+		s.SetInfo("add host")
 		s.display("index/hadd")
 	} else {
 		h := &file.Host{
@@ -224,10 +242,12 @@ func (s *IndexController) AddHost() {
 		}
 		var err error
 		if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-			s.AjaxErr("添加失败")
+			s.AjaxErr("add error")
 		}
-		file.GetCsvDb().NewHost(h)
-		s.AjaxOk("添加成功")
+		if err := file.GetCsvDb().NewHost(h); err != nil {
+			s.AjaxErr("add fail" + err.Error())
+		}
+		s.AjaxOk("add success")
 	}
 }
 
@@ -240,7 +260,7 @@ func (s *IndexController) EditHost() {
 		} else {
 			s.Data["h"] = h
 		}
-		s.SetInfo("修改")
+		s.SetInfo("edit")
 		s.display("index/hedit")
 	} else {
 		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
@@ -256,9 +276,9 @@ func (s *IndexController) EditHost() {
 			file.GetCsvDb().UpdateHost(h)
 			var err error
 			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("修改失败")
+				s.AjaxErr("modified error")
 			}
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("modified success")
 	}
 }

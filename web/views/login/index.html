@@ -1,41 +1,65 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="shortcut icon" href="/static/img/favicon.ico">
-    <!-- Main CSS-->
-    <link rel="stylesheet" type="text/css" href="/static/css/main.css">
-    <!-- Font-icon css-->
-    <link rel="stylesheet" type="text/css" href="/static/css/font-awesome.min.css">
-    <title>nps内网穿透</title>
-</head>
-<body>
-<section class="material-half-bg">
-    <div class="cover"></div>
-</section>
-<section class="login-content">
-    <div class="logo">
-        <h1></h1>
-    </div>
-    <div class="login-box">
-        <form class="login-form" onsubmit="return false">
-            <h3 class="login-head"><i class="fa fa-lg fa-fw fa-user"></i>内网穿透管理登陆</h3>
-            <div class="form-group">
-                <label class="control-label">密码</label>
-                <input class="form-control" name="psd" type="password" placeholder="" autofocus>
-            </div>
-            <div class="form-group btn-container">
-                <button onclick="login()" class="btn btn-primary btn-block"><i class="fa fa-sign-in fa-lg fa-fw"></i>登陆
-                </button>
-            </div>
-        </form>
-    </div>
-</section>
 
-<script type="text/javascript" src="/static/js/datatables.min.js"></script>
-<script src="/static/js/main.js"></script>
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>nps admin login</title>
+
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/font-awesome/css/font-awesome.css" rel="stylesheet">
+
+    <link href="/static/css/style.css" rel="stylesheet">
+
+</head>
+
+<body class="gray-bg">
+
+<div class="loginColumns animated fadeInDown">
+    <div class="row">
+
+
+        <div class="col-md-offset-3 col-md-6">
+            <h2 class="font-bold">nps</h2>
+
+            <p>
+                A convenient proxy server
+            </p>
+
+            <p>
+                Using it, it can penetrate the intranet tcp、udp、socks5、http、p2p and so on
+            </p>
+
+            <p>
+                and more?
+            </p>
+
+            <p>
+                goto <a href="//github.com/cnlh/nps">nps</a>
+            </p>
+            <div class="ibox-content">
+                <form class="m-t" onsubmit="return false">
+                    <div class="form-group">
+                        <input name="username" class="form-control" placeholder="username" required="">
+                    </div>
+                    <div class="form-group">
+                        <input name="password" type="password" class="form-control" placeholder="password" required="">
+                    </div>
+                    <button onclick="login()" class="btn btn-primary block full-width m-b">login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <hr/>
+</div>
+
+</body>
+<script src="/static/js/jquery-2.1.1.js"></script>
+</html>
+
+
 <script type="text/javascript">
     // Login Page Flipbox control
     function login() {

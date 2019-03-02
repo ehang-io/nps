@@ -6,7 +6,7 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
 	"net/http"
 	"sync"
@@ -49,38 +49,6 @@ func (s *BaseServer) FlowAddHost(host *file.Host, in, out int64) {
 	host.Flow.InletFlow += in
 }
 
-func (s *BaseServer) linkCopy(link *conn.Link, c *conn.Conn, rb []byte, tunnel *conn.Conn, flow *file.Flow) {
-	if rb != nil {
-		if _, err := tunnel.SendMsg(rb, link); err != nil {
-			c.Close()
-			return
-		}
-		flow.Add(len(rb), 0)
-		<-link.StatusCh
-	}
-
-	buf := pool.BufPoolCopy.Get().([]byte)
-	for {
-		if err := s.checkFlow(); err != nil {
-			c.Close()
-			break
-		}
-		if n, err := c.Read(buf); err != nil {
-			tunnel.SendMsg([]byte(common.IO_EOF), link)
-			break
-		} else {
-			if _, err := tunnel.SendMsg(buf[:n], link); err != nil {
-				c.Close()
-				break
-			}
-			flow.Add(n, 0)
-		}
-		<-link.StatusCh
-	}
-	s.task.Client.AddConn()
-	pool.PutBufPoolCopy(buf)
-}
-
 func (s *BaseServer) writeConnFail(c net.Conn) {
 	c.Write([]byte(common.ConnectionFailBytes))
 	c.Write(s.errorContent)
@@ -104,15 +72,20 @@ func (s *BaseServer) checkFlow() error {
 }
 
 //与客户端建立通道
-func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte) error {
-	link := conn.NewLink(s.task.Client.GetId(), common.CONN_TCP, addr, s.task.Client.Cnf.CompressEncode, s.task.Client.Cnf.CompressDecode, s.task.Client.Cnf.Crypt, c, s.task.Flow, nil, s.task.Client.Rate, nil)
+func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte, tp string) error {
+	link := conn.NewLink(tp, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.Conn.RemoteAddr().String())
 
-	if tunnel, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String()); err != nil {
+	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
+		logs.Warn("task id %d get connection from client id %d  error %s", s.task.Id, s.task.Client.Id, err.Error())
 		c.Close()
 		return err
 	} else {
-		link.Run(true)
-		s.linkCopy(link, c, rb, tunnel, s.task.Flow)
+		if rb != nil {
+			target.Write(rb)
+		}
+		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow)
 	}
+
+	s.task.Client.AddConn()
 	return nil
 }

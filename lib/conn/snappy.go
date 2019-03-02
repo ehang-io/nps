@@ -4,7 +4,7 @@ import (
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/vender/github.com/golang/snappy"
-	"net"
+	"io"
 )
 
 type SnappyConn struct {
@@ -13,7 +13,7 @@ type SnappyConn struct {
 	rate *rate.Rate
 }
 
-func NewSnappyConn(conn net.Conn, crypt bool, rate *rate.Rate) *SnappyConn {
+func NewSnappyConn(conn io.ReadWriteCloser, crypt bool, rate *rate.Rate) *SnappyConn {
 	c := new(SnappyConn)
 	c.w = snappy.NewBufferedWriter(conn)
 	c.r = snappy.NewReader(conn)
@@ -47,4 +47,9 @@ func (s *SnappyConn) Read(b []byte) (n int, err error) {
 		s.rate.Get(int64(n))
 	}
 	return
+}
+
+func (s *SnappyConn) Close() error {
+	s.w.Close()
+	return s.w.Close()
 }

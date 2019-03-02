@@ -12,7 +12,7 @@ func TestServerConfig() {
 	var postTcpArr []int
 	var postUdpArr []int
 	for _, v := range file.GetCsvDb().Tasks {
-		if v.Mode == "udpServer" {
+		if v.Mode == "udp" {
 			isInArr(&postUdpArr, v.Port, v.Remark, "udp")
 		} else {
 			isInArr(&postTcpArr, v.Port, v.Remark, "tcp")
@@ -72,7 +72,6 @@ func isInArr(arr *[]int, val int, remark string, tp string) {
 			log.Fatalf("open the %d port error ,remark: %s", val, remark)
 		}
 	}
-
 	*arr = append(*arr, val)
 	return
 }

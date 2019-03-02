@@ -18,8 +18,10 @@ type CommonConfig struct {
 	Client           *file.Client
 }
 type LocalServer struct {
+	Type     string
 	Port     int
 	Password string
+	Target   string
 }
 type Config struct {
 	content      string
@@ -53,7 +55,15 @@ func NewConfig(path string) (c *Config, err error) {
 			nowContent = c.content[nowIndex:nextIndex]
 
 			if strings.Index(getTitleContent(c.title[i]), "secret") == 0 {
-				c.LocalServer = append(c.LocalServer, delLocalService(nowContent))
+				local := delLocalService(nowContent)
+				local.Type = "secret"
+				c.LocalServer = append(c.LocalServer, local)
+				continue
+			}
+			if strings.Index(getTitleContent(c.title[i]), "p2p") == 0 {
+				local := delLocalService(nowContent)
+				local.Type = "p2p"
+				c.LocalServer = append(c.LocalServer, local)
 				continue
 			}
 			switch c.title[i] {
@@ -106,7 +116,7 @@ func dealCommon(s string) *CommonConfig {
 		case "password":
 			c.Cnf.P = item[1]
 		case "compress":
-			c.Cnf.Compress = item[1]
+			c.Cnf.Compress = common.GetBoolByStr(item[1])
 		case "crypt":
 			c.Cnf.Crypt = common.GetBoolByStr(item[1])
 		case "proxy_socks5_url":
@@ -173,6 +183,10 @@ func dealTunnel(s string) *file.Tunnel {
 			t.TargetAddr = item[1]
 		case "password":
 			t.Password = item[1]
+		case "local_path":
+			t.LocalPath = item[1]
+		case "strip_pre":
+			t.StripPre = item[1]
 		}
 	}
 	return t
@@ -193,6 +207,8 @@ func delLocalService(s string) *LocalServer {
 			l.Port = common.GetIntNoErrByStr(item[1])
 		case "password":
 			l.Password = item[1]
+		case "target":
+			l.Target = item[1]
 		}
 	}
 	return l

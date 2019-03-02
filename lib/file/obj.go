@@ -2,7 +2,6 @@ package file
 
 import (
 	"github.com/cnlh/nps/lib/rate"
-	"math"
 	"strings"
 	"sync"
 )
@@ -14,7 +13,7 @@ type Flow struct {
 	sync.RWMutex
 }
 
-func (s *Flow) Add(in, out int) {
+func (s *Flow) Add(in, out int64) {
 	s.Lock()
 	defer s.Unlock()
 	s.InletFlow += int64(in)
@@ -57,15 +56,6 @@ func NewClient(vKey string, noStore bool, noDisplay bool) *Client {
 		NoDisplay: noDisplay,
 	}
 }
-func (s *Client) GetId() int {
-	s.Lock()
-	defer s.Unlock()
-	if s.id == math.MaxInt32 {
-		s.id = 0
-	}
-	s.id++
-	return s.id
-}
 
 func (s *Client) CutConn() {
 	s.Lock()
@@ -87,6 +77,24 @@ func (s *Client) GetConn() bool {
 	return false
 }
 
+func (s *Client) HasTunnel(t *Tunnel) bool {
+	for _, v := range GetCsvDb().Tasks {
+		if v.Client.Id == s.Id && v.Port == t.Port {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Client) HasHost(h *Host) bool {
+	for _, v := range GetCsvDb().Hosts {
+		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
+			return true
+		}
+	}
+	return false
+}
+
 type Tunnel struct {
 	Id         int     //Id
 	Port       int     //服务端监听端口
@@ -101,15 +109,15 @@ type Tunnel struct {
 	Remark     string //备注
 	TargetAddr string
 	NoStore    bool
+	LocalPath  string
+	StripPre   string
 }
 
 type Config struct {
-	U              string //socks5验证用户名
-	P              string //socks5验证密码
-	Compress       string //压缩方式
-	Crypt          bool   //是否加密
-	CompressEncode int    //加密方式
-	CompressDecode int    //解密方式
+	U        string //socks5验证用户名
+	P        string //socks5验证密码
+	Compress bool   //压缩方式
+	Crypt    bool   //是否加密
 }
 
 type Host struct {

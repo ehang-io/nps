@@ -1,62 +1,92 @@
-<div class="row tile">
-    <div class="col-md-6 col-md-auto">
-        <div>
-            <h3 class="tile-title">添加</h3>
-            <div class="tile-body">
-                <form>
-                    <div class="form-group" id="target">
-                        <label class="control-label">备注</label>
-                        <input class="form-control" type="text" name="remark" placeholder="客户端备注">
+<div class="row">
+    <div class="col-md-12 col-md-auto">
+        <div class="ibox float-e-margins">
+            <h3 class="ibox-title">add client</h3>
+            <div class="ibox-content">
+                <form class="form-horizontal">
+                    <div class="form-group" id="remark">
+                        <label class="col-sm-2 control-label">remark</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="remark" placeholder="empty means to be unrestricted">
+                        </div>
                     </div>
+
                     <div class="form-group" id="flow_limit">
-                        <label class="control-label">流量限制(单位：M，为空不限制)</label>
-                        <input class="form-control" type="text" name="flow_limit" placeholder="为空不限制">
+                        <label class="col-sm-2 control-label">flow limitation</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="flow_limit"
+                                   placeholder="empty means to be unrestricted">
+                            <span class="help-block m-b-none">unit: M</span>
+                        </div>
                     </div>
+
                     <div class="form-group" id="rate_limit">
-                        <label class="control-label">速度限制(单位：KB，为空不限制)</label>
-                        <input class="form-control" type="text" name="rate_limit" placeholder="为空不限制">
+                        <label class="control-label col-sm-2">bandwidth limitation</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="rate_limit"
+                                   placeholder="empty means to be unrestricted">
+                            <span class="help-block m-b-none">unit: KB/S</span>
+                        </div>
                     </div>
                     <div class="form-group" id="max_conn">
-                        <label class="control-label">最大客户端连接数</label>
-                        <input class="form-control" type="text" name="max_conn" placeholder="为空不限制">
+                        <label class="control-label col-sm-2">maximum number of client connections</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="max_conn"
+                                   placeholder="empty means to be unrestricted">
+                        </div>
                     </div>
                     <div class="form-group" id="u">
-                        <label class="control-label">验证用户名(仅socks5,web穿透支持)</label>
-                        <input class="form-control" type="text" name="u" placeholder="不填则无需验证">
+                        <label class="control-label col-sm-2">web authentication username</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="u" placeholder="empty means to be unrestricted">
+                            <span class="help-block m-b-none">only socks5 , web, HTTP forward proxy </span>
+                        </div>
                     </div>
                     <div class="form-group" id="p">
-                        <label class="control-label">验证密码(仅socks5,web穿透支持)</label>
-                        <input class="form-control" type="text" name="p" placeholder="不填则无需验证">
+                        <label class="control-label col-sm-2">web authentication password </label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="p" placeholder="empty means to be unrestricted">
+                            <span class="help-block m-b-none">only socks5 , web, HTTP forward proxy </span>
+                        </div>
                     </div>
                     <div class="form-group" id="vkey">
-                        <label class="control-label">客户端连接密钥(唯一、不填将会自动生成)</label>
-                        <input class="form-control" type="text" name="vkey" placeholder="客户端连接密钥">
+                        <label class="control-label col-sm-2">client connection key</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="vkey" placeholder="empty means to be unrestricted">
+                            <span class="help-block m-b-none">unique, non-filling will be generated automatically</span>
+                        </div>
                     </div>
                     <div class="form-group" id="compress">
-                        <label class="control-label">数据压缩方式</label>
-                        <select class="form-control" name="compress">
-                            <option value="">不压缩</option>
-                            <option value="snappy">snappy</option>
-                        </select>
+                        <label class="control-label col-sm-2">compress</label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="compress">
+                                <option value="0">no</option>
+                                <option value="1">yes</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group" id="compress">
-                        <label class="control-label">是否加密传输</label>
-                        <select class="form-control" name="crypt">
-                            <option value="0">不加密</option>
-                            <option value="1">加密</option>
-                        </select>
+                        <label class="control-label col-sm-2">crypt</label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="crypt">
+                                <option value="0">no</option>
+                                <option value="1">yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="hr-line-dashed"></div>
+                    <div class="form-group">
+                        <div class="col-sm-4 col-sm-offset-2">
+                            <button class="btn btn-success" href="#" id="add"><i
+                                    class="fa fa-fw fa-lg fa-eye"></i>add
+                            </button>
+                        </div>
                     </div>
                 </form>
-            </div>
-            <div class="tile-footer">
-                &nbsp;&nbsp;<button class="btn btn-success" href="#" id="add"><i
-                    class="fa fa-fw fa-lg fa-eye"></i>添加
-            </button>
             </div>
         </div>
     </div>
 </div>
-</main>
 <script>
     $(function () {
         $("#add").on("click", function () {

@@ -7,7 +7,7 @@ import (
 const PoolSize = 64 * 1024
 const PoolSizeSmall = 100
 const PoolSizeUdp = 1472
-const PoolSizeCopy = 32 * 1024
+const PoolSizeCopy = 32 << 6
 
 var BufPool = sync.Pool{
 	New: func() interface{} {

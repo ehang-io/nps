@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type BaseController struct {
@@ -19,8 +21,13 @@ func (s *BaseController) Prepare() {
 	controllerName, actionName := s.GetControllerAndAction()
 	s.controllerName = strings.ToLower(controllerName[0 : len(controllerName)-10])
 	s.actionName = strings.ToLower(actionName)
-	arr := strings.Split(s.Ctx.Request.RemoteAddr, ":")
-	if len(arr) > 0 && arr[0] != beego.AppConfig.String("authip") {
+	// web api verify
+	// param 1 is md5(authKey+Current timestamp)
+	// param 2 is timestamp (It's limited to 20 seconds.)
+	md5Key := s.GetString("auth_key")
+	timestamp := s.GetIntNoErr("timestamp")
+	configKey := beego.AppConfig.String("authKey")
+	if !(time.Now().Unix()-int64(timestamp) < 20 && time.Now().Unix()-int64(timestamp) > 0 && crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key) {
 		if s.GetSession("auth") != true {
 			s.Redirect("/login/index", 302)
 		}
@@ -100,11 +107,8 @@ func ajax(str string, status int) map[string]interface{} {
 //ajax table返回
 func (s *BaseController) AjaxTable(list interface{}, cnt int, recordsTotal int) {
 	json := make(map[string]interface{})
-	json["data"] = list
-	json["draw"] = s.GetIntNoErr("draw")
-	json["err"] = ""
-	json["recordsTotal"] = recordsTotal
-	json["recordsFiltered"] = cnt
+	json["rows"] = list
+	json["total"] = recordsTotal
 	s.Data["json"] = json
 	s.ServeJSON()
 	s.StopRun()
@@ -112,9 +116,7 @@ func (s *BaseController) AjaxTable(list interface{}, cnt int, recordsTotal int) 
 
 //ajax table参数
 func (s *BaseController) GetAjaxParams() (start, limit int) {
-	s.Ctx.Input.Bind(&start, "start")
-	s.Ctx.Input.Bind(&limit, "length")
-	return
+	return s.GetIntNoErr("offset"), s.GetIntNoErr("limit")
 }
 
 func (s *BaseController) SetInfo(name string) {

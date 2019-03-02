@@ -124,6 +124,7 @@ func (s *Csv) GetTaskId() int {
 	s.TaskIncreaseId++
 	return s.TaskIncreaseId
 }
+
 func (s *Csv) GetHostId() int {
 	s.Lock()
 	defer s.Unlock()
@@ -147,7 +148,7 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 
 func (s *Csv) NewTask(t *Tunnel) error {
 	for _, v := range s.Tasks {
-		if v.Mode == "secretServer" && v.Password == t.Password {
+		if (v.Mode == "secret" || v.Mode == "p2p") && v.Password == t.Password {
 			return errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
 		}
 	}
@@ -158,10 +159,8 @@ func (s *Csv) NewTask(t *Tunnel) error {
 }
 
 func (s *Csv) UpdateTask(t *Tunnel) error {
-	for k, v := range s.Tasks {
+	for _, v := range s.Tasks {
 		if v.Id == t.Id {
-			s.Tasks = append(s.Tasks[:k], s.Tasks[k+1:]...)
-			s.Tasks = append(s.Tasks, t)
 			s.StoreTasksToCsv()
 			return nil
 		}
@@ -181,7 +180,7 @@ func (s *Csv) DelTask(id int) error {
 }
 
 //md5 password
-func (s *Csv) GetSecretTask(p string) *Tunnel {
+func (s *Csv) GetTaskByMd5Password(p string) *Tunnel {
 	for _, v := range s.Tasks {
 		if crypt.Md5(v.Password) == p {
 			return v
@@ -256,7 +255,7 @@ func (s *Csv) LoadClientFromCsv() {
 				U:        item[4],
 				P:        item[5],
 				Crypt:    common.GetBoolByStr(item[6]),
-				Compress: item[7],
+				Compress: common.GetBoolByStr(item[7]),
 			},
 			MaxConn: common.GetIntNoErrByStr(item[10]),
 		}
@@ -327,17 +326,22 @@ func (s *Csv) IsHostExist(h *Host) bool {
 	return false
 }
 
-func (s *Csv) NewHost(t *Host) {
+func (s *Csv) NewHost(t *Host) error {
+	if s.IsHostExist(t) {
+		return errors.New("host has exist")
+	}
+	if t.Location == "" {
+		t.Location = "/"
+	}
 	t.Flow = new(Flow)
 	s.Hosts = append(s.Hosts, t)
 	s.StoreHostToCsv()
+	return nil
 }
 
 func (s *Csv) UpdateHost(t *Host) error {
-	for k, v := range s.Hosts {
+	for _, v := range s.Hosts {
 		if v.Host == t.Host {
-			s.Hosts = append(s.Hosts[:k], s.Hosts[k+1:]...)
-			s.Hosts = append(s.Hosts, t)
 			s.StoreHostToCsv()
 			return nil
 		}
@@ -460,7 +464,7 @@ func (s *Csv) GetClient(id int) (v *Client, err error) {
 }
 func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
 	for _, v := range s.Clients {
-		if v.VerifyKey == vkey {
+		if crypt.Md5(v.VerifyKey) == vkey {
 			id = v.Id
 			return
 		}
@@ -535,7 +539,7 @@ func (s *Csv) StoreClientsToCsv() {
 			client.Cnf.U,
 			client.Cnf.P,
 			common.GetStrByBool(client.Cnf.Crypt),
-			client.Cnf.Compress,
+			strconv.FormatBool(client.Cnf.Compress),
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
 			strconv.Itoa(int(client.MaxConn)),

@@ -16,19 +16,6 @@ import (
 	"strings"
 )
 
-//Judging Compression Mode
-func GetCompressType(compress string) (int, int) {
-	switch compress {
-	case "":
-		return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
-	case "snappy":
-		return COMPRESS_SNAPY_DECODE, COMPRESS_SNAPY_ENCODE
-	default:
-		return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
-	}
-	return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
-}
-
 //Get the corresponding IP address through domain name
 func GetHostByName(hostname string) string {
 	if !DomainCheck(hostname) {
@@ -185,6 +172,7 @@ func BinaryWrite(raw *bytes.Buffer, v ...string) {
 	binary.Write(raw, binary.LittleEndian, buffer.Bytes())
 }
 
+//inArray str interface
 func InStrArr(arr []string, val string) bool {
 	for _, v := range arr {
 		if v == val {
@@ -194,6 +182,7 @@ func InStrArr(arr []string, val string) bool {
 	return false
 }
 
+//inArray int interface
 func InIntArr(arr []int, val int) bool {
 	for _, v := range arr {
 		if v == val {
@@ -203,6 +192,7 @@ func InIntArr(arr []int, val int) bool {
 	return false
 }
 
+//format ports str to a int array
 func GetPorts(p string) []int {
 	var ps []int
 	arr := strings.Split(p, ",")
@@ -251,7 +241,38 @@ func GetIpByAddr(addr string) string {
 
 func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	buf := pool.BufPoolCopy.Get().([]byte)
-	io.CopyBuffer(dst, src, buf)
-	pool.PutBufPoolCopy(buf)
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw > 0 {
+				written += int64(nw)
+			}
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+	}
+	defer pool.PutBufPoolCopy(buf)
 	return written, err
+}
+
+//send this ip forget to get a local udp port
+func GetLocalUdpAddr() (net.Conn, error) {
+	tmpConn, err := net.Dial("udp", "114.114.114.114:53")
+	if err != nil {
+		return nil, err
+	}
+	return tmpConn, tmpConn.Close()
 }

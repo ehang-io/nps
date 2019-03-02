@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/server"
@@ -13,7 +14,7 @@ type ClientController struct {
 func (s *ClientController) List() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		s.SetInfo("客户端管理")
+		s.SetInfo("client")
 		s.display("client/list")
 		return
 	}
@@ -26,7 +27,7 @@ func (s *ClientController) List() {
 func (s *ClientController) Add() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		s.SetInfo("新增")
+		s.SetInfo("add client")
 		s.display()
 	} else {
 		t := &file.Client{
@@ -37,7 +38,7 @@ func (s *ClientController) Add() {
 			Cnf: &file.Config{
 				U:        s.GetString("u"),
 				P:        s.GetString("p"),
-				Compress: s.GetString("compress"),
+				Compress: common.GetBoolByStr(s.GetString("compress")),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
 			RateLimit: s.GetIntNoErr("rate_limit"),
@@ -55,7 +56,7 @@ func (s *ClientController) Add() {
 		if err := file.GetCsvDb().NewClient(t); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		s.AjaxOk("添加成功")
+		s.AjaxOk("add success")
 	}
 }
 func (s *ClientController) GetClient() {
@@ -83,7 +84,7 @@ func (s *ClientController) Edit() {
 		} else {
 			s.Data["c"] = c
 		}
-		s.SetInfo("修改")
+		s.SetInfo("edit client")
 		s.display()
 	} else {
 		if c, err := file.GetCsvDb().GetClient(id); err != nil {
@@ -96,7 +97,7 @@ func (s *ClientController) Edit() {
 			c.Remark = s.GetString("remark")
 			c.Cnf.U = s.GetString("u")
 			c.Cnf.P = s.GetString("p")
-			c.Cnf.Compress = s.GetString("compress")
+			c.Cnf.Compress = common.GetBoolByStr(s.GetString("compress"))
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
 			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
 			c.RateLimit = s.GetIntNoErr("rate_limit")
@@ -112,7 +113,7 @@ func (s *ClientController) Edit() {
 			}
 			file.GetCsvDb().StoreClientsToCsv()
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("save success")
 	}
 }
 
@@ -124,18 +125,18 @@ func (s *ClientController) ChangeStatus() {
 		if client.Status == false {
 			server.DelClientConnect(client.Id)
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("modified success")
 	}
-	s.AjaxErr("修改失败")
+	s.AjaxErr("modified fail")
 }
 
 //删除客户端
 func (s *ClientController) Del() {
 	id := s.GetIntNoErr("id")
 	if err := file.GetCsvDb().DelClient(id); err != nil {
-		s.AjaxErr("删除失败")
+		s.AjaxErr("delete error")
 	}
 	server.DelTunnelAndHostByClientId(id)
 	server.DelClientConnect(id)
-	s.AjaxOk("删除成功")
+	s.AjaxOk("delete success")
 }
