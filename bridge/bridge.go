@@ -321,7 +321,7 @@ func (s *Bridge) ping() {
 			s.clientLock.Lock()
 			arr := make([]int, 0)
 			for k, v := range s.Client {
-				if v.tunnel == nil {
+				if v.tunnel == nil || v.signal == nil {
 					v.retryTime += 1
 					if v.retryTime >= 3 {
 						arr = append(arr, k)
@@ -387,6 +387,9 @@ func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 				}
 				c.WriteAddOk()
 				c.Write([]byte(client.VerifyKey))
+				s.clientLock.Lock()
+				s.Client[client.Id] = NewClient(nil, nil, nil)
+				s.clientLock.Unlock()
 			}
 		case common.NEW_HOST:
 			h, err := c.GetHostInfo()
