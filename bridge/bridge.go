@@ -478,7 +478,6 @@ loop:
 		}
 	}
 	if fail && client != nil {
-		file.GetCsvDb().DelClient(client.Id)
 		s.DelClient(client.Id, false)
 	}
 	c.Close()
