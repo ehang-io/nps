@@ -9,6 +9,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -116,11 +117,12 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 	//多客户端域名代理
 	var (
-		isConn   = true
-		host     *file.Host
-		target   net.Conn
-		lastHost *file.Host
-		err      error
+		isConn     = true
+		host       *file.Host
+		target     net.Conn
+		lastHost   *file.Host
+		err        error
+		connClient io.ReadWriteCloser
 	)
 	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
@@ -151,9 +153,10 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
 			}
+			connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate)
 			isConn = false
 			go func() {
-				w, _ := common.CopyBuffer(c, conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate))
+				w, _ := common.CopyBuffer(c, connClient)
 				host.Flow.Add(0, w)
 				c.Close()
 				target.Close()
@@ -182,7 +185,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		}
 		host.Flow.Add(int64(len(b)), 0)
 		//write
-		target.Write(b)
+		connClient.Write(b)
 	}
 end:
 	if isConn {

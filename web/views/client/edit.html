@@ -70,8 +70,8 @@
                         <label class="control-label col-sm-2">crypt</label>
                         <div class="col-sm-10">
                             <select class="form-control" name="crypt">
-                                <option {{if eq false .c.Cnf.Compress}}selected{{end}} value="0">no</option>
-                                <option {{if eq true .c.Cnf.Compress}}selected{{end}} value="1">yes</option>
+                                <option {{if eq false .c.Cnf.Crypt}}selected{{end}} value="0">no</option>
+                                <option {{if eq true .c.Cnf.Crypt}}selected{{end}} value="1">yes</option>
                             </select>
                         </div>
                     </div>
