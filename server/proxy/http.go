@@ -128,11 +128,11 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 		goto end
 	} else if !host.Client.GetConn() { //conn num limit
-		logs.Notice("Connections exceed the current client %d limit %d ,now connection num %d", host.Client.Id, host.Client.MaxConn, host.Client.NowConn)
+		logs.Notice("connections exceed the current client %d limit %d ,now connection num %d", host.Client.Id, host.Client.MaxConn, host.Client.NowConn)
 		c.Close()
 		return
 	} else {
-		logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
+		logs.Trace("new http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 		lastHost = host
 	}
 	for {
@@ -167,6 +167,14 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				break
 			}
 			logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
+			//What happened ，Why one character less???
+			if r.Method == "ET" {
+				r.Method = "GET"
+			}
+			if r.Method == "OST" {
+				r.Method = "POST"
+			}
+			logs.Trace("new http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 			if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
 				logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
 				break
