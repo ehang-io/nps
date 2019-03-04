@@ -4,7 +4,7 @@
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>host list</h5>
+                    <h5>主机列表</h5>
 
                     <div class="ibox-tools">
                         <a class="collapse-link">
@@ -20,7 +20,7 @@
                         <div id="toolbar">
                             <a href="/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
                                class="btn btn-primary dim"
-                               type="button">new</a>
+                               type="button">添加</a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
                                data-mobile-responsive="true"></table>
@@ -72,13 +72,13 @@
         columns: [
             {
                 field: 'Id',//域值
-                title: 'id',//标题
+                title: 'ID',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Id',//域值
-                title: 'client id',//标题
+                title: '客户端Id',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -87,7 +87,7 @@
             },
             {
                 field: 'Remark',//域值
-                title: 'remark',//标题
+                title: '备注',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
@@ -99,7 +99,7 @@
             },
             {
                 field: 'Target',//域值
-                title: 'target',//标题
+                title: '内网目标',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
@@ -111,7 +111,7 @@
             },
             {
                 field: '',//域值
-                title: 'client status',//内容
+                title: '客户端状态',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -124,7 +124,7 @@
             },
             {
                 field: 'option',//域值
-                title: 'option',//内容
+                title: '操作',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -141,7 +141,7 @@
 
 <script type="text/javascript">
     function del(id) {
-        if (confirm("Are you sure you want to delete it？？")) {
+        if (confirm("确定要删除数据吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/delhost",

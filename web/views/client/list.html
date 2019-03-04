@@ -4,7 +4,7 @@
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>client list</h5>
+                    <h5>客户端列表</h5>
 
                     <div class="ibox-tools">
                         <a class="collapse-link">
@@ -18,7 +18,7 @@
                 <div class="content">
                     <div class="table-responsive">
                         <div id="toolbar">
-                            <a href="/client/add" class="btn btn-primary dim" type="button">new</i></a>
+                            <a href="/client/add" class="btn btn-primary dim" type="button">添加</i></a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
                                data-mobile-responsive="true"></table>
@@ -36,7 +36,7 @@
 
 <script>
     function del(id) {
-        if (confirm("Are you sure you want to delete it？？")) {
+        if (confirm("确定要删除数据吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/client/del",
@@ -52,7 +52,7 @@
     }
 
     function start(id) {
-        if (confirm("Are you sure you want to start it？？")) {
+        if (confirm("确定要开始任务吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/client/changestatus",
@@ -68,7 +68,7 @@
     }
 
     function stop(id) {
-        if (confirm("Are you sure you want to stop it？")) {
+        if (confirm("确定要暂停吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/client/changestatus",
@@ -135,19 +135,19 @@
         columns: [
             {
                 field: 'Id',//域值
-                title: 'id',//标题
+                title: 'Id',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Remark',//域值
-                title: 'remark',//标题
+                title: '备注',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'VerifyKey',//域值
-                title: 'key',//标题
+                title: '验证密钥',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -160,13 +160,13 @@
             },
             {
                 field: 'Addr',//域值
-                title: 'client addr',//标题
+                title: '客户端地址',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Status',//域值
-                title: 'setting status',//内容
+                title: '设置状态',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -179,7 +179,7 @@
             },
             {
                 field: 'IsConnect',//域值
-                title: 'client status',//内容
+                title: '客户端连接状态',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -192,7 +192,7 @@
             },
             {
                 field: 'option',//域值
-                title: 'option',//内容
+                title: '操作',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -207,7 +207,7 @@
             },
             {
                 field: 'show',//域值
-                title: 'show',//内容
+                title: '显示',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {

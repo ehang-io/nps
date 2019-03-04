@@ -1,62 +1,61 @@
 <div class="row tile">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
-            <h3 class="ibox-title">add</h3>
+            <h3 class="ibox-title">添加</h3>
             <div class="ibox-content">
                 <form class="form-horizontal">
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">mode </label>
+                        <label class="col-sm-2 control-label">模式</label>
                         <div class="col-sm-10">
                             <select class="form-control" name="type" id="type">
-                                <option {{if eq "tcp" .type}}selected{{end}} value="tcp">tcp</option>
-                                <option {{if eq "udp" .type}}selected{{end}} value="udp">udp</option>
-                                <option {{if eq "socks5" .type}}selected{{end}} value="socks5">socks5
-                                </option>
-                                <option {{if eq "httpProxy" .type}}selected{{end}} value="httpProxy">http</option>
-                                <option {{if eq "secret" .type}}selected{{end}} value="secret">secret</option>
+                                <option {{if eq "tcp" .type}}selected{{end}} value="tcp">tcp隧道</option>
+                                <option {{if eq "udp" .type}}selected{{end}} value="udp">udp隧道</option>
+                                <option {{if eq "socks5" .type}}selected{{end}} value="socks5">socks5代理</option>
+                                <option {{if eq "httpProxy" .type}}selected{{end}} value="httpProxy">http代理</option>
+                                <option {{if eq "secret" .type}}selected{{end}} value="secret">私密代理</option>
                                 <option {{if eq "p2p" .type}}selected{{end}} value="p2p">p2p</option>
-                            {{/*<option {{if eq "file" .type}}selected{{end}} value="file">file*/}}
+                            {{/*<option {{if eq "file" .type}}selected{{end}} value="file">文件*/}}
                             </select>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">remark</label>
+                        <label class="col-sm-2 control-label">备注</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="remark"
-                                   placeholder="empty means to be unrestricted">
+                                   placeholder="备注">
                         </div>
                     </div>
 
                     <div class="form-group" id="port">
-                        <label class="col-sm-2 control-label">port of server</label>
+                        <label class="col-sm-2 control-label">监听的端口</label>
                         <div class="col-sm-10">
-                            <input class="form-control" type="text" name="port" placeholder="such as 8024">
+                            <input class="form-control" type="text" name="port" placeholder="例如: 8024">
                         </div>
                     </div>
 
                     <div class="form-group" id="target">
-                        <label class="col-sm-2 control-label">target of Intranet(ip:port)</label>
+                        <label class="col-sm-2 control-label">内网目标(ip:端口)</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="target"
-                                   placeholder="such as 10.1.50.203:22 ">
-                            <span class="help-block m-b-none">can only fill in ports if it is local machine proxy</span>
+                                   placeholder="例如: 10.1.50.203:22">
+                            <span class="help-block m-b-none">仅当端口是本地计算机代理时才能填充端口</span>
                         </div>
                     </div>
 
                     <div class="form-group" id="client_id">
-                        <label class="col-sm-2 control-label">id of client</label>
+                        <label class="col-sm-2 control-label">客户端ID</label>
                         <div class="col-sm-10">
                             <input value="{{.client_id}}" class="form-control" type="text" name="client_id"
-                                   placeholder="id of client">
+                                   placeholder="客户端ID">
                         </div>
                     </div>
 
                     <div class="form-group" id="local_path">
-                        <label class="col-sm-2 control-label">local path</label>
+                        <label class="col-sm-2 control-label">本地路径</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="local_path"
-                                   placeholder="such as /tmp">
+                                   placeholder="例如: /tmp">
                         </div>
                     </div>
 
@@ -64,23 +63,23 @@
                         <label class="col-sm-2 control-label">strip pre</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="strip_pre"
-                                   placeholder="such as static">
+                                   placeholder="例如: static">
                         </div>
                     </div>
 
                     <div class="form-group" id="password">
-                        <label class="col-sm-2 control-label">unique identification key</label>
+                        <label class="col-sm-2 control-label">私密模式唯一密钥</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="password"
-                                   placeholder="unique identification key">
-                            <span class="help-block m-b-none">when p2p or secret</span>
+                                   placeholder="私密模式唯一密钥">
+                            <span class="help-block m-b-none">当模式是 p2p or 私密时</span>
                         </div>
                     </div>
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
                             &nbsp;<button class="btn btn-success" href="#" id="add"><i
-                                class="fa fa-fw fa-lg fa-eye"></i>add
+                                class="fa fa-fw fa-lg fa-eye"></i>添加
                         </button>
                         </div>
                     </div>

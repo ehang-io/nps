@@ -2,68 +2,68 @@
 <div class="row tile">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
-            <h3 class="ibox-title">add host</h3>
+            <h3 class="ibox-title">修改主机</h3>
             <div class="ibox-content">
                 <form class="form-horizontal">
                     <input type="hidden" name="id" value="{{.h.Id}}">
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">remark</label>
+                        <label class="col-sm-2 control-label">备注</label>
                         <div class="col-sm-10">
-                            <input value="{{.h.Remark}}" class="form-control" type="text" name="remark" placeholder="remark">
+                            <input value="{{.h.Remark}}" class="form-control" type="text" name="remark" placeholder="备注">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">host</label>
+                        <label class="col-sm-2 control-label">域名</label>
                         <div class="col-sm-10">
-                            <input value="{{.h.Host}}" class="form-control" type="text" name="host" placeholder="such as a.proxy.com">
+                            <input value="{{.h.Host}}" class="form-control" type="text" name="host" placeholder="例如: a.proxy.com">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">url router</label>
+                        <label class="col-sm-2 control-label">URL路由(可忽略)</label>
                         <div class="col-sm-10">
                             <input value="{{.h.Location}}" class="form-control" type="text" name="location"
-                                   placeholder="empty means to be unrestricted">
+                                   placeholder="空意味着不受限制">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">client id</label>
+                        <label class="col-sm-2 control-label">客户端ID</label>
                         <div class="col-sm-10">
                             <input value="{{.h.Client.Id}}" class="form-control" type="text" name="client_id"
-                                   placeholder="client id">
+                                   placeholder="客户端ID">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">target of Intranet(ip:port)</label>
+                        <label class="col-sm-2 control-label">内网目标(ip:端口)</label>
                         <div class="col-sm-10">
                         <textarea class="form-control" rows="4" type="text" name="target"
-                                  placeholder="such as
+                                  placeholder="例如: 
 10.1.50.203:80
 10.1.50.202:80">{{.h.Target}}</textarea>
-                            <span class="help-block m-b-none">Line break if load balancing</span>
+                            <span class="help-block m-b-none">负载平衡时换行</span>
 
                         </div>
                     </div>
                     <div class="form-group" id="header">
-                        <label class="col-sm-2 control-label">header modify</label>
+                        <label class="col-sm-2 control-label">header头修改</label>
                         <div class="col-sm-10">
                         <textarea class="form-control" rows="4" type="text" name="header"
                                   placeholder="Cache-Control: no-cache">{{.h.HeaderChange}}</textarea>
-                            <span class="help-block m-b-none"> Colon separated, multiple lines please fill in</span>
+                            <span class="help-block m-b-none">冒号分隔，多个请换行填写</span>
                         </div>
 
                     </div>
                     <div class="form-group" id="hostchange">
-                        <label class="col-sm-2 control-label">host modify</label>
+                        <label class="col-sm-2 control-label">host修改</label>
                         <div class="col-sm-10">
                             <input value="{{.h.HostChange}}" class="form-control" value="" type="text" name="hostchange"
-                                   placeholder="host modify">
+                                   placeholder="host修改">
                         </div>
                     </div>
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
                             &nbsp;<button class="btn btn-success" href="#" id="add"><i
-                                class="fa fa-fw fa-lg fa-eye"></i>save
+                                class="fa fa-fw fa-lg fa-eye"></i>保存
                         </button>
                         </div>
                     </div>

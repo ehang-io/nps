@@ -2,76 +2,76 @@
 <div class="row">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
-            <h3 class="ibox-title">add client</h3>
+            <h3 class="ibox-title">修改客户端</h3>
             <div class="ibox-content">
                 <form class="form-horizontal">
                     <input type="hidden" name="id" value="{{.c.Id}}">
                     <div class="form-group" id="remark">
-                        <label class="col-sm-2 control-label">remark</label>
+                        <label class="col-sm-2 control-label">备注</label>
                         <div class="col-sm-10">
-                            <input class="form-control" value="{{.c.Remark}}" type="text" name="remark" placeholder="empty means to be unrestricted">
+                            <input class="form-control" value="{{.c.Remark}}" type="text" name="remark" placeholder="空意味着不受限制">
                         </div>
                     </div>
                     <div class="form-group" id="flow_limit">
-                        <label class="col-sm-2 control-label">flow limitation</label>
+                        <label class="col-sm-2 control-label">流量限制</label>
                         <div class="col-sm-10">
                             <input class="form-control" value="{{.c.Flow.FlowLimit}}" type="text" name="flow_limit"
-                                   placeholder="empty means to be unrestricted">
-                            <span class="help-block m-b-none">unit: M</span>
+                                   placeholder="空意味着不受限制">
+                            <span class="help-block m-b-none">单位: M</span>
                         </div>
                     </div>
 
                     <div class="form-group" id="rate_limit">
-                        <label class="control-label col-sm-2">bandwidth limitation</label>
+                        <label class="control-label col-sm-2">带宽限制</label>
                         <div class="col-sm-10">
                             <input class="form-control" value="{{.c.RateLimit}}" type="text" name="rate_limit"
-                                   placeholder="empty means to be unrestricted">
-                            <span class="help-block m-b-none">unit: KB/S</span>
+                                   placeholder="空意味着不受限制">
+                            <span class="help-block m-b-none">单位: KB/S</span>
                         </div>
                     </div>
                     <div class="form-group" id="max_conn">
-                        <label class="control-label col-sm-2">maximum number of client connections</label>
+                        <label class="control-label col-sm-2">最大客户端连接数</label>
                         <div class="col-sm-10">
                             <input class="form-control" value="{{.c.MaxConn}}" type="text" name="max_conn"
-                                   placeholder="empty means to be unrestricted">
+                                   placeholder="空意味着不受限制">
                         </div>
                     </div>
                     <div class="form-group" id="u">
-                        <label class="control-label col-sm-2">web authentication username</label>
+                        <label class="control-label col-sm-2">验证用户名</label>
                         <div class="col-sm-10">
-                            <input class="form-control" value="{{.c.Cnf.U}}" type="text" name="u" placeholder="empty means to be unrestricted">
-                            <span class="help-block m-b-none">only socks5 , web, HTTP forward proxy </span>
+                            <input class="form-control" value="{{.c.Cnf.U}}" type="text" name="u" placeholder="空意味着不受限制">
+                            <span class="help-block m-b-none">仅限socks5、web、http转发代理</span>
                         </div>
                     </div>
                     <div class="form-group" id="p">
-                        <label class="control-label col-sm-2">web authentication password </label>
+                        <label class="control-label col-sm-2">验证密码</label>
                         <div class="col-sm-10">
-                            <input class="form-control" value="{{.c.Cnf.P}}" type="text" name="p" placeholder="empty means to be unrestricted">
-                            <span class="help-block m-b-none">only socks5 , web, HTTP forward proxy </span>
+                            <input class="form-control" value="{{.c.Cnf.P}}" type="text" name="p" placeholder="空意味着不受限制">
+                            <span class="help-block m-b-none">仅限socks5、web、http转发代理</span>
                         </div>
                     </div>
                     <div class="form-group" id="vkey">
-                        <label class="control-label col-sm-2">client connection key</label>
+                        <label class="control-label col-sm-2">客户端连接密钥</label>
                         <div class="col-sm-10">
-                            <input class="form-control" value="{{.c.VerifyKey}}" type="text" name="vkey" placeholder="empty means to be unrestricted">
-                            <span class="help-block m-b-none">unique, non-filling will be generated automatically</span>
+                            <input class="form-control" value="{{.c.VerifyKey}}" type="text" name="vkey" placeholder="空意味着不受限制">
+                            <span class="help-block m-b-none">唯一、不填将会自动生成</span>
                         </div>
                     </div>
                     <div class="form-group" id="compress">
-                        <label class="control-label col-sm-2">compress</label>
+                        <label class="control-label col-sm-2">数据压缩方式</label>
                         <div class="col-sm-10">
                             <select class="form-control" name="compress">
-                                <option {{if eq false .c.Cnf.Compress}}selected{{end}} value="0">no</option>
-                                <option {{if eq true .c.Cnf.Compress}}selected{{end}}  value="1">yes</option>
+                                <option {{if eq false .c.Cnf.Compress}}selected{{end}} value="0">不压缩</option>
+                                <option {{if eq true .c.Cnf.Compress}}selected{{end}}  value="1">压缩</option>
                             </select>
                         </div>
                     </div>
                     <div class="form-group" id="compress">
-                        <label class="control-label col-sm-2">crypt</label>
+                        <label class="control-label col-sm-2">是否加密传输</label>
                         <div class="col-sm-10">
                             <select class="form-control" name="crypt">
-                                <option {{if eq false .c.Cnf.Crypt}}selected{{end}} value="0">no</option>
-                                <option {{if eq true .c.Cnf.Crypt}}selected{{end}} value="1">yes</option>
+                                <option {{if eq false .c.Cnf.Crypt}}selected{{end}} value="0">不加密</option>
+                                <option {{if eq true .c.Cnf.Crypt}}selected{{end}} value="1">加密</option>
                             </select>
                         </div>
                     </div>
@@ -79,7 +79,7 @@
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
                             <button class="btn btn-success" href="#" id="add"><i
-                                    class="fa fa-fw fa-lg fa-eye"></i>save
+                                    class="fa fa-fw fa-lg fa-eye"></i>保存
                             </button>
                         </div>
                     </div>

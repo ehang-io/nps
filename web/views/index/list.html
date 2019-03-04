@@ -19,7 +19,7 @@
                     <div class="table-responsive">
                         <div id="toolbar">
                             <a href="/index/add?type={{.type}}&client_id={{.client_id}}" class="btn btn-primary dim"
-                               type="button">new</a>
+                               type="button">添加</a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
                                data-mobile-responsive="true"></table>
@@ -72,13 +72,13 @@
         columns: [
             {
                 field: 'Id',//域值
-                title: 'id',//标题
+                title: 'Id',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Id',//域值
-                title: 'client id',//标题
+                title: '客户端Id',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -87,37 +87,37 @@
             },
             {
                 field: 'Remark',//域值
-                title: 'remark',//标题
+                title: '备注',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Mode',//域值
-                title: 'mode',//标题
+                title: '模式',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Port',//域值
-                title: 'port',//标题
+                title: '端口',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Target',//域值
-                title: 'target',//标题
+                title: '内网目标',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Password',//域值
-                title: 'secret',//标题
+                title: '私密',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
             },
             {
                 field: 'Status',//域值
-                title: 'setting',//内容
+                title: '设置',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -130,7 +130,7 @@
             },
             {
                 field: 'RunStatus',//域值
-                title: 'run',//内容
+                title: '运行',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -143,7 +143,7 @@
             },
             {
                 field: '',//域值
-                title: 'client',//内容
+                title: '客户端',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -156,7 +156,7 @@
             },
             {
                 field: 'option',//域值
-                title: 'option',//内容
+                title: '操作',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -178,7 +178,7 @@
 
 <script type="text/javascript">
     function del(id) {
-        if (confirm("Are you sure you want to delete it？？")) {
+        if (confirm("确定要删除数据吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/del",
@@ -194,7 +194,7 @@
     }
 
     function start(id) {
-        if (confirm("Are you sure you want to start it？？")) {
+        if (confirm("确定要开始任务吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/start",
@@ -210,7 +210,7 @@
     }
 
     function stop(id) {
-        if (confirm("Are you sure you want to stop it？？")) {
+        if (confirm("确定要暂停吗？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/stop",

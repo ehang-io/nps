@@ -3,7 +3,7 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>client connection port</h5>
+                    <h5>客户端连接端口</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.p}}</h1>
@@ -13,7 +13,7 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>number of clients</h5>
+                    <h5>总客户端数</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.clientCount}}</h1>
@@ -24,7 +24,7 @@
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
                 {{/*<span class="label label-primary pull-right">今日</span>*/}}
-                    <h5>number of online clients</h5>
+                    <h5>在线客户端数</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.clientOnlineCount}}</h1>
@@ -36,7 +36,7 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>number of tcp connections</h5>
+                    <h5>当前TCP连接总数</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.tcpCount}}</h1>
@@ -49,7 +49,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>config information</h5>
+                    <h5>配置信息</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -65,7 +65,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>bridge type</strong>
+                                    <strong>桥接模式</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.bridgeType}}</strong>
@@ -75,7 +75,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>httpProxyPort</strong>
+                                    <strong>http代理端口</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.httpProxyPort}}</strong>
@@ -85,7 +85,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>httpsProxyPort</strong>
+                                    <strong>https代理端口</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.httpsProxyPort}}</strong>
@@ -95,7 +95,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>ipLimit</strong>
+                                    <strong>ip限制</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.ipLimit}}</strong>
@@ -105,7 +105,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>flowStoreInterval</strong>
+                                    <strong>网络流量</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.flowStoreInterval}}</strong>
@@ -115,7 +115,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>logLevel</strong>
+                                    <strong>日志级别</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.logLevel}}</strong>
@@ -125,7 +125,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>p2pPort</strong>
+                                    <strong>p2p端口</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.p2pPort}}</strong>
@@ -135,7 +135,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>serverIp</strong>
+                                    <strong>服务端IP</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.serverIp}}</strong>
@@ -148,7 +148,7 @@
         </div>
         <div class="col-lg-6">
             <div class="ibox-title">
-                <h5>system now</h5>
+                <h5>当前系统</h5>
                 <div class="ibox-tools">
                     <a class="collapse-link">
                         <i class="fa fa-chevron-up"></i>
@@ -162,7 +162,7 @@
 
                 <div>
                     <div>
-                        <span>cpu</span>
+                        <span>CPU</span>
                         <small class="pull-right">{{.data.cpu}}%</small>
                     </div>
                     <div class="progress progress-small">
@@ -171,7 +171,7 @@
 
 
                     <div>
-                        <span>virtual memory</span>
+                        <span>虚拟内存</span>
                         <small class="pull-right">{{.data.virtual_mem}}%</small>
                     </div>
                     <div class="progress progress-small">
@@ -189,7 +189,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>load</strong>
+                                    <strong>负载</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.load}}</strong>
@@ -199,7 +199,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>tcp num(establish)</strong>
+                                    <strong>已建立连接的TCP个数</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.tcp}}</strong>
@@ -209,7 +209,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>udp num(establish)</strong>
+                                    <strong>已建立连接的UDP个数</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.udp}}</strong>
@@ -219,7 +219,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>out</strong>
+                                    <strong>输出</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong id="send"></strong>
@@ -229,7 +229,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>in</strong>
+                                    <strong>输入</strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong id="recv"></strong>
@@ -247,7 +247,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>load</h5>
+                    <h5>负载</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -265,7 +265,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>cpu</h5>
+                    <h5>CPU</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -285,7 +285,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>virtual_mem</h5>
+                    <h5>虚拟内存</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -303,7 +303,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>connection num</h5>
+                    <h5>连接数</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -324,7 +324,7 @@
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>bandwidth</h5>
+                    <h5>带宽</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -345,7 +345,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>traffic</h5>
+                    <h5>传输</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -363,7 +363,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>types</h5>
+                    <h5>类型</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -397,7 +397,7 @@
         legend: {
             orient: 'vertical',
             left: 'left',
-            data: ['inlet flow', 'export flow']
+            data: ['输出流量', '输出流量']
         },
         series: [
             {
@@ -406,8 +406,8 @@
                 radius: '55%',
                 center: ['50%', '60%'],
                 data: [
-                    {value:{{.data.inletFlowCount}}, name: 'inlet flow'},
-                    {value:{{.data.exportFlowCount}}, name: 'export flow'},
+                    {value:{{.data.inletFlowCount}}, name: '输出流量'},
+                    {value:{{.data.exportFlowCount}}, name: '输出流量'},
                 ],
                 itemStyle: {
                     emphasis: {
@@ -435,7 +435,7 @@
         legend: {
             orient: 'vertical',
             left: 'left',
-            data: ['tcp', 'socks5', 'http', 'udp', 'host', 'secret', 'p2p']
+            data: ['tcp隧道数', 'socks5隧道数', 'http代理隧道数', 'udp隧道数', '域名解析数', '私密代理数', 'p2p数']
         },
         series: [
             {
@@ -444,13 +444,13 @@
                 radius: '55%',
                 center: ['50%', '60%'],
                 data: [
-                    {value:{{.data.tcpC}}, name: 'tcp'},
-                    {value:{{.data.socks5Count}}, name: 'socks5'},
-                    {value:{{.data.httpProxyCount}}, name: 'http'},
-                    {value:{{.data.udpCount}}, name: 'udp'},
-                    {value:{{.data.hostCount}}, name: 'host'},
-                    {value:{{.data.secretCount}}, name: 'secret'},
-                    {value:{{.data.p2pCount}}, name: 'p2p'},
+                    {value:{{.data.tcpC}}, name: 'tcp隧道数'},
+                    {value:{{.data.socks5Count}}, name: 'socks5隧道数'},
+                    {value:{{.data.httpProxyCount}}, name: 'http代理隧道数'},
+                    {value:{{.data.udpCount}}, name: 'udp隧道数'},
+                    {value:{{.data.hostCount}}, name: '域名解析数'},
+                    {value:{{.data.secretCount}}, name: '私密代理数'},
+                    {value:{{.data.p2pCount}}, name: 'p2p数'},
                 ],
                 itemStyle: {
                     emphasis: {
@@ -477,7 +477,7 @@
     option = null;
     option = {
         title: {
-            text: 'load'
+            text: '负载'
         },
         tooltip: {
             trigger: 'axis'
@@ -536,7 +536,7 @@
     option = null;
     option = {
         title: {
-            text: 'cpu'
+            text: 'CPU'
         },
         tooltip: {
             trigger: 'axis'
@@ -583,7 +583,7 @@
     option = null;
     option = {
         title: {
-            text: 'memory'
+            text: '虚拟内存'
         },
         tooltip: {
             trigger: 'axis'
@@ -637,7 +637,7 @@
     option = null;
     option = {
         title: {
-            text: 'connection num(establish)'
+            text: '已建立连接的连接数'
         },
         tooltip: {
             trigger: 'axis'
@@ -691,7 +691,7 @@
     option = null;
     option = {
         title: {
-            text: 'bandwidth'
+            text: '带宽'
         },
         tooltip: {
             trigger: 'axis',
