@@ -225,6 +225,7 @@ func (s *Csv) StoreHostToCsv() {
 			strconv.Itoa(host.Id),
 			strconv.Itoa(int(host.Flow.ExportFlow)),
 			strconv.Itoa(int(host.Flow.InletFlow)),
+			host.Scheme,
 		}
 		err1 := writer.Write(record)
 		if err1 != nil {
@@ -298,6 +299,11 @@ func (s *Csv) LoadHostFromCsv() {
 		post.Flow = new(Flow)
 		post.Flow.ExportFlow = int64(common.GetIntNoErrByStr(item[8]))
 		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[9]))
+		if len(item) > 10 {
+			post.Scheme = item[10]
+		} else {
+			post.Scheme = "all"
+		}
 		hosts = append(hosts, post)
 		if post.Id > s.HostIncreaseId {
 			s.HostIncreaseId = post.Id
@@ -319,7 +325,7 @@ func (s *Csv) DelHost(id int) error {
 
 func (s *Csv) IsHostExist(h *Host) bool {
 	for _, v := range s.Hosts {
-		if v.Host == h.Host && h.Location == v.Location {
+		if v.Host == h.Host && h.Location == v.Location && (v.Scheme == "all" || v.Scheme == h.Scheme) {
 			return true
 		}
 	}
@@ -497,7 +503,7 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 		if re, err = regexp.Compile(tmp); err != nil {
 			return
 		}
-		if len(re.FindAllString(host, -1)) > 0 {
+		if len(re.FindAllString(host, -1)) > 0 && (v.Scheme == "all" || v.Scheme == r.URL.Scheme) {
 			//URL routing
 			hosts = append(hosts, v)
 		}

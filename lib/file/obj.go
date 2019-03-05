@@ -133,6 +133,7 @@ type Host struct {
 	NowIndex     int
 	TargetArr    []string
 	NoStore      bool
+	Scheme        string //http https all
 	sync.RWMutex
 }
 

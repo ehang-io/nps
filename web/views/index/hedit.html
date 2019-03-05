@@ -1,4 +1,3 @@
-
 <div class="row tile">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
@@ -9,13 +8,25 @@
                     <div class="form-group">
                         <label class="col-sm-2 control-label">remark</label>
                         <div class="col-sm-10">
-                            <input value="{{.h.Remark}}" class="form-control" type="text" name="remark" placeholder="remark">
+                            <input value="{{.h.Remark}}" class="form-control" type="text" name="remark"
+                                   placeholder="remark">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="col-sm-2 control-label">host</label>
                         <div class="col-sm-10">
-                            <input value="{{.h.Host}}" class="form-control" type="text" name="host" placeholder="such as a.proxy.com">
+                            <input value="{{.h.Host}}" class="form-control" type="text" name="host"
+                                   placeholder="such as a.proxy.com">
+                        </div>
+                    </div>
+                    <div class="form-group" id="scheme">
+                        <label class="control-label col-sm-2">scheme</label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="scheme">
+                                <option {{if eq "all" .h.Scheme}}selected{{end}} value="all">all</option>
+                                <option {{if eq "http" .h.Scheme}}selected{{end}} value="http">http</option>
+                                <option {{if eq "https" .h.Scheme}}selected{{end}} value="https">https</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">

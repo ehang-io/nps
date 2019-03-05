@@ -7,7 +7,9 @@ import (
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
@@ -119,44 +121,29 @@ func (s *Conn) ReadFlag() (string, error) {
 
 //设置连接为长连接
 func (s *Conn) SetAlive(tp string) {
-	if tp == "kcp" {
-		s.setKcpAlive()
-	} else {
-		s.setTcpAlive()
+	switch s.Conn.(type) {
+	case *kcp.UDPSession:
+		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Time{})
+	case *net.TCPConn:
+		conn := s.Conn.(*net.TCPConn)
+		conn.SetReadDeadline(time.Time{})
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
+	case *mux.PortConn:
+		s.Conn.(*mux.PortConn).SetReadDeadline(time.Time{})
 	}
-}
-
-//设置连接为长连接
-func (s *Conn) setTcpAlive() {
-	conn := s.Conn.(*net.TCPConn)
-	conn.SetReadDeadline(time.Time{})
-	conn.SetKeepAlive(true)
-	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
-}
-
-//设置连接为长连接
-func (s *Conn) setKcpAlive() {
-	conn := s.Conn.(*kcp.UDPSession)
-	conn.SetReadDeadline(time.Time{})
 }
 
 //设置连接为长连接
 func (s *Conn) SetReadDeadline(t time.Duration, tp string) {
-	if tp == "kcp" {
-		s.SetKcpReadDeadline(t)
-	} else {
-		s.SetTcpReadDeadline(t)
+	switch s.Conn.(type) {
+	case *kcp.UDPSession:
+		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+	case *net.TCPConn:
+		s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+	case *mux.PortConn:
+		s.Conn.(*mux.PortConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 	}
-}
-
-//set read dead time
-func (s *Conn) SetTcpReadDeadline(t time.Duration) {
-	s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
-}
-
-//set read dead time
-func (s *Conn) SetKcpReadDeadline(t time.Duration) {
-	s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 }
 
 //send info for link
@@ -402,19 +389,19 @@ func SetUdpSession(sess *kcp.UDPSession) {
 }
 
 //conn1 mux conn
-func CopyWaitGroup(conn1, conn2 io.ReadWriteCloser, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow) {
+func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool) {
 	var in, out int64
 	var wg sync.WaitGroup
-	conn1 = GetConn(conn1, crypt, snappy, rate)
+	connHandle := GetConn(conn1, crypt, snappy, rate, isServer)
 	go func(in *int64) {
 		wg.Add(1)
-		*in, _ = common.CopyBuffer(conn1, conn2)
-		conn1.Close()
+		*in, _ = common.CopyBuffer(connHandle, conn2)
+		connHandle.Close()
 		conn2.Close()
 		wg.Done()
 	}(&in)
-	out, _ = common.CopyBuffer(conn2, conn1)
-	conn1.Close()
+	out, _ = common.CopyBuffer(conn2, connHandle)
+	connHandle.Close()
 	conn2.Close()
 	wg.Wait()
 	if flow != nil {
@@ -423,11 +410,14 @@ func CopyWaitGroup(conn1, conn2 io.ReadWriteCloser, crypt bool, snappy bool, rat
 }
 
 //get crypt or snappy conn
-func GetConn(conn io.ReadWriteCloser, crypt, snappy bool, rate *rate.Rate) (io.ReadWriteCloser) {
-	if crypt {
-		conn = NewCryptConn(conn, true, rate)
+func GetConn(conn net.Conn, cpt, snappy bool, rate *rate.Rate, isServer bool) (io.ReadWriteCloser) {
+	if cpt {
+		if isServer {
+			return crypt.NewTlsServerConn(conn)
+		}
+		return crypt.NewTlsClientConn(conn)
 	} else if snappy {
-		conn = NewSnappyConn(conn, crypt, rate)
+		return NewSnappyConn(conn, cpt, rate)
 	}
 	return conn
 }

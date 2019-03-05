@@ -6,10 +6,11 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
-	"os"
+	"net/http"
 	"path/filepath"
 	"strings"
 )
@@ -72,20 +73,24 @@ type WebServer struct {
 
 //开始
 func (s *WebServer) Start() error {
-	p, _ := beego.AppConfig.Int("httpport")
+	p, _ := beego.AppConfig.Int("web_port")
 	if p == 0 {
 		stop := make(chan struct{})
 		<-stop
 	}
-	if !common.TestTcpPort(p) {
-		logs.Error("Web management port %d is occupied", p)
-		os.Exit(0)
-	}
+	//if !common.TestTcpPort(p) {
+	//	//	logs.Error("Web management port %d is occupied", p)
+	//	//	os.Exit(0)
+	//	//}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	logs.Info("Web management start, access port is", p)
 	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
-	beego.Run()
+	if l, err := connection.GetWebManagerListener(); err == nil {
+		beego.InitBeforeHTTPRun()
+		http.Serve(l, beego.BeeApp.Handlers)
+	} else {
+		logs.Error(err)
+	}
 	return errors.New("Web management startup failure")
 }
 

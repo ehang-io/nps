@@ -10,6 +10,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/lib/version"
+	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
@@ -37,9 +38,7 @@ func NewClient(t, f *mux.Mux, s *conn.Conn) *Client {
 }
 
 type Bridge struct {
-	TunnelPort   int              //通信隧道端口
-	tcpListener  *net.TCPListener //server端监听
-	kcpListener  *kcp.Listener    //server端监听
+	TunnelPort   int //通信隧道端口
 	Client       map[int]*Client
 	tunnelType   string //bridge type kcp or tcp
 	OpenTask     chan *file.Tunnel
@@ -68,15 +67,18 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int
 
 func (s *Bridge) StartTunnel() error {
 	go s.ping()
-	var err error
+	l, err := connection.GetBridgeListener(s.tunnelType)
+	if err != nil {
+		return err
+	}
 	if s.tunnelType == "kcp" {
-		s.kcpListener, err = kcp.ListenWithOptions(":"+strconv.Itoa(s.TunnelPort), nil, 150, 3)
-		if err != nil {
+		listener, ok := l.(*kcp.Listener)
+		if !ok {
 			return err
 		}
 		go func() {
 			for {
-				c, err := s.kcpListener.AcceptKCP()
+				c, err := listener.AcceptKCP()
 				conn.SetUdpSession(c)
 				if err != nil {
 					logs.Warn(err)
@@ -86,13 +88,13 @@ func (s *Bridge) StartTunnel() error {
 			}
 		}()
 	} else {
-		s.tcpListener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.TunnelPort, ""})
-		if err != nil {
+		listener, ok := l.(net.Listener)
+		if !ok {
 			return err
 		}
 		go func() {
 			for {
-				c, err := s.tcpListener.Accept()
+				c, err := listener.Accept()
 				if err != nil {
 					logs.Warn(err)
 					continue
@@ -115,6 +117,11 @@ func (s *Bridge) verifySuccess(c *conn.Conn) {
 }
 
 func (s *Bridge) cliProcess(c *conn.Conn) {
+	//read test flag
+	if _, err := c.GetShortContent(3); err != nil {
+		logs.Info("The client %s connect error", c.Conn.RemoteAddr())
+		return
+	}
 	//version check
 	if b, err := c.GetShortContent(32); err != nil || string(b) != crypt.Md5(version.GetVersion()) {
 		logs.Info("The client %s version does not match", c.Conn.RemoteAddr())
@@ -126,7 +133,7 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	c.SetReadDeadline(5, s.tunnelType)
 	var buf []byte
 	var err error
-	//get vkey from client
+	//get vKey from client
 	if buf, err = c.GetShortContent(32); err != nil {
 		c.Close()
 		return
@@ -140,7 +147,6 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	} else {
 		s.verifySuccess(c)
 	}
-	//做一个判断 添加到对应的channel里面以供使用
 	if flag, err := c.ReadFlag(); err == nil {
 		s.typeDeal(flag, c, id)
 	} else {
@@ -197,7 +203,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		var isPub bool
 		client, err := file.GetCsvDb().GetClient(id);
 		if err == nil {
-			if client.VerifyKey == beego.AppConfig.String("publicVkey") {
+			if client.VerifyKey == beego.AppConfig.String("public_vkey") {
 				isPub = true
 			} else {
 				isPub = false
@@ -237,7 +243,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 				s.clientLock.Unlock()
 				//向密钥对应的客户端发送与服务端udp建立连接信息，地址，密钥
 				v.signal.Write([]byte(common.NEW_UDP_CONN))
-				svrAddr := beego.AppConfig.String("serverIp") + ":" + beego.AppConfig.String("p2pPort")
+				svrAddr := beego.AppConfig.String("p2p_ip") + ":" + beego.AppConfig.String("p2p_port")
 				if err != nil {
 					logs.Warn("get local udp addr error")
 					return

@@ -34,7 +34,7 @@ func init() {
 //从csv文件中恢复任务
 func InitFromCsv() {
 	//Add a public password
-	if vkey := beego.AppConfig.String("publicVkey"); vkey != "" {
+	if vkey := beego.AppConfig.String("public_vkey"); vkey != "" {
 		c := file.NewClient(vkey, true, true)
 		file.GetCsvDb().NewClient(c)
 		RunList[c.Id] = nil
@@ -77,14 +77,12 @@ func DealBridgeTask() {
 
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
-	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")), RunList)
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList)
 	if err := Bridge.StartTunnel(); err != nil {
 		logs.Error("start server bridge error", err)
 		os.Exit(0)
-	} else {
-		logs.Info("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
 	}
-	if p, err := beego.AppConfig.Int("p2pPort"); err == nil {
+	if p, err := beego.AppConfig.Int("p2p_port"); err == nil {
 		logs.Info("start p2p server port", p)
 		go proxy.NewP2PServer(p).Start()
 	}
@@ -159,7 +157,7 @@ func AddTask(t *file.Tunnel) error {
 		logs.Error("taskId %d start error port %d open failed", t.Id, t.Port)
 		return errors.New("the port open error")
 	}
-	if minute, err := beego.AppConfig.Int("flowStoreInterval"); err == nil && minute > 0 {
+	if minute, err := beego.AppConfig.Int("flow_store_interval"); err == nil && minute > 0 {
 		go flowSession(time.Minute * time.Duration(minute))
 	}
 	if svr := NewMode(Bridge, t); svr != nil {
@@ -324,14 +322,14 @@ func GetDashboardData() map[string]interface{} {
 	data["httpProxyCount"] = http
 	data["secretCount"] = secret
 	data["p2pCount"] = p2p
-	data["bridgeType"] = beego.AppConfig.String("bridgeType")
-	data["httpProxyPort"] = beego.AppConfig.String("httpProxyPort")
-	data["httpsProxyPort"] = beego.AppConfig.String("httpsProxyPort")
-	data["ipLimit"] = beego.AppConfig.String("ipLimit")
-	data["flowStoreInterval"] = beego.AppConfig.String("flowStoreInterval")
-	data["serverIp"] = beego.AppConfig.String("serverIp")
-	data["p2pPort"] = beego.AppConfig.String("p2pPort")
-	data["logLevel"] = beego.AppConfig.String("logLevel")
+	data["bridgeType"] = beego.AppConfig.String("bridge_type")
+	data["httpProxyPort"] = beego.AppConfig.String("http_proxy_port")
+	data["httpsProxyPort"] = beego.AppConfig.String("https_proxy_port")
+	data["ipLimit"] = beego.AppConfig.String("ip_limit")
+	data["flowStoreInterval"] = beego.AppConfig.String("flow_store_interval")
+	data["serverIp"] = beego.AppConfig.String("p2p_ip")
+	data["p2pPort"] = beego.AppConfig.String("p2p_port")
+	data["logLevel"] = beego.AppConfig.String("log_level")
 	tcpCount := 0
 	for _, v := range file.GetCsvDb().Clients {
 		tcpCount += v.NowConn

@@ -129,7 +129,7 @@
                     + '<b>compress: </b>' + row.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b>username: </b>' + row.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b>password: </b>' + row.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b>commond: </b>' + "<code>./npc -server={{.ip}}:{{.p}} -vkey=" + row.VerifyKey + "</code>"
+                    + '<b>commond: </b>' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.VerifyKey + " -type=" +{{.bridgeType}} +"</code>"
         },
         //表格的列
         columns: [

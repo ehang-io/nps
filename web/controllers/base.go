@@ -50,6 +50,10 @@ func (s *BaseController) display(tpl ...string) {
 		arr := strings.Split(common.GetHostByName(ip), ":")
 		s.Data["ip"] = arr[0]
 	}
+	s.Data["bridgeType"] = beego.AppConfig.String("bridge_type")
+	if common.IsWindows() {
+		s.Data["win"] = ".exe"
+	}
 	s.Data["p"] = server.Bridge.TunnelPort
 	s.Data["proxyPort"] = beego.AppConfig.String("hostPort")
 	s.Layout = "public/layout.html"

@@ -83,7 +83,7 @@ func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte, tp string)
 		if rb != nil {
 			target.Write(rb)
 		}
-		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow)
+		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow, true)
 	}
 
 	s.task.Client.AddConn()

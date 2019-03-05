@@ -12,7 +12,7 @@ func (self *LoginController) Index() {
 	self.TplName = "login/index.html"
 }
 func (self *LoginController) Verify() {
-	if self.GetString("password") == beego.AppConfig.String("password") && self.GetString("username") == beego.AppConfig.String("username") {
+	if self.GetString("password") == beego.AppConfig.String("web_password") && self.GetString("username") == beego.AppConfig.String("web_username") {
 		self.SetSession("auth", true)
 		self.Data["json"] = map[string]interface{}{"status": 1, "msg": "login success"}
 		self.ServeJSON()
