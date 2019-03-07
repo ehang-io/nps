@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
@@ -19,16 +20,18 @@ type TRPClient struct {
 	vKey           string
 	tunnel         *mux.Mux
 	signal         *conn.Conn
+	cnf            *config.Config
 }
 
 //new client
-func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string) *TRPClient {
+func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config) *TRPClient {
 	return &TRPClient{
 		svrAddr:        svraddr,
 		vKey:           vKey,
 		bridgeConnType: bridgeConnType,
 		stop:           make(chan bool),
 		proxyUrl:       proxyUrl,
+		cnf:            cnf,
 	}
 }
 
@@ -55,6 +58,7 @@ func (s *TRPClient) Close() {
 func (s *TRPClient) processor(c *conn.Conn) {
 	s.signal = c
 	go s.dealChan()
+	go heathCheck(s.cnf, c)
 	for {
 		flags, err := c.ReadFlag()
 		if err != nil {

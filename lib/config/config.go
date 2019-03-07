@@ -38,7 +38,9 @@ func NewConfig(path string) (c *Config, err error) {
 	if b, err = common.ReadAllFromFile(path); err != nil {
 		return
 	} else {
-		c.content = string(b)
+		if c.content, err = common.ParseStr(string(b)); err != nil {
+			return nil, err
+		}
 		if c.title, err = getAllTitle(c.content); err != nil {
 			return
 		}
@@ -153,6 +155,14 @@ func dealHost(s string) *file.Host {
 			h.HostChange = item[1]
 		case "location":
 			h.Location = item[1]
+		case "health_check_timeout":
+			h.HealthCheckTimeout = common.GetIntNoErrByStr(item[1])
+		case "health_check_max_failed":
+			h.HealthMaxFail = common.GetIntNoErrByStr(item[1])
+		case "health_check_interval":
+			h.HealthCheckInterval = common.GetIntNoErrByStr(item[1])
+		case "health_http_url":
+			h.HttpHealthUrl = item[1]
 		default:
 			if strings.Contains(item[0], "header") {
 				headerChange += strings.Replace(item[0], "header_", "", -1) + ":" + item[1] + "\n"
@@ -178,7 +188,7 @@ func dealTunnel(s string) *file.Tunnel {
 		case "mode":
 			t.Mode = item[1]
 		case "target":
-			t.Target = item[1]
+			t.Target = strings.Replace(item[1], ",", "\n", -1)
 		case "targetAddr":
 			t.TargetAddr = item[1]
 		case "password":
@@ -187,6 +197,12 @@ func dealTunnel(s string) *file.Tunnel {
 			t.LocalPath = item[1]
 		case "strip_pre":
 			t.StripPre = item[1]
+		case "health_check_timeout":
+			t.HealthCheckTimeout = common.GetIntNoErrByStr(item[1])
+		case "health_check_max_failed":
+			t.HealthMaxFail = common.GetIntNoErrByStr(item[1])
+		case "health_check_interval":
+			t.HealthCheckInterval = common.GetIntNoErrByStr(item[1])
 		}
 	}
 	return t

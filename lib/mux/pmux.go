@@ -11,18 +11,20 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	HTTP_GET     = 716984
-	HTTP_POST    = 807983
-	HTTP_HEAD    = 726965
-	HTTP_PUT     = 808585
-	HTTP_DELETE  = 686976
-	HTTP_CONNECT = 677978
-	HTTP_OPTIONS = 798084
-	HTTP_TRACE   = 848265
-	CLIENT       = 848384
+	HTTP_GET        = 716984
+	HTTP_POST       = 807983
+	HTTP_HEAD       = 726965
+	HTTP_PUT        = 808585
+	HTTP_DELETE     = 686976
+	HTTP_CONNECT    = 677978
+	HTTP_OPTIONS    = 798084
+	HTTP_TRACE      = 848265
+	CLIENT          = 848384
+	ACCEPT_TIME_OUT = 10
 )
 
 type PortMux struct {
@@ -122,7 +124,11 @@ func (pMux *PortMux) process(conn net.Conn) {
 	if len(rs) == 0 {
 		rs = buf
 	}
-	ch <- newPortConn(conn, rs)
+	timer := time.NewTimer(ACCEPT_TIME_OUT)
+	select {
+	case <-timer.C:
+	case ch <- newPortConn(conn, rs):
+	}
 }
 
 func (pMux *PortMux) Close() error {

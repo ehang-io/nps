@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/pool"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"net"
@@ -275,4 +276,30 @@ func GetLocalUdpAddr() (net.Conn, error) {
 		return nil, err
 	}
 	return tmpConn, tmpConn.Close()
+}
+
+func ParseStr(str string) (string, error) {
+	tmp := template.New("npc")
+	var err error
+	w := new(bytes.Buffer)
+	if tmp, err = tmp.Parse(str); err != nil {
+		return "", err
+	}
+	if err = tmp.Execute(w, GetEnvMap()); err != nil {
+		return "", err
+	}
+	return w.String(), nil
+}
+
+//get env
+func GetEnvMap() map[string]string {
+	m := make(map[string]string)
+	environ := os.Environ()
+	for i := range environ {
+		tmp := strings.Split(environ[i], "=")
+		if len(tmp) == 2 {
+			m[tmp[0]] = tmp[1]
+		}
+	}
+	return m
 }

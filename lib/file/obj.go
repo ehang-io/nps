@@ -4,6 +4,7 @@ import (
 	"github.com/cnlh/nps/lib/rate"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Flow struct {
@@ -96,14 +97,15 @@ func (s *Client) HasHost(h *Host) bool {
 }
 
 type Tunnel struct {
-	Id         int     //Id
-	Port       int     //服务端监听端口
-	Mode       string  //启动方式
-	Target     string  //目标
-	Status     bool    //设置是否开启
-	RunStatus  bool    //当前运行状态
-	Client     *Client //所属客户端id
-	Ports      string  //客户端与服务端传递
+	Id         int      //Id
+	Port       int      //服务端监听端口
+	Mode       string   //启动方式
+	Target     string   //目标
+	TargetArr  []string //目标
+	Status     bool     //设置是否开启
+	RunStatus  bool     //当前运行状态
+	Client     *Client  //所属客户端id
+	Ports      string   //客户端与服务端传递
 	Flow       *Flow
 	Password   string //私密模式密码，唯一
 	Remark     string //备注
@@ -111,6 +113,35 @@ type Tunnel struct {
 	NoStore    bool
 	LocalPath  string
 	StripPre   string
+	NowIndex   int
+	Health
+	sync.RWMutex
+}
+
+type Health struct {
+	HealthCheckTimeout  int
+	HealthMaxFail       int
+	HealthCheckInterval int
+	HealthNextTime      time.Time
+	HealthMap           map[string]int
+	HttpHealthUrl       string
+	HealthRemoveArr     []string
+}
+
+func (s *Tunnel) GetRandomTarget() string {
+	if s.TargetArr == nil {
+		s.TargetArr = strings.Split(s.Target, "\n")
+	}
+	if len(s.TargetArr) == 1 {
+		return s.TargetArr[0]
+	}
+	s.Lock()
+	defer s.Unlock()
+	if s.NowIndex >= len(s.TargetArr)-1 {
+		s.NowIndex = -1
+	}
+	s.NowIndex++
+	return s.TargetArr[s.NowIndex]
 }
 
 type Config struct {
@@ -133,7 +164,8 @@ type Host struct {
 	NowIndex     int
 	TargetArr    []string
 	NoStore      bool
-	Scheme        string //http https all
+	Scheme       string //http https all
+	Health
 	sync.RWMutex
 }
 
@@ -141,10 +173,13 @@ func (s *Host) GetRandomTarget() string {
 	if s.TargetArr == nil {
 		s.TargetArr = strings.Split(s.Target, "\n")
 	}
+	if len(s.TargetArr) == 1 {
+		return s.TargetArr[0]
+	}
 	s.Lock()
 	defer s.Unlock()
 	if s.NowIndex >= len(s.TargetArr)-1 {
-		s.NowIndex = 0
+		s.NowIndex = -1
 	} else {
 		s.NowIndex++
 	}

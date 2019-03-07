@@ -13,7 +13,7 @@ import (
 
 var (
 	serverAddr   = flag.String("server", "", "Server addr (ip:port)")
-	configPath   = flag.String("config", "npc.conf", "Configuration file path")
+	configPath   = flag.String("config", "", "Configuration file path")
 	verifyKey    = flag.String("vkey", "", "Authentication key")
 	logType      = flag.String("log", "stdout", "Log output mode（stdout|file）")
 	connType     = flag.String("type", "tcp", "Connection type with the server（kcp|tcp）")
@@ -21,6 +21,7 @@ var (
 	logLevel     = flag.String("log_level", "7", "log level 0~7")
 	registerTime = flag.Int("time", 2, "register time long /h")
 )
+
 func main() {
 	flag.Parse()
 	if len(os.Args) > 2 {
@@ -41,13 +42,23 @@ func main() {
 	} else {
 		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"npc_log.log"}`)
 	}
-	if *verifyKey != "" && *serverAddr != "" {
+	env := common.GetEnvMap()
+	if *serverAddr == "" {
+		*serverAddr, _ = env["NPS_SERVER_ADDR"]
+	}
+	if *verifyKey == "" {
+		*verifyKey, _ = env["NPS_SERVER_VKEY"]
+	}
+	if *verifyKey != "" && *serverAddr != "" && *configPath == "" {
 		for {
 			client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl).Start()
 			logs.Info("It will be reconnected in five seconds")
 			time.Sleep(time.Second * 5)
 		}
 	} else {
+		if *configPath == "" {
+			*configPath = "npc.conf"
+		}
 		client.StartFromFile(*configPath)
 	}
 }

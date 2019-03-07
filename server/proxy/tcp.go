@@ -109,7 +109,7 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	return s.DealClient(c, s.task.Target, nil, common.CONN_TCP)
+	return s.DealClient(c, s.task.GetRandomTarget(), nil, common.CONN_TCP)
 }
 
 //http代理模式

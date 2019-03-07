@@ -159,7 +159,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Warn("auth error", err, r.RemoteAddr)
 				break
 			}
-			lk := conn.NewLink(common.CONN_TCP, host.Target, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
+			lk := conn.NewLink(common.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
 			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String(), nil); err != nil {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
@@ -174,10 +174,10 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			}()
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
-			r.URL.Scheme = scheme
 			if err != nil {
 				break
 			}
+			r.URL.Scheme = scheme
 			//What happened ，Why one character less???
 			if r.Method == "ET" {
 				r.Method = "GET"
@@ -190,10 +190,14 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 				break
 			} else if host != lastHost {
+				host.Client.AddConn()
+				if !hostTmp.Client.GetConn() {
+					break
+				}
 				host = hostTmp
 				lastHost = host
 				isConn = true
-				host.Client.AddConn()
+
 				goto start
 			}
 		}
@@ -204,7 +208,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			break
 		}
 		host.Flow.Add(int64(len(b)), 0)
-		logs.Trace("http(s) request, method %s, host %s, url %s, remote address %s, target %s", r.Method, r.Host, r.RequestURI, r.RemoteAddr, host.Target)
+		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.RequestURI, r.RemoteAddr, host.Target)
 		//write
 		connClient.Write(b)
 	}
