@@ -11,7 +11,7 @@ func TestPortMux_Close(t *testing.T) {
 	logs.EnableFuncCallDepth(true)
 	logs.SetLogFuncCallDepth(3)
 
-	pMux := NewPortMux(8888)
+	pMux := NewPortMux(8888,"Ds")
 	go func() {
 		if pMux.Start() != nil {
 			logs.Warn("Error")
@@ -19,21 +19,21 @@ func TestPortMux_Close(t *testing.T) {
 	}()
 	time.Sleep(time.Second * 3)
 	go func() {
-		l := pMux.GetHttpsAccept()
+		l := pMux.GetHttpListener()
 		conn, err := l.Accept()
 		logs.Warn(conn, err)
 	}()
 	go func() {
-		l := pMux.GetHttpAccept()
+		l := pMux.GetHttpListener()
 		conn, err := l.Accept()
 		logs.Warn(conn, err)
 	}()
 	go func() {
-		l := pMux.GetClientAccept()
+		l := pMux.GetHttpListener()
 		conn, err := l.Accept()
 		logs.Warn(conn, err)
 	}()
-	l := pMux.GetManagerAccept()
+	l := pMux.GetHttpListener()
 	conn, err := l.Accept()
 	logs.Warn(conn, err)
 }

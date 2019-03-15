@@ -134,6 +134,9 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		err        error
 		connClient io.ReadWriteCloser
 		scheme     = r.URL.Scheme
+		lk         *conn.Link
+		targetAddr string
+		wg         sync.WaitGroup
 	)
 	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
@@ -159,7 +162,11 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Warn("auth error", err, r.RemoteAddr)
 				break
 			}
-			lk := conn.NewLink(common.CONN_TCP, host.GetRandomTarget(), host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
+			if targetAddr, err = host.GetRandomTarget(); err != nil {
+				logs.Warn(err.Error())
+				break
+			}
+			lk = conn.NewLink(common.CONN_TCP, targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
 			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String(), nil); err != nil {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
@@ -167,10 +174,12 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
 			isConn = false
 			go func() {
+				wg.Add(1)
 				w, _ := common.CopyBuffer(c, connClient)
 				host.Flow.Add(0, w)
 				c.Close()
 				target.Close()
+				wg.Done()
 			}()
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
@@ -197,7 +206,6 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				host = hostTmp
 				lastHost = host
 				isConn = true
-
 				goto start
 			}
 		}
@@ -208,7 +216,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			break
 		}
 		host.Flow.Add(int64(len(b)), 0)
-		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.RequestURI, r.RemoteAddr, host.Target)
+		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.RequestURI, r.RemoteAddr, lk.Host)
 		//write
 		connClient.Write(b)
 	}
@@ -220,6 +228,7 @@ end:
 	if target != nil {
 		target.Close()
 	}
+	wg.Wait()
 	if host != nil {
 		host.Client.AddConn()
 	}

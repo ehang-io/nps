@@ -5,10 +5,12 @@ package mux
 import (
 	"bufio"
 	"bytes"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/pkg/errors"
 	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -59,7 +61,8 @@ func (pMux *PortMux) Start() error {
 	}
 	pMux.Listener, err = net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		return err
+		logs.Error(err)
+		os.Exit(0)
 	}
 	go func() {
 		for {
@@ -105,7 +108,7 @@ func (pMux *PortMux) process(conn net.Conn) {
 				str = strings.Replace(str, "host:", "", -1)
 				str = strings.TrimSpace(str)
 				// Determine whether it is the same as the manager domain name
-				if str == pMux.managerHost {
+				if common.GetIpByAddr(str) == pMux.managerHost {
 					ch = pMux.managerConn
 				} else {
 					ch = pMux.httpConn

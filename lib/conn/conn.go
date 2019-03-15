@@ -150,8 +150,6 @@ func (s *Conn) SetReadDeadline(t time.Duration, tp string) {
 func (s *Conn) SendLinkInfo(link *Link) (int, error) {
 	raw := bytes.NewBuffer([]byte{})
 	common.BinaryWrite(raw, link.ConnType, link.Host, common.GetStrByBool(link.Compress), common.GetStrByBool(link.Crypt), link.RemoteAddr)
-	s.Lock()
-	defer s.Unlock()
 	return s.Write(raw.Bytes())
 }
 
@@ -176,6 +174,33 @@ func (s *Conn) GetLinkInfo() (lk *Link, err error) {
 	return
 }
 
+//send info for link
+func (s *Conn) SendHealthInfo(info, status string) (int, error) {
+	raw := bytes.NewBuffer([]byte{})
+	common.BinaryWrite(raw, info, status)
+	s.Lock()
+	defer s.Unlock()
+	return s.Write(raw.Bytes())
+}
+
+//get health info from conn
+func (s *Conn) GetHealthInfo() (info string, status bool, err error) {
+	var l int
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
+	if l, err = s.GetLen(); err != nil {
+		return
+	} else if _, err = s.ReadLen(l, buf); err != nil {
+		return
+	} else {
+		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
+		if len(arr) >= 2 {
+			return arr[0], common.GetBoolByStr(arr[1]), nil
+		}
+	}
+	return "", false, errors.New("receive health info error")
+}
+
 //send host info
 func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
 	/*
@@ -188,7 +213,7 @@ func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_HOST))
-	common.BinaryWrite(raw, h.Host, h.Target, h.HeaderChange, h.HostChange, h.Remark, h.Location)
+	common.BinaryWrite(raw, h.Host, h.Target, h.HeaderChange, h.HostChange, h.Remark, h.Location, h.Scheme)
 	s.Lock()
 	defer s.Unlock()
 	return s.Write(raw.Bytes())
@@ -228,6 +253,10 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 		h.HostChange = arr[3]
 		h.Remark = arr[4]
 		h.Location = arr[5]
+		h.Scheme = arr[6]
+		if h.Scheme == "" {
+			h.Scheme = "all"
+		}
 		h.Flow = new(file.Flow)
 		h.NoStore = true
 	}

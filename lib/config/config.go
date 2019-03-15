@@ -29,6 +29,7 @@ type Config struct {
 	CommonConfig *CommonConfig
 	Hosts        []*file.Host
 	Tasks        []*file.Tunnel
+	Healths      []*file.Health
 	LocalServer  []*LocalServer
 }
 
@@ -56,16 +57,22 @@ func NewConfig(path string) (c *Config, err error) {
 			}
 			nowContent = c.content[nowIndex:nextIndex]
 
-			if strings.Index(getTitleContent(c.title[i]), "secret") == 0 {
+			if strings.Index(getTitleContent(c.title[i]), "secret") == 0 && !strings.Contains(nowContent, "mode") {
 				local := delLocalService(nowContent)
 				local.Type = "secret"
 				c.LocalServer = append(c.LocalServer, local)
 				continue
 			}
-			if strings.Index(getTitleContent(c.title[i]), "p2p") == 0 {
+			//except mode
+			if strings.Index(getTitleContent(c.title[i]), "p2p") == 0 && !strings.Contains(nowContent, "mode") {
 				local := delLocalService(nowContent)
 				local.Type = "p2p"
 				c.LocalServer = append(c.LocalServer, local)
+				continue
+			}
+			//health set
+			if strings.Index(getTitleContent(c.title[i]), "health") == 0 {
+				c.Healths = append(c.Healths, dealHealth(nowContent))
 				continue
 			}
 			switch c.title[i] {
@@ -146,15 +153,37 @@ func dealHost(s string) *file.Host {
 		} else if len(item) == 1 {
 			item = append(item, "")
 		}
-		switch item[0] {
+		switch strings.TrimSpace(item[0]) {
 		case "host":
 			h.Host = item[1]
 		case "target":
 			h.Target = strings.Replace(item[1], ",", "\n", -1)
 		case "host_change":
 			h.HostChange = item[1]
+		case "schemego":
+			h.Scheme = item[1]
 		case "location":
 			h.Location = item[1]
+		default:
+			if strings.Contains(item[0], "header") {
+				headerChange += strings.Replace(item[0], "header_", "", -1) + ":" + item[1] + "\n"
+			}
+			h.HeaderChange = headerChange
+		}
+	}
+	return h
+}
+
+func dealHealth(s string) *file.Health {
+	h := &file.Health{}
+	for _, v := range strings.Split(s, "\n") {
+		item := strings.Split(v, "=")
+		if len(item) == 0 {
+			continue
+		} else if len(item) == 1 {
+			item = append(item, "")
+		}
+		switch strings.TrimSpace(item[0]) {
 		case "health_check_timeout":
 			h.HealthCheckTimeout = common.GetIntNoErrByStr(item[1])
 		case "health_check_max_failed":
@@ -163,11 +192,10 @@ func dealHost(s string) *file.Host {
 			h.HealthCheckInterval = common.GetIntNoErrByStr(item[1])
 		case "health_http_url":
 			h.HttpHealthUrl = item[1]
-		default:
-			if strings.Contains(item[0], "header") {
-				headerChange += strings.Replace(item[0], "header_", "", -1) + ":" + item[1] + "\n"
-			}
-			h.HeaderChange = headerChange
+		case "health_check_type":
+			h.HealthCheckType = item[1]
+		case "health_check_target":
+			h.HealthCheckTarget = item[1]
 		}
 	}
 	return h
@@ -182,7 +210,7 @@ func dealTunnel(s string) *file.Tunnel {
 		} else if len(item) == 1 {
 			item = append(item, "")
 		}
-		switch item[0] {
+		switch strings.TrimSpace(item[0]) {
 		case "port":
 			t.Ports = item[1]
 		case "mode":
@@ -197,12 +225,6 @@ func dealTunnel(s string) *file.Tunnel {
 			t.LocalPath = item[1]
 		case "strip_pre":
 			t.StripPre = item[1]
-		case "health_check_timeout":
-			t.HealthCheckTimeout = common.GetIntNoErrByStr(item[1])
-		case "health_check_max_failed":
-			t.HealthMaxFail = common.GetIntNoErrByStr(item[1])
-		case "health_check_interval":
-			t.HealthCheckInterval = common.GetIntNoErrByStr(item[1])
 		}
 	}
 	return t

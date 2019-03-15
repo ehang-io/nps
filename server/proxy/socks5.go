@@ -149,7 +149,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 		return
 	} else {
 		s.sendReply(c, succeeded)
-		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow, true)
+		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Flow, true)
 	}
 
 	s.task.Client.AddConn()

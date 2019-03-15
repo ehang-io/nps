@@ -44,6 +44,12 @@ func (s *connMap) Close() {
 	s.closeCh <- struct{}{}
 }
 
+func (s *connMap) Delete(id int32) {
+	s.Lock()
+	defer s.Unlock()
+	delete(s.connMap, id)
+}
+
 func (s *connMap) clean() {
 	ticker := time.NewTimer(time.Minute * 1)
 	for {

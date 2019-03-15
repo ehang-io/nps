@@ -2,60 +2,59 @@ package client
 
 import (
 	"container/heap"
-	"github.com/cnlh/nps/lib/config"
+	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/sheap"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/pkg/errors"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 )
 
-func heathCheck(cnf *config.Config, c net.Conn) {
-	var hosts []*file.Host
-	var tunnels []*file.Tunnel
+var isStart bool
+var serverConn *conn.Conn
+
+func heathCheck(healths []*file.Health, c *conn.Conn) bool {
+	serverConn = c
+	if isStart {
+		for _, v := range healths {
+			v.HealthMap = make(map[string]int)
+		}
+		return true
+	}
+	isStart = true
 	h := &sheap.IntHeap{}
-	for _, v := range cnf.Hosts {
+	for _, v := range healths {
 		if v.HealthMaxFail > 0 && v.HealthCheckTimeout > 0 && v.HealthCheckInterval > 0 {
-			v.HealthNextTime = time.Now().Add(time.Duration(v.HealthCheckInterval))
+			v.HealthNextTime = time.Now().Add(time.Duration(v.HealthCheckInterval) * time.Second)
 			heap.Push(h, v.HealthNextTime.Unix())
 			v.HealthMap = make(map[string]int)
-			hosts = append(hosts, v)
 		}
 	}
-	for _, v := range cnf.Tasks {
-		if v.HealthMaxFail > 0 && v.HealthCheckTimeout > 0 && v.HealthCheckInterval > 0 {
-			v.HealthNextTime = time.Now().Add(time.Duration(v.HealthCheckInterval))
-			heap.Push(h, v.HealthNextTime.Unix())
-			v.HealthMap = make(map[string]int)
-			tunnels = append(tunnels, v)
-		}
-	}
-	if len(hosts) == 0 && len(tunnels) == 0 {
-		return
-	}
+	go session(healths, h)
+	return true
+}
+
+func session(healths []*file.Health, h *sheap.IntHeap) {
 	for {
+		if h.Len() == 0 {
+			logs.Error("health check error")
+			break
+		}
 		rs := heap.Pop(h).(int64) - time.Now().Unix()
-		if rs < 0 {
+		if rs <= 0 {
 			continue
 		}
-		timer := time.NewTicker(time.Duration(rs))
+		timer := time.NewTimer(time.Duration(rs) * time.Second)
 		select {
 		case <-timer.C:
-			for _, v := range hosts {
+			for _, v := range healths {
 				if v.HealthNextTime.Before(time.Now()) {
-					v.HealthNextTime = time.Now().Add(time.Duration(v.HealthCheckInterval))
+					v.HealthNextTime = time.Now().Add(time.Duration(v.HealthCheckInterval) * time.Second)
 					//check
-					go checkHttp(v, c)
-					//reset time
-					heap.Push(h, v.HealthNextTime.Unix())
-				}
-			}
-			for _, v := range tunnels {
-				if v.HealthNextTime.Before(time.Now()) {
-					v.HealthNextTime = time.Now().Add(time.Duration(v.HealthCheckInterval))
-					//check
-					go checkTcp(v, c)
+					go check(v)
 					//reset time
 					heap.Push(h, v.HealthNextTime.Unix())
 				}
@@ -64,41 +63,33 @@ func heathCheck(cnf *config.Config, c net.Conn) {
 	}
 }
 
-func checkTcp(t *file.Tunnel, c net.Conn) {
-	arr := strings.Split(t.Target, "\n")
+//只针对一个端口 面向多个目标的情况
+func check(t *file.Health) {
+	arr := strings.Split(t.HealthCheckTarget, ",")
+	var err error
+	var rs *http.Response
 	for _, v := range arr {
-		if _, err := net.DialTimeout("tcp", v, time.Duration(t.HealthCheckTimeout)); err != nil {
-			t.HealthMap[v] += 1
-		}
-		if t.HealthMap[v] > t.HealthMaxFail {
-			t.HealthMap[v] += 1
-			if t.HealthMap[v] == t.HealthMaxFail {
-				//send fail remove
-				ch <- file.NewHealthInfo("tcp", v, true)
+		if t.HealthCheckType == "tcp" {
+			_, err = net.DialTimeout("tcp", v, time.Duration(t.HealthCheckTimeout)*time.Second);
+		} else {
+			client := &http.Client{}
+			client.Timeout = time.Duration(t.HealthCheckTimeout) * time.Second
+			rs, err = client.Get("http://" + v + t.HttpHealthUrl)
+			if err == nil && rs.StatusCode != 200 {
+				err = errors.New("status code is not match")
 			}
+		}
+		if err != nil {
+			t.HealthMap[v] += 1
 		} else if t.HealthMap[v] >= t.HealthMaxFail {
 			//send recovery add
-			ch <- file.NewHealthInfo("tcp", v, false)
+			serverConn.SendHealthInfo(v, "1")
 			t.HealthMap[v] = 0
 		}
-	}
-}
 
-func checkHttp(h *file.Host, ch chan *file.HealthInfo) {
-	arr := strings.Split(h.Target, "\n")
-	client := &http.Client{}
-	client.Timeout = time.Duration(h.HealthCheckTimeout) * time.Second
-	for _, v := range arr {
-		if _, err := client.Get(v + h.HttpHealthUrl); err != nil {
-			h.HealthMap[v] += 1
-			if h.HealthMap[v] == h.HealthMaxFail {
-				//send fail remove
-				ch <- file.NewHealthInfo("http", v, true)
-			}
-		} else if h.HealthMap[v] >= h.HealthMaxFail {
-			//send recovery add
-			h.HealthMap[v] = 0
-			ch <- file.NewHealthInfo("http", v, false)
+		if t.HealthMap[v] == t.HealthMaxFail {
+			//send fail remove
+			serverConn.SendHealthInfo(v, "0")
 		}
 	}
 }

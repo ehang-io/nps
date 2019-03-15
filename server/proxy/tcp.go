@@ -51,7 +51,7 @@ func (s *TunnelModeServer) Start() error {
 			c.Close()
 		}
 		if s.task.Client.GetConn() {
-			logs.Trace("New tcp connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
+			logs.Trace("New tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
 			go s.process(conn.NewConn(c), s)
 		} else {
 			logs.Info("Connections exceed the current client %d limit", s.task.Client.Id)
@@ -109,7 +109,13 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	return s.DealClient(c, s.task.GetRandomTarget(), nil, common.CONN_TCP)
+	targetAddr, err := s.task.GetRandomTarget()
+	if err != nil {
+		c.Close()
+		logs.Warn("tcp port %d ,client id %d,task id %d connect error %s", s.task.Port, s.task.Client.Id, s.task.Id, err.Error())
+		return err
+	}
+	return s.DealClient(c, targetAddr, nil, common.CONN_TCP)
 }
 
 //http代理模式

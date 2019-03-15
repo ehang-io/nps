@@ -2,7 +2,7 @@ package mux
 
 import (
 	"github.com/cnlh/nps/lib/common"
-	conn3 "github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"log"
 	"net"
@@ -17,7 +17,7 @@ var conn2 net.Conn
 
 func TestNewMux(t *testing.T) {
 	go func() {
-		http.ListenAndServe("0.0.0.0:8899", nil)
+		http.ListenAndServe("0.0.0.0:8889", nil)
 	}()
 	logs.EnableFuncCallDepth(true)
 	logs.SetLogFuncCallDepth(3)
@@ -32,12 +32,12 @@ func TestNewMux(t *testing.T) {
 				log.Fatalln(err)
 			}
 			go func(c net.Conn) {
-				c2, err := net.Dial("tcp", "127.0.0.1:8080")
+				c2, err := net.Dial("tcp", "10.1.50.196:4000")
 				if err != nil {
 					log.Fatalln(err)
 				}
-				go common.CopyBuffer(c2, conn3.NewCryptConn(c, true, nil))
-				common.CopyBuffer(conn3.NewCryptConn(c, true, nil), c2)
+				go common.CopyBuffer(c2, c)
+				common.CopyBuffer(c, c2)
 				c.Close()
 				c2.Close()
 			}(c)
@@ -60,8 +60,8 @@ func TestNewMux(t *testing.T) {
 				if err != nil {
 					log.Fatalln(err)
 				}
-				go common.CopyBuffer(conn3.NewCryptConn(tmpCpnn, true, nil), conn)
-				common.CopyBuffer(conn, conn3.NewCryptConn(tmpCpnn, true, nil))
+				go common.CopyBuffer(tmpCpnn, conn)
+				common.CopyBuffer(conn, tmpCpnn)
 				conn.Close()
 				tmpCpnn.Close()
 			}(conn)
@@ -94,4 +94,16 @@ func client() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func TestNewConn(t *testing.T) {
+	buf := pool.GetBufPoolCopy()
+	logs.Warn(len(buf), cap(buf))
+	//b := pool.GetBufPoolCopy()
+	//b[0] = 1
+	//b[1] = 2
+	//b[2] = 3
+	b := []byte{1, 2, 3}
+	logs.Warn(copy(buf[:3], b), len(buf), cap(buf))
+	logs.Warn(len(buf), buf[0])
 }

@@ -46,10 +46,7 @@ func (s *BaseController) display(tpl ...string) {
 		tplname = s.controllerName + "/" + s.actionName + ".html"
 	}
 	ip := s.Ctx.Request.Host
-	if strings.LastIndex(ip, ":") > 0 {
-		arr := strings.Split(common.GetHostByName(ip), ":")
-		s.Data["ip"] = arr[0]
-	}
+	s.Data["ip"] = common.GetIpByAddr(ip)
 	s.Data["bridgeType"] = beego.AppConfig.String("bridge_type")
 	if common.IsWindows() {
 		s.Data["win"] = ".exe"

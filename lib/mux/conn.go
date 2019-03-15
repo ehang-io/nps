@@ -5,6 +5,7 @@ import (
 	"github.com/cnlh/nps/lib/pool"
 	"io"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -15,78 +16,76 @@ type conn struct {
 	connStatusFailCh chan struct{}
 	readTimeOut      time.Time
 	writeTimeOut     time.Time
-	sendMsgCh        chan *msg  //mux
-	sendStatusCh     chan int32 //mux
 	readBuffer       []byte
 	startRead        int //now read position
 	endRead          int //now end read
 	readFlag         bool
 	readCh           chan struct{}
+	waitQueue        *sliceEntry
+	stopWrite        bool
 	connId           int32
 	isClose          bool
 	readWait         bool
 	mux              *Mux
 }
 
-type msg struct {
-	connId  int32
-	content []byte
-}
+var connPool = sync.Pool{}
 
-func NewMsg(connId int32, content []byte) *msg {
-	return &msg{
-		connId:  connId,
-		content: content,
-	}
-}
-
-func NewConn(connId int32, mux *Mux, sendMsgCh chan *msg, sendStatusCh chan int32) *conn {
-	return &conn{
+func NewConn(connId int32, mux *Mux) *conn {
+	c := &conn{
 		readCh:           make(chan struct{}),
-		readBuffer:       pool.BufPoolCopy.Get().([]byte),
 		getStatusCh:      make(chan struct{}),
 		connStatusOkCh:   make(chan struct{}),
 		connStatusFailCh: make(chan struct{}),
-		readTimeOut:      time.Time{},
-		writeTimeOut:     time.Time{},
-		sendMsgCh:        sendMsgCh,
-		sendStatusCh:     sendStatusCh,
+		waitQueue:        NewQueue(),
 		connId:           connId,
-		isClose:          false,
 		mux:              mux,
 	}
+	return c
 }
 
 func (s *conn) Read(buf []byte) (n int, err error) {
-	if s.isClose {
+	if s.isClose || buf == nil {
 		return 0, errors.New("the conn has closed")
 	}
-	if s.endRead-s.startRead == 0 {
-		s.readWait = true
-		if t := s.readTimeOut.Sub(time.Now()); t > 0 {
-			timer := time.NewTimer(t)
-			select {
-			case <-timer.C:
-				s.readWait = false
-				return 0, errors.New("read timeout")
-			case <-s.readCh:
+	if s.endRead-s.startRead == 0 { //read finish or start
+		if s.waitQueue.Size() == 0 {
+			s.readWait = true
+			if t := s.readTimeOut.Sub(time.Now()); t > 0 {
+				timer := time.NewTimer(t)
+				defer timer.Stop()
+				select {
+				case <-timer.C:
+					s.readWait = false
+					return 0, errors.New("read timeout")
+				case <-s.readCh:
+				}
+			} else {
+				<-s.readCh
 			}
-		} else {
-			<-s.readCh
 		}
-	}
-	s.readWait = false
-	if s.isClose {
-		return 0, io.EOF
+		if s.isClose { //If the connection is closed instead of  continuing command
+			return 0, errors.New("the conn has closed")
+		}
+		if node, err := s.waitQueue.Pop(); err != nil {
+			s.Close()
+			return 0, io.EOF
+		} else {
+			pool.PutBufPoolCopy(s.readBuffer)
+			s.readBuffer = node.val
+			s.endRead = node.l
+			s.startRead = 0
+		}
 	}
 	if len(buf) < s.endRead-s.startRead {
 		n = copy(buf, s.readBuffer[s.startRead:s.startRead+len(buf)])
 		s.startRead += n
 	} else {
 		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
-		s.startRead = 0
-		s.endRead = 0
-		s.sendStatusCh <- s.connId
+		s.startRead += n
+		if s.waitQueue.Size() < s.mux.waitQueueSize/2 {
+			s.mux.sendInfo(MUX_MSG_SEND_OK, s.connId, nil)
+		}
 	}
 	return
 }
@@ -99,6 +98,7 @@ func (s *conn) Write(buf []byte) (int, error) {
 	go s.write(buf, ch)
 	if t := s.writeTimeOut.Sub(time.Now()); t > 0 {
 		timer := time.NewTimer(t)
+		defer timer.Stop()
 		select {
 		case <-timer.C:
 			return 0, errors.New("write timeout")
@@ -112,18 +112,18 @@ func (s *conn) Write(buf []byte) (int, error) {
 	}
 	return len(buf), nil
 }
-
 func (s *conn) write(buf []byte, ch chan struct{}) {
 	start := 0
 	l := len(buf)
 	for {
+		if s.stopWrite {
+			<-s.getStatusCh
+		}
 		if l-start > pool.PoolSizeCopy {
-			s.sendMsgCh <- NewMsg(s.connId, buf[start:start+pool.PoolSizeCopy])
+			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:start+pool.PoolSizeCopy])
 			start += pool.PoolSizeCopy
-			<-s.getStatusCh
 		} else {
-			s.sendMsgCh <- NewMsg(s.connId, buf[start:l])
-			<-s.getStatusCh
+			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:l])
 			break
 		}
 	}
@@ -134,15 +134,27 @@ func (s *conn) Close() error {
 	if s.isClose {
 		return errors.New("the conn has closed")
 	}
+	times := 0
+retry:
+	if s.waitQueue.Size() > 0 && times < 600 {
+		time.Sleep(time.Millisecond * 100)
+		times++
+		goto retry
+	}
+	if s.isClose {
+		return errors.New("the conn has closed")
+	}
 	s.isClose = true
 	pool.PutBufPoolCopy(s.readBuffer)
-	close(s.getStatusCh)
-	close(s.connStatusOkCh)
-	close(s.connStatusFailCh)
-	close(s.readCh)
-	if !s.mux.IsClose {
-		s.sendMsgCh <- NewMsg(s.connId, nil)
+	if s.readWait {
+		s.readCh <- struct{}{}
 	}
+	s.waitQueue.Clear()
+	s.mux.connMap.Delete(s.connId)
+	if !s.mux.IsClose {
+		s.mux.sendInfo(MUX_CONN_CLOSE, s.connId, nil)
+	}
+	connPool.Put(s)
 	return nil
 }
 

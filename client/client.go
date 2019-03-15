@@ -51,6 +51,7 @@ retry:
 }
 
 func (s *TRPClient) Close() {
+	s.stop <- true
 	s.signal.Close()
 }
 
@@ -58,7 +59,9 @@ func (s *TRPClient) Close() {
 func (s *TRPClient) processor(c *conn.Conn) {
 	s.signal = c
 	go s.dealChan()
-	go heathCheck(s.cnf, c)
+	if s.cnf != nil && len(s.cnf.Healths) > 0 {
+		go heathCheck(s.cnf.Healths, s.signal)
+	}
 	for {
 		flags, err := c.ReadFlag()
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/install"
+	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/test"
@@ -54,9 +55,10 @@ func main() {
 	}
 	bridgePort, err := beego.AppConfig.Int("bridge_port")
 	if err != nil {
-		logs.Error("Getting bridgePort error", err)
+		logs.Error("Getting bridge_port error", err)
 		os.Exit(0)
 	}
+	logs.Info("the version of server is %s ,allow client version to be %s", version.VERSION, version.GetVersion())
 	connection.InitConnectionService()
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
 }

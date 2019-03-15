@@ -52,9 +52,13 @@ func DealBridgeTask() {
 		select {
 		case t := <-Bridge.OpenTask:
 			AddTask(t)
+		case t := <-Bridge.CloseTask:
+			StopServer(t.Id)
 		case id := <-Bridge.CloseClient:
 			DelTunnelAndHostByClientId(id)
 			file.GetCsvDb().DelClient(id)
+		case tunnel := <-Bridge.OpenTask:
+			StartTask(tunnel.Id)
 		case s := <-Bridge.SecretChan:
 			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
 			if t := file.GetCsvDb().GetTaskByMd5Password(s.Password); t != nil {
@@ -202,6 +206,8 @@ func DelTask(id int) error {
 func GetTunnel(start, length int, typeVal string, clientId int) ([]*file.Tunnel, int) {
 	list := make([]*file.Tunnel, 0)
 	var cnt int
+	file.GetCsvDb().Lock()
+	defer file.GetCsvDb().Unlock()
 	for _, v := range file.GetCsvDb().Tasks {
 		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
 			continue
@@ -234,6 +240,8 @@ func GetClientList(start, length int) (list []*file.Client, cnt int) {
 }
 
 func dealClientData(list []*file.Client) {
+	file.GetCsvDb().Lock()
+	defer file.GetCsvDb().Unlock()
 	for _, v := range list {
 		if _, ok := Bridge.Client[v.Id]; ok {
 			v.IsConnect = true
@@ -261,18 +269,26 @@ func dealClientData(list []*file.Client) {
 //根据客户端id删除其所属的所有隧道和域名
 func DelTunnelAndHostByClientId(clientId int) {
 	var ids []int
+	file.GetCsvDb().Lock()
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Client.Id == clientId {
 			ids = append(ids, v.Id)
 		}
 	}
+	file.GetCsvDb().Unlock()
 	for _, id := range ids {
 		DelTask(id)
 	}
+	ids = ids[:0]
+	file.GetCsvDb().Lock()
 	for _, v := range file.GetCsvDb().Hosts {
 		if v.Client.Id == clientId {
-			file.GetCsvDb().DelHost(v.Id)
+			ids = append(ids, v.Id)
 		}
+	}
+	file.GetCsvDb().Unlock()
+	for _, id := range ids {
+		file.GetCsvDb().DelHost(id)
 	}
 }
 
@@ -300,6 +316,8 @@ func GetDashboardData() map[string]interface{} {
 	data["inletFlowCount"] = int(in)
 	data["exportFlowCount"] = int(out)
 	var tcp, udp, secret, socks5, p2p, http int
+	file.GetCsvDb().Lock()
+	defer file.GetCsvDb().Unlock()
 	for _, v := range file.GetCsvDb().Tasks {
 		switch v.Mode {
 		case "tcp":
@@ -366,7 +384,6 @@ func GetDashboardData() map[string]interface{} {
 			data["sys"+strconv.Itoa(i+1)] = serverStatus[i*fg]
 		}
 	}
-
 	return data
 }
 

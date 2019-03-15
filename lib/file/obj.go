@@ -2,6 +2,7 @@ package file
 
 import (
 	"github.com/cnlh/nps/lib/rate"
+	"github.com/pkg/errors"
 	"strings"
 	"sync"
 	"time"
@@ -78,7 +79,14 @@ func (s *Client) GetConn() bool {
 	return false
 }
 
+//modify the hosts and the tunnels by health information
+func (s *Client) ModifyTarget() {
+
+}
+
 func (s *Client) HasTunnel(t *Tunnel) bool {
+	GetCsvDb().Lock()
+	defer GetCsvDb().Unlock()
 	for _, v := range GetCsvDb().Tasks {
 		if v.Client.Id == s.Id && v.Port == t.Port {
 			return true
@@ -88,6 +96,8 @@ func (s *Client) HasTunnel(t *Tunnel) bool {
 }
 
 func (s *Client) HasHost(h *Host) bool {
+	GetCsvDb().Lock()
+	defer GetCsvDb().Unlock()
 	for _, v := range GetCsvDb().Hosts {
 		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
 			return true
@@ -126,14 +136,19 @@ type Health struct {
 	HealthMap           map[string]int
 	HttpHealthUrl       string
 	HealthRemoveArr     []string
+	HealthCheckType     string
+	HealthCheckTarget   string
 }
 
-func (s *Tunnel) GetRandomTarget() string {
+func (s *Tunnel) GetRandomTarget() (string, error) {
 	if s.TargetArr == nil {
 		s.TargetArr = strings.Split(s.Target, "\n")
 	}
 	if len(s.TargetArr) == 1 {
-		return s.TargetArr[0]
+		return s.TargetArr[0], nil
+	}
+	if len(s.TargetArr) == 0 {
+		return "", errors.New("all inward-bending targets are offline")
 	}
 	s.Lock()
 	defer s.Unlock()
@@ -141,7 +156,7 @@ func (s *Tunnel) GetRandomTarget() string {
 		s.NowIndex = -1
 	}
 	s.NowIndex++
-	return s.TargetArr[s.NowIndex]
+	return s.TargetArr[s.NowIndex], nil
 }
 
 type Config struct {
@@ -165,23 +180,26 @@ type Host struct {
 	TargetArr    []string
 	NoStore      bool
 	Scheme       string //http https all
+	IsClose      bool
 	Health
 	sync.RWMutex
 }
 
-func (s *Host) GetRandomTarget() string {
+func (s *Host) GetRandomTarget() (string, error) {
 	if s.TargetArr == nil {
 		s.TargetArr = strings.Split(s.Target, "\n")
 	}
 	if len(s.TargetArr) == 1 {
-		return s.TargetArr[0]
+		return s.TargetArr[0], nil
+	}
+	if len(s.TargetArr) == 0 {
+		return "", errors.New("all inward-bending targets are offline")
 	}
 	s.Lock()
 	defer s.Unlock()
 	if s.NowIndex >= len(s.TargetArr)-1 {
 		s.NowIndex = -1
-	} else {
-		s.NowIndex++
 	}
-	return s.TargetArr[s.NowIndex]
+	s.NowIndex++
+	return s.TargetArr[s.NowIndex], nil
 }
