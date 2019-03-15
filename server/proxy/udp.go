@@ -57,6 +57,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		buf := pool.BufPoolUdp.Get().([]byte)
 		defer pool.BufPoolUdp.Put(buf)
 		target.Write(data)
+		s.task.Flow.Add(int64(len(data)), 0)
 		if n, err := target.Read(buf); err != nil {
 			logs.Warn(err)
 			return

@@ -5,6 +5,7 @@ import (
 	"github.com/cnlh/nps/client"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/daemon"
+	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"os"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 var (
 	serverAddr   = flag.String("server", "", "Server addr (ip:port)")
-	configPath   = flag.String("config", "npc.conf", "Configuration file path")
+	configPath   = flag.String("config", "", "Configuration file path")
 	verifyKey    = flag.String("vkey", "", "Authentication key")
 	logType      = flag.String("log", "stdout", "Log output mode（stdout|file）")
 	connType     = flag.String("type", "tcp", "Connection type with the server（kcp|tcp）")
@@ -21,6 +22,7 @@ var (
 	logLevel     = flag.String("log_level", "7", "log level 0~7")
 	registerTime = flag.Int("time", 2, "register time long /h")
 )
+
 func main() {
 	flag.Parse()
 	if len(os.Args) > 2 {
@@ -41,13 +43,24 @@ func main() {
 	} else {
 		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"npc_log.log"}`)
 	}
-	if *verifyKey != "" && *serverAddr != "" {
+	env := common.GetEnvMap()
+	if *serverAddr == "" {
+		*serverAddr, _ = env["NPC_SERVER_ADDR"]
+	}
+	if *verifyKey == "" {
+		*verifyKey, _ = env["NPC_SERVER_VKEY"]
+	}
+	logs.Info("the version of client is %s", version.VERSION)
+	if *verifyKey != "" && *serverAddr != "" && *configPath == "" {
 		for {
-			client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl).Start()
+			client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl, nil).Start()
 			logs.Info("It will be reconnected in five seconds")
 			time.Sleep(time.Second * 5)
 		}
 	} else {
+		if *configPath == "" {
+			*configPath = "npc.conf"
+		}
 		client.StartFromFile(*configPath)
 	}
 }

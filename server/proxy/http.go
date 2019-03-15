@@ -7,6 +7,7 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
@@ -21,18 +22,19 @@ import (
 
 type httpServer struct {
 	BaseServer
-	httpPort  int //http端口
-	httpsPort int //https监听端口
-	pemPath   string
-	keyPath   string
-	stop      chan bool
+	httpPort      int //http端口
+	httpsPort     int //https监听端口
+	pemPath       string
+	keyPath       string
+	stop          chan bool
+	httpslistener net.Listener
 }
 
 func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
-	httpPort, _ := beego.AppConfig.Int("httpProxyPort")
-	httpsPort, _ := beego.AppConfig.Int("httpsProxyPort")
-	pemPath := beego.AppConfig.String("pemPath")
-	keyPath := beego.AppConfig.String("keyPath")
+	httpPort, _ := beego.AppConfig.Int("http_proxy_port")
+	httpsPort, _ := beego.AppConfig.Int("https_proxy_port")
+	pemPath := beego.AppConfig.String("pem_path")
+	keyPath := beego.AppConfig.String("key_path")
 	return &httpServer{
 		BaseServer: BaseServer{
 			task:   c,
@@ -49,16 +51,20 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 
 func (s *httpServer) Start() error {
 	var err error
-	var http, https *http.Server
+	var httpSrv, httpsSrv *http.Server
 	if s.errorContent, err = common.ReadAllFromFile(filepath.Join(common.GetRunPath(), "web", "static", "page", "error.html")); err != nil {
 		s.errorContent = []byte("easyProxy 404")
 	}
 
 	if s.httpPort > 0 {
-		http = s.NewServer(s.httpPort)
+		httpSrv = s.NewServer(s.httpPort, "http")
 		go func() {
-			logs.Info("Start http listener, port is", s.httpPort)
-			err := http.ListenAndServe()
+			l, err := connection.GetHttpListener()
+			if err != nil {
+				logs.Error(err)
+				os.Exit(0)
+			}
+			err = httpSrv.Serve(l)
 			if err != nil {
 				logs.Error(err)
 				os.Exit(0)
@@ -67,17 +73,21 @@ func (s *httpServer) Start() error {
 	}
 	if s.httpsPort > 0 {
 		if !common.FileExists(s.pemPath) {
-			logs.Error("ssl certFile %s is not exist", s.pemPath)
 			os.Exit(0)
 		}
 		if !common.FileExists(s.keyPath) {
 			logs.Error("ssl keyFile %s exist", s.keyPath)
 			os.Exit(0)
 		}
-		https = s.NewServer(s.httpsPort)
+		httpsSrv = s.NewServer(s.httpsPort, "https")
 		go func() {
 			logs.Info("Start https listener, port is", s.httpsPort)
-			err := https.ListenAndServeTLS(s.pemPath, s.keyPath)
+			l, err := connection.GetHttpsListener()
+			if err != nil {
+				logs.Error(err)
+				os.Exit(0)
+			}
+			err = httpsSrv.ServeTLS(l, s.pemPath, s.keyPath)
 			if err != nil {
 				logs.Error(err)
 				os.Exit(0)
@@ -86,11 +96,11 @@ func (s *httpServer) Start() error {
 	}
 	select {
 	case <-s.stop:
-		if http != nil {
-			http.Close()
+		if httpSrv != nil {
+			httpsSrv.Close()
 		}
-		if https != nil {
-			https.Close()
+		if httpsSrv != nil {
+			httpsSrv.Close()
 		}
 	}
 	return nil
@@ -123,16 +133,20 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		lastHost   *file.Host
 		err        error
 		connClient io.ReadWriteCloser
+		scheme     = r.URL.Scheme
+		lk         *conn.Link
+		targetAddr string
+		wg         sync.WaitGroup
 	)
 	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
-		logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
+		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 		goto end
 	} else if !host.Client.GetConn() { //conn num limit
 		logs.Notice("connections exceed the current client %d limit %d ,now connection num %d", host.Client.Id, host.Client.MaxConn, host.Client.NowConn)
 		c.Close()
 		return
 	} else {
-		logs.Trace("new http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
+		logs.Trace("new %s connection,clientId %d,host %s,url %s,remote address %s", r.URL.Scheme, host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 		lastHost = host
 	}
 	for {
@@ -148,25 +162,31 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Warn("auth error", err, r.RemoteAddr)
 				break
 			}
-			lk := conn.NewLink(common.CONN_TCP, host.Target, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
+			if targetAddr, err = host.GetRandomTarget(); err != nil {
+				logs.Warn(err.Error())
+				break
+			}
+			lk = conn.NewLink(common.CONN_TCP, targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
 			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String(), nil); err != nil {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
 			}
-			connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate)
+			connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
 			isConn = false
 			go func() {
+				wg.Add(1)
 				w, _ := common.CopyBuffer(c, connClient)
 				host.Flow.Add(0, w)
 				c.Close()
 				target.Close()
+				wg.Done()
 			}()
 		} else {
 			r, err = http.ReadRequest(bufio.NewReader(c))
 			if err != nil {
 				break
 			}
-			logs.Trace("New http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
+			r.URL.Scheme = scheme
 			//What happened ，Why one character less???
 			if r.Method == "ET" {
 				r.Method = "GET"
@@ -174,14 +194,18 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			if r.Method == "OST" {
 				r.Method = "POST"
 			}
-			logs.Trace("new http(s) connection,clientId %d,host %s,url %s,remote address %s", host.Client.Id, r.Host, r.URL, r.RemoteAddr)
-			if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
-				logs.Notice("the url %s %s can't be parsed!", r.Host, r.RequestURI)
+			logs.Trace("new %s connection,clientId %d,host %s,url %s,remote address %s", r.URL.Scheme, host.Client.Id, r.Host, r.URL, r.RemoteAddr)
+			if hostTmp, err := file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
+				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 				break
 			} else if host != lastHost {
+				host.Client.AddConn()
+				if !hostTmp.Client.GetConn() {
+					break
+				}
+				host = hostTmp
 				lastHost = host
 				isConn = true
-				host.Client.AddConn()
 				goto start
 			}
 		}
@@ -192,6 +216,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			break
 		}
 		host.Flow.Add(int64(len(b)), 0)
+		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.RequestURI, r.RemoteAddr, lk.Host)
 		//write
 		connClient.Write(b)
 	}
@@ -203,15 +228,17 @@ end:
 	if target != nil {
 		target.Close()
 	}
+	wg.Wait()
 	if host != nil {
 		host.Client.AddConn()
 	}
 }
 
-func (s *httpServer) NewServer(port int) *http.Server {
+func (s *httpServer) NewServer(port int, scheme string) *http.Server {
 	return &http.Server{
 		Addr: ":" + strconv.Itoa(port),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.URL.Scheme = scheme
 			s.handleTunneling(w, r)
 		}),
 		// Disable HTTP/2.

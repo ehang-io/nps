@@ -165,7 +165,7 @@ re:
 	}
 
 	c.Close()
-	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl).Start()
+	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf).Start()
 	CloseLocalServer()
 	goto re
 }
@@ -198,6 +198,10 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 		return nil, err
 	}
 	c := conn.NewConn(connection)
+	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
+		logs.Error(err)
+		os.Exit(0)
+	}
 	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
 		logs.Error(err)
 		os.Exit(0)

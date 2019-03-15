@@ -38,9 +38,11 @@
                     <div class="form-group" id="target">
                         <label class="col-sm-2 control-label">target of Intranet(ip:port)</label>
                         <div class="col-sm-10">
-                            <input class="form-control" type="text" name="target"
-                                   placeholder="such as 10.1.50.203:22 ">
-                            <span class="help-block m-b-none">can only fill in ports if it is local machine proxy</span>
+                            <textarea class="form-control" name="target" rows="4" placeholder="10.1.50.203:22
+10.1.50.202:22"></textarea>
+                            <span class="help-block m-b-none">can only fill in ports if it is local machine proxy, only tcp supports load balancing
+
+</span>
                         </div>
                     </div>
 

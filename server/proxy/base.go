@@ -81,9 +81,10 @@ func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte, tp string)
 		return err
 	} else {
 		if rb != nil {
-			target.Write(rb)
+			//HTTP proxy crypt or compress
+			conn.GetConn(target, link.Crypt, link.Compress, s.task.Client.Rate, true).Write(rb)
 		}
-		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Client.Flow)
+		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Flow, true)
 	}
 
 	s.task.Client.AddConn()

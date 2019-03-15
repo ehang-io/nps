@@ -25,7 +25,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
     * [编译安装](#源码安装)
     * [release安装](#release安装)
 * [使用示例（以web主控模式为主）](#使用示例)
-    * [统一准备工作](#统一准备工作)
+    * [统一准备工作](#统一准备工作(必做))
     * [http|https域名解析](#域名解析)
     * [内网ssh连接即tcp隧道](#tcp隧道)
     * [内网dns解析即udp隧道](#udp隧道)
@@ -89,6 +89,10 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
    * [URL路由](#URL路由)
    * [限制ip访问](#限制ip访问)
    * [客户端最大连接数限制](#客户端最大连接数)
+   * [端口复用](#端口复用)
+   * [环境变量渲染](#环境变量渲染)
+   * [健康检查](#健康检查)
+
 * [相关说明](#相关说明)
    * [流量统计](#流量统计)
    * [热更新支持](#热更新支持)
@@ -124,7 +128,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 ## 使用示例
 
 ### 统一准备工作（必做）
-- 开启服务端，假设公网服务器ip为1.1.1.1，配置文件中`bridgePort`为8284，配置文件中`httpport`为8080
+- 开启服务端，假设公网服务器ip为1.1.1.1，配置文件中`bridgePort`为8284，配置文件中`web_port`为8080
 - 访问1.1.1.1:8080
 - 在客户端管理中创建一个客户端，记录下验证密钥
 - 内网客户端运行（windows使用cmd运行加.exe）
@@ -230,7 +234,7 @@ port=1000
 想通过访问机器1的2001端口---->访问到内网2机器的22端口
 
 **使用步骤**
-- 在`nps.conf`中设置`serverIp`和`p2pPort`
+- 在`nps.conf`中设置`p2p_ip`和`p2p_port`
 - 在刚才刚才创建的客户端中添加一条p2p代理，并设置唯一密钥p2pssh
 - 在需要连接的机器上(即机器1)以配置文件模式启动客户端，内容如下
 
@@ -291,23 +295,23 @@ port=2001
 
 名称 | 含义
 ---|---
-httpport | web管理端口
-password | web界面管理密码
-username | web界面管理账号
-bridgePort  | 服务端客户端通信端口
-pemPath | ssl certFile绝对路径
-keyPath | ssl keyFile绝对路径
-httpsProxyPort | 域名代理https代理监听端口
-httpProxyPort | 域名代理http代理监听端口
-authKey|web api密钥
-bridgeType|客户端与服务端连接方式kcp或tcp
-publicVkey|客户端以配置文件模式启动时的密钥，设置为空表示关闭客户端配置文件连接模式
-ipLimit|是否限制ip访问，true或false或忽略
-flowStoreInterval|服务端流量数据持久化间隔，单位分钟，忽略表示不持久化
-logLevel|日志输出级别
-cryptKey | 获取服务端authKey时的aes加密密钥，16位
-serverIp| 服务端Ip，使用p2p模式必填
-p2pPort|p2p模式开启的udp端口
+web_port | web管理端口
+web_password | web界面管理密码
+web_username | web界面管理账号
+bridge_port  | 服务端客户端通信端口
+pem_path | ssl certFile绝对路径
+key_path | ssl keyFile绝对路径
+https_proxy_port | 域名代理https代理监听端口
+http_proxy_port | 域名代理http代理监听端口
+auth_key|web api密钥
+bridge_type|客户端与服务端连接方式kcp或tcp
+public_vkey|客户端以配置文件模式启动时的密钥，设置为空表示关闭客户端配置文件连接模式
+ip_limit|是否限制ip访问，true或false或忽略
+flow_store_interval|服务端流量数据持久化间隔，单位分钟，忽略表示不持久化
+log_level|日志输出级别
+auth_crypt_key | 获取服务端authKey时的aes加密密钥，16位
+p2p_ip| 服务端Ip，使用p2p模式必填
+p2p_port|p2p模式开启的udp端口
 
 ### 使用https
 
@@ -351,7 +355,7 @@ server {
 ```
 ### 关闭代理
 
-如需关闭http代理可在配置文件中将httpProxyPort设置为空，如需关闭https代理可在配置文件中将httpsProxyPort设置为空。
+如需关闭http代理可在配置文件中将http_proxy_port设置为空，如需关闭https代理可在配置文件中将https_proxy_port设置为空。
 
 ### 将nps安装到系统
 如果需要长期并且方便的运行nps服务端，可将nps安装到操作系统中，可执行命令
@@ -371,17 +375,17 @@ nps.exe test|start|stop|restart|status
 ```
 
 ### 流量数据持久化
-服务端支持将流量数据持久化，默认情况下是关闭的，如果有需求可以设置`nps.conf`中的`flowStoreInterval`参数，单位为分钟
+服务端支持将流量数据持久化，默认情况下是关闭的，如果有需求可以设置`nps.conf`中的`flow_store_interval`参数，单位为分钟
 
 **注意：** nps不会持久化通过公钥连接的客户端
 
 ### 自定义客户端连接密钥
 web上可以自定义客户端连接的密钥，但是必须具有唯一性
 ### 关闭公钥访问
-可以将`nps.conf`中的`publicVkey`设置为空或者删除
+可以将`nps.conf`中的`public_vkey`设置为空或者删除
 
 ### 关闭web管理
-可以将`nps.conf`中的`httpport`设置为空或者删除
+可以将`nps.conf`中的`web_port`设置为空或者删除
 
 ## 客户端
 
@@ -616,17 +620,14 @@ LevelInformational->6 LevelDebug->7
 由于是内网穿透，内网客户端与服务端之间的隧道存在大量的数据交换，为节省流量，加快传输速度，由此本程序支持SNNAPY形式的压缩。
 
 
-- 所有模式均支持数据压缩，可以与加密同时使用
-- 开启此功能会增加cpu和内存消耗
+- 所有模式均支持数据压缩
 - 在web管理或客户端配置文件中设置
 
 
 ### 加密传输
 
 如果公司内网防火墙对外网访问进行了流量识别与屏蔽，例如禁止了ssh协议等，通过设置 配置文件，将服务端与客户端之间的通信内容加密传输，将会有效防止流量被拦截。
-
-- 开启此功能会增加cpu和内存消耗
-- 在server端加上参数
+- nps使用tls加密，所以一定要保留conf目录下的密钥文件，同时也可以自行生成
 - 在web管理或客户端配置文件中设置
 
 
@@ -660,13 +661,13 @@ LevelInformational->6 LevelDebug->7
 支持客户端级带宽限制，带宽计算方式为入口和出口总和，权重均衡
 
 ### 负载均衡
-本代理支持域名解析模式的负载均衡，在web域名添加或者编辑中内网目标分行填写多个目标即可实现轮训级别的负载均衡
+本代理支持域名解析模式和tcp代理的负载均衡，在web域名添加或者编辑中内网目标分行填写多个目标即可实现轮训级别的负载均衡
 
 ### 端口白名单
-为了防止服务端上的端口被滥用，可在nps.conf中配置allowPorts限制可开启的端口，忽略或者不填表示端口不受限制，格式：
+为了防止服务端上的端口被滥用，可在nps.conf中配置allow_ports限制可开启的端口，忽略或者不填表示端口不受限制，格式：
 
 ```ini
-allowPorts=9001-9009,10001,11000-12000
+allow_ports=9001-9009,10001,11000-12000
 ```
 
 ### 端口范围映射
@@ -674,7 +675,7 @@ allowPorts=9001-9009,10001,11000-12000
 
 ```ini
 [tcp]
-mode=tcpServer
+mode=tcp
 port=9001-9009,10001,11000-12000
 target=8001-8009,10002,13000-14000
 ```
@@ -683,7 +684,7 @@ target=8001-8009,10002,13000-14000
 ### 端口范围映射到其他机器
 ```ini
 [tcp]
-mode=tcpServer
+mode=tcp
 port=9001-9009,10001,11000-12000
 target=8001-8009,10002,13000-14000
 targetAddr=10.1.50.2
@@ -699,8 +700,8 @@ targetAddr=10.1.50.2
 ```
 ### KCP协议支持
 
-KCP 是一个快速可靠协议，能以比 TCP浪费10%-20%的带宽的代价，换取平均延迟降低 30%-40%，在弱网环境下对性能能有一定的提升。可在nps.conf中修改bridgeType为kcp
-，设置后本代理将开启udp端口（bridgePort）
+KCP 是一个快速可靠协议，能以比 TCP浪费10%-20%的带宽的代价，换取平均延迟降低 30%-40%，在弱网环境下对性能能有一定的提升。可在nps.conf中修改`bridge_type`为kcp
+，设置后本代理将开启udp端口（`bridge_port`）
 
 注意：当服务端为kcp时，客户端连接时也需要使用相同配置，无配置文件模式加上参数type=kcp,配置文件模式在配置文件中设置tp=kcp
 
@@ -725,7 +726,7 @@ location=/static
 ### 限制ip访问
 如果将一些危险性高的端口例如ssh端口暴露在公网上，可能会带来一些风险，本代理支持限制ip访问。
 
-**使用方法:** 在配置文件nps.conf中设置ipLimit=true，设置后仅通过注册的ip方可访问。
+**使用方法:** 在配置文件nps.conf中设置`ip_limit`=true，设置后仅通过注册的ip方可访问。
 
 **ip注册**： 在需要访问的机器上，运行客户端
 
@@ -738,6 +739,74 @@ time为有效小时数，例如time=2，在当前时间后的两小时内，本�
 **注意：** 本机公网ip并不是一成不变的，请自行注意有效期的设置，同时同一网络下，多人也可能是在公用同一个公网ip。
 ### 客户端最大连接数
 为防止恶意大量长连接，影响服务端程序的稳定性，可以在web或客户端配置文件中为每个客户端设置最大连接数。该功能针对`socks5`、`http正向代理`、`域名代理`、`tcp代理`、`私密代理`生效。
+
+### 端口复用
+在一些严格的网络环境中，对端口的个数等限制较大，nps支持强大端口复用功能。将`bridge_port`、 `http_proxy_port`、 `https_proxy_port` 、`web_port`都设置为同一端口，也能正常使用。
+
+- 使用时将需要复用的端口设置为与`bridge_port`一致即可，将自动识别。
+- 如需将web管理的端口也复用，需要配置`web_host`也就是一个二级域名以便区分
+
+### 环境变量渲染
+npc支持环境变量渲染以适应在某些特殊场景下的要求。
+
+**在无配置文件启动模式下：**
+设置环境变量
+```
+export NPC_SERVER_ADDR=1.1.1.1:8284
+export NPC_SERVER_VKEY=xxxxx
+```
+直接执行./npc即可运行
+
+**在配置文件启动模式下：**
+```ini
+[common]
+server={{.NPC_SERVER_ADDR}}
+tp=tcp
+vkey={{.NPC_SERVER_VKEY}}
+auto_reconnection=true
+[web]
+host={{.NPC_WEB_HOST}}
+target={{.NPC_WEB_TARGET}}
+```
+在配置文件中填入相应的环境变量名称，npc将自动进行渲染配置文件替换环境变量
+
+### 健康检查
+
+当客户端以配置文件模式启动时，支持多节点的健康检查。配置示例如下
+
+```ini
+[health_check_test1]
+health_check_timeout=1
+health_check_max_failed=3
+health_check_interval=1
+health_http_url=/
+health_check_type=http
+health_check_target=127.0.0.1:8083,127.0.0.1:8082
+
+[health_check_test2]
+health_check_timeout=1
+health_check_max_failed=3
+health_check_interval=1
+health_check_type=tcp
+health_check_target=127.0.0.1:8083,127.0.0.1:8082
+```
+**health关键词必须在开头存在**
+
+第一种是http模式，也就是以get的方式请求目标+url，返回状态码为200表示成功
+
+第一种是tcp模式，也就是以tcp的方式与目标建立连接，能成功建立连接表示成功
+
+如果失败次数超过`health_check_max_failed`，nps则会移除该npc下的所有该目标，如果失败后目标重新上线，nps将自动将目标重新加入。
+项 | 含义
+---|---
+health_check_timeout |  健康检查超时时间
+health_check_max_failed |  健康检查允许失败次数
+health_check_interval |  健康检查间隔
+health_check_type |  健康检查类型
+health_check_target |  健康检查目标，多个以逗号（,）分隔
+health_check_type |  健康检查类型
+health_http_url |  健康检查url，仅http模式适用
+
 
 ## 相关说明
 

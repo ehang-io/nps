@@ -239,6 +239,7 @@ func (s *IndexController) AddHost() {
 			Remark:       s.GetString("remark"),
 			Location:     s.GetString("location"),
 			Flow:         &file.Flow{},
+			Scheme:       s.GetString("scheme"),
 		}
 		var err error
 		if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
@@ -273,6 +274,7 @@ func (s *IndexController) EditHost() {
 			h.Remark = s.GetString("remark")
 			h.TargetArr = nil
 			h.Location = s.GetString("location")
+			h.Scheme = s.GetString("scheme")
 			file.GetCsvDb().UpdateHost(h)
 			var err error
 			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {

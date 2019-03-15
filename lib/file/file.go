@@ -32,7 +32,7 @@ type Csv struct {
 	ClientIncreaseId int       //客户端id
 	TaskIncreaseId   int       //任务自增ID
 	HostIncreaseId   int
-	sync.Mutex
+	sync.RWMutex
 }
 
 func (s *Csv) StoreTasksToCsv() {
@@ -43,6 +43,7 @@ func (s *Csv) StoreTasksToCsv() {
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
+	s.Lock()
 	for _, task := range s.Tasks {
 		if task.NoStore {
 			continue
@@ -64,6 +65,7 @@ func (s *Csv) StoreTasksToCsv() {
 			logs.Error(err.Error())
 		}
 	}
+	s.Unlock()
 	writer.Flush()
 }
 
@@ -147,6 +149,7 @@ func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
 }
 
 func (s *Csv) NewTask(t *Tunnel) error {
+	s.Lock()
 	for _, v := range s.Tasks {
 		if (v.Mode == "secret" || v.Mode == "p2p") && v.Password == t.Password {
 			return errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
@@ -154,33 +157,42 @@ func (s *Csv) NewTask(t *Tunnel) error {
 	}
 	t.Flow = new(Flow)
 	s.Tasks = append(s.Tasks, t)
+	s.Unlock()
 	s.StoreTasksToCsv()
 	return nil
 }
 
 func (s *Csv) UpdateTask(t *Tunnel) error {
+	s.Lock()
 	for _, v := range s.Tasks {
 		if v.Id == t.Id {
+			s.Unlock()
 			s.StoreTasksToCsv()
 			return nil
 		}
 	}
+	s.Unlock()
 	return errors.New("the task is not exist")
 }
 
 func (s *Csv) DelTask(id int) error {
+	s.Lock()
 	for k, v := range s.Tasks {
 		if v.Id == id {
 			s.Tasks = append(s.Tasks[:k], s.Tasks[k+1:]...)
+			s.Unlock()
 			s.StoreTasksToCsv()
 			return nil
 		}
 	}
+	s.Unlock()
 	return errors.New("不存在")
 }
 
 //md5 password
 func (s *Csv) GetTaskByMd5Password(p string) *Tunnel {
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Tasks {
 		if crypt.Md5(v.Password) == p {
 			return v
@@ -190,6 +202,8 @@ func (s *Csv) GetTaskByMd5Password(p string) *Tunnel {
 }
 
 func (s *Csv) GetTask(id int) (v *Tunnel, err error) {
+	s.Lock()
+	defer s.Unlock()
 	for _, v = range s.Tasks {
 		if v.Id == id {
 			return
@@ -210,6 +224,8 @@ func (s *Csv) StoreHostToCsv() {
 	writer := csv.NewWriter(csvFile)
 	// 将map中的Post转换成slice，因为csv的Write需要slice参数
 	// 并写入csv文件
+	s.Lock()
+	defer s.Unlock()
 	for _, host := range s.Hosts {
 		if host.NoStore {
 			continue
@@ -225,6 +241,7 @@ func (s *Csv) StoreHostToCsv() {
 			strconv.Itoa(host.Id),
 			strconv.Itoa(int(host.Flow.ExportFlow)),
 			strconv.Itoa(int(host.Flow.InletFlow)),
+			host.Scheme,
 		}
 		err1 := writer.Write(record)
 		if err1 != nil {
@@ -298,6 +315,11 @@ func (s *Csv) LoadHostFromCsv() {
 		post.Flow = new(Flow)
 		post.Flow.ExportFlow = int64(common.GetIntNoErrByStr(item[8]))
 		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[9]))
+		if len(item) > 10 {
+			post.Scheme = item[10]
+		} else {
+			post.Scheme = "all"
+		}
 		hosts = append(hosts, post)
 		if post.Id > s.HostIncreaseId {
 			s.HostIncreaseId = post.Id
@@ -307,19 +329,24 @@ func (s *Csv) LoadHostFromCsv() {
 }
 
 func (s *Csv) DelHost(id int) error {
+	s.Lock()
 	for k, v := range s.Hosts {
 		if v.Id == id {
 			s.Hosts = append(s.Hosts[:k], s.Hosts[k+1:]...)
+			s.Unlock()
 			s.StoreHostToCsv()
 			return nil
 		}
 	}
+	s.Unlock()
 	return errors.New("不存在")
 }
 
 func (s *Csv) IsHostExist(h *Host) bool {
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Hosts {
-		if v.Host == h.Host && h.Location == v.Location {
+		if v.Host == h.Host && h.Location == v.Location && (v.Scheme == "all" || v.Scheme == h.Scheme) {
 			return true
 		}
 	}
@@ -334,24 +361,31 @@ func (s *Csv) NewHost(t *Host) error {
 		t.Location = "/"
 	}
 	t.Flow = new(Flow)
+	s.Lock()
 	s.Hosts = append(s.Hosts, t)
+	s.Unlock()
 	s.StoreHostToCsv()
 	return nil
 }
 
 func (s *Csv) UpdateHost(t *Host) error {
+	s.Lock()
 	for _, v := range s.Hosts {
 		if v.Host == t.Host {
+			s.Unlock()
 			s.StoreHostToCsv()
 			return nil
 		}
 	}
+	s.Unlock()
 	return errors.New("不存在")
 }
 
 func (s *Csv) GetHost(start, length int, id int) ([]*Host, int) {
 	list := make([]*Host, 0)
 	var cnt int
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Hosts {
 		if id == 0 || v.Client.Id == id {
 			cnt++
@@ -366,13 +400,16 @@ func (s *Csv) GetHost(start, length int, id int) ([]*Host, int) {
 }
 
 func (s *Csv) DelClient(id int) error {
+	s.Lock()
 	for k, v := range s.Clients {
 		if v.Id == id {
 			s.Clients = append(s.Clients[:k], s.Clients[k+1:]...)
+			s.Unlock()
 			s.StoreClientsToCsv()
 			return nil
 		}
 	}
+	s.Unlock()
 	return errors.New("不存在")
 }
 
@@ -396,13 +433,15 @@ reset:
 		c.Flow = new(Flow)
 	}
 	s.Lock()
-	defer s.Unlock()
 	s.Clients = append(s.Clients, c)
+	s.Unlock()
 	s.StoreClientsToCsv()
 	return nil
 }
 
 func (s *Csv) VerifyVkey(vkey string, id int) bool {
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Clients {
 		if v.VerifyKey == vkey && v.Id != id {
 			return false
@@ -420,7 +459,6 @@ func (s *Csv) GetClientId() int {
 
 func (s *Csv) UpdateClient(t *Client) error {
 	s.Lock()
-	defer s.Unlock()
 	for _, v := range s.Clients {
 		if v.Id == t.Id {
 			v.Cnf = t.Cnf
@@ -429,16 +467,20 @@ func (s *Csv) UpdateClient(t *Client) error {
 			v.RateLimit = t.RateLimit
 			v.Flow = t.Flow
 			v.Rate = t.Rate
+			s.Unlock()
 			s.StoreClientsToCsv()
 			return nil
 		}
 	}
+	s.Unlock()
 	return errors.New("该客户端不存在")
 }
 
 func (s *Csv) GetClientList(start, length int) ([]*Client, int) {
 	list := make([]*Client, 0)
 	var cnt int
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Clients {
 		if v.NoDisplay {
 			continue
@@ -454,6 +496,8 @@ func (s *Csv) GetClientList(start, length int) ([]*Client, int) {
 }
 
 func (s *Csv) GetClient(id int) (v *Client, err error) {
+	s.Lock()
+	defer s.Unlock()
 	for _, v = range s.Clients {
 		if v.Id == id {
 			return
@@ -463,6 +507,8 @@ func (s *Csv) GetClient(id int) (v *Client, err error) {
 	return
 }
 func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Clients {
 		if crypt.Md5(v.VerifyKey) == vkey {
 			id = v.Id
@@ -474,6 +520,8 @@ func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
 }
 
 func (s *Csv) GetHostById(id int) (h *Host, err error) {
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Hosts {
 		if v.Id == id {
 			h = v
@@ -489,7 +537,12 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 	var hosts []*Host
 	//Handling Ported Access
 	host = common.GetIpByAddr(host)
+	s.Lock()
+	defer s.Unlock()
 	for _, v := range s.Hosts {
+		if v.IsClose {
+			continue
+		}
 		//Remove http(s) http(s)://a.proxy.com
 		//*.proxy.com *.a.proxy.com  Do some pan-parsing
 		tmp := strings.Replace(v.Host, "*", `\w+?`, -1)
@@ -497,7 +550,7 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 		if re, err = regexp.Compile(tmp); err != nil {
 			return
 		}
-		if len(re.FindAllString(host, -1)) > 0 {
+		if len(re.FindAllString(host, -1)) > 0 && (v.Scheme == "all" || v.Scheme == r.URL.Scheme) {
 			//URL routing
 			hosts = append(hosts, v)
 		}
@@ -527,6 +580,8 @@ func (s *Csv) StoreClientsToCsv() {
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
+	s.Lock()
+	defer s.Unlock()
 	for _, client := range s.Clients {
 		if client.NoStore {
 			continue

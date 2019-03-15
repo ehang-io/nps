@@ -6,10 +6,11 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
-	"os"
+	"net/http"
 	"path/filepath"
 	"strings"
 )
@@ -50,7 +51,7 @@ func (s *TunnelModeServer) Start() error {
 			c.Close()
 		}
 		if s.task.Client.GetConn() {
-			logs.Trace("New tcp connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
+			logs.Trace("New tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
 			go s.process(conn.NewConn(c), s)
 		} else {
 			logs.Info("Connections exceed the current client %d limit", s.task.Client.Id)
@@ -72,20 +73,24 @@ type WebServer struct {
 
 //开始
 func (s *WebServer) Start() error {
-	p, _ := beego.AppConfig.Int("httpport")
+	p, _ := beego.AppConfig.Int("web_port")
 	if p == 0 {
 		stop := make(chan struct{})
 		<-stop
 	}
-	if !common.TestTcpPort(p) {
-		logs.Error("Web management port %d is occupied", p)
-		os.Exit(0)
-	}
+	//if !common.TestTcpPort(p) {
+	//	//	logs.Error("Web management port %d is occupied", p)
+	//	//	os.Exit(0)
+	//	//}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	logs.Info("Web management start, access port is", p)
 	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
-	beego.Run()
+	if l, err := connection.GetWebManagerListener(); err == nil {
+		beego.InitBeforeHTTPRun()
+		http.Serve(l, beego.BeeApp.Handlers)
+	} else {
+		logs.Error(err)
+	}
 	return errors.New("Web management startup failure")
 }
 
@@ -104,7 +109,13 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	return s.DealClient(c, s.task.Target, nil, common.CONN_TCP)
+	targetAddr, err := s.task.GetRandomTarget()
+	if err != nil {
+		c.Close()
+		logs.Warn("tcp port %d ,client id %d,task id %d connect error %s", s.task.Port, s.task.Client.Id, s.task.Id, err.Error())
+		return err
+	}
+	return s.DealClient(c, targetAddr, nil, common.CONN_TCP)
 }
 
 //http代理模式

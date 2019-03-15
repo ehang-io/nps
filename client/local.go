@@ -79,7 +79,7 @@ func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config
 		logs.Error("Local connection server failed ", err.Error())
 		return
 	}
-	conn.CopyWaitGroup(remoteConn, localTcpConn, false, false, nil, nil)
+	conn.CopyWaitGroup(remoteConn.Conn, localTcpConn, false, false, nil, nil, false)
 }
 
 func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
@@ -100,7 +100,7 @@ func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.Lo
 		logs.Error(err)
 		return
 	}
-	conn.CopyWaitGroup(nowConn, localTcpConn, config.Cnf.Crypt, config.Cnf.Compress, nil, nil)
+	conn.CopyWaitGroup(nowConn, localTcpConn, config.Cnf.Crypt, config.Cnf.Compress, nil, nil, false)
 }
 
 func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {

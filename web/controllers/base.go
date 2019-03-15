@@ -26,7 +26,7 @@ func (s *BaseController) Prepare() {
 	// param 2 is timestamp (It's limited to 20 seconds.)
 	md5Key := s.GetString("auth_key")
 	timestamp := s.GetIntNoErr("timestamp")
-	configKey := beego.AppConfig.String("authKey")
+	configKey := beego.AppConfig.String("auth_key")
 	if !(time.Now().Unix()-int64(timestamp) <= 20 && time.Now().Unix()-int64(timestamp) >= 0 && crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key) {
 		if s.GetSession("auth") != true {
 			s.Redirect("/login/index", 302)
@@ -46,9 +46,10 @@ func (s *BaseController) display(tpl ...string) {
 		tplname = s.controllerName + "/" + s.actionName + ".html"
 	}
 	ip := s.Ctx.Request.Host
-	if strings.LastIndex(ip, ":") > 0 {
-		arr := strings.Split(common.GetHostByName(ip), ":")
-		s.Data["ip"] = arr[0]
+	s.Data["ip"] = common.GetIpByAddr(ip)
+	s.Data["bridgeType"] = beego.AppConfig.String("bridge_type")
+	if common.IsWindows() {
+		s.Data["win"] = ".exe"
 	}
 	s.Data["p"] = server.Bridge.TunnelPort
 	s.Data["proxyPort"] = beego.AppConfig.String("hostPort")

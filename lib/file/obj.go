@@ -2,8 +2,10 @@ package file
 
 import (
 	"github.com/cnlh/nps/lib/rate"
+	"github.com/pkg/errors"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Flow struct {
@@ -77,7 +79,14 @@ func (s *Client) GetConn() bool {
 	return false
 }
 
+//modify the hosts and the tunnels by health information
+func (s *Client) ModifyTarget() {
+
+}
+
 func (s *Client) HasTunnel(t *Tunnel) bool {
+	GetCsvDb().Lock()
+	defer GetCsvDb().Unlock()
 	for _, v := range GetCsvDb().Tasks {
 		if v.Client.Id == s.Id && v.Port == t.Port {
 			return true
@@ -87,6 +96,8 @@ func (s *Client) HasTunnel(t *Tunnel) bool {
 }
 
 func (s *Client) HasHost(h *Host) bool {
+	GetCsvDb().Lock()
+	defer GetCsvDb().Unlock()
 	for _, v := range GetCsvDb().Hosts {
 		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
 			return true
@@ -96,14 +107,15 @@ func (s *Client) HasHost(h *Host) bool {
 }
 
 type Tunnel struct {
-	Id         int     //Id
-	Port       int     //服务端监听端口
-	Mode       string  //启动方式
-	Target     string  //目标
-	Status     bool    //设置是否开启
-	RunStatus  bool    //当前运行状态
-	Client     *Client //所属客户端id
-	Ports      string  //客户端与服务端传递
+	Id         int      //Id
+	Port       int      //服务端监听端口
+	Mode       string   //启动方式
+	Target     string   //目标
+	TargetArr  []string //目标
+	Status     bool     //设置是否开启
+	RunStatus  bool     //当前运行状态
+	Client     *Client  //所属客户端id
+	Ports      string   //客户端与服务端传递
 	Flow       *Flow
 	Password   string //私密模式密码，唯一
 	Remark     string //备注
@@ -111,6 +123,40 @@ type Tunnel struct {
 	NoStore    bool
 	LocalPath  string
 	StripPre   string
+	NowIndex   int
+	Health
+	sync.RWMutex
+}
+
+type Health struct {
+	HealthCheckTimeout  int
+	HealthMaxFail       int
+	HealthCheckInterval int
+	HealthNextTime      time.Time
+	HealthMap           map[string]int
+	HttpHealthUrl       string
+	HealthRemoveArr     []string
+	HealthCheckType     string
+	HealthCheckTarget   string
+}
+
+func (s *Tunnel) GetRandomTarget() (string, error) {
+	if s.TargetArr == nil {
+		s.TargetArr = strings.Split(s.Target, "\n")
+	}
+	if len(s.TargetArr) == 1 {
+		return s.TargetArr[0], nil
+	}
+	if len(s.TargetArr) == 0 {
+		return "", errors.New("all inward-bending targets are offline")
+	}
+	s.Lock()
+	defer s.Unlock()
+	if s.NowIndex >= len(s.TargetArr)-1 {
+		s.NowIndex = -1
+	}
+	s.NowIndex++
+	return s.TargetArr[s.NowIndex], nil
 }
 
 type Config struct {
@@ -133,19 +179,27 @@ type Host struct {
 	NowIndex     int
 	TargetArr    []string
 	NoStore      bool
+	Scheme       string //http https all
+	IsClose      bool
+	Health
 	sync.RWMutex
 }
 
-func (s *Host) GetRandomTarget() string {
+func (s *Host) GetRandomTarget() (string, error) {
 	if s.TargetArr == nil {
 		s.TargetArr = strings.Split(s.Target, "\n")
+	}
+	if len(s.TargetArr) == 1 {
+		return s.TargetArr[0], nil
+	}
+	if len(s.TargetArr) == 0 {
+		return "", errors.New("all inward-bending targets are offline")
 	}
 	s.Lock()
 	defer s.Unlock()
 	if s.NowIndex >= len(s.TargetArr)-1 {
-		s.NowIndex = 0
-	} else {
-		s.NowIndex++
+		s.NowIndex = -1
 	}
-	return s.TargetArr[s.NowIndex]
+	s.NowIndex++
+	return s.TargetArr[s.NowIndex], nil
 }

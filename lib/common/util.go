@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/pool"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"net"
@@ -82,7 +83,7 @@ func GetStrByBool(b bool) string {
 
 //int
 func GetIntNoErrByStr(str string) int {
-	i, _ := strconv.Atoi(str)
+	i, _ := strconv.Atoi(strings.TrimSpace(str))
 	return i
 }
 
@@ -240,7 +241,8 @@ func GetIpByAddr(addr string) string {
 }
 
 func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := pool.BufPoolCopy.Get().([]byte)
+	buf := pool.GetBufPoolCopy()
+	defer pool.PutBufPoolCopy(buf)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
@@ -264,7 +266,6 @@ func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 			break
 		}
 	}
-	defer pool.PutBufPoolCopy(buf)
 	return written, err
 }
 
@@ -275,4 +276,62 @@ func GetLocalUdpAddr() (net.Conn, error) {
 		return nil, err
 	}
 	return tmpConn, tmpConn.Close()
+}
+
+func ParseStr(str string) (string, error) {
+	tmp := template.New("npc")
+	var err error
+	w := new(bytes.Buffer)
+	if tmp, err = tmp.Parse(str); err != nil {
+		return "", err
+	}
+	if err = tmp.Execute(w, GetEnvMap()); err != nil {
+		return "", err
+	}
+	return w.String(), nil
+}
+
+//get env
+func GetEnvMap() map[string]string {
+	m := make(map[string]string)
+	environ := os.Environ()
+	for i := range environ {
+		tmp := strings.Split(environ[i], "=")
+		if len(tmp) == 2 {
+			m[tmp[0]] = tmp[1]
+		}
+	}
+	return m
+}
+
+func TrimArr(arr []string) []string {
+	newArr := make([]string, 0)
+	for _, v := range arr {
+		if v != "" {
+			newArr = append(newArr, v)
+		}
+	}
+	return newArr
+}
+
+func IsArrContains(arr []string, val string) bool {
+	if arr == nil {
+		return false
+	}
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveArrVal(arr []string, val string) []string {
+	for k, v := range arr {
+		if v == val {
+			arr = append(arr[:k], arr[k+1:]...)
+			return arr
+		}
+	}
+	return arr
 }

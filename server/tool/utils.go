@@ -8,7 +8,7 @@ import (
 var ports []int
 
 func init() {
-	p := beego.AppConfig.String("allowPorts")
+	p := beego.AppConfig.String("allow_ports")
 	ports = common.GetPorts(p)
 }
 

@@ -15,11 +15,11 @@ func (s *AuthController) GetAuthKey() {
 		s.Data["json"] = m
 		s.ServeJSON()
 	}()
-	if cryptKey := beego.AppConfig.String("cryptKey"); len(cryptKey) != 16 {
+	if cryptKey := beego.AppConfig.String("auth_crypt_key"); len(cryptKey) != 16 {
 		m["status"] = 0
 		return
 	} else {
-		b, err := crypt.AesEncrypt([]byte(beego.AppConfig.String("authKey")), []byte(cryptKey))
+		b, err := crypt.AesEncrypt([]byte(beego.AppConfig.String("auth_key")), []byte(cryptKey))
 		if err != nil {
 			m["status"] = 0
 			return

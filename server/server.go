@@ -34,7 +34,7 @@ func init() {
 //从csv文件中恢复任务
 func InitFromCsv() {
 	//Add a public password
-	if vkey := beego.AppConfig.String("publicVkey"); vkey != "" {
+	if vkey := beego.AppConfig.String("public_vkey"); vkey != "" {
 		c := file.NewClient(vkey, true, true)
 		file.GetCsvDb().NewClient(c)
 		RunList[c.Id] = nil
@@ -52,9 +52,13 @@ func DealBridgeTask() {
 		select {
 		case t := <-Bridge.OpenTask:
 			AddTask(t)
+		case t := <-Bridge.CloseTask:
+			StopServer(t.Id)
 		case id := <-Bridge.CloseClient:
 			DelTunnelAndHostByClientId(id)
 			file.GetCsvDb().DelClient(id)
+		case tunnel := <-Bridge.OpenTask:
+			StartTask(tunnel.Id)
 		case s := <-Bridge.SecretChan:
 			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
 			if t := file.GetCsvDb().GetTaskByMd5Password(s.Password); t != nil {
@@ -77,14 +81,12 @@ func DealBridgeTask() {
 
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
-	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ipLimit")), RunList)
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList)
 	if err := Bridge.StartTunnel(); err != nil {
 		logs.Error("start server bridge error", err)
 		os.Exit(0)
-	} else {
-		logs.Info("Server startup, the bridge type is %s, the bridge port is %d", bridgeType, bridgePort)
 	}
-	if p, err := beego.AppConfig.Int("p2pPort"); err == nil {
+	if p, err := beego.AppConfig.Int("p2p_port"); err == nil {
 		logs.Info("start p2p server port", p)
 		go proxy.NewP2PServer(p).Start()
 	}
@@ -159,7 +161,7 @@ func AddTask(t *file.Tunnel) error {
 		logs.Error("taskId %d start error port %d open failed", t.Id, t.Port)
 		return errors.New("the port open error")
 	}
-	if minute, err := beego.AppConfig.Int("flowStoreInterval"); err == nil && minute > 0 {
+	if minute, err := beego.AppConfig.Int("flow_store_interval"); err == nil && minute > 0 {
 		go flowSession(time.Minute * time.Duration(minute))
 	}
 	if svr := NewMode(Bridge, t); svr != nil {
@@ -204,6 +206,8 @@ func DelTask(id int) error {
 func GetTunnel(start, length int, typeVal string, clientId int) ([]*file.Tunnel, int) {
 	list := make([]*file.Tunnel, 0)
 	var cnt int
+	file.GetCsvDb().Lock()
+	defer file.GetCsvDb().Unlock()
 	for _, v := range file.GetCsvDb().Tasks {
 		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
 			continue
@@ -236,6 +240,8 @@ func GetClientList(start, length int) (list []*file.Client, cnt int) {
 }
 
 func dealClientData(list []*file.Client) {
+	file.GetCsvDb().Lock()
+	defer file.GetCsvDb().Unlock()
 	for _, v := range list {
 		if _, ok := Bridge.Client[v.Id]; ok {
 			v.IsConnect = true
@@ -263,18 +269,26 @@ func dealClientData(list []*file.Client) {
 //根据客户端id删除其所属的所有隧道和域名
 func DelTunnelAndHostByClientId(clientId int) {
 	var ids []int
+	file.GetCsvDb().Lock()
 	for _, v := range file.GetCsvDb().Tasks {
 		if v.Client.Id == clientId {
 			ids = append(ids, v.Id)
 		}
 	}
+	file.GetCsvDb().Unlock()
 	for _, id := range ids {
 		DelTask(id)
 	}
+	ids = ids[:0]
+	file.GetCsvDb().Lock()
 	for _, v := range file.GetCsvDb().Hosts {
 		if v.Client.Id == clientId {
-			file.GetCsvDb().DelHost(v.Id)
+			ids = append(ids, v.Id)
 		}
+	}
+	file.GetCsvDb().Unlock()
+	for _, id := range ids {
+		file.GetCsvDb().DelHost(id)
 	}
 }
 
@@ -302,6 +316,8 @@ func GetDashboardData() map[string]interface{} {
 	data["inletFlowCount"] = int(in)
 	data["exportFlowCount"] = int(out)
 	var tcp, udp, secret, socks5, p2p, http int
+	file.GetCsvDb().Lock()
+	defer file.GetCsvDb().Unlock()
 	for _, v := range file.GetCsvDb().Tasks {
 		switch v.Mode {
 		case "tcp":
@@ -324,14 +340,14 @@ func GetDashboardData() map[string]interface{} {
 	data["httpProxyCount"] = http
 	data["secretCount"] = secret
 	data["p2pCount"] = p2p
-	data["bridgeType"] = beego.AppConfig.String("bridgeType")
-	data["httpProxyPort"] = beego.AppConfig.String("httpProxyPort")
-	data["httpsProxyPort"] = beego.AppConfig.String("httpsProxyPort")
-	data["ipLimit"] = beego.AppConfig.String("ipLimit")
-	data["flowStoreInterval"] = beego.AppConfig.String("flowStoreInterval")
-	data["serverIp"] = beego.AppConfig.String("serverIp")
-	data["p2pPort"] = beego.AppConfig.String("p2pPort")
-	data["logLevel"] = beego.AppConfig.String("logLevel")
+	data["bridgeType"] = beego.AppConfig.String("bridge_type")
+	data["httpProxyPort"] = beego.AppConfig.String("http_proxy_port")
+	data["httpsProxyPort"] = beego.AppConfig.String("https_proxy_port")
+	data["ipLimit"] = beego.AppConfig.String("ip_limit")
+	data["flowStoreInterval"] = beego.AppConfig.String("flow_store_interval")
+	data["serverIp"] = beego.AppConfig.String("p2p_ip")
+	data["p2pPort"] = beego.AppConfig.String("p2p_port")
+	data["logLevel"] = beego.AppConfig.String("log_level")
 	tcpCount := 0
 	for _, v := range file.GetCsvDb().Clients {
 		tcpCount += v.NowConn
@@ -368,7 +384,6 @@ func GetDashboardData() map[string]interface{} {
 			data["sys"+strconv.Itoa(i+1)] = serverStatus[i*fg]
 		}
 	}
-
 	return data
 }
 

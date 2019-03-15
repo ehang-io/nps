@@ -32,10 +32,10 @@ var BufPoolSmall = sync.Pool{
 }
 var BufPoolCopy = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, PoolSizeCopy)
+		buf := make([]byte, PoolSizeCopy)
+		return &buf
 	},
 }
-
 func PutBufPoolUdp(buf []byte) {
 	if cap(buf) == PoolSizeUdp {
 		BufPoolUdp.Put(buf[:PoolSizeUdp])
@@ -44,8 +44,12 @@ func PutBufPoolUdp(buf []byte) {
 
 func PutBufPoolCopy(buf []byte) {
 	if cap(buf) == PoolSizeCopy {
-		BufPoolCopy.Put(buf[:PoolSizeCopy])
+		BufPoolCopy.Put(&buf)
 	}
+}
+
+func GetBufPoolCopy() ([]byte) {
+	return (*BufPoolCopy.Get().(*[]byte))[:PoolSizeCopy]
 }
 
 func PutBufPoolSmall(buf []byte) {
