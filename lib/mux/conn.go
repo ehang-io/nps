@@ -26,6 +26,7 @@ type conn struct {
 	connId           int32
 	isClose          bool
 	readWait         bool
+	hasWrite         int
 	mux              *Mux
 }
 
@@ -83,9 +84,7 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 	} else {
 		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
 		s.startRead += n
-		if s.waitQueue.Size() < s.mux.waitQueueSize/2 {
-			s.mux.sendInfo(MUX_MSG_SEND_OK, s.connId, nil)
-		}
+		s.mux.sendInfo(MUX_MSG_SEND_OK, s.connId, nil)
 	}
 	return
 }
@@ -116,9 +115,10 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 	start := 0
 	l := len(buf)
 	for {
-		if s.stopWrite {
+		if s.hasWrite > 10 {
 			<-s.getStatusCh
 		}
+		s.hasWrite++
 		if l-start > pool.PoolSizeCopy {
 			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:start+pool.PoolSizeCopy])
 			start += pool.PoolSizeCopy

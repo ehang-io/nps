@@ -211,14 +211,18 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		}
 		//根据设定，修改header和host
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
-		b, err := httputil.DumpRequest(r, true)
+		b, err := httputil.DumpRequest(r, false)
 		if err != nil {
 			break
 		}
-		host.Flow.Add(int64(len(b)), 0)
 		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.RequestURI, r.RemoteAddr, lk.Host)
 		//write
 		connClient.Write(b)
+		if bodyLen, err := common.CopyBuffer(connClient, r.Body); err != nil {
+			break
+		} else {
+			host.Flow.Add(int64(len(b))+bodyLen, 0)
+		}
 	}
 end:
 	if isConn {

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"math"
 	"net"
 	"sync"
@@ -22,32 +23,27 @@ const (
 	MUX_PING
 	MUX_CONN_CLOSE
 	MUX_PING_RETURN
-	MUX_STOP_WRITE
-	RETRY_TIME = 2 //Heart beat allowed fault tolerance times
 )
 
 type Mux struct {
 	net.Listener
-	conn          net.Conn
-	connMap       *connMap
-	newConnCh     chan *conn
-	id            int32
-	closeChan     chan struct{}
-	IsClose       bool
-	pingOk        int
-	waitQueueSize int
+	conn      net.Conn
+	connMap   *connMap
+	newConnCh chan *conn
+	id        int32
+	closeChan chan struct{}
+	IsClose   bool
 	sync.Mutex
 }
 
 func NewMux(c net.Conn) *Mux {
 	m := &Mux{
-		conn:          c,
-		connMap:       NewConnMap(),
-		id:            0,
-		closeChan:     make(chan struct{}),
-		newConnCh:     make(chan *conn),
-		IsClose:       false,
-		waitQueueSize: 10, //TODO :In order to be more efficient, this value can be dynamically generated according to the delay algorithm.
+		conn:      c,
+		connMap:   NewConnMap(),
+		id:        0,
+		closeChan: make(chan struct{}),
+		newConnCh: make(chan *conn),
+		IsClose:   false,
 	}
 	//read session by flag
 	go m.readSession()
@@ -104,7 +100,7 @@ func (s *Mux) sendInfo(flag int32, id int32, content []byte) error {
 		binary.Write(raw, binary.LittleEndian, int32(len(content)))
 		binary.Write(raw, binary.LittleEndian, content)
 	}
-	if _, err := s.conn.Write(raw.Bytes()); err != nil || s.pingOk > RETRY_TIME {
+	if _, err := s.conn.Write(raw.Bytes()); err != nil {
 		s.Close()
 		return err
 	}
@@ -113,7 +109,7 @@ func (s *Mux) sendInfo(flag int32, id int32, content []byte) error {
 
 func (s *Mux) ping() {
 	go func() {
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(time.Second * 1)
 		for {
 			select {
 			case <-ticker.C:
@@ -122,10 +118,11 @@ func (s *Mux) ping() {
 			if (math.MaxInt32 - s.id) < 10000 {
 				s.id = 0
 			}
-			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil || s.pingOk > RETRY_TIME {
+			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil {
+				logs.Error("ping error,close the connection")
+				s.Close()
 				break
 			}
-			s.pingOk += 1
 		}
 	}()
 	select {
@@ -155,7 +152,6 @@ func (s *Mux) readSession() {
 					s.sendInfo(MUX_PING_RETURN, MUX_PING, nil)
 					continue
 				case MUX_PING_RETURN:
-					s.pingOk -= 1
 					continue
 				case MUX_NEW_MSG:
 					buf = pool.GetBufPoolCopy()
@@ -173,19 +169,12 @@ func (s *Mux) readSession() {
 							conn.readWait = false
 							conn.readCh <- struct{}{}
 						}
-						if conn.waitQueue.Size() > s.waitQueueSize {
-							s.sendInfo(MUX_STOP_WRITE, conn.connId, nil)
-						}
-					case MUX_STOP_WRITE:
-						conn.stopWrite = true
 					case MUX_MSG_SEND_OK: //the remote has read
-						if conn.stopWrite {
-							conn.stopWrite = false
-							select {
-							case conn.getStatusCh <- struct{}{}:
-							default:
-							}
+						select {
+						case conn.getStatusCh <- struct{}{}:
+						default:
 						}
+						conn.hasWrite --
 					case MUX_NEW_CONN_OK: //conn ok
 						conn.connStatusOkCh <- struct{}{}
 					case MUX_NEW_CONN_Fail:
@@ -198,6 +187,7 @@ func (s *Mux) readSession() {
 					pool.PutBufPoolCopy(buf)
 				}
 			} else {
+				logs.Error("read or send error")
 				break
 			}
 		}
@@ -214,9 +204,12 @@ func (s *Mux) Close() error {
 	}
 	s.IsClose = true
 	s.connMap.Close()
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
+	select {
+	case s.closeChan <- struct{}{}:
+	}
+	select {
+	case s.closeChan <- struct{}{}:
+	}
 	return s.conn.Close()
 }
 

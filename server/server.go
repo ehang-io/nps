@@ -91,6 +91,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		go proxy.NewP2PServer(p).Start()
 	}
 	go DealBridgeTask()
+	go dealClientFlow()
 	if svr := NewMode(Bridge, cnf); svr != nil {
 		if err := svr.Start(); err != nil {
 			logs.Error(err)
@@ -98,6 +99,16 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		RunList[cnf.Id] = svr
 	} else {
 		logs.Error("Incorrect startup mode %s", cnf.Mode)
+	}
+}
+
+func dealClientFlow() {
+	ticker := time.NewTicker(time.Minute)
+	for {
+		select {
+		case <-ticker.C:
+			dealClientData(file.GetCsvDb().Clients)
+		}
 	}
 }
 
