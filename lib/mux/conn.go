@@ -115,7 +115,7 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 	start := 0
 	l := len(buf)
 	for {
-		if s.hasWrite > 10 {
+		if s.hasWrite > 50 {
 			<-s.getStatusCh
 		}
 		s.hasWrite++
