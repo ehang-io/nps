@@ -15,11 +15,11 @@ import (
 type TRPClient struct {
 	svrAddr        string
 	bridgeConnType string
-	stop           chan bool
 	proxyUrl       string
 	vKey           string
 	tunnel         *mux.Mux
 	signal         *conn.Conn
+	ticker         *time.Ticker
 	cnf            *config.Config
 }
 
@@ -29,7 +29,6 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 		svrAddr:        svraddr,
 		vKey:           vKey,
 		bridgeConnType: bridgeConnType,
-		stop:           make(chan bool),
 		proxyUrl:       proxyUrl,
 		cnf:            cnf,
 	}
@@ -51,8 +50,9 @@ retry:
 }
 
 func (s *TRPClient) Close() {
-	s.stop <- true
+	s.tunnel.Close()
 	s.signal.Close()
+	s.ticker.Stop()
 }
 
 //处理
@@ -168,7 +168,7 @@ func (s *TRPClient) newUdpConn(rAddr string, md5Password string) {
 		if udpTunnel.RemoteAddr().String() == string(b) {
 			conn.SetUdpSession(udpTunnel)
 			//读取link,设置msgCh 设置msgConn消息回传响应机制
-			l := mux.NewMux(udpTunnel)
+			l := mux.NewMux(udpTunnel, s.bridgeConnType)
 			for {
 				connMux, err := l.Accept()
 				if err != nil {
@@ -187,18 +187,16 @@ func (s *TRPClient) dealChan() {
 		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
-	go func() {
-		s.tunnel = mux.NewMux(tunnel.Conn)
-		for {
-			src, err := s.tunnel.Accept()
-			if err != nil {
-				logs.Warn(err)
-				break
-			}
-			go s.srcProcess(src)
+	s.tunnel = mux.NewMux(tunnel.Conn, s.bridgeConnType)
+	for {
+		src, err := s.tunnel.Accept()
+		if err != nil {
+			logs.Warn(err)
+			s.Close()
+			break
 		}
-	}()
-	<-s.stop
+		go s.srcProcess(src)
+	}
 }
 
 func (s *TRPClient) srcProcess(src net.Conn) {
@@ -221,14 +219,14 @@ func (s *TRPClient) srcProcess(src net.Conn) {
 }
 
 func (s *TRPClient) ping() {
-	ticker := time.NewTicker(time.Second * 5)
+	s.ticker = time.NewTicker(time.Second * 5)
 loop:
 	for {
 		select {
-		case <-ticker.C:
+		case <-s.ticker.C:
 			if s.tunnel.IsClose {
 				s.Close()
-				ticker.Stop()
+				s.ticker.Stop()
 				break loop
 			}
 		}

@@ -88,7 +88,7 @@ func (pMux *PortMux) process(conn net.Conn) {
 	var ch chan *PortConn
 	var rs []byte
 	var buffer bytes.Buffer
-	switch bytesToNum(buf) {
+	switch common.BytesToNum(buf) {
 	case HTTP_CONNECT, HTTP_DELETE, HTTP_GET, HTTP_HEAD, HTTP_OPTIONS, HTTP_POST, HTTP_PUT, HTTP_TRACE: //http and manager
 		buffer.Reset()
 		r := bufio.NewReader(conn)
@@ -160,13 +160,4 @@ func (pMux *PortMux) GetHttpsListener() net.Listener {
 
 func (pMux *PortMux) GetManagerListener() net.Listener {
 	return NewPortListener(pMux.managerConn, pMux.Listener.Addr())
-}
-
-func bytesToNum(b []byte) int {
-	var str string
-	for i := 0; i < len(b); i++ {
-		str += strconv.Itoa(int(b[i]))
-	}
-	x, _ := strconv.Atoi(str)
-	return int(x)
 }

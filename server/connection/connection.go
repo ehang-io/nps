@@ -4,7 +4,6 @@ import (
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"os"
 	"strconv"
@@ -32,7 +31,7 @@ func InitConnectionService() {
 	}
 }
 
-func GetBridgeListener(tp string) (interface{}, error) {
+func GetBridgeListener(tp string) (net.Listener, error) {
 	logs.Info("server start, the bridge type is %s, the bridge port is %s", tp, bridgePort)
 	var p int
 	var err error
@@ -41,13 +40,6 @@ func GetBridgeListener(tp string) (interface{}, error) {
 	}
 	if pMux != nil {
 		return pMux.GetClientListener(), nil
-	} else if tp == "udp" {
-		if p, err = beego.AppConfig.Int("bridge_port"); err != nil {
-			logs.Error(err)
-			os.Exit(0)
-		} else {
-			return kcp.ListenWithOptions(":"+strconv.Itoa(p), nil, 150, 3)
-		}
 	}
 	return net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP(beego.AppConfig.String("bridge_ip")), p, ""})
 }

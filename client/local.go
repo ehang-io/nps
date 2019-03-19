@@ -39,7 +39,7 @@ func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey stri
 	}
 	logs.Info("start local file system, local path %s, strip prefix %s ,remote port %s ", t.LocalPath, t.StripPre, t.Ports)
 	fileServer = append(fileServer, srv)
-	listener := mux.NewMux(remoteConn.Conn)
+	listener := mux.NewMux(remoteConn.Conn, common.CONN_TCP)
 	logs.Warn(srv.Serve(listener))
 }
 
@@ -88,7 +88,7 @@ func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.Lo
 		if udpConn == nil {
 			return
 		}
-		muxSession = mux.NewMux(udpConn)
+		muxSession = mux.NewMux(udpConn, "kcp")
 	}
 	nowConn, err := muxSession.NewConn()
 	if err != nil {

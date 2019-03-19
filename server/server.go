@@ -66,7 +66,7 @@ func DealBridgeTask() {
 					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
 					s.Conn.Close()
 				} else if t.Status {
-					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Target, nil, common.CONN_TCP)
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target, nil, common.CONN_TCP)
 				} else {
 					s.Conn.Close()
 					logs.Trace("This key %s cannot be processed,status is close", s.Password)

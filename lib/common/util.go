@@ -335,3 +335,12 @@ func RemoveArrVal(arr []string, val string) []string {
 	}
 	return arr
 }
+
+func BytesToNum(b []byte) int {
+	var str string
+	for i := 0; i < len(b); i++ {
+		str += strconv.Itoa(int(b[i]))
+	}
+	x, _ := strconv.Atoi(str)
+	return int(x)
+}

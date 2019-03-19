@@ -72,21 +72,21 @@ func (s *BaseServer) checkFlow() error {
 }
 
 //与客户端建立通道
-func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte, tp string) error {
-	link := conn.NewLink(tp, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.Conn.RemoteAddr().String())
+func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, rb []byte, tp string) error {
+	link := conn.NewLink(tp, addr, client.Cnf.Crypt, client.Cnf.Compress, c.Conn.RemoteAddr().String())
 
-	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
-		logs.Warn("task id %d get connection from client id %d  error %s", s.task.Id, s.task.Client.Id, err.Error())
+	if target, err := s.bridge.SendLinkInfo(client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
+		logs.Warn("task id %d get connection from client id %d  error %s", s.task.Id, client.Id, err.Error())
 		c.Close()
 		return err
 	} else {
 		if rb != nil {
 			//HTTP proxy crypt or compress
-			conn.GetConn(target, link.Crypt, link.Compress, s.task.Client.Rate, true).Write(rb)
+			conn.GetConn(target, link.Crypt, link.Compress, client.Rate, true).Write(rb)
 		}
-		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Flow, true)
+		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, client.Rate, s.task.Flow, true)
 	}
 
-	s.task.Client.AddConn()
+	client.AddConn()
 	return nil
 }

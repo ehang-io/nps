@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"math"
 	"net"
 	"sync"
@@ -33,10 +32,12 @@ type Mux struct {
 	id        int32
 	closeChan chan struct{}
 	IsClose   bool
+	pingOk    int
+	connType  string
 	sync.Mutex
 }
 
-func NewMux(c net.Conn) *Mux {
+func NewMux(c net.Conn, connType string) *Mux {
 	m := &Mux{
 		conn:      c,
 		connMap:   NewConnMap(),
@@ -44,6 +45,7 @@ func NewMux(c net.Conn) *Mux {
 		closeChan: make(chan struct{}),
 		newConnCh: make(chan *conn),
 		IsClose:   false,
+		connType:  connType,
 	}
 	//read session by flag
 	go m.readSession()
@@ -85,7 +87,11 @@ func (s *Mux) Accept() (net.Conn, error) {
 	if s.IsClose {
 		return nil, errors.New("accpet error,the conn has closed")
 	}
-	return <-s.newConnCh, nil
+	conn := <-s.newConnCh
+	if conn == nil {
+		return nil, errors.New("accpet error,the conn has closed")
+	}
+	return conn, nil
 }
 
 func (s *Mux) Addr() net.Addr {
@@ -118,11 +124,11 @@ func (s *Mux) ping() {
 			if (math.MaxInt32 - s.id) < 10000 {
 				s.id = 0
 			}
-			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil {
-				logs.Error("ping error,close the connection")
+			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil || (s.pingOk > 10 && s.connType == "kcp") {
 				s.Close()
 				break
 			}
+			s.pingOk++
 		}
 	}()
 	select {
@@ -141,6 +147,7 @@ func (s *Mux) readSession() {
 				if binary.Read(s.conn, binary.LittleEndian, &i) != nil {
 					break
 				}
+				s.pingOk = 0
 				switch flag {
 				case MUX_NEW_CONN: //new conn
 					conn := NewConn(i, s)
@@ -187,7 +194,6 @@ func (s *Mux) readSession() {
 					pool.PutBufPoolCopy(buf)
 				}
 			} else {
-				logs.Error("read or send error")
 				break
 			}
 		}
@@ -210,6 +216,7 @@ func (s *Mux) Close() error {
 	select {
 	case s.closeChan <- struct{}{}:
 	}
+	close(s.newConnCh)
 	return s.conn.Close()
 }
 

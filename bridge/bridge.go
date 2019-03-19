@@ -16,6 +16,7 @@ import (
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,15 +71,14 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int
 
 func (s *Bridge) StartTunnel() error {
 	go s.ping()
-	l, err := connection.GetBridgeListener(s.tunnelType)
-	if err != nil {
-		return err
-	}
 	if s.tunnelType == "kcp" {
-		listener, ok := l.(*kcp.Listener)
-		if !ok {
+		listener, err := kcp.ListenWithOptions(beego.AppConfig.String("bridge_ip")+":"+beego.AppConfig.String("bridge_port"), nil, 150, 3)
+		if err != nil {
+			logs.Error(err)
+			os.Exit(0)
 			return err
 		}
+		logs.Info("server start, the bridge type is %s, the bridge port is %d", s.tunnelType, s.TunnelPort)
 		go func() {
 			for {
 				c, err := listener.AcceptKCP()
@@ -91,8 +91,10 @@ func (s *Bridge) StartTunnel() error {
 			}
 		}()
 	} else {
-		listener, ok := l.(net.Listener)
-		if !ok {
+		listener, err := connection.GetBridgeListener(s.tunnelType)
+		if err != nil {
+			logs.Error(err)
+			os.Exit(0)
 			return err
 		}
 		go func() {
@@ -253,10 +255,10 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		if v, ok := s.Client[id]; ok {
 			s.clientLock.Unlock()
 			v.Lock()
-			v.tunnel = mux.NewMux(c.Conn)
+			v.tunnel = mux.NewMux(c.Conn, s.tunnelType)
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(mux.NewMux(c.Conn), nil, nil)
+			s.Client[id] = NewClient(mux.NewMux(c.Conn, s.tunnelType), nil, nil)
 			s.clientLock.Unlock()
 		}
 	case common.WORK_CONFIG:
@@ -282,10 +284,10 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		if v, ok := s.Client[id]; ok {
 			s.clientLock.Unlock()
 			v.Lock()
-			v.file = mux.NewMux(c.Conn)
+			v.file = mux.NewMux(c.Conn, s.tunnelType)
 			v.Unlock()
 		} else {
-			s.Client[id] = NewClient(nil, mux.NewMux(c.Conn), nil)
+			s.Client[id] = NewClient(nil, mux.NewMux(c.Conn, s.tunnelType), nil)
 			s.clientLock.Unlock()
 		}
 	case common.WORK_P2P:

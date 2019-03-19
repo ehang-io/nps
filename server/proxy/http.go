@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
@@ -14,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,6 +51,49 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 	}
 }
 
+func (s *httpServer) processHttps(c net.Conn) {
+	buf := make([]byte, 2<<10)
+	n, err := c.Read(buf)
+	if err != nil {
+		return
+	}
+	var host *file.Host
+	file.GetCsvDb().Lock()
+	for _, host = range file.GetCsvDb().Hosts {
+		if bytes.Index(buf[:n], []byte(host.Host)) >= 0 {
+			break
+		}
+	}
+	file.GetCsvDb().Unlock()
+	if host == nil {
+		logs.Error("new https connection can't be parsed!", c.RemoteAddr().String())
+		c.Close()
+		return
+	}
+	var targetAddr string
+	r := new(http.Request)
+	r.RequestURI = "/"
+	r.URL = new(url.URL)
+	r.URL.Scheme = "https"
+	r.Host = host.Host
+	//read the host form connection
+	if !host.Client.GetConn() { //conn num limit
+		logs.Notice("connections exceed the current client %d limit %d ,now connection num %d", host.Client.Id, host.Client.MaxConn, host.Client.NowConn)
+		c.Close()
+		return
+	}
+	//流量限制
+	if host.Client.Flow.FlowLimit > 0 && (host.Client.Flow.FlowLimit<<20) < (host.Client.Flow.ExportFlow+host.Client.Flow.InletFlow) {
+		logs.Warn("Traffic exceeded client id %s", host.Client.Id)
+		return
+	}
+	if targetAddr, err = host.GetRandomTarget(); err != nil {
+		logs.Warn(err.Error())
+	}
+	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
+	s.DealClient(conn.NewConn(c), host.Client, targetAddr, buf[:n], common.CONN_TCP)
+}
+
 func (s *httpServer) Start() error {
 	var err error
 	var httpSrv, httpsSrv *http.Server
@@ -81,16 +126,26 @@ func (s *httpServer) Start() error {
 		}
 		httpsSrv = s.NewServer(s.httpsPort, "https")
 		go func() {
-			logs.Info("Start https listener, port is", s.httpsPort)
 			l, err := connection.GetHttpsListener()
 			if err != nil {
 				logs.Error(err)
 				os.Exit(0)
 			}
-			err = httpsSrv.ServeTLS(l, s.pemPath, s.keyPath)
-			if err != nil {
-				logs.Error(err)
-				os.Exit(0)
+			if b, err := beego.AppConfig.Bool("https_just_proxy"); err == nil && b {
+				for {
+					c, err := l.Accept()
+					if err != nil {
+						logs.Error(err)
+						break
+					}
+					go s.processHttps(c)
+				}
+			} else {
+				err = httpsSrv.ServeTLS(l, s.pemPath, s.keyPath)
+				if err != nil {
+					logs.Error(err)
+					os.Exit(0)
+				}
 			}
 		}()
 	}
