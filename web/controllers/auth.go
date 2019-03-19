@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/hex"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 )
@@ -25,7 +26,7 @@ func (s *AuthController) GetAuthKey() {
 			return
 		}
 		m["status"] = 1
-		m["crypt_auth_key"] = string(b)
+		m["crypt_auth_key"] = hex.EncodeToString(b)
 		m["crypt_type"] = "aes cbc"
 		return
 	}

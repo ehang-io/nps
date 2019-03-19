@@ -1774,6 +1774,10 @@ POST /auth/getauthkey
 将返回加密后的authKey，采用aes cbc加密，请使用与服务端配置文件中cryptKey相同的密钥进行解密
 
 **注意：** nps配置文件中`auth_crypt_key`需为16位
+- 解密密钥长度128
+- 偏移量与密钥相同
+- 补码方式pkcs5padding
+- 解密串编码方式 十六进制
 
 ### 详细文档
 - 此文档近期可能更新较慢，建议自行抓包
