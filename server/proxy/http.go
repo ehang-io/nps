@@ -59,9 +59,9 @@ func (s *httpServer) processHttps(c net.Conn) {
 	}
 	var host *file.Host
 	file.GetCsvDb().Lock()
-	for _, host = range file.GetCsvDb().Hosts {
-		if bytes.Index(buf[:n], []byte(host.Host)) >= 0 {
-			break
+	for _, v := range file.GetCsvDb().Hosts {
+		if bytes.Index(buf[:n], []byte(v.Host)) >= 0 && (host == nil || len(host.Host) < len(v.Host)) {
+			host = v
 		}
 	}
 	file.GetCsvDb().Unlock()
