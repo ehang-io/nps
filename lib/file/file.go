@@ -561,7 +561,7 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 			v.Location = "/"
 		}
 		if strings.Index(r.RequestURI, v.Location) == 0 {
-			if h == nil || (len(v.Location) < len(h.Location)) {
+			if h == nil || (len(v.Location) > len(h.Location)) {
 				h = v
 			}
 		}

@@ -1761,7 +1761,11 @@ auth_key的生成方式为：md5(配置文件中的auth_key+当前时间戳)
 ```
 timestamp为当前时间戳
 ```
-
+```
+curl --request POST \
+  --url http://127.0.0.1:8080/client/list \
+  --data 'auth_key=2a0000d9229e7dbcf79dd0f5e04bb084&timestamp=1553045344&start=0&limit=10'
+```
 **注意：** 为保证安全，时间戳的有效范围为20秒内，所以每次提交请求必须重新生成。
 
 ### 获取服务端authKey

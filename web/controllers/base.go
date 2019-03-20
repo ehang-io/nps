@@ -27,7 +27,8 @@ func (s *BaseController) Prepare() {
 	md5Key := s.GetString("auth_key")
 	timestamp := s.GetIntNoErr("timestamp")
 	configKey := beego.AppConfig.String("auth_key")
-	if !(time.Now().Unix()-int64(timestamp) <= 20 && time.Now().Unix()-int64(timestamp) >= -20 && crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key) {
+	timeNowUnix := time.Now().Unix()
+	if !(((timeNowUnix - int64(timestamp)) <= 20) && ((timeNowUnix - int64(timestamp)) >= -20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
 		if s.GetSession("auth") != true {
 			s.Redirect("/login/index", 302)
 		}
