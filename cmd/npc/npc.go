@@ -41,7 +41,7 @@ func main() {
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+*logLevel+`,"color":true}`)
 	} else {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"npc_log.log"}`)
+		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"npc_log.log","maxlines":1000,"daily":false,"color":true}`)
 	}
 	env := common.GetEnvMap()
 	if *serverAddr == "" {

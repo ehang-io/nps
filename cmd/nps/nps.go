@@ -50,7 +50,7 @@ func main() {
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	} else {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"nps_log.log"}`)
+		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"nps_log.log","maxlines":1000,"daily":false,"color":true}`)
 	}
 	task := &file.Tunnel{
 		Mode: "webServer",
