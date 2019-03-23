@@ -19,7 +19,7 @@ func (s *ClientController) List() {
 		return
 	}
 	start, length := s.GetAjaxParams()
-	list, cnt := server.GetClientList(start, length)
+	list, cnt := server.GetClientList(start, length, s.GetString("search"))
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -32,7 +32,7 @@ func (s *ClientController) Add() {
 	} else {
 		t := &file.Client{
 			VerifyKey: s.GetString("vkey"),
-			Id:        file.GetCsvDb().GetClientId(),
+			Id:        int(file.GetCsvDb().GetClientId()),
 			Status:    true,
 			Remark:    s.GetString("remark"),
 			Cnf: &file.Config{
@@ -41,8 +41,9 @@ func (s *ClientController) Add() {
 				Compress: common.GetBoolByStr(s.GetString("compress")),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
-			RateLimit: s.GetIntNoErr("rate_limit"),
-			MaxConn:   s.GetIntNoErr("max_conn"),
+			ConfigConnAllow: s.GetBoolNoErr("config_conn_allow"),
+			RateLimit:       s.GetIntNoErr("rate_limit"),
+			MaxConn:         s.GetIntNoErr("max_conn"),
 			Flow: &file.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
@@ -102,6 +103,7 @@ func (s *ClientController) Edit() {
 			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
 			c.RateLimit = s.GetIntNoErr("rate_limit")
 			c.MaxConn = s.GetIntNoErr("max_conn")
+			c.ConfigConnAllow = s.GetBoolNoErr("config_conn_allow")
 			if c.Rate != nil {
 				c.Rate.Stop()
 			}

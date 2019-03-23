@@ -24,7 +24,7 @@
     <script src="/static/js/bootstrap-table.min.js"></script>
     <script src="/static/js/inspinia.js"></script>
     <!-- Latest compiled and minified Locales -->
-
+    <script src="/static/js/langchange.js" type="text/javascript"></script>
 
 </head>
 
@@ -47,34 +47,42 @@
                     </div>
                 </li>
                 <li class="{{if eq "index" .menu}}active{{end}}">
-                    <a href="/"><i class="fa fa-dashboard"></i> <span class="nav-label">dashboard</span></a>
+                    <a href="/"><i class="fa fa-dashboard"></i> <span langtag="menu-dashboard" class="nav-label">仪表盘</span></a>
                 </li>
                 <li class="{{if eq "client" .menu}}active{{end}}">
-                    <a href="/client/list"><i class="fa fa-clipboard"></i> <span class="nav-label">client</span></a>
+                    <a href="/client/list"><i class="fa fa-clipboard"></i> <span langtag="menu-client"
+                                                                                 class="nav-label">客户端</span></a>
                 </li>
                 <li class="{{if eq "host" .menu}}active{{end}}">
-                    <a href="/index/hostlist"><i class="fa fa-paperclip"></i> <span class="nav-label">host</span></a>
+                    <a href="/index/hostlist"><i class="fa fa-paperclip"></i> <span langtag="menu-host"
+                                                                                    class="nav-label">域名解析</span></a>
                 </li>
                 <li class="{{if eq "tcp" .menu}}active{{end}}">
-                    <a href="/index/tcp"><i class="fa fa-line-chart"></i> <span class="nav-label">tcp</span></a>
+                    <a href="/index/tcp"><i class="fa fa-line-chart"></i> <span langtag="menu-tcp"
+                                                                                class="nav-label">tcp隧道</span></a>
                 </li>
                 <li class="{{if eq "udp" .menu}}active{{end}}">
-                    <a href="/index/udp"><i class="fa fa-server"></i> <span class="nav-label">udp</span></a>
+                    <a href="/index/udp"><i class="fa fa-server"></i> <span langtag="menu-udp"
+                                                                            class="nav-label">udp隧道</span></a>
                 </li>
                 <li class="{{if eq "http" .menu}}active{{end}}">
-                    <a href="/index/http"><i class="fa fa-html5"></i> <span class="nav-label">http</span></a>
+                    <a href="/index/http"><i class="fa fa-html5"></i> <span langtag="menu-http"
+                                                                            class="nav-label">http代理</span></a>
                 </li>
                 <li class="{{if eq "socks5" .menu}}active{{end}}">
-                    <a href="/index/socks5"><i class="fa fa-table"></i> <span class="nav-label">socks5</span></a>
+                    <a href="/index/socks5"><i class="fa fa-table"></i> <span langtag="menu-socks5" class="nav-label">socks5代理</span></a>
                 </li>
                 <li class="{{if eq "secret" .menu}}active{{end}}">
-                    <a href="/index/secret"><i class="fa fa-backward"></i> <span class="nav-label">secret</span></a>
+                    <a href="/index/secret"><i class="fa fa-backward"></i> <span langtag="menu-secret"
+                                                                                 class="nav-label">私密代理</span></a>
                 </li>
                 <li class="{{if eq "p2p" .menu}}active{{end}}">
-                    <a href="/index/p2p"><i class="fa fa-dashcube"></i> <span class="nav-label">p2p</span></a>
+                    <a href="/index/p2p"><i class="fa fa-dashcube"></i> <span langtag="menu-p2p"
+                                                                              class="nav-label">p2p代理</span></a>
                 </li>
                 <li class="{{if eq "file" .menu}}active{{end}}">
-                    <a href="/index/file"><i class="fa fa-laptop"></i> <span class="nav-label">file</span></a>
+                    <a href="/index/file"><i class="fa fa-laptop"></i> <span langtag="menu-file"
+                                                                             class="nav-label">文件代理</span></a>
                 </li>
             </ul>
 
@@ -91,6 +99,12 @@
                     <li>
                         <span class="m-r-sm text-muted welcome-message">Welcome to use <a
                                 href="https://github.com/cnlh/nps">NPS</a></span>
+                    </li>
+                    <li>
+                        <a id="lang-en">English</a>
+                    </li>
+                    <li>
+                        <a id="langzh">简体中文</a>
                     </li>
 
                     <li>

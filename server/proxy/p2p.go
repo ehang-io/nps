@@ -3,8 +3,7 @@ package proxy
 import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
+	"net"
 	"strconv"
 	"time"
 )
@@ -30,21 +29,9 @@ func NewP2PServer(p2pPort int) *P2PServer {
 }
 
 func (s *P2PServer) Start() error {
-	kcpListener, err := kcp.ListenWithOptions(":"+strconv.Itoa(s.p2pPort), nil, 150, 3)
-	if err != nil {
-		logs.Error(err)
-		return err
-	}
-	for {
-		c, err := kcpListener.AcceptKCP()
-		conn.SetUdpSession(c)
-		if err != nil {
-			logs.Warn(err)
-			continue
-		}
-		go s.p2pProcess(conn.NewConn(c))
-	}
-	return nil
+	return conn.NewKcpListenerAndProcess(":"+strconv.Itoa(s.p2pPort), func(c net.Conn) {
+		s.p2pProcess(conn.NewConn(c))
+	})
 }
 
 func (s *P2PServer) p2pProcess(c *conn.Conn) {

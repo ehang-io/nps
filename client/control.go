@@ -31,11 +31,9 @@ func GetTaskStatus(path string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	if _, err := c.Write([]byte(common.WORK_STATUS)); err != nil {
 		log.Fatalln(err)
 	}
-
 	//read now vKey and write to server
 	if f, err := common.ReadAllFromFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt")); err != nil {
 		log.Fatalln(err)

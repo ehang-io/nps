@@ -78,7 +78,7 @@ func (s *IndexController) GetTunnel() {
 	start, length := s.GetAjaxParams()
 	taskType := s.GetString("type")
 	clientId := s.GetIntNoErr("client_id")
-	list, cnt := server.GetTunnel(start, length, taskType, clientId)
+	list, cnt := server.GetTunnel(start, length, taskType, clientId, s.GetString("search"))
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -93,7 +93,7 @@ func (s *IndexController) Add() {
 			Port:      s.GetIntNoErr("port"),
 			Mode:      s.GetString("type"),
 			Target:    s.GetString("target"),
-			Id:        file.GetCsvDb().GetTaskId(),
+			Id:        int(file.GetCsvDb().GetTaskId()),
 			Status:    true,
 			Remark:    s.GetString("remark"),
 			Password:  s.GetString("password"),
@@ -196,7 +196,7 @@ func (s *IndexController) HostList() {
 	} else {
 		start, length := s.GetAjaxParams()
 		clientId := s.GetIntNoErr("client_id")
-		list, cnt := file.GetCsvDb().GetHost(start, length, clientId)
+		list, cnt := file.GetCsvDb().GetHost(start, length, clientId, s.GetString("search"))
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
@@ -231,7 +231,7 @@ func (s *IndexController) AddHost() {
 		s.display("index/hadd")
 	} else {
 		h := &file.Host{
-			Id:           file.GetCsvDb().GetHostId(),
+			Id:           int(file.GetCsvDb().GetHostId()),
 			Host:         s.GetString("host"),
 			Target:       s.GetString("target"),
 			HeaderChange: s.GetString("header"),
@@ -275,7 +275,7 @@ func (s *IndexController) EditHost() {
 			h.TargetArr = nil
 			h.Location = s.GetString("location")
 			h.Scheme = s.GetString("scheme")
-			file.GetCsvDb().UpdateHost(h)
+			file.GetCsvDb().StoreHostToCsv()
 			var err error
 			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error")

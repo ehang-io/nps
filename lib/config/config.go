@@ -146,7 +146,12 @@ func dealCommon(s string) *CommonConfig {
 func dealHost(s string) *file.Host {
 	h := &file.Host{}
 	var headerChange string
-	for _, v := range strings.Split(s, "\n") {
+	var configDataArr []string
+	configDataArr = strings.Split(s, "\n")
+	if len(configDataArr) < 3 {
+		configDataArr = strings.Split(s, "\r\n")
+	}
+	for _, v := range configDataArr {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
 			continue

@@ -14,7 +14,6 @@ import (
 	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"os"
 	"strconv"
@@ -28,7 +27,6 @@ type Client struct {
 	signal    *conn.Conn
 	file      *mux.Mux
 	retryTime int // it will be add 1 when ping not ok until to 3 will close the client
-	sync.RWMutex
 }
 
 func NewClient(t, f *mux.Mux, s *conn.Conn) *Client {
@@ -40,56 +38,38 @@ func NewClient(t, f *mux.Mux, s *conn.Conn) *Client {
 }
 
 type Bridge struct {
-	TunnelPort   int //通信隧道端口
-	Client       map[int]*Client
-	tunnelType   string //bridge type kcp or tcp
-	OpenTask     chan *file.Tunnel
-	CloseTask    chan *file.Tunnel
-	CloseClient  chan int
-	SecretChan   chan *conn.Secret
-	clientLock   sync.RWMutex
-	Register     map[string]time.Time
-	registerLock sync.RWMutex
-	ipVerify     bool
-	runList      map[int]interface{}
+	TunnelPort  int //通信隧道端口
+	Client      sync.Map
+	Register    sync.Map
+	tunnelType  string //bridge type kcp or tcp
+	OpenTask    chan *file.Tunnel
+	CloseTask   chan *file.Tunnel
+	CloseClient chan int
+	SecretChan  chan *conn.Secret
+	ipVerify    bool
+	runList     map[int]interface{}
 }
 
 func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int]interface{}) *Bridge {
-	t := new(Bridge)
-	t.TunnelPort = tunnelPort
-	t.Client = make(map[int]*Client)
-	t.tunnelType = tunnelType
-	t.OpenTask = make(chan *file.Tunnel)
-	t.CloseTask = make(chan *file.Tunnel)
-	t.CloseClient = make(chan int)
-	t.Register = make(map[string]time.Time)
-	t.ipVerify = ipVerify
-	t.runList = runList
-	t.SecretChan = make(chan *conn.Secret)
-	return t
+	return &Bridge{
+		TunnelPort:  tunnelPort,
+		tunnelType:  tunnelType,
+		OpenTask:    make(chan *file.Tunnel),
+		CloseTask:   make(chan *file.Tunnel),
+		CloseClient: make(chan int),
+		SecretChan:  make(chan *conn.Secret),
+		ipVerify:    ipVerify,
+		runList:     runList,
+	}
 }
 
 func (s *Bridge) StartTunnel() error {
 	go s.ping()
 	if s.tunnelType == "kcp" {
-		listener, err := kcp.ListenWithOptions(beego.AppConfig.String("bridge_ip")+":"+beego.AppConfig.String("bridge_port"), nil, 150, 3)
-		if err != nil {
-			logs.Error(err)
-			os.Exit(0)
-			return err
-		}
 		logs.Info("server start, the bridge type is %s, the bridge port is %d", s.tunnelType, s.TunnelPort)
-		go func() {
-			for {
-				c, err := listener.AcceptKCP()
-				conn.SetUdpSession(c)
-				if err != nil {
-					logs.Warn(err)
-					continue
-				}
-				go s.cliProcess(conn.NewConn(c))
-			}
-		}()
+		return conn.NewKcpListenerAndProcess(beego.AppConfig.String("bridge_ip")+":"+beego.AppConfig.String("bridge_port"), func(c net.Conn) {
+			s.cliProcess(conn.NewConn(c))
+		})
 	} else {
 		listener, err := connection.GetBridgeListener(s.tunnelType)
 		if err != nil {
@@ -97,16 +77,9 @@ func (s *Bridge) StartTunnel() error {
 			os.Exit(0)
 			return err
 		}
-		go func() {
-			for {
-				c, err := listener.Accept()
-				if err != nil {
-					logs.Warn(err)
-					continue
-				}
-				go s.cliProcess(conn.NewConn(c))
-			}
-		}()
+		conn.Accept(listener, func(c net.Conn) {
+			s.cliProcess(conn.NewConn(c))
+		})
 	}
 	return nil
 }
@@ -115,10 +88,10 @@ func (s *Bridge) StartTunnel() error {
 func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 	for {
 		if info, status, err := c.GetHealthInfo(); err != nil {
-			logs.Error(err)
 			break
 		} else if !status { //the status is true , return target to the targetArr
-			for _, v := range file.GetCsvDb().Tasks {
+			file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+				v := value.(*file.Tunnel)
 				if v.Client.Id == id && v.Mode == "tcp" && strings.Contains(v.Target, info) {
 					v.Lock()
 					if v.TargetArr == nil || (len(v.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
@@ -131,8 +104,10 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 					v.HealthRemoveArr = append(v.HealthRemoveArr, info)
 					v.Unlock()
 				}
-			}
-			for _, v := range file.GetCsvDb().Hosts {
+				return true
+			})
+			file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+				v := value.(*file.Host)
 				if v.Client.Id == id && strings.Contains(v.Target, info) {
 					v.Lock()
 					if v.TargetArr == nil || (len(v.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
@@ -145,26 +120,33 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 					v.HealthRemoveArr = append(v.HealthRemoveArr, info)
 					v.Unlock()
 				}
-			}
+				return true
+			})
 		} else { //the status is false,remove target from the targetArr
-			for _, v := range file.GetCsvDb().Tasks {
+			file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+				v := value.(*file.Tunnel)
 				if v.Client.Id == id && v.Mode == "tcp" && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.TargetArr, info) {
 					v.Lock()
 					v.TargetArr = append(v.TargetArr, info)
 					v.HealthRemoveArr = common.RemoveArrVal(v.HealthRemoveArr, info)
 					v.Unlock()
 				}
-			}
-			for _, v := range file.GetCsvDb().Hosts {
+				return true
+			})
+
+			file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+				v := value.(*file.Host)
 				if v.Client.Id == id && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.TargetArr, info) {
 					v.Lock()
 					v.TargetArr = append(v.TargetArr, info)
 					v.HealthRemoveArr = common.RemoveArrVal(v.HealthRemoveArr, info)
 					v.Unlock()
 				}
-			}
+				return true
+			})
 		}
 	}
+	s.DelClient(id, )
 }
 
 //验证失败，返回错误验证flag，并且关闭连接
@@ -216,17 +198,15 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	return
 }
 
-func (s *Bridge) DelClient(id int, isOther bool) {
-	s.clientLock.Lock()
-	defer s.clientLock.Unlock()
-	if v, ok := s.Client[id]; ok {
+func (s *Bridge) DelClient(id int) {
+	if v, ok := s.Client.Load(id); ok {
 		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
 			s.CloseClient <- c.Id
 		}
-		if v.signal != nil {
-			v.signal.Close()
+		if v.(*Client).signal != nil {
+			v.(*Client).signal.Close()
 		}
-		delete(s.Client, id)
+		s.Client.Delete(id)
 	}
 }
 
@@ -235,41 +215,32 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 	switch typeVal {
 	case common.WORK_MAIN:
 		//the vKey connect by another ,close the client of before
-		s.clientLock.Lock()
-		if v, ok := s.Client[id]; ok {
-			s.clientLock.Unlock()
-			if v.signal != nil {
-				v.signal.WriteClose()
+		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, nil, c)); ok {
+			if v.(*Client).signal != nil {
+				v.(*Client).signal.WriteClose()
 			}
-			v.Lock()
-			v.signal = c
-			v.Unlock()
-		} else {
-			s.Client[id] = NewClient(nil, nil, c)
-			s.clientLock.Unlock()
+			v.(*Client).signal = c
 		}
 		go s.GetHealthFromClient(id, c)
 		logs.Info("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
 	case common.WORK_CHAN:
-		s.clientLock.Lock()
-		if v, ok := s.Client[id]; ok {
-			s.clientLock.Unlock()
-			v.Lock()
-			v.tunnel = mux.NewMux(c.Conn, s.tunnelType)
-			v.Unlock()
-		} else {
-			s.Client[id] = NewClient(mux.NewMux(c.Conn, s.tunnelType), nil, nil)
-			s.clientLock.Unlock()
+		muxConn := mux.NewMux(c.Conn, s.tunnelType)
+		if v, ok := s.Client.LoadOrStore(id, NewClient(muxConn, nil, nil)); ok {
+			v.(*Client).tunnel = muxConn
 		}
 	case common.WORK_CONFIG:
 		var isPub bool
-		client, err := file.GetCsvDb().GetClient(id);
+		client, err := file.GetCsvDb().GetClient(id)
 		if err == nil {
 			if client.VerifyKey == beego.AppConfig.String("public_vkey") {
 				isPub = true
 			} else {
 				isPub = false
 			}
+		}
+		if !isPub && !client.ConfigConnAllow {
+			c.Close()
+			return
 		}
 		binary.Write(c, binary.LittleEndian, isPub)
 		go s.getConfig(c, isPub, client)
@@ -280,15 +251,9 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			s.SecretChan <- conn.NewSecret(string(b), c)
 		}
 	case common.WORK_FILE:
-		s.clientLock.Lock()
-		if v, ok := s.Client[id]; ok {
-			s.clientLock.Unlock()
-			v.Lock()
-			v.file = mux.NewMux(c.Conn, s.tunnelType)
-			v.Unlock()
-		} else {
-			s.Client[id] = NewClient(nil, mux.NewMux(c.Conn, s.tunnelType), nil)
-			s.clientLock.Unlock()
+		muxConn := mux.NewMux(c.Conn, s.tunnelType)
+		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, muxConn, nil)); ok {
+			v.(*Client).file = muxConn
 		}
 	case common.WORK_P2P:
 		//read md5 secret
@@ -297,21 +262,18 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		} else if t := file.GetCsvDb().GetTaskByMd5Password(string(b)); t == nil {
 			return
 		} else {
-			s.clientLock.Lock()
-			if v, ok := s.Client[t.Client.Id]; !ok {
-				s.clientLock.Unlock()
+			if v, ok := s.Client.Load(t.Client.Id); !ok {
 				return
 			} else {
-				s.clientLock.Unlock()
 				//向密钥对应的客户端发送与服务端udp建立连接信息，地址，密钥
-				v.signal.Write([]byte(common.NEW_UDP_CONN))
+				v.(*Client).signal.Write([]byte(common.NEW_UDP_CONN))
 				svrAddr := beego.AppConfig.String("p2p_ip") + ":" + beego.AppConfig.String("p2p_port")
 				if err != nil {
 					logs.Warn("get local udp addr error")
 					return
 				}
-				v.signal.WriteLenContent([]byte(svrAddr))
-				v.signal.WriteLenContent(b)
+				v.(*Client).signal.WriteLenContent([]byte(svrAddr))
+				v.(*Client).signal.WriteLenContent(b)
 				//向该请求者发送建立连接请求,服务器地址
 				c.WriteLenContent([]byte(svrAddr))
 			}
@@ -325,46 +287,36 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 func (s *Bridge) register(c *conn.Conn) {
 	var hour int32
 	if err := binary.Read(c, binary.LittleEndian, &hour); err == nil {
-		s.registerLock.Lock()
-		s.Register[common.GetIpByAddr(c.Conn.RemoteAddr().String())] = time.Now().Add(time.Hour * time.Duration(hour))
-		s.registerLock.Unlock()
+		s.Register.Store(common.GetIpByAddr(c.Conn.RemoteAddr().String()), time.Now().Add(time.Hour*time.Duration(hour)))
 	}
 }
 
 func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string, t *file.Tunnel) (target net.Conn, err error) {
-	s.clientLock.Lock()
-	if v, ok := s.Client[clientId]; ok {
-		s.clientLock.Unlock()
-
+	if v, ok := s.Client.Load(clientId); ok {
 		//If ip is restricted to do ip verification
 		if s.ipVerify {
-			s.registerLock.Lock()
 			ip := common.GetIpByAddr(linkAddr)
-			if v, ok := s.Register[ip]; !ok {
-				s.registerLock.Unlock()
+			if v, ok := s.Register.Load(ip); !ok {
 				return nil, errors.New(fmt.Sprintf("The ip %s is not in the validation list", ip))
 			} else {
-				s.registerLock.Unlock()
-				if !v.After(time.Now()) {
+				if !v.(time.Time).After(time.Now()) {
 					return nil, errors.New(fmt.Sprintf("The validity of the ip %s has expired", ip))
 				}
 			}
 		}
 		var tunnel *mux.Mux
 		if t != nil && t.Mode == "file" {
-			tunnel = v.file
+			tunnel = v.(*Client).file
 		} else {
-			tunnel = v.tunnel
+			tunnel = v.(*Client).tunnel
 		}
 		if tunnel == nil {
 			err = errors.New("the client connect error")
 			return
 		}
-
 		if target, err = tunnel.NewConn(); err != nil {
 			return
 		}
-
 		if t != nil && t.Mode == "file" {
 			return
 		}
@@ -374,7 +326,6 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string, t 
 			return
 		}
 	} else {
-		s.clientLock.Unlock()
 		err = errors.New(fmt.Sprintf("the client %d is not connect", clientId))
 	}
 	return
@@ -385,24 +336,24 @@ func (s *Bridge) ping() {
 	for {
 		select {
 		case <-ticker.C:
-			s.clientLock.Lock()
 			arr := make([]int, 0)
-			for k, v := range s.Client {
+			s.Client.Range(func(key, value interface{}) bool {
+				v := value.(*Client)
 				if v.tunnel == nil || v.signal == nil {
 					v.retryTime += 1
 					if v.retryTime >= 3 {
-						arr = append(arr, k)
+						arr = append(arr, key.(int))
 					}
-					continue
+					return true
 				}
 				if v.tunnel.IsClose {
-					arr = append(arr, k)
+					arr = append(arr, key.(int))
 				}
-			}
-			s.clientLock.Unlock()
+				return true
+			})
 			for _, v := range arr {
 				logs.Info("the client %d closed", v)
-				s.DelClient(v, false)
+				s.DelClient(v)
 			}
 		}
 	}
@@ -427,18 +378,20 @@ loop:
 				if err != nil {
 					break loop
 				}
-				file.GetCsvDb().Lock()
-				for _, v := range file.GetCsvDb().Hosts {
+				file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+					v := value.(*file.Host)
 					if v.Client.Id == id {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
-				}
-				for _, v := range file.GetCsvDb().Tasks {
+					return true
+				})
+				file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+					v := value.(*file.Tunnel)
 					if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
-				}
-				file.GetCsvDb().Unlock()
+					return true
+				})
 				binary.Write(c, binary.LittleEndian, int32(len([]byte(str))))
 				binary.Write(c, binary.LittleEndian, []byte(str))
 			}
@@ -456,9 +409,7 @@ loop:
 				}
 				c.WriteAddOk()
 				c.Write([]byte(client.VerifyKey))
-				s.clientLock.Lock()
-				s.Client[client.Id] = NewClient(nil, nil, nil)
-				s.clientLock.Unlock()
+				s.Client.Store(client.Id, NewClient(nil, nil, nil))
 			}
 		case common.NEW_HOST:
 			h, err := c.GetHostInfo()
@@ -518,7 +469,7 @@ loop:
 							tl.Target = strconv.Itoa(targets[i])
 						}
 					}
-					tl.Id = file.GetCsvDb().GetTaskId()
+					tl.Id = int(file.GetCsvDb().GetTaskId())
 					tl.Status = true
 					tl.Flow = new(file.Flow)
 					tl.NoStore = true
@@ -547,7 +498,7 @@ loop:
 		}
 	}
 	if fail && client != nil {
-		s.DelClient(client.Id, false)
+		s.DelClient(client.Id)
 	}
 	c.Close()
 }

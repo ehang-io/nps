@@ -49,12 +49,6 @@ retry:
 	s.processor(c)
 }
 
-func (s *TRPClient) Close() {
-	s.tunnel.Close()
-	s.signal.Close()
-	s.ticker.Stop()
-}
-
 //处理
 func (s *TRPClient) processor(c *conn.Conn) {
 	s.signal = c
@@ -231,4 +225,10 @@ loop:
 			}
 		}
 	}
+}
+
+func (s *TRPClient) Close() {
+	s.tunnel.Close()
+	s.signal.Close()
+	s.ticker.Stop()
 }

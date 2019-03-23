@@ -23,21 +23,22 @@ func (s *Flow) Add(in, out int64) {
 }
 
 type Client struct {
-	Cnf       *Config
-	Id        int        //id
-	VerifyKey string     //验证密钥
-	Addr      string     //客户端ip地址
-	Remark    string     //备注
-	Status    bool       //是否开启
-	IsConnect bool       //是否连接
-	RateLimit int        //速度限制 /kb
-	Flow      *Flow      //流量
-	Rate      *rate.Rate //速度控制
-	NoStore   bool
-	NoDisplay bool
-	MaxConn   int //客户端最大连接数
-	NowConn   int //当前连接数
-	id        int
+	Cnf             *Config
+	Id              int        //id
+	VerifyKey       string     //验证密钥
+	Addr            string     //客户端ip地址
+	Remark          string     //备注
+	Status          bool       //是否开启
+	IsConnect       bool       //是否连接
+	RateLimit       int        //速度限制 /kb
+	Flow            *Flow      //流量
+	Rate            *rate.Rate //速度控制
+	NoStore         bool
+	NoDisplay       bool
+	MaxConn         int //客户端最大连接数
+	NowConn         int //当前连接数
+	id              int
+	ConfigConnAllow bool
 	sync.RWMutex
 }
 
@@ -84,26 +85,29 @@ func (s *Client) ModifyTarget() {
 
 }
 
-func (s *Client) HasTunnel(t *Tunnel) bool {
-	GetCsvDb().Lock()
-	defer GetCsvDb().Unlock()
-	for _, v := range GetCsvDb().Tasks {
+func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
+	GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*Tunnel)
 		if v.Client.Id == s.Id && v.Port == t.Port {
-			return true
+			exist = true
+			return false
 		}
-	}
-	return false
+		return true
+	})
+	return
 }
 
 func (s *Client) HasHost(h *Host) bool {
-	GetCsvDb().Lock()
-	defer GetCsvDb().Unlock()
-	for _, v := range GetCsvDb().Hosts {
+	var has bool
+	GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+		v := value.(*Host)
 		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
-			return true
+			has = true
+			return false
 		}
-	}
-	return false
+		return true
+	})
+	return has
 }
 
 type Tunnel struct {

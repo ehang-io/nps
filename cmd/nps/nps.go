@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/install"
@@ -10,6 +11,7 @@ import (
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/test"
+	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	_ "github.com/cnlh/nps/web/routers"
@@ -60,5 +62,7 @@ func main() {
 	}
 	logs.Info("the version of server is %s ,allow client version to be %s", version.VERSION, version.GetVersion())
 	connection.InitConnectionService()
+	crypt.InitTls(filepath.Join(beego.AppPath, "conf", "server.pem"), filepath.Join(beego.AppPath, "conf", "server.key"))
+	tool.InitAllowPort()
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
 }

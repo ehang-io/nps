@@ -11,7 +11,6 @@ import (
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"net/http"
-	"strings"
 )
 
 var LocalServer []*net.TCPListener
@@ -51,21 +50,13 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 	}
 	LocalServer = append(LocalServer, listener)
 	logs.Info("successful start-up of local monitoring, port", l.Port)
-	for {
-		c, err := listener.AcceptTCP()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				break
-			}
-			logs.Info(err)
-			continue
-		}
+	conn.Accept(listener, func(c net.Conn) {
 		if l.Type == "secret" {
-			go processSecret(c, config, l)
+			processSecret(c, config, l)
 		} else {
-			go processP2P(c, config, l)
+			processP2P(c, config, l)
 		}
-	}
+	})
 	return nil
 }
 

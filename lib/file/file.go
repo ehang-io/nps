@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 func NewCsv(runPath string) *Csv {
@@ -24,15 +25,14 @@ func NewCsv(runPath string) *Csv {
 }
 
 type Csv struct {
-	Tasks            []*Tunnel
-	Path             string
-	Hosts            []*Host   //域名列表
-	Clients          []*Client //客户端
-	RunPath          string    //存储根目录
-	ClientIncreaseId int       //客户端id
-	TaskIncreaseId   int       //任务自增ID
-	HostIncreaseId   int
-	sync.RWMutex
+	Tasks            sync.Map
+	Hosts            sync.Map //域名列表
+	HostsTmp         sync.Map
+	Clients          sync.Map //客户端
+	RunPath          string   //存储根目录
+	ClientIncreaseId int32    //客户端id
+	TaskIncreaseId   int32    //任务自增ID
+	HostIncreaseId   int32    //host increased id
 }
 
 func (s *Csv) StoreTasksToCsv() {
@@ -43,10 +43,10 @@ func (s *Csv) StoreTasksToCsv() {
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
-	s.Lock()
-	for _, task := range s.Tasks {
+	s.Tasks.Range(func(key, value interface{}) bool {
+		task := value.(*Tunnel)
 		if task.NoStore {
-			continue
+			return true
 		}
 		record := []string{
 			strconv.Itoa(task.Port),
@@ -64,8 +64,8 @@ func (s *Csv) StoreTasksToCsv() {
 		if err != nil {
 			logs.Error(err.Error())
 		}
-	}
-	s.Unlock()
+		return true
+	})
 	writer.Flush()
 }
 
@@ -94,7 +94,6 @@ func (s *Csv) LoadTaskFromCsv() {
 		logs.Error("Profile Opening Error:", path)
 		os.Exit(0)
 	}
-	var tasks []*Tunnel
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Tunnel{
@@ -112,104 +111,79 @@ func (s *Csv) LoadTaskFromCsv() {
 		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[5])); err != nil {
 			continue
 		}
-		tasks = append(tasks, post)
-		if post.Id > s.TaskIncreaseId {
-			s.TaskIncreaseId = post.Id
+		s.Tasks.Store(post.Id, post)
+		if post.Id > int(s.TaskIncreaseId) {
+			s.TaskIncreaseId = int32(s.TaskIncreaseId)
 		}
 	}
-	s.Tasks = tasks
 }
 
-func (s *Csv) GetTaskId() int {
-	s.Lock()
-	defer s.Unlock()
-	s.TaskIncreaseId++
-	return s.TaskIncreaseId
-}
-
-func (s *Csv) GetHostId() int {
-	s.Lock()
-	defer s.Unlock()
-	s.HostIncreaseId++
-	return s.HostIncreaseId
-}
-
-func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (int, error) {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Clients {
+func (s *Csv) GetIdByVerifyKey(vKey string, addr string) (id int, err error) {
+	var exist bool
+	s.Clients.Range(func(key, value interface{}) bool {
+		v := value.(*Client)
 		if common.Getverifyval(v.VerifyKey) == vKey && v.Status {
-			if arr := strings.Split(addr, ":"); len(arr) > 0 {
-				v.Addr = arr[0]
-			}
-			return v.Id, nil
+			v.Addr = common.GetIpByAddr(addr)
+			id = v.Id
+			exist = true
+			return false
 		}
+		return true
+	})
+	if exist {
+		return
 	}
 	return 0, errors.New("not found")
 }
 
-func (s *Csv) NewTask(t *Tunnel) error {
-	s.Lock()
-	for _, v := range s.Tasks {
+func (s *Csv) NewTask(t *Tunnel) (err error) {
+	s.Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*Tunnel)
 		if (v.Mode == "secret" || v.Mode == "p2p") && v.Password == t.Password {
-			return errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
+			err = errors.New(fmt.Sprintf("Secret mode keys %s must be unique", t.Password))
+			return false
 		}
+		return true
+	})
+	if err != nil {
+		return
 	}
 	t.Flow = new(Flow)
-	s.Tasks = append(s.Tasks, t)
-	s.Unlock()
+	s.Tasks.Store(t.Id, t)
+	s.StoreTasksToCsv()
+	return
+}
+
+func (s *Csv) UpdateTask(t *Tunnel) error {
+	s.Tasks.Store(t.Id, t)
 	s.StoreTasksToCsv()
 	return nil
 }
 
-func (s *Csv) UpdateTask(t *Tunnel) error {
-	s.Lock()
-	for _, v := range s.Tasks {
-		if v.Id == t.Id {
-			s.Unlock()
-			s.StoreTasksToCsv()
-			return nil
-		}
-	}
-	s.Unlock()
-	return errors.New("the task is not exist")
-}
-
 func (s *Csv) DelTask(id int) error {
-	s.Lock()
-	for k, v := range s.Tasks {
-		if v.Id == id {
-			s.Tasks = append(s.Tasks[:k], s.Tasks[k+1:]...)
-			s.Unlock()
-			s.StoreTasksToCsv()
-			return nil
-		}
-	}
-	s.Unlock()
-	return errors.New("不存在")
-}
-
-//md5 password
-func (s *Csv) GetTaskByMd5Password(p string) *Tunnel {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Tasks {
-		if crypt.Md5(v.Password) == p {
-			return v
-		}
-	}
+	s.Tasks.Delete(id)
+	s.StoreTasksToCsv()
 	return nil
 }
 
-func (s *Csv) GetTask(id int) (v *Tunnel, err error) {
-	s.Lock()
-	defer s.Unlock()
-	for _, v = range s.Tasks {
-		if v.Id == id {
-			return
+//md5 password
+func (s *Csv) GetTaskByMd5Password(p string) (t *Tunnel) {
+	s.Tasks.Range(func(key, value interface{}) bool {
+		if crypt.Md5(value.(*Tunnel).Password) == p {
+			t = value.(*Tunnel)
+			return false
 		}
+		return true
+	})
+	return
+}
+
+func (s *Csv) GetTask(id int) (t *Tunnel, err error) {
+	if v, ok := s.Tasks.Load(id); ok {
+		t = v.(*Tunnel)
+		return
 	}
-	err = errors.New("未找到")
+	err = errors.New("not found")
 	return
 }
 
@@ -224,11 +198,10 @@ func (s *Csv) StoreHostToCsv() {
 	writer := csv.NewWriter(csvFile)
 	// 将map中的Post转换成slice，因为csv的Write需要slice参数
 	// 并写入csv文件
-	s.Lock()
-	defer s.Unlock()
-	for _, host := range s.Hosts {
+	s.Hosts.Range(func(key, value interface{}) bool {
+		host := value.(*Host)
 		if host.NoStore {
-			continue
+			return true
 		}
 		record := []string{
 			host.Host,
@@ -247,7 +220,9 @@ func (s *Csv) StoreHostToCsv() {
 		if err1 != nil {
 			panic(err1)
 		}
-	}
+		return true
+	})
+
 	// 确保所有内存数据刷到csv文件
 	writer.Flush()
 }
@@ -259,7 +234,6 @@ func (s *Csv) LoadClientFromCsv() {
 		logs.Error("Profile Opening Error:", path)
 		os.Exit(0)
 	}
-	var clients []*Client
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Client{
@@ -276,8 +250,8 @@ func (s *Csv) LoadClientFromCsv() {
 			},
 			MaxConn: common.GetIntNoErrByStr(item[10]),
 		}
-		if post.Id > s.ClientIncreaseId {
-			s.ClientIncreaseId = post.Id
+		if post.Id > int(s.ClientIncreaseId) {
+			s.ClientIncreaseId = int32(post.Id)
 		}
 		if post.RateLimit > 0 {
 			post.Rate = rate.NewRate(int64(post.RateLimit * 1024))
@@ -285,9 +259,13 @@ func (s *Csv) LoadClientFromCsv() {
 		}
 		post.Flow = new(Flow)
 		post.Flow.FlowLimit = int64(common.GetIntNoErrByStr(item[9]))
-		clients = append(clients, post)
+		if len(item) >= 12 {
+			post.ConfigConnAllow = common.GetBoolByStr(item[11])
+		} else {
+			post.ConfigConnAllow = true
+		}
+		s.Clients.Store(post.Id, post)
 	}
-	s.Clients = clients
 }
 
 func (s *Csv) LoadHostFromCsv() {
@@ -297,7 +275,6 @@ func (s *Csv) LoadHostFromCsv() {
 		logs.Error("Profile Opening Error:", path)
 		os.Exit(0)
 	}
-	var hosts []*Host
 	// 将每一行数据保存到内存slice中
 	for _, item := range records {
 		post := &Host{
@@ -320,37 +297,40 @@ func (s *Csv) LoadHostFromCsv() {
 		} else {
 			post.Scheme = "all"
 		}
-		hosts = append(hosts, post)
-		if post.Id > s.HostIncreaseId {
-			s.HostIncreaseId = post.Id
+		s.Hosts.Store(post.Id, post)
+		if post.Id > int(s.HostIncreaseId) {
+			s.HostIncreaseId = int32(post.Id)
 		}
+		//store host to hostMap if the host url is none
 	}
-	s.Hosts = hosts
 }
 
 func (s *Csv) DelHost(id int) error {
-	s.Lock()
-	for k, v := range s.Hosts {
-		if v.Id == id {
-			s.Hosts = append(s.Hosts[:k], s.Hosts[k+1:]...)
-			s.Unlock()
-			s.StoreHostToCsv()
-			return nil
-		}
-	}
-	s.Unlock()
-	return errors.New("不存在")
+	s.Hosts.Delete(id)
+	s.StoreHostToCsv()
+	return nil
+}
+
+func (s *Csv) GetMapLen(m sync.Map) int {
+	var c int
+	m.Range(func(key, value interface{}) bool {
+		c++
+		return true
+	})
+	return c
 }
 
 func (s *Csv) IsHostExist(h *Host) bool {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Hosts {
+	var exist bool
+	s.Hosts.Range(func(key, value interface{}) bool {
+		v := value.(*Host)
 		if v.Host == h.Host && h.Location == v.Location && (v.Scheme == "all" || v.Scheme == h.Scheme) {
-			return true
+			exist = true
+			return false
 		}
-	}
-	return false
+		return true
+	})
+	return exist
 }
 
 func (s *Csv) NewHost(t *Host) error {
@@ -361,37 +341,27 @@ func (s *Csv) NewHost(t *Host) error {
 		t.Location = "/"
 	}
 	t.Flow = new(Flow)
-	s.Lock()
-	s.Hosts = append(s.Hosts, t)
-	s.Unlock()
+	s.Hosts.Store(t.Id, t)
 	s.StoreHostToCsv()
 	return nil
 }
 
-func (s *Csv) UpdateHost(t *Host) error {
-	s.Lock()
-	for _, v := range s.Hosts {
-		if v.Host == t.Host {
-			s.Unlock()
-			s.StoreHostToCsv()
-			return nil
-		}
-	}
-	s.Unlock()
-	return errors.New("不存在")
-}
-
-func (s *Csv) GetHost(start, length int, id int) ([]*Host, int) {
+func (s *Csv) GetHost(start, length int, id int, search string) ([]*Host, int) {
 	list := make([]*Host, 0)
 	var cnt int
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Hosts {
-		if id == 0 || v.Client.Id == id {
-			cnt++
-			if start--; start < 0 {
-				if length--; length > 0 {
-					list = append(list, v)
+	keys := common.GetMapKeys(s.Hosts)
+	for _, key := range keys {
+		if value, ok := s.Hosts.Load(key); ok {
+			v := value.(*Host)
+			if search != "" && !(v.Id == common.GetIntNoErrByStr(search) || strings.Contains(v.Host, search) || strings.Contains(v.Remark, search)) {
+				continue
+			}
+			if id == 0 || v.Client.Id == id {
+				cnt++
+				if start--; start < 0 {
+					if length--; length > 0 {
+						list = append(list, v)
+					}
 				}
 			}
 		}
@@ -400,17 +370,9 @@ func (s *Csv) GetHost(start, length int, id int) ([]*Host, int) {
 }
 
 func (s *Csv) DelClient(id int) error {
-	s.Lock()
-	for k, v := range s.Clients {
-		if v.Id == id {
-			s.Clients = append(s.Clients[:k], s.Clients[k+1:]...)
-			s.Unlock()
-			s.StoreClientsToCsv()
-			return nil
-		}
-	}
-	s.Unlock()
-	return errors.New("不存在")
+	s.Clients.Delete(id)
+	s.StoreClientsToCsv()
+	return nil
 }
 
 func (s *Csv) NewClient(c *Client) error {
@@ -427,106 +389,100 @@ reset:
 		return errors.New("Vkey duplicate, please reset")
 	}
 	if c.Id == 0 {
-		c.Id = s.GetClientId()
+		c.Id = int(s.GetClientId())
 	}
 	if c.Flow == nil {
 		c.Flow = new(Flow)
 	}
-	s.Lock()
-	s.Clients = append(s.Clients, c)
-	s.Unlock()
+	s.Clients.Store(c.Id, c)
 	s.StoreClientsToCsv()
 	return nil
 }
 
-func (s *Csv) VerifyVkey(vkey string, id int) bool {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Clients {
+func (s *Csv) VerifyVkey(vkey string, id int) (res bool) {
+	res = true
+	s.Clients.Range(func(key, value interface{}) bool {
+		v := value.(*Client)
 		if v.VerifyKey == vkey && v.Id != id {
+			res = false
 			return false
 		}
-	}
-	return true
+		return true
+	})
+	return res
 }
 
-func (s *Csv) GetClientId() int {
-	s.Lock()
-	defer s.Unlock()
-	s.ClientIncreaseId++
-	return s.ClientIncreaseId
+func (s *Csv) GetClientId() int32 {
+	return atomic.AddInt32(&s.ClientIncreaseId, 1)
+}
+
+func (s *Csv) GetTaskId() int32 {
+	return atomic.AddInt32(&s.TaskIncreaseId, 1)
+}
+
+func (s *Csv) GetHostId() int32 {
+	return atomic.AddInt32(&s.HostIncreaseId, 1)
 }
 
 func (s *Csv) UpdateClient(t *Client) error {
-	s.Lock()
-	for _, v := range s.Clients {
-		if v.Id == t.Id {
-			v.Cnf = t.Cnf
-			v.VerifyKey = t.VerifyKey
-			v.Remark = t.Remark
-			v.RateLimit = t.RateLimit
-			v.Flow = t.Flow
-			v.Rate = t.Rate
-			s.Unlock()
-			s.StoreClientsToCsv()
-			return nil
-		}
-	}
-	s.Unlock()
-	return errors.New("该客户端不存在")
+	s.Clients.Store(t.Id, t)
+	return nil
 }
 
-func (s *Csv) GetClientList(start, length int) ([]*Client, int) {
+func (s *Csv) GetClientList(start, length int, search string) ([]*Client, int) {
 	list := make([]*Client, 0)
 	var cnt int
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Clients {
-		if v.NoDisplay {
-			continue
-		}
-		cnt++
-		if start--; start < 0 {
-			if length--; length > 0 {
-				list = append(list, v)
+	keys := common.GetMapKeys(s.Clients)
+	for _, key := range keys {
+		if value, ok := s.Clients.Load(key); ok {
+			v := value.(*Client)
+			if v.NoDisplay {
+				continue
+			}
+			if search != "" && !(v.Id == common.GetIntNoErrByStr(search) || strings.Contains(v.VerifyKey, search) || strings.Contains(v.Remark, search)) {
+				continue
+			}
+			cnt++
+			if start--; start < 0 {
+				if length--; length > 0 {
+					list = append(list, v)
+				}
 			}
 		}
 	}
 	return list, cnt
 }
 
-func (s *Csv) GetClient(id int) (v *Client, err error) {
-	s.Lock()
-	defer s.Unlock()
-	for _, v = range s.Clients {
-		if v.Id == id {
-			return
-		}
+func (s *Csv) GetClient(id int) (c *Client, err error) {
+	if v, ok := s.Clients.Load(id); ok {
+		c = v.(*Client)
+		return
 	}
 	err = errors.New("未找到客户端")
 	return
 }
 func (s *Csv) GetClientIdByVkey(vkey string) (id int, err error) {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Clients {
+	var exist bool
+	s.Clients.Range(func(key, value interface{}) bool {
+		v := value.(*Client)
 		if crypt.Md5(v.VerifyKey) == vkey {
+			exist = true
 			id = v.Id
-			return
+			return false
 		}
+		return true
+	})
+	if exist {
+		return
 	}
 	err = errors.New("未找到客户端")
 	return
 }
 
 func (s *Csv) GetHostById(id int) (h *Host, err error) {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Hosts {
-		if v.Id == id {
-			h = v
-			return
-		}
+	if v, ok := s.Hosts.Load(id); ok {
+		h = v.(*Host)
+		return
 	}
 	err = errors.New("The host could not be parsed")
 	return
@@ -537,24 +493,25 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 	var hosts []*Host
 	//Handling Ported Access
 	host = common.GetIpByAddr(host)
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.Hosts {
+	s.Hosts.Range(func(key, value interface{}) bool {
+		v := value.(*Host)
 		if v.IsClose {
-			continue
+			return true
 		}
 		//Remove http(s) http(s)://a.proxy.com
 		//*.proxy.com *.a.proxy.com  Do some pan-parsing
 		tmp := strings.Replace(v.Host, "*", `\w+?`, -1)
 		var re *regexp.Regexp
 		if re, err = regexp.Compile(tmp); err != nil {
-			return
+			return true
 		}
 		if len(re.FindAllString(host, -1)) > 0 && (v.Scheme == "all" || v.Scheme == r.URL.Scheme) {
 			//URL routing
 			hosts = append(hosts, v)
 		}
-	}
+		return true
+	})
+
 	for _, v := range hosts {
 		//If not set, default matches all
 		if v.Location == "" {
@@ -572,6 +529,7 @@ func (s *Csv) GetInfoByHost(host string, r *http.Request) (h *Host, err error) {
 	err = errors.New("The host could not be parsed")
 	return
 }
+
 func (s *Csv) StoreClientsToCsv() {
 	// 创建文件
 	csvFile, err := os.Create(filepath.Join(s.RunPath, "conf", "clients.csv"))
@@ -580,11 +538,10 @@ func (s *Csv) StoreClientsToCsv() {
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
-	s.Lock()
-	defer s.Unlock()
-	for _, client := range s.Clients {
+	s.Clients.Range(func(key, value interface{}) bool {
+		client := value.(*Client)
 		if client.NoStore {
-			continue
+			return true
 		}
 		record := []string{
 			strconv.Itoa(client.Id),
@@ -598,11 +555,13 @@ func (s *Csv) StoreClientsToCsv() {
 			strconv.Itoa(client.RateLimit),
 			strconv.Itoa(int(client.Flow.FlowLimit)),
 			strconv.Itoa(int(client.MaxConn)),
+			common.GetStrByBool(client.ConfigConnAllow),
 		}
 		err := writer.Write(record)
 		if err != nil {
 			logs.Error(err.Error())
 		}
-	}
+		return true
+	})
 	writer.Flush()
 }

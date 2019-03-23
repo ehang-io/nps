@@ -20,7 +20,7 @@
                         <div id="toolbar">
                             <a href="/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
                                class="btn btn-primary dim"
-                               type="button">new</a>
+                               type="button" langtag="info-new">新增</a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
                                data-mobile-responsive="true"></table>
@@ -46,8 +46,10 @@
             return {
                 "offset": params.offset,
                 "limit": params.limit,
+                "search": params.search
             }
         },
+        search: true,
         contentType: "application/x-www-form-urlencoded",
         striped: true, // 设置为true会有隔行变色效果
         showHeader: true,
@@ -60,13 +62,14 @@
         detailView: true,
         smartDisplay: true, // 智能显示 pagination 和 cardview 等
         detailFormatter: function (index, row, element) {
-            return '<b>export flow: </b>' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>inlet flow: </b>' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>crypt: </b>' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>compress: </b>' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b>username: </b>' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>password: </b>' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b>header_change: </b>' + row.HeaderChange + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+            return '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-crypt">加密</b>：' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-compress">压缩</b>：' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b langtag="info-web-auth-username">basic权限认证用户名</b>：' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-password">basic权限认证密码</b>：' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b langtag="info-header-change">request header修改</b>：' + row.HeaderChange + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b langtag="info-host-change">request host 修改</b>：' + row.HostChange + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
         },
         //表格的列
         columns: [

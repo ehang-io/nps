@@ -5,19 +5,19 @@
             <div class="ibox-content">
                 <form class="form-horizontal">
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">remark</label>
+                        <label class="col-sm-2 control-label" langtag="info-remark">备注</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="remark" placeholder="remark">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">host</label>
+                        <label class="col-sm-2 control-label" langtag="info-host">域名</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="host" placeholder="such as a.proxy.com">
                         </div>
                     </div>
                     <div class="form-group" id="scheme">
-                        <label class="control-label col-sm-2">scheme</label>
+                        <label class="control-label col-sm-2" langtag="info-scheme">协议类型</label>
                         <div class="col-sm-10">
                             <select class="form-control" name="scheme">
                                 <option value="all">all</option>
@@ -27,21 +27,21 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">url router</label>
+                        <label class="col-sm-2 control-label" langtag="info-url-router">url路由</label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="location"
                                    placeholder="empty means to be unrestricted">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">client id</label>
+                        <label class="col-sm-2 control-label" langtag="info-client-id">客户端id</label>
                         <div class="col-sm-10">
                             <input value="{{.client_id}}" class="form-control" type="text" name="client_id"
                                    placeholder="client id">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label">target of Intranet(ip:port)</label>
+                        <label class="col-sm-2 control-label" langtag="info-target">内网目标(ip:端口)</label>
                         <div class="col-sm-10">
                         <textarea class="form-control" rows="4" type="text" name="target"
                                   placeholder="such as
@@ -52,7 +52,7 @@
                         </div>
                     </div>
                     <div class="form-group" id="header">
-                        <label class="col-sm-2 control-label">header modify</label>
+                        <label class="col-sm-2 control-label" langtag="info-header-modify">request header修改</label>
                         <div class="col-sm-10">
                         <textarea class="form-control" rows="4" type="text" name="header"
                                   placeholder="Cache-Control: no-cache"></textarea>
@@ -60,8 +60,8 @@
                         </div>
 
                     </div>
-                    <div class="form-group" id="hostchange">
-                        <label class="col-sm-2 control-label">host modify</label>
+                    <div class="form-group" id="hostchange" >
+                        <label class="col-sm-2 control-label" langtag="info-host-change">request host修改</label>
                         <div class="col-sm-10">
                             <input class="form-control" value="" type="text" name="hostchange"
                                    placeholder="host modify">
@@ -71,7 +71,7 @@
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
                             &nbsp;<button class="btn btn-success" href="#" id="add"><i
-                                class="fa fa-fw fa-lg fa-eye"></i>add
+                                class="fa fa-fw fa-lg fa-eye"></i>新增
                         </button>
                         </div>
                     </div>

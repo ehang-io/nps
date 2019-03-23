@@ -23,8 +23,6 @@ import (
 	"time"
 )
 
-const cryptKey = "1234567812345678"
-
 type Conn struct {
 	Conn net.Conn
 	sync.Mutex
@@ -246,7 +244,7 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 	} else {
 		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		h = new(file.Host)
-		h.Id = file.GetCsvDb().GetHostId()
+		h.Id = int(file.GetCsvDb().GetHostId())
 		h.Host = arr[0]
 		h.Target = arr[1]
 		h.HeaderChange = arr[2]
@@ -339,7 +337,7 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 		t.Mode = arr[0]
 		t.Ports = arr[1]
 		t.Target = arr[2]
-		t.Id = file.GetCsvDb().GetTaskId()
+		t.Id = int(file.GetCsvDb().GetTaskId())
 		t.Status = true
 		t.Flow = new(file.Flow)
 		t.Remark = arr[3]

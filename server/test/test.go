@@ -5,19 +5,23 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"log"
+	"path/filepath"
 	"strconv"
 )
 
 func TestServerConfig() {
 	var postTcpArr []int
 	var postUdpArr []int
-	for _, v := range file.GetCsvDb().Tasks {
+	file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*file.Tunnel)
 		if v.Mode == "udp" {
 			isInArr(&postUdpArr, v.Port, v.Remark, "udp")
-		} else {
+		} else if v.Port != 0 {
+
 			isInArr(&postTcpArr, v.Port, v.Remark, "tcp")
 		}
-	}
+		return true
+	})
 	p, err := beego.AppConfig.Int("web_port")
 	if err != nil {
 		log.Fatalln("Getting web management port error :", err)
@@ -43,16 +47,18 @@ func TestServerConfig() {
 		}
 	}
 	if p := beego.AppConfig.String("https_proxy_port"); p != "" {
-		if port, err := strconv.Atoi(p); err != nil {
-			log.Fatalln("get https port error", err)
-		} else {
-			if !common.FileExists(beego.AppConfig.String("pemPath")) {
-				log.Fatalf("ssl certFile %s is not exist", beego.AppConfig.String("pemPath"))
+		if b, err := beego.AppConfig.Bool("https_just_proxy"); !(err == nil && b) {
+			if port, err := strconv.Atoi(p); err != nil {
+				log.Fatalln("get https port error", err)
+			} else {
+				if !common.FileExists(filepath.Join(beego.AppPath, beego.AppConfig.String("pemPath"))) {
+					log.Fatalf("ssl certFile %s is not exist", beego.AppConfig.String("pemPath"))
+				}
+				if !common.FileExists(filepath.Join(beego.AppPath, beego.AppConfig.String("ketPath"))) {
+					log.Fatalf("ssl keyFile %s is not exist", beego.AppConfig.String("pemPath"))
+				}
+				isInArr(&postTcpArr, port, "http port", "tcp")
 			}
-			if !common.FileExists(beego.AppConfig.String("ketPath")) {
-				log.Fatalf("ssl keyFile %s is not exist", beego.AppConfig.String("pemPath"))
-			}
-			isInArr(&postTcpArr, port, "http port", "tcp")
 		}
 	}
 }

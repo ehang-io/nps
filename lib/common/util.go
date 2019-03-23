@@ -13,8 +13,10 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 //Get the corresponding IP address through domain name
@@ -343,4 +345,13 @@ func BytesToNum(b []byte) int {
 	}
 	x, _ := strconv.Atoi(str)
 	return int(x)
+}
+
+func GetMapKeys(m sync.Map) (keys []int) {
+	m.Range(func(key, value interface{}) bool {
+		keys = append(keys, key.(int))
+		return true
+	})
+	sort.Ints(keys)
+	return
 }

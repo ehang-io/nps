@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"time"
 )
 
 type AuthController struct {
@@ -30,4 +31,11 @@ func (s *AuthController) GetAuthKey() {
 		m["crypt_type"] = "aes cbc"
 		return
 	}
+}
+
+func (s *AuthController) GetTime() {
+	m := make(map[string]interface{})
+	m["time"] = time.Now().Unix()
+	s.Data["json"] = m
+	s.ServeJSON()
 }

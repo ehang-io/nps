@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,11 +41,12 @@ func InitFromCsv() {
 		RunList[c.Id] = nil
 	}
 	//Initialize services in server-side files
-	for _, v := range file.GetCsvDb().Tasks {
-		if v.Status {
-			AddTask(v)
+	file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+		if value.(*file.Tunnel).Status {
+			AddTask(value.(*file.Tunnel))
 		}
-	}
+		return true
+	})
 }
 
 func DealBridgeTask() {
@@ -66,7 +68,7 @@ func DealBridgeTask() {
 					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
 					s.Conn.Close()
 				} else if t.Status {
-					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target, nil, common.CONN_TCP)
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target, nil, common.CONN_TCP, nil)
 				} else {
 					s.Conn.Close()
 					logs.Trace("This key %s cannot be processed,status is close", s.Password)
@@ -82,10 +84,12 @@ func DealBridgeTask() {
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList)
-	if err := Bridge.StartTunnel(); err != nil {
-		logs.Error("start server bridge error", err)
-		os.Exit(0)
-	}
+	go func() {
+		if err := Bridge.StartTunnel(); err != nil {
+			logs.Error("start server bridge error", err)
+			os.Exit(0)
+		}
+	}()
 	if p, err := beego.AppConfig.Int("p2p_port"); err == nil {
 		logs.Info("start p2p server port", p)
 		go proxy.NewP2PServer(p).Start()
@@ -107,7 +111,7 @@ func dealClientFlow() {
 	for {
 		select {
 		case <-ticker.C:
-			dealClientData(file.GetCsvDb().Clients)
+			dealClientData()
 		}
 	}
 }
@@ -148,6 +152,8 @@ func StopServer(id int) error {
 				return err
 			}
 			logs.Info("stop server id %d", id)
+		} else {
+			logs.Warn("stop server id %d error", id)
 		}
 		if t, err := file.GetCsvDb().GetTask(id); err != nil {
 			return err
@@ -214,29 +220,34 @@ func DelTask(id int) error {
 }
 
 //get task list by page num
-func GetTunnel(start, length int, typeVal string, clientId int) ([]*file.Tunnel, int) {
+func GetTunnel(start, length int, typeVal string, clientId int, search string) ([]*file.Tunnel, int) {
 	list := make([]*file.Tunnel, 0)
 	var cnt int
-	file.GetCsvDb().Lock()
-	defer file.GetCsvDb().Unlock()
-	for _, v := range file.GetCsvDb().Tasks {
-		if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
-			continue
-		}
-		cnt++
-		if _, ok := Bridge.Client[v.Client.Id]; ok {
-			v.Client.IsConnect = true
-		} else {
-			v.Client.IsConnect = false
-		}
-		if start--; start < 0 {
-			if length--; length > 0 {
-				if _, ok := RunList[v.Id]; ok {
-					v.RunStatus = true
-				} else {
-					v.RunStatus = false
+	keys := common.GetMapKeys(file.GetCsvDb().Tasks)
+	for _, key := range keys {
+		if value, ok := file.GetCsvDb().Tasks.Load(key); ok {
+			v := value.(*file.Tunnel)
+			if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
+				continue
+			}
+			if search != "" && !(v.Id == common.GetIntNoErrByStr(search) || v.Port == common.GetIntNoErrByStr(search) || strings.Contains(v.Password, search) || strings.Contains(v.Remark, search)) {
+				continue
+			}
+			cnt++
+			if _, ok := Bridge.Client.Load(v.Client.Id); ok {
+				v.Client.IsConnect = true
+			} else {
+				v.Client.IsConnect = false
+			}
+			if start--; start < 0 {
+				if length--; length > 0 {
+					if _, ok := RunList[v.Id]; ok {
+						v.RunStatus = true
+					} else {
+						v.RunStatus = false
+					}
+					list = append(list, v)
 				}
-				list = append(list, v)
 			}
 		}
 	}
@@ -244,60 +255,64 @@ func GetTunnel(start, length int, typeVal string, clientId int) ([]*file.Tunnel,
 }
 
 //获取客户端列表
-func GetClientList(start, length int) (list []*file.Client, cnt int) {
-	list, cnt = file.GetCsvDb().GetClientList(start, length)
-	dealClientData(list)
+func GetClientList(start, length int, search string) (list []*file.Client, cnt int) {
+	list, cnt = file.GetCsvDb().GetClientList(start, length, search)
+	dealClientData()
 	return
 }
 
-func dealClientData(list []*file.Client) {
-	file.GetCsvDb().Lock()
-	defer file.GetCsvDb().Unlock()
-	for _, v := range list {
-		if _, ok := Bridge.Client[v.Id]; ok {
+func dealClientData() {
+	file.GetCsvDb().Clients.Range(func(key, value interface{}) bool {
+		v := value.(*file.Client)
+		if _, ok := Bridge.Client.Load(v.Id); ok {
 			v.IsConnect = true
 		} else {
 			v.IsConnect = false
 		}
 		v.Flow.InletFlow = 0
 		v.Flow.ExportFlow = 0
-		for _, h := range file.GetCsvDb().Hosts {
+		file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+			h := value.(*file.Host)
 			if h.Client.Id == v.Id {
 				v.Flow.InletFlow += h.Flow.InletFlow
 				v.Flow.ExportFlow += h.Flow.ExportFlow
 			}
-		}
-		for _, t := range file.GetCsvDb().Tasks {
+			return true
+		})
+		file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+			t := value.(*file.Tunnel)
 			if t.Client.Id == v.Id {
 				v.Flow.InletFlow += t.Flow.InletFlow
 				v.Flow.ExportFlow += t.Flow.ExportFlow
 			}
-		}
-	}
+			return true
+		})
+		return true
+	})
 	return
 }
 
 //根据客户端id删除其所属的所有隧道和域名
 func DelTunnelAndHostByClientId(clientId int) {
 	var ids []int
-	file.GetCsvDb().Lock()
-	for _, v := range file.GetCsvDb().Tasks {
+	file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*file.Tunnel)
 		if v.Client.Id == clientId {
 			ids = append(ids, v.Id)
 		}
-	}
-	file.GetCsvDb().Unlock()
+		return true
+	})
 	for _, id := range ids {
 		DelTask(id)
 	}
 	ids = ids[:0]
-	file.GetCsvDb().Lock()
-	for _, v := range file.GetCsvDb().Hosts {
+	file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+		v := value.(*file.Host)
 		if v.Client.Id == clientId {
 			ids = append(ids, v.Id)
 		}
-	}
-	file.GetCsvDb().Unlock()
+		return true
+	})
 	for _, id := range ids {
 		file.GetCsvDb().DelHost(id)
 	}
@@ -305,32 +320,31 @@ func DelTunnelAndHostByClientId(clientId int) {
 
 //关闭客户端连接
 func DelClientConnect(clientId int) {
-	Bridge.DelClient(clientId, false)
+	Bridge.DelClient(clientId)
 }
 
 func GetDashboardData() map[string]interface{} {
 	data := make(map[string]interface{})
-	data["hostCount"] = len(file.GetCsvDb().Hosts)
-	data["clientCount"] = len(file.GetCsvDb().Clients) - 1 //Remove the public key client
-	list := file.GetCsvDb().Clients
-	dealClientData(list)
+	data["hostCount"] = file.GetCsvDb().GetMapLen(file.GetCsvDb().Hosts)
+	data["clientCount"] = file.GetCsvDb().GetMapLen(file.GetCsvDb().Clients) - 1 //Remove the public key client
+	dealClientData()
 	c := 0
 	var in, out int64
-	for _, v := range list {
+	file.GetCsvDb().Clients.Range(func(key, value interface{}) bool {
+		v := value.(*file.Client)
 		if v.IsConnect {
 			c += 1
 		}
 		in += v.Flow.InletFlow
 		out += v.Flow.ExportFlow
-	}
+		return true
+	})
 	data["clientOnlineCount"] = c
 	data["inletFlowCount"] = int(in)
 	data["exportFlowCount"] = int(out)
 	var tcp, udp, secret, socks5, p2p, http int
-	file.GetCsvDb().Lock()
-	defer file.GetCsvDb().Unlock()
-	for _, v := range file.GetCsvDb().Tasks {
-		switch v.Mode {
+	file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+		switch value.(*file.Tunnel).Mode {
 		case "tcp":
 			tcp += 1
 		case "socks5":
@@ -344,7 +358,9 @@ func GetDashboardData() map[string]interface{} {
 		case "secret":
 			secret += 1
 		}
-	}
+		return true
+	})
+
 	data["tcpC"] = tcp
 	data["udpCount"] = udp
 	data["socks5Count"] = socks5
@@ -360,9 +376,11 @@ func GetDashboardData() map[string]interface{} {
 	data["p2pPort"] = beego.AppConfig.String("p2p_port")
 	data["logLevel"] = beego.AppConfig.String("log_level")
 	tcpCount := 0
-	for _, v := range file.GetCsvDb().Clients {
-		tcpCount += v.NowConn
-	}
+
+	file.GetCsvDb().Clients.Range(func(key, value interface{}) bool {
+		tcpCount += value.(*file.Client).NowConn
+		return true
+	})
 	data["tcpCount"] = tcpCount
 	cpuPercet, _ := cpu.Percent(0, true)
 	var cpuAll float64

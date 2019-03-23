@@ -18,7 +18,7 @@
                 <div class="content">
                     <div class="table-responsive">
                         <div id="toolbar">
-                            <a href="/client/add" class="btn btn-primary dim" type="button">new</i></a>
+                            <a href="/client/add" class="btn btn-primary dim" type="button" langtag="info-new">新增</a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
                                data-mobile-responsive="true"></table>
@@ -109,6 +109,7 @@
         url: "/client/list", // 服务器数据的加载地址
         contentType: "application/x-www-form-urlencoded",
         striped: true, // 设置为true会有隔行变色效果
+        search: true,
         showHeader: true,
         showColumns: true,
         showRefresh: true,
@@ -119,17 +120,18 @@
         detailView: true,
         smartDisplay: true, // 智能显示 pagination 和 cardview 等
         detailFormatter: function (index, row, element) {
-            return '<b>max connection num: </b>' + row.MaxConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>now conn num: </b>' + row.NowConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>rate limit: </b>' + row.Flow.FlowLimit + `m&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>flow limit: </b>' + row.RateLimit + `kb/s&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>export flow: </b>' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>inlet flow: </b>' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b>crypt: </b>' + row.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>compress: </b>' + row.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>username: </b>' + row.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>password: </b>' + row.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b>commond: </b>' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.VerifyKey + " -type=" +{{.bridgeType}} +"</code>"
+            return '<b langtag="info-max-conn-num">最大连接数</b>：' + row.MaxConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-now-conn-num">当前连接数</b>：' + row.NowConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-flow-limit">流量限制</b>：' + row.Flow.FlowLimit + `m&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-rate-limit">带宽限制</b>：' + row.RateLimit + `kb/s&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b langtag="info-crypt">加密</b>：' + row.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-compress">压缩</b>：' + row.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-config-conn-allow">是否允许配置文件模式连接</b>：' + row.ConfigConnAllow + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-username">basic认证用户名</b>：' + row.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-password">basic认证密码</b>：' + row.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + '<b langtag="info-command">命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.VerifyKey + " -type=" +{{.bridgeType}} +"</code>"
         },
         //表格的列
         columns: [
@@ -147,7 +149,7 @@
             },
             {
                 field: 'VerifyKey',//域值
-                title: 'key',//标题
+                title: 'vkey',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
