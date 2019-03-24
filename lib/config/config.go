@@ -104,7 +104,7 @@ func dealCommon(s string) *CommonConfig {
 	c := &CommonConfig{}
 	c.Cnf = new(file.Config)
 	c.Client = file.NewClient("", true, true)
-	for _, v := range strings.Split(s, "\n") {
+	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
 			continue
@@ -146,12 +146,7 @@ func dealCommon(s string) *CommonConfig {
 func dealHost(s string) *file.Host {
 	h := &file.Host{}
 	var headerChange string
-	var configDataArr []string
-	configDataArr = strings.Split(s, "\n")
-	if len(configDataArr) < 3 {
-		configDataArr = strings.Split(s, "\r\n")
-	}
-	for _, v := range configDataArr {
+	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
 			continue
@@ -181,7 +176,7 @@ func dealHost(s string) *file.Host {
 
 func dealHealth(s string) *file.Health {
 	h := &file.Health{}
-	for _, v := range strings.Split(s, "\n") {
+	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
 			continue
@@ -208,7 +203,7 @@ func dealHealth(s string) *file.Health {
 
 func dealTunnel(s string) *file.Tunnel {
 	t := &file.Tunnel{}
-	for _, v := range strings.Split(s, "\n") {
+	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
 			continue
@@ -238,7 +233,7 @@ func dealTunnel(s string) *file.Tunnel {
 
 func delLocalService(s string) *LocalServer {
 	l := new(LocalServer)
-	for _, v := range strings.Split(s, "\n") {
+	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
 			continue
@@ -271,6 +266,16 @@ func getAllTitle(content string) (arr []string, err error) {
 			return
 		}
 		m[v] = true
+	}
+	return
+}
+
+func splitStr(s string) (configDataArr []string) {
+	if common.IsWindows() {
+		configDataArr = strings.Split(s, "\r\n")
+	}
+	if len(configDataArr) < 3 {
+		configDataArr = strings.Split(s, "\n")
 	}
 	return
 }
