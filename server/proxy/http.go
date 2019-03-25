@@ -52,7 +52,7 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 }
 
 func (s *httpServer) processHttps(c net.Conn) {
-	buf := make([]byte, 2<<10)
+	buf := make([]byte, 2048)
 	n, err := c.Read(buf)
 	if err != nil {
 		return
@@ -93,7 +93,7 @@ func (s *httpServer) processHttps(c net.Conn) {
 		logs.Warn(err.Error())
 	}
 	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
-	s.DealClient(conn.NewConn(c), host.Client, targetAddr, buf[:n], common.CONN_TCP, nil)
+	s.DealClient(conn.NewConn(c), host.Client, targetAddr, buf[:n], common.CONN_TCP, nil, host.Flow)
 }
 
 func (s *httpServer) Start() error {

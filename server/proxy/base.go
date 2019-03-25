@@ -75,21 +75,17 @@ func (s *BaseServer) CheckFlowAndConnNum(client *file.Client) error {
 }
 
 //与客户端建立通道
-func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, rb []byte, tp string, f func()) error {
+func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, rb []byte, tp string, f func(), flow *file.Flow) error {
 	link := conn.NewLink(tp, addr, client.Cnf.Crypt, client.Cnf.Compress, c.Conn.RemoteAddr().String())
 	if target, err := s.bridge.SendLinkInfo(client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
 		logs.Warn("task id %d get connection from client id %d  error %s", s.task.Id, client.Id, err.Error())
 		c.Close()
 		return err
 	} else {
-		if rb != nil {
-			//HTTP proxy crypt or compress
-			conn.GetConn(target, link.Crypt, link.Compress, client.Rate, true).Write(rb)
-		}
 		if f != nil {
 			f()
 		}
-		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, client.Rate, s.task.Flow, true)
+		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, client.Rate, flow, true, rb)
 	}
 	client.AddConn()
 	return nil

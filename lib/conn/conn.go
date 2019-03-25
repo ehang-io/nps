@@ -416,10 +416,13 @@ func SetUdpSession(sess *kcp.UDPSession) {
 }
 
 //conn1 mux conn
-func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool) {
+func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool, rb []byte) {
 	var in, out int64
 	var wg sync.WaitGroup
 	connHandle := GetConn(conn1, crypt, snappy, rate, isServer)
+	if rb != nil {
+		connHandle.Write(rb)
+	}
 	go func(in *int64) {
 		wg.Add(1)
 		*in, _ = common.CopyBuffer(connHandle, conn2)
