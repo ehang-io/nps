@@ -70,7 +70,7 @@ func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config
 		logs.Error("Local connection server failed ", err.Error())
 		return
 	}
-	conn.CopyWaitGroup(remoteConn.Conn, localTcpConn, false, false, nil, nil, false)
+	conn.CopyWaitGroup(remoteConn.Conn, localTcpConn, false, false, nil, nil, false, nil)
 }
 
 func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
@@ -91,7 +91,7 @@ func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.Lo
 		logs.Error(err)
 		return
 	}
-	conn.CopyWaitGroup(nowConn, localTcpConn, config.Cnf.Crypt, config.Cnf.Compress, nil, nil, false)
+	conn.CopyWaitGroup(nowConn, localTcpConn, config.Cnf.Crypt, config.Cnf.Compress, nil, nil, false, nil)
 }
 
 func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
@@ -124,11 +124,11 @@ func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
 		return
 	}
 	localKcpConn, err := kcp.NewConn(string(rAddr), nil, 150, 3, localConn)
-	conn.SetUdpSession(localKcpConn)
 	if err != nil {
 		logs.Error(err)
 		return
 	}
+	conn.SetUdpSession(localKcpConn)
 	//写入密钥、provider身份
 	if _, err := localKcpConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
 		logs.Error(err)

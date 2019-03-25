@@ -208,7 +208,7 @@ func (s *TRPClient) srcProcess(src net.Conn) {
 		src.Close()
 	} else {
 		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
-		conn.CopyWaitGroup(src, targetConn, lk.Crypt, lk.Compress, nil, nil, false)
+		conn.CopyWaitGroup(src, targetConn, lk.Crypt, lk.Compress, nil, nil, false, nil)
 	}
 }
 
