@@ -142,6 +142,7 @@ type Health struct {
 	HealthRemoveArr     []string
 	HealthCheckType     string
 	HealthCheckTarget   string
+	sync.RWMutex
 }
 
 func (s *Tunnel) GetRandomTarget() (string, error) {

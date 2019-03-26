@@ -124,8 +124,7 @@
                     + '<b langtag="info-now-conn-num">当前连接数</b>：' + row.NowConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-flow-limit">流量限制</b>：' + row.Flow.FlowLimit + `m&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-rate-limit">带宽限制</b>：' + row.RateLimit + `kb/s&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+                    + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
                     + '<b langtag="info-crypt">加密</b>：' + row.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-compress">压缩</b>：' + row.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-config-conn-allow">是否允许配置文件模式连接</b>：' + row.ConfigConnAllow + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
@@ -165,6 +164,33 @@
                 title: 'client addr',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
+            },
+            {
+                field: 'Addr',//域值
+                title: 'in flow',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    return change(row.Flow.InletFlow)
+                }
+            },
+            {
+                field: 'Addr',//域值
+                title: 'out flow',//标题
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    return change(row.Flow.ExportFlow)
+                }
+            },
+            {
+                field: 'IsConnect',//域值
+                title: 'speed',//内容
+                visible: true,//false表示不显示
+                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    return change(row.Rate.NowRate) + "/S"
+                }
             },
             {
                 field: 'Status',//域值

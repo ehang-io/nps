@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"strconv"
@@ -32,6 +33,14 @@ func (s *BaseController) Prepare() {
 		if s.GetSession("auth") != true {
 			s.Redirect("/login/index", 302)
 		}
+	}
+	if s.GetSession("isAdmin") != nil && !s.GetSession("isAdmin").(bool) {
+		s.Ctx.Input.SetData("client_id", s.GetSession("clientId").(int))
+		s.Ctx.Input.SetParam("client_id", strconv.Itoa(s.GetSession("clientId").(int)))
+		s.Data["isAdmin"] = false
+		s.CheckUserAuth()
+	} else {
+		s.Data["isAdmin"] = true
 	}
 }
 
@@ -127,4 +136,31 @@ func (s *BaseController) SetInfo(name string) {
 
 func (s *BaseController) SetType(name string) {
 	s.Data["type"] = name
+}
+
+func (s *BaseController) CheckUserAuth() {
+	if s.controllerName == "client" {
+		s.StopRun()
+	}
+	if s.controllerName == "index" {
+		if id := s.GetIntNoErr("id"); id != 0 {
+			belong := false
+			if strings.Contains(s.actionName, "H") {
+				if v, ok := file.GetCsvDb().Hosts.Load(id); ok {
+					if v.(*file.Host).Client.Id == s.GetSession("clientId").(int) {
+						belong = true
+					}
+				}
+			} else {
+				if v, ok := file.GetCsvDb().Tasks.Load(id); ok {
+					if v.(*file.Tunnel).Client.Id == s.GetSession("clientId").(int) {
+						belong = true
+					}
+				}
+			}
+			if !belong {
+				s.StopRun()
+			}
+		}
+	}
 }

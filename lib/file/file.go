@@ -256,6 +256,9 @@ func (s *Csv) LoadClientFromCsv() {
 		if post.RateLimit > 0 {
 			post.Rate = rate.NewRate(int64(post.RateLimit * 1024))
 			post.Rate.Start()
+		} else {
+			post.Rate = rate.NewRate(int64(2 << 23))
+			post.Rate.Start()
 		}
 		post.Flow = new(Flow)
 		post.Flow.FlowLimit = int64(common.GetIntNoErrByStr(item[9]))
@@ -382,6 +385,10 @@ reset:
 		isNotSet = true
 		c.VerifyKey = crypt.GetRandomString(16)
 	}
+	if c.RateLimit == 0 {
+		c.Rate = rate.NewRate(int64(2 << 23))
+		c.Rate.Start()
+	}
 	if !s.VerifyVkey(c.VerifyKey, c.id) {
 		if isNotSet {
 			goto reset
@@ -426,6 +433,10 @@ func (s *Csv) GetHostId() int32 {
 
 func (s *Csv) UpdateClient(t *Client) error {
 	s.Clients.Store(t.Id, t)
+	if t.RateLimit == 0 {
+		t.Rate = rate.NewRate(int64(2 << 23))
+		t.Rate.Start()
+	}
 	return nil
 }
 

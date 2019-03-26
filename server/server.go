@@ -227,7 +227,7 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 	for _, key := range keys {
 		if value, ok := file.GetCsvDb().Tasks.Load(key); ok {
 			v := value.(*file.Tunnel)
-			if (typeVal != "" && v.Mode != typeVal) || (typeVal == "" && clientId != v.Client.Id) {
+			if (typeVal != "" && v.Mode != typeVal || (clientId != 0 && v.Client.Id != clientId)) || (typeVal == "" && clientId != v.Client.Id) {
 				continue
 			}
 			if search != "" && !(v.Id == common.GetIntNoErrByStr(search) || v.Port == common.GetIntNoErrByStr(search) || strings.Contains(v.Password, search) || strings.Contains(v.Remark, search)) {

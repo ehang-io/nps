@@ -43,16 +43,19 @@
                         </a>
                     </div>
                     <div class="logo-element">
-                        IN+
+                        NPS
                     </div>
                 </li>
+            {{if eq true .isAdmin}}
                 <li class="{{if eq "index" .menu}}active{{end}}">
-                    <a href="/"><i class="fa fa-dashboard"></i> <span langtag="menu-dashboard" class="nav-label">仪表盘</span></a>
+                    <a href="/"><i class="fa fa-dashboard"></i> <span langtag="menu-dashboard"
+                                                                      class="nav-label">仪表盘</span></a>
                 </li>
                 <li class="{{if eq "client" .menu}}active{{end}}">
                     <a href="/client/list"><i class="fa fa-clipboard"></i> <span langtag="menu-client"
                                                                                  class="nav-label">客户端</span></a>
                 </li>
+            {{end}}
                 <li class="{{if eq "host" .menu}}active{{end}}">
                     <a href="/index/hostlist"><i class="fa fa-paperclip"></i> <span langtag="menu-host"
                                                                                     class="nav-label">域名解析</span></a>

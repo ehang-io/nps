@@ -79,6 +79,7 @@ func check(t *file.Health) {
 				err = errors.New("status code is not match")
 			}
 		}
+		t.Lock()
 		if err != nil {
 			t.HealthMap[v] += 1
 		} else if t.HealthMap[v] >= t.HealthMaxFail {
@@ -91,5 +92,6 @@ func check(t *file.Health) {
 			//send fail remove
 			serverConn.SendHealthInfo(v, "0")
 		}
+		t.Unlock()
 	}
 }

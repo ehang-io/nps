@@ -440,16 +440,16 @@ func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Ra
 }
 
 //get crypt or snappy conn
-func GetConn(conn net.Conn, cpt, snappy bool, rate *rate.Rate, isServer bool) (io.ReadWriteCloser) {
+func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) (io.ReadWriteCloser) {
 	if cpt {
 		if isServer {
-			return crypt.NewTlsServerConn(conn)
+			return rate.NewRateConn(crypt.NewTlsServerConn(conn), rt)
 		}
-		return crypt.NewTlsClientConn(conn)
+		return rate.NewRateConn(crypt.NewTlsClientConn(conn), rt)
 	} else if snappy {
-		return NewSnappyConn(conn, cpt, rate)
+		return NewSnappyConn(conn, cpt, rt)
 	}
-	return conn
+	return rate.NewRateConn(conn, rt)
 }
 
 //read length or id (content length=4)

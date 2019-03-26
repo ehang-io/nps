@@ -189,8 +189,10 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 		}
 	} else {
 		sess, err = kcp.DialWithOptions(server, nil, 10, 3)
-		conn.SetUdpSession(sess)
-		connection = sess
+		if err == nil {
+			conn.SetUdpSession(sess)
+			connection = sess
+		}
 	}
 	if err != nil {
 		return nil, err
