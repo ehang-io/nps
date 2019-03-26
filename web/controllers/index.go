@@ -152,12 +152,16 @@ func (s *IndexController) Edit() {
 			t.LocalPath = s.GetString("local_path")
 			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
+			if !tool.TestServerPort(t.Port, t.Mode) {
+				s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
+			}
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error")
 			}
 			file.GetCsvDb().UpdateTask(t)
 			server.StopServer(t.Id)
 			server.StartTask(t.Id)
+			t.TargetArr = nil
 		}
 		s.AjaxOk("modified success")
 	}
@@ -280,6 +284,7 @@ func (s *IndexController) EditHost() {
 			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error")
 			}
+			h.TargetArr = nil
 		}
 		s.AjaxOk("modified success")
 	}
