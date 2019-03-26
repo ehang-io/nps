@@ -24,21 +24,25 @@ func InitDaemon(f string, runPath string, pidPath string) {
 	switch os.Args[1] {
 	case "start":
 		start(args, f, pidPath, runPath)
+		os.Exit(0)
 	case "stop":
 		stop(f, args[0], pidPath)
+		os.Exit(0)
 	case "restart":
 		stop(f, args[0], pidPath)
 		start(args, f, pidPath, runPath)
+		os.Exit(0)
 	case "status":
 		if status(f, pidPath) {
 			log.Printf("%s is running", f)
 		} else {
 			log.Printf("%s is not running", f)
 		}
+		os.Exit(0)
 	case "reload":
 		reload(f, pidPath)
+		os.Exit(0)
 	}
-	os.Exit(0)
 }
 
 func reload(f string, pidPath string) {

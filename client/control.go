@@ -163,6 +163,7 @@ re:
 	}
 
 	c.Close()
+	logs.Notice("Temporary access login key ", vkey)
 	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf).Start()
 	CloseLocalServer()
 	goto re
