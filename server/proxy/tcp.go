@@ -105,7 +105,7 @@ func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 		return err
 	}
 	if r.Method == "CONNECT" {
-		c.Write([]byte("HTTP/1.1 200 Connection Established\r\n"))
+		c.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 		rb = nil
 	}
 	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
