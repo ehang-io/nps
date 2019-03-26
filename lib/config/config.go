@@ -161,7 +161,7 @@ func dealHost(s string) *file.Host {
 			h.Target = strings.Replace(item[1], ",", "\n", -1)
 		case "host_change":
 			h.HostChange = item[1]
-		case "schemego":
+		case "scheme":
 			h.Scheme = item[1]
 		case "location":
 			h.Location = item[1]
