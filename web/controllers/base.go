@@ -140,7 +140,16 @@ func (s *BaseController) SetType(name string) {
 
 func (s *BaseController) CheckUserAuth() {
 	if s.controllerName == "client" {
-		s.StopRun()
+		if s.actionName == "add" {
+			s.StopRun()
+			return
+		}
+		if id := s.GetIntNoErr("id"); id != 0 {
+			if id != s.GetSession("clientId").(int) {
+				s.StopRun()
+				return
+			}
+		}
 	}
 	if s.controllerName == "index" {
 		if id := s.GetIntNoErr("id"); id != 0 {

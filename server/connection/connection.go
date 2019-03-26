@@ -50,7 +50,7 @@ func GetHttpListener() (net.Listener, error) {
 		return pMux.GetHttpListener(), nil
 	}
 	logs.Info("start http listener, port is", httpPort)
-	return getTcpListener("", httpPort)
+	return getTcpListener(beego.AppConfig.String("http_proxy_ip"), httpPort)
 }
 
 func GetHttpsListener() (net.Listener, error) {
@@ -59,7 +59,7 @@ func GetHttpsListener() (net.Listener, error) {
 		return pMux.GetHttpsListener(), nil
 	}
 	logs.Info("start https listener, port is", httpsPort)
-	return getTcpListener("", httpsPort)
+	return getTcpListener(beego.AppConfig.String("http_proxy_ip"), httpsPort)
 }
 
 func GetWebManagerListener() (net.Listener, error) {

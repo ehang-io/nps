@@ -111,8 +111,9 @@ func (s *Client) HasHost(h *Host) bool {
 }
 
 type Tunnel struct {
-	Id         int      //Id
-	Port       int      //服务端监听端口
+	Id         int //Id
+	Port       int //服务端监听端口
+	ServerIp   string
 	Mode       string   //启动方式
 	Target     string   //目标
 	TargetArr  []string //目标

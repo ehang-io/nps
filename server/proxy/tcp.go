@@ -32,7 +32,7 @@ func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *file.Tunn
 
 //开始
 func (s *TunnelModeServer) Start() error {
-	return conn.NewTcpListenerAndProcess(":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
 		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
 			logs.Warn("client id %d, task id %d,error %s, when tcp connection", s.task.Client.Id, s.task.Id, err.Error())
 			c.Close()

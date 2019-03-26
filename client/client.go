@@ -228,7 +228,13 @@ loop:
 }
 
 func (s *TRPClient) Close() {
-	s.tunnel.Close()
-	s.signal.Close()
-	s.ticker.Stop()
+	if s.tunnel != nil {
+		s.tunnel.Close()
+	}
+	if s.signal != nil {
+		s.signal.Close()
+	}
+	if s.ticker != nil {
+		s.ticker.Stop()
+	}
 }

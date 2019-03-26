@@ -200,20 +200,28 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 
 func (s *Bridge) DelClient(id int) {
 	if v, ok := s.Client.Load(id); ok {
-		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
-			s.CloseClient <- c.Id
-		}
 		if v.(*Client).signal != nil {
 			v.(*Client).signal.Close()
 		}
 		s.Client.Delete(id)
+		if file.GetCsvDb().IsPubClient(id) {
+			return
+		}
+		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
+			s.CloseClient <- c.Id
+		}
 	}
 }
 
 //use different
 func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
+	isPub := file.GetCsvDb().IsPubClient(id)
 	switch typeVal {
 	case common.WORK_MAIN:
+		if isPub {
+			c.Close()
+			return
+		}
 		//the vKey connect by another ,close the client of before
 		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, nil, c)); ok {
 			if v.(*Client).signal != nil {
@@ -229,16 +237,8 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			v.(*Client).tunnel = muxConn
 		}
 	case common.WORK_CONFIG:
-		var isPub bool
 		client, err := file.GetCsvDb().GetClient(id)
-		if err == nil {
-			if client.VerifyKey == beego.AppConfig.String("public_vkey") {
-				isPub = true
-			} else {
-				isPub = false
-			}
-		}
-		if !isPub && !client.ConfigConnAllow {
+		if err != nil || (!isPub && !client.ConfigConnAllow) {
 			c.Close()
 			return
 		}
@@ -458,6 +458,7 @@ loop:
 					tl := new(file.Tunnel)
 					tl.Mode = t.Mode
 					tl.Port = ports[i]
+					tl.ServerIp = t.ServerIp
 					if len(ports) == 1 {
 						tl.Target = t.Target
 						tl.Remark = t.Remark

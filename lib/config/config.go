@@ -20,6 +20,7 @@ type CommonConfig struct {
 type LocalServer struct {
 	Type     string
 	Port     int
+	Ip       string
 	Password string
 	Target   string
 }
@@ -112,11 +113,11 @@ func dealCommon(s string) *CommonConfig {
 			item = append(item, "")
 		}
 		switch item[0] {
-		case "server":
+		case "server_addr":
 			c.Server = item[1]
 		case "vkey":
 			c.VKey = item[1]
-		case "tp":
+		case "conn_type":
 			c.Tp = item[1]
 		case "auto_reconnection":
 			c.AutoReconnection = common.GetBoolByStr(item[1])
@@ -156,7 +157,7 @@ func dealHost(s string) *file.Host {
 		switch strings.TrimSpace(item[0]) {
 		case "host":
 			h.Host = item[1]
-		case "target":
+		case "target_addr":
 			h.Target = strings.Replace(item[1], ",", "\n", -1)
 		case "host_change":
 			h.HostChange = item[1]
@@ -211,13 +212,15 @@ func dealTunnel(s string) *file.Tunnel {
 			item = append(item, "")
 		}
 		switch strings.TrimSpace(item[0]) {
-		case "port":
+		case "server_port":
 			t.Ports = item[1]
+		case "server_ip":
+			t.ServerIp = item[1]
 		case "mode":
 			t.Mode = item[1]
-		case "target":
+		case "target_port", "target_addr":
 			t.Target = strings.Replace(item[1], ",", "\n", -1)
-		case "targetAddr":
+		case "target_ip":
 			t.TargetAddr = item[1]
 		case "password":
 			t.Password = item[1]
@@ -241,11 +244,13 @@ func delLocalService(s string) *LocalServer {
 			item = append(item, "")
 		}
 		switch item[0] {
-		case "port":
+		case "local_port":
 			l.Port = common.GetIntNoErrByStr(item[1])
+		case "local_ip":
+			l.Ip = item[1]
 		case "password":
 			l.Password = item[1]
-		case "target":
+		case "target_addr":
 			l.Target = item[1]
 		}
 	}

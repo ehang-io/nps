@@ -7,6 +7,7 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/rate"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net/http"
 	"os"
@@ -59,6 +60,7 @@ func (s *Csv) StoreTasksToCsv() {
 			strconv.Itoa(int(task.Flow.ExportFlow)),
 			strconv.Itoa(int(task.Flow.InletFlow)),
 			task.Password,
+			task.ServerIp,
 		}
 		err := writer.Write(record)
 		if err != nil {
@@ -110,6 +112,11 @@ func (s *Csv) LoadTaskFromCsv() {
 		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[8]))
 		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[5])); err != nil {
 			continue
+		}
+		if len(item) > 10 {
+			post.ServerIp = item[10]
+		} else {
+			post.ServerIp = "0.0.0.0"
 		}
 		s.Tasks.Store(post.Id, post)
 		if post.Id > int(s.TaskIncreaseId) {
@@ -440,7 +447,7 @@ func (s *Csv) UpdateClient(t *Client) error {
 	return nil
 }
 
-func (s *Csv) GetClientList(start, length int, search string) ([]*Client, int) {
+func (s *Csv) GetClientList(start, length int, search string, clientId int) ([]*Client, int) {
 	list := make([]*Client, 0)
 	var cnt int
 	keys := common.GetMapKeys(s.Clients)
@@ -448,6 +455,9 @@ func (s *Csv) GetClientList(start, length int, search string) ([]*Client, int) {
 		if value, ok := s.Clients.Load(key); ok {
 			v := value.(*Client)
 			if v.NoDisplay {
+				continue
+			}
+			if clientId != 0 && clientId != v.Id {
 				continue
 			}
 			if search != "" && !(v.Id == common.GetIntNoErrByStr(search) || strings.Contains(v.VerifyKey, search) || strings.Contains(v.Remark, search)) {
@@ -462,6 +472,18 @@ func (s *Csv) GetClientList(start, length int, search string) ([]*Client, int) {
 		}
 	}
 	return list, cnt
+}
+
+func (s *Csv) IsPubClient(id int) bool {
+	client, err := s.GetClient(id)
+	if err == nil {
+		if client.VerifyKey == beego.AppConfig.String("public_vkey") {
+			return true
+		} else {
+			return false
+		}
+	}
+	return false
 }
 
 func (s *Csv) GetClient(id int) (c *Client, err error) {

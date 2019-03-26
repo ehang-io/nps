@@ -255,8 +255,8 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 }
 
 //获取客户端列表
-func GetClientList(start, length int, search string) (list []*file.Client, cnt int) {
-	list, cnt = file.GetCsvDb().GetClientList(start, length, search)
+func GetClientList(start, length int, search string, clientId int) (list []*file.Client, cnt int) {
+	list, cnt = file.GetCsvDb().GetClientList(start, length, search, clientId)
 	dealClientData()
 	return
 }

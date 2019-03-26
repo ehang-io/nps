@@ -26,7 +26,10 @@ func NewUdpModeServer(bridge *bridge.Bridge, task *file.Tunnel) *UdpModeServer {
 //开始
 func (s *UdpModeServer) Start() error {
 	var err error
-	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.task.Port, ""})
+	if s.task.ServerIp == "" {
+		s.task.ServerIp = "0.0.0.0"
+	}
+	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP(s.task.ServerIp), s.task.Port, ""})
 	if err != nil {
 		return err
 	}

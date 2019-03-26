@@ -19,7 +19,14 @@ func (s *ClientController) List() {
 		return
 	}
 	start, length := s.GetAjaxParams()
-	list, cnt := server.GetClientList(start, length, s.GetString("search"))
+	clientIdSession := s.GetSession("clientId")
+	var clientId int
+	if clientIdSession == nil {
+		clientId = 0
+	} else {
+		clientId = clientIdSession.(int)
+	}
+	list, cnt := server.GetClientList(start, length, s.GetString("search"), clientId)
 	s.AjaxTable(list, cnt, cnt)
 }
 

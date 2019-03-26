@@ -15,15 +15,18 @@
                         </a>
                     </div>
                 </div>
-                <div class="content">
-                    <div class="table-responsive">
-                        <div id="toolbar">
-                            <a href="/client/add" class="btn btn-primary dim" type="button" langtag="info-new">新增</a>
-                        </div>
-                        <table id="taskList_table" class="table-striped table-hover"
-                               data-mobile-responsive="true"></table>
+            <div class="content">
+            {{if eq true .isAdmin}}
+
+                <div class="table-responsive">
+                    <div id="toolbar">
+                        <a href="/client/add" class="btn btn-primary dim" type="button" langtag="info-new">新增</a>
                     </div>
+                    <table id="taskList_table" class="table-striped table-hover"
+                           data-mobile-responsive="true"></table>
                 </div>
+            </div>
+            {{end}}
                 <div class="ibox-content">
 
                     <table id="table"></table>
@@ -225,11 +228,12 @@
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
-                    btn = `<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button><button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
+                    btn = ` {{if eq true .isAdmin}}<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button>{{end}}<button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
+
                     if (row.Status) {
-                        return btn_group + `<button onclick="stop(` + row.Id + `)" class="btn-warning"><i class="fa fa-close"></i></button>` + btn
+                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="stop(` + row.Id + `)" class="btn-warning"><i class="fa fa-close"></i></button>` {{end}}+ btn
                     } else {
-                        return btn_group + `<button onclick="start(` + row.Id + `)" class="btn-warning"><i class="fa fa-check"></i></button>` + btn
+                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="start(` + row.Id + `)" class="btn-warning"><i class="fa fa-check"></i></button>` {{end}}+ btn
                     }
                 }
             },

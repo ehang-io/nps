@@ -91,6 +91,7 @@ func (s *IndexController) Add() {
 	} else {
 		t := &file.Tunnel{
 			Port:      s.GetIntNoErr("port"),
+			ServerIp:  s.GetString("server_ip"),
 			Mode:      s.GetString("type"),
 			Target:    s.GetString("target"),
 			Id:        int(file.GetCsvDb().GetTaskId()),
@@ -144,7 +145,12 @@ func (s *IndexController) Edit() {
 		if t, err := file.GetCsvDb().GetTask(id); err != nil {
 			s.error()
 		} else {
-			t.Port = s.GetIntNoErr("port")
+			var portChange bool
+			if s.GetIntNoErr("port") != t.Port {
+				portChange = true
+				t.Port = s.GetIntNoErr("port")
+			}
+			t.ServerIp = s.GetString("server_ip")
 			t.Mode = s.GetString("type")
 			t.Target = s.GetString("target")
 			t.Password = s.GetString("password")
@@ -152,7 +158,7 @@ func (s *IndexController) Edit() {
 			t.LocalPath = s.GetString("local_path")
 			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
-			if !tool.TestServerPort(t.Port, t.Mode) {
+			if portChange && !tool.TestServerPort(t.Port, t.Mode) {
 				s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
 			}
 			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
