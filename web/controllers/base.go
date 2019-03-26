@@ -145,7 +145,7 @@ func (s *BaseController) CheckUserAuth() {
 	if s.controllerName == "index" {
 		if id := s.GetIntNoErr("id"); id != 0 {
 			belong := false
-			if strings.Contains(s.actionName, "H") {
+			if strings.Contains(s.actionName, "h") {
 				if v, ok := file.GetCsvDb().Hosts.Load(id); ok {
 					if v.(*file.Host).Client.Id == s.GetSession("clientId").(int) {
 						belong = true

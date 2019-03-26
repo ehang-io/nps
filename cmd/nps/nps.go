@@ -17,7 +17,9 @@ import (
 	_ "github.com/cnlh/nps/web/routers"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 )
 
 var (
@@ -34,7 +36,7 @@ func main() {
 			test.TestServerConfig()
 			log.Println("test ok, no error")
 			return
-		case "start", "restart", "stop", "status":
+		case "start", "restart", "stop", "status","reload":
 			daemon.InitDaemon("nps", common.GetRunPath(), common.GetTmpPath())
 		case "install":
 			install.InstallNps()
@@ -64,5 +66,13 @@ func main() {
 	connection.InitConnectionService()
 	crypt.InitTls(filepath.Join(beego.AppPath, "conf", "server.pem"), filepath.Join(beego.AppPath, "conf", "server.key"))
 	tool.InitAllowPort()
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGUSR1)
+	go func() {
+		for {
+			<-s
+			beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf"))
+		}
+	}()
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
 }
