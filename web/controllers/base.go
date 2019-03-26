@@ -6,6 +6,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ func (s *BaseController) Prepare() {
 	timestamp := s.GetIntNoErr("timestamp")
 	configKey := beego.AppConfig.String("auth_key")
 	timeNowUnix := time.Now().Unix()
-	if !(((timeNowUnix - int64(timestamp)) <= 20) && ((timeNowUnix - int64(timestamp)) >= -20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
+	if !((math.Abs(float64(timeNowUnix-int64(timestamp))) <= 20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
 		if s.GetSession("auth") != true {
 			s.Redirect("/login/index", 302)
 		}
