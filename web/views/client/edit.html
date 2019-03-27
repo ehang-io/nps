@@ -12,6 +12,7 @@
                                    placeholder="remark">
                         </div>
                     </div>
+                {{if eq true .isAdmin}}
                     <div class="form-group" id="flow_limit">
                         <label class="col-sm-2 control-label" langtag="info-flow-limit">流量限制</label>
                         <div class="col-sm-10">
@@ -36,6 +37,7 @@
                                    placeholder="empty means to be unrestricted">
                         </div>
                     </div>
+                {{end}}
                     <div class="form-group" id="u">
                         <label class="control-label col-sm-2" langtag="info-web-auth-username">basic权限认证用户名</label>
                         <div class="col-sm-10">

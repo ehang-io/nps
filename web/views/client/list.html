@@ -197,7 +197,7 @@
             },
             {
                 field: 'Status',//域值
-                title: 'setting status',//内容
+                title: 'run',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -210,7 +210,7 @@
             },
             {
                 field: 'IsConnect',//域值
-                title: 'client status',//内容
+                title: 'status',//内容
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
@@ -228,12 +228,12 @@
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
-                    btn = ` {{if eq true .isAdmin}}<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button>{{end}}<button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
+                    btn = `{{if eq true .isAdmin}}<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button>{{end}}<button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
 
                     if (row.Status) {
-                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="stop(` + row.Id + `)" class="btn-warning"><i class="fa fa-close"></i></button>` {{end}}+ btn
+                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="stop(` + row.Id + `)" class="btn-warning"><i class="fa fa-close"></i></button>`{{end}}+ btn
                     } else {
-                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="start(` + row.Id + `)" class="btn-warning"><i class="fa fa-check"></i></button>` {{end}}+ btn
+                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="start(` + row.Id + `)" class="btn-warning"><i class="fa fa-check"></i></button>`{{end}}+ btn
                     }
                 }
             },

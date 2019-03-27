@@ -107,9 +107,11 @@ func (s *ClientController) Edit() {
 			c.Cnf.P = s.GetString("p")
 			c.Cnf.Compress = common.GetBoolByStr(s.GetString("compress"))
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
-			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
-			c.RateLimit = s.GetIntNoErr("rate_limit")
-			c.MaxConn = s.GetIntNoErr("max_conn")
+			if s.GetSession("isAdmin").(bool) {
+				c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
+				c.RateLimit = s.GetIntNoErr("rate_limit")
+				c.MaxConn = s.GetIntNoErr("max_conn")
+			}
 			c.ConfigConnAllow = s.GetBoolNoErr("config_conn_allow")
 			if c.Rate != nil {
 				c.Rate.Stop()
