@@ -2,15 +2,14 @@ package rate
 
 import (
 	"io"
-	"net"
 )
 
 type rateConn struct {
-	conn net.Conn
+	conn io.ReadWriteCloser
 	rate *Rate
 }
 
-func NewRateConn(conn net.Conn, rate *Rate) io.ReadWriteCloser {
+func NewRateConn(conn io.ReadWriteCloser, rate *Rate) io.ReadWriteCloser {
 	return &rateConn{
 		conn: conn,
 		rate: rate,

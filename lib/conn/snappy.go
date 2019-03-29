@@ -3,7 +3,6 @@ package conn
 import (
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/golang/snappy"
-	"github.com/fatedier/frp/utils/net"
 	"io"
 )
 
@@ -12,7 +11,7 @@ type SnappyConn struct {
 	r *snappy.Reader
 }
 
-func NewSnappyConn(conn io.ReadWriteCloser) net.Conn {
+func NewSnappyConn(conn io.ReadWriteCloser) *SnappyConn {
 	c := new(SnappyConn)
 	c.w = snappy.NewBufferedWriter(conn)
 	c.r = snappy.NewReader(conn)
