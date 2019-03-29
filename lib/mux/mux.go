@@ -65,7 +65,7 @@ func (s *Mux) NewConn() (*conn, error) {
 		return nil, err
 	}
 	//set a timer timeout 30 second
-	timer := time.NewTimer(time.Second * 30)
+	timer := time.NewTimer(time.Minute * 2)
 	defer timer.Stop()
 	select {
 	case <-conn.connStatusOkCh:
