@@ -7,7 +7,6 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/rate"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net/http"
 	"os"
@@ -52,7 +51,7 @@ func (s *Csv) StoreTasksToCsv() {
 		record := []string{
 			strconv.Itoa(task.Port),
 			task.Mode,
-			task.Target,
+			task.Target.TargetStr,
 			common.GetStrByBool(task.Status),
 			strconv.Itoa(task.Id),
 			strconv.Itoa(task.Client.Id),
@@ -101,12 +100,13 @@ func (s *Csv) LoadTaskFromCsv() {
 		post := &Tunnel{
 			Port:     common.GetIntNoErrByStr(item[0]),
 			Mode:     item[1],
-			Target:   item[2],
 			Status:   common.GetBoolByStr(item[3]),
 			Id:       common.GetIntNoErrByStr(item[4]),
 			Remark:   item[6],
 			Password: item[9],
 		}
+		post.Target = new(Target)
+		post.Target.TargetStr = item[2]
 		post.Flow = new(Flow)
 		post.Flow.ExportFlow = int64(common.GetIntNoErrByStr(item[7]))
 		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[8]))
@@ -212,7 +212,7 @@ func (s *Csv) StoreHostToCsv() {
 		}
 		record := []string{
 			host.Host,
-			host.Target,
+			host.Target.TargetStr,
 			strconv.Itoa(host.Client.Id),
 			host.HeaderChange,
 			host.HostChange,
@@ -274,6 +274,16 @@ func (s *Csv) LoadClientFromCsv() {
 		} else {
 			post.ConfigConnAllow = true
 		}
+		if len(item) >= 13 {
+			post.WebUserName = item[12]
+		} else {
+			post.WebUserName = ""
+		}
+		if len(item) >= 14 {
+			post.WebPassword = item[13]
+		} else {
+			post.WebPassword = ""
+		}
 		s.Clients.Store(post.Id, post)
 	}
 }
@@ -289,7 +299,6 @@ func (s *Csv) LoadHostFromCsv() {
 	for _, item := range records {
 		post := &Host{
 			Host:         item[0],
-			Target:       item[1],
 			HeaderChange: item[3],
 			HostChange:   item[4],
 			Remark:       item[5],
@@ -299,6 +308,8 @@ func (s *Csv) LoadHostFromCsv() {
 		if post.Client, err = s.GetClient(common.GetIntNoErrByStr(item[2])); err != nil {
 			continue
 		}
+		post.Target = new(Target)
+		post.Target.TargetStr = item[1]
 		post.Flow = new(Flow)
 		post.Flow.ExportFlow = int64(common.GetIntNoErrByStr(item[8]))
 		post.Flow.InletFlow = int64(common.GetIntNoErrByStr(item[9]))
@@ -344,11 +355,11 @@ func (s *Csv) IsHostExist(h *Host) bool {
 }
 
 func (s *Csv) NewHost(t *Host) error {
-	if s.IsHostExist(t) {
-		return errors.New("host has exist")
-	}
 	if t.Location == "" {
 		t.Location = "/"
+	}
+	if s.IsHostExist(t) {
+		return errors.New("host has exist")
 	}
 	t.Flow = new(Flow)
 	s.Hosts.Store(t.Id, t)
@@ -359,7 +370,7 @@ func (s *Csv) NewHost(t *Host) error {
 func (s *Csv) GetHost(start, length int, id int, search string) ([]*Host, int) {
 	list := make([]*Host, 0)
 	var cnt int
-	keys := common.GetMapKeys(s.Hosts)
+	keys := GetMapKeys(s.Hosts, false, "", "")
 	for _, key := range keys {
 		if value, ok := s.Hosts.Load(key); ok {
 			v := value.(*Host)
@@ -387,6 +398,9 @@ func (s *Csv) DelClient(id int) error {
 
 func (s *Csv) NewClient(c *Client) error {
 	var isNotSet bool
+	if c.WebUserName != "" && !s.VerifyUserName(c.WebUserName, c.Id) {
+		return errors.New("web login username duplicate, please reset")
+	}
 reset:
 	if c.VerifyKey == "" || isNotSet {
 		isNotSet = true
@@ -396,7 +410,7 @@ reset:
 		c.Rate = rate.NewRate(int64(2 << 23))
 		c.Rate.Start()
 	}
-	if !s.VerifyVkey(c.VerifyKey, c.id) {
+	if !s.VerifyVkey(c.VerifyKey, c.Id) {
 		if isNotSet {
 			goto reset
 		}
@@ -418,6 +432,18 @@ func (s *Csv) VerifyVkey(vkey string, id int) (res bool) {
 	s.Clients.Range(func(key, value interface{}) bool {
 		v := value.(*Client)
 		if v.VerifyKey == vkey && v.Id != id {
+			res = false
+			return false
+		}
+		return true
+	})
+	return res
+}
+func (s *Csv) VerifyUserName(username string, id int) (res bool) {
+	res = true
+	s.Clients.Range(func(key, value interface{}) bool {
+		v := value.(*Client)
+		if v.WebUserName == username && v.Id != id {
 			res = false
 			return false
 		}
@@ -447,10 +473,10 @@ func (s *Csv) UpdateClient(t *Client) error {
 	return nil
 }
 
-func (s *Csv) GetClientList(start, length int, search string, clientId int) ([]*Client, int) {
+func (s *Csv) GetClientList(start, length int, search, sort, order string, clientId int) ([]*Client, int) {
 	list := make([]*Client, 0)
 	var cnt int
-	keys := common.GetMapKeys(s.Clients)
+	keys := GetMapKeys(s.Clients, true, sort, order)
 	for _, key := range keys {
 		if value, ok := s.Clients.Load(key); ok {
 			v := value.(*Client)
@@ -477,11 +503,7 @@ func (s *Csv) GetClientList(start, length int, search string, clientId int) ([]*
 func (s *Csv) IsPubClient(id int) bool {
 	client, err := s.GetClient(id)
 	if err == nil {
-		if client.VerifyKey == beego.AppConfig.String("public_vkey") {
-			return true
-		} else {
-			return false
-		}
+		return client.NoDisplay
 	}
 	return false
 }
@@ -589,6 +611,8 @@ func (s *Csv) StoreClientsToCsv() {
 			strconv.Itoa(int(client.Flow.FlowLimit)),
 			strconv.Itoa(int(client.MaxConn)),
 			common.GetStrByBool(client.ConfigConnAllow),
+			client.WebUserName,
+			client.WebPassword,
 		}
 		err := writer.Write(record)
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/server"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 )
 
 type ClientController struct {
@@ -26,7 +27,7 @@ func (s *ClientController) List() {
 	} else {
 		clientId = clientIdSession.(int)
 	}
-	list, cnt := server.GetClientList(start, length, s.GetString("search"), clientId)
+	list, cnt := server.GetClientList(start, length, s.GetString("search"), s.GetString("sort"), s.GetString("order"), clientId)
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -51,6 +52,8 @@ func (s *ClientController) Add() {
 			ConfigConnAllow: s.GetBoolNoErr("config_conn_allow"),
 			RateLimit:       s.GetIntNoErr("rate_limit"),
 			MaxConn:         s.GetIntNoErr("max_conn"),
+			WebUserName:     s.GetString("web_username"),
+			WebPassword:     s.GetString("web_password"),
 			Flow: &file.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
@@ -98,20 +101,29 @@ func (s *ClientController) Edit() {
 		if c, err := file.GetCsvDb().GetClient(id); err != nil {
 			s.error()
 		} else {
-			if !file.GetCsvDb().VerifyVkey(s.GetString("vkey"), c.Id) {
-				s.AjaxErr("Vkey duplicate, please reset")
+			if s.GetString("web_username") != "" {
+				if s.GetString("web_username") == beego.AppConfig.String("web_username") || !file.GetCsvDb().VerifyUserName(s.GetString("web_username"), c.Id) {
+					s.AjaxErr("web login username duplicate, please reset")
+					return
+				}
 			}
-			c.VerifyKey = s.GetString("vkey")
+			if s.GetSession("isAdmin").(bool) {
+				if !file.GetCsvDb().VerifyVkey(s.GetString("vkey"), c.Id) {
+					s.AjaxErr("Vkey duplicate, please reset")
+					return
+				}
+				c.VerifyKey = s.GetString("vkey")
+				c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
+				c.RateLimit = s.GetIntNoErr("rate_limit")
+				c.MaxConn = s.GetIntNoErr("max_conn")
+			}
 			c.Remark = s.GetString("remark")
 			c.Cnf.U = s.GetString("u")
 			c.Cnf.P = s.GetString("p")
 			c.Cnf.Compress = common.GetBoolByStr(s.GetString("compress"))
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
-			if s.GetSession("isAdmin").(bool) {
-				c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
-				c.RateLimit = s.GetIntNoErr("rate_limit")
-				c.MaxConn = s.GetIntNoErr("max_conn")
-			}
+			c.WebUserName = s.GetString("web_username")
+			c.WebPassword = s.GetString("web_password")
 			c.ConfigConnAllow = s.GetBoolNoErr("config_conn_allow")
 			if c.Rate != nil {
 				c.Rate.Stop()
@@ -148,7 +160,7 @@ func (s *ClientController) Del() {
 	if err := file.GetCsvDb().DelClient(id); err != nil {
 		s.AjaxErr("delete error")
 	}
-	server.DelTunnelAndHostByClientId(id)
+	server.DelTunnelAndHostByClientId(id, false)
 	server.DelClientConnect(id)
 	s.AjaxOk("delete success")
 }

@@ -25,17 +25,14 @@ import (
 
 type Conn struct {
 	Conn net.Conn
-	sync.Mutex
 }
 
 //new conn
 func NewConn(conn net.Conn) *Conn {
-	c := new(Conn)
-	c.Conn = conn
-	return c
+	return &Conn{Conn: conn}
 }
 
-//从tcp报文中解析出host，连接类型等
+//get host 、connection type、method...from connection
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
 	var b [32 * 1024]byte
 	var n int
@@ -53,14 +50,14 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 		err = nil
 		return
 	}
-	if hostPortURL.Opaque == "443" { //https访问
-		if strings.Index(r.Host, ":") == -1 { //host不带端口， 默认80
+	if hostPortURL.Opaque == "443" {
+		if strings.Index(r.Host, ":") == -1 {
 			address = r.Host + ":443"
 		} else {
 			address = r.Host
 		}
-	} else { //http访问
-		if strings.Index(r.Host, ":") == -1 { //host不带端口， 默认80
+	} else {
+		if strings.Index(r.Host, ":") == -1 {
 			address = r.Host + ":80"
 		} else {
 			address = r.Host
@@ -117,7 +114,7 @@ func (s *Conn) ReadFlag() (string, error) {
 	return string(buf), binary.Read(s, binary.LittleEndian, &buf)
 }
 
-//设置连接为长连接
+//set alive
 func (s *Conn) SetAlive(tp string) {
 	switch s.Conn.(type) {
 	case *kcp.UDPSession:
@@ -132,7 +129,7 @@ func (s *Conn) SetAlive(tp string) {
 	}
 }
 
-//设置连接为长连接
+//set read deadline
 func (s *Conn) SetReadDeadline(t time.Duration, tp string) {
 	switch s.Conn.(type) {
 	case *kcp.UDPSession:
@@ -176,8 +173,6 @@ func (s *Conn) GetLinkInfo() (lk *Link, err error) {
 func (s *Conn) SendHealthInfo(info, status string) (int, error) {
 	raw := bytes.NewBuffer([]byte{})
 	common.BinaryWrite(raw, info, status)
-	s.Lock()
-	defer s.Unlock()
 	return s.Write(raw.Bytes())
 }
 
@@ -211,9 +206,7 @@ func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_HOST))
-	common.BinaryWrite(raw, h.Host, h.Target, h.HeaderChange, h.HostChange, h.Remark, h.Location, h.Scheme)
-	s.Lock()
-	defer s.Unlock()
+	common.BinaryWrite(raw, h.Host, h.Target.TargetStr, h.HeaderChange, h.HostChange, h.Remark, h.Location, h.Scheme)
 	return s.Write(raw.Bytes())
 }
 
@@ -244,9 +237,10 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 	} else {
 		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		h = new(file.Host)
+		h.Target = new(file.Target)
 		h.Id = int(file.GetCsvDb().GetHostId())
 		h.Host = arr[0]
-		h.Target = arr[1]
+		h.Target.TargetStr = arr[1]
 		h.HeaderChange = arr[2]
 		h.HostChange = arr[3]
 		h.Remark = arr[4]
@@ -275,8 +269,6 @@ func (s *Conn) SendConfigInfo(c *config.CommonConfig) (int, error) {
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONF))
 	common.BinaryWrite(raw, c.Cnf.U, c.Cnf.P, common.GetStrByBool(c.Cnf.Crypt), common.GetStrByBool(c.Cnf.Compress), strconv.Itoa(c.Client.RateLimit),
 		strconv.Itoa(int(c.Client.Flow.FlowLimit)), strconv.Itoa(c.Client.MaxConn), c.Client.Remark)
-	s.Lock()
-	defer s.Unlock()
 	return s.Write(raw.Bytes())
 }
 
@@ -316,9 +308,7 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 	*/
 	raw := bytes.NewBuffer([]byte{})
 	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_TASK))
-	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target, t.Remark, t.TargetAddr, t.Password, t.LocalPath, t.StripPre, t.ServerIp)
-	s.Lock()
-	defer s.Unlock()
+	common.BinaryWrite(raw, t.Mode, t.Ports, t.Target.TargetStr, t.Remark, t.TargetAddr, t.Password, t.LocalPath, t.StripPre, t.ServerIp)
 	return s.Write(raw.Bytes())
 }
 
@@ -334,9 +324,10 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 	} else {
 		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		t = new(file.Tunnel)
+		t.Target = new(file.Target)
 		t.Mode = arr[0]
 		t.Ports = arr[1]
-		t.Target = arr[2]
+		t.Target.TargetStr = arr[2]
 		t.Id = int(file.GetCsvDb().GetTaskId())
 		t.Status = true
 		t.Flow = new(file.Flow)
@@ -375,26 +366,20 @@ func (s *Conn) WriteClose() (int, error) {
 
 //write main
 func (s *Conn) WriteMain() (int, error) {
-	s.Lock()
-	defer s.Unlock()
 	return s.Write([]byte(common.WORK_MAIN))
 }
 
 //write main
 func (s *Conn) WriteConfig() (int, error) {
-	s.Lock()
-	defer s.Unlock()
 	return s.Write([]byte(common.WORK_CONFIG))
 }
 
 //write chan
 func (s *Conn) WriteChan() (int, error) {
-	s.Lock()
-	defer s.Unlock()
 	return s.Write([]byte(common.WORK_CHAN))
 }
 
-//获取长度+内容
+//get the assembled amount data(len 4 and content)
 func GetLenBytes(buf []byte) (b []byte, err error) {
 	raw := bytes.NewBuffer([]byte{})
 	if err = binary.Write(raw, binary.LittleEndian, int32(len(buf))); err != nil {
@@ -407,6 +392,7 @@ func GetLenBytes(buf []byte) (b []byte, err error) {
 	return
 }
 
+//udp connection setting
 func SetUdpSession(sess *kcp.UDPSession) {
 	sess.SetStreamMode(true)
 	sess.SetWindowSize(1024, 1024)
@@ -450,13 +436,7 @@ func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) (io.
 		}
 		return rate.NewRateConn(crypt.NewTlsClientConn(conn), rt)
 	} else if snappy {
-		return NewSnappyConn(conn, cpt, rt)
+		return rate.NewRateConn(NewSnappyConn(conn), rt)
 	}
 	return rate.NewRateConn(conn, rt)
-}
-
-//read length or id (content length=4)
-func GetLen(reader io.Reader) (int, error) {
-	var l int32
-	return int(l), binary.Read(reader, binary.LittleEndian, &l)
 }

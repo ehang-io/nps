@@ -6,8 +6,10 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/version"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -59,7 +61,7 @@ func main() {
 		}
 	} else {
 		if *configPath == "" {
-			*configPath = "npc.conf"
+			*configPath = filepath.Join(beego.AppPath, "conf", "npc.conf")
 		}
 		client.StartFromFile(*configPath)
 	}

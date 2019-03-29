@@ -77,13 +77,13 @@
                 field: 'Id',//域值
                 title: 'id',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
             },
             {
                 field: 'Id',//域值
                 title: 'client id',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
                 formatter: function (value, row, index) {
                     return row.Client.Id
                 }
@@ -92,37 +92,40 @@
                 field: 'Remark',//域值
                 title: 'remark',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
             },
             {
                 field: 'Host',//域值
                 title: 'host',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
             },
             {
                 field: 'Scheme',//域值
                 title: 'scheme',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
             },
             {
                 field: 'Target',//域值
                 title: 'target',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
+                formatter: function (value, row, index) {
+                    return row.Target.TargetStr
+                }
             },
             {
                 field: 'Location',//域值
                 title: 'location',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
             },
             {
                 field: '',//域值
                 title: 'client status',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
                 formatter: function (value, row, index) {
                     if (row.Client.IsConnect) {
                         return '<span class="badge badge-primary">online</span>'
@@ -135,7 +138,7 @@
                 field: 'option',//域值
                 title: 'option',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+               
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
                     btn = `<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button><button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`

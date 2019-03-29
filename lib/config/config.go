@@ -17,6 +17,7 @@ type CommonConfig struct {
 	ProxyUrl         string
 	Client           *file.Client
 }
+
 type LocalServer struct {
 	Type     string
 	Port     int
@@ -24,6 +25,7 @@ type LocalServer struct {
 	Password string
 	Target   string
 }
+
 type Config struct {
 	content      string
 	title        []string
@@ -146,6 +148,7 @@ func dealCommon(s string) *CommonConfig {
 
 func dealHost(s string) *file.Host {
 	h := &file.Host{}
+	h.Target = new(file.Target)
 	var headerChange string
 	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
@@ -158,7 +161,7 @@ func dealHost(s string) *file.Host {
 		case "host":
 			h.Host = item[1]
 		case "target_addr":
-			h.Target = strings.Replace(item[1], ",", "\n", -1)
+			h.Target.TargetStr = strings.Replace(item[1], ",", "\n", -1)
 		case "host_change":
 			h.HostChange = item[1]
 		case "scheme":
@@ -204,6 +207,7 @@ func dealHealth(s string) *file.Health {
 
 func dealTunnel(s string) *file.Tunnel {
 	t := &file.Tunnel{}
+	t.Target = new(file.Target)
 	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
@@ -219,7 +223,7 @@ func dealTunnel(s string) *file.Tunnel {
 		case "mode":
 			t.Mode = item[1]
 		case "target_port", "target_addr":
-			t.Target = strings.Replace(item[1], ",", "\n", -1)
+			t.Target.TargetStr = strings.Replace(item[1], ",", "\n", -1)
 		case "target_ip":
 			t.TargetAddr = item[1]
 		case "password":

@@ -93,7 +93,7 @@ func (s *IndexController) Add() {
 			Port:      s.GetIntNoErr("port"),
 			ServerIp:  s.GetString("server_ip"),
 			Mode:      s.GetString("type"),
-			Target:    s.GetString("target"),
+			Target:    &file.Target{TargetStr: s.GetString("target")},
 			Id:        int(file.GetCsvDb().GetTaskId()),
 			Status:    true,
 			Remark:    s.GetString("remark"),
@@ -145,29 +145,30 @@ func (s *IndexController) Edit() {
 		if t, err := file.GetCsvDb().GetTask(id); err != nil {
 			s.error()
 		} else {
-			var portChange bool
+			if client, err := file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("modified error,the client is not exist")
+				return
+			} else {
+				t.Client = client
+			}
 			if s.GetIntNoErr("port") != t.Port {
-				portChange = true
+				if !tool.TestServerPort(s.GetIntNoErr("port"), t.Mode) {
+					s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
+					return
+				}
 				t.Port = s.GetIntNoErr("port")
 			}
 			t.ServerIp = s.GetString("server_ip")
 			t.Mode = s.GetString("type")
-			t.Target = s.GetString("target")
+			t.Target = &file.Target{TargetStr: s.GetString("target")}
 			t.Password = s.GetString("password")
 			t.Id = id
 			t.LocalPath = s.GetString("local_path")
 			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
-			if portChange && !tool.TestServerPort(t.Port, t.Mode) {
-				s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
-			}
-			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("modified error")
-			}
 			file.GetCsvDb().UpdateTask(t)
 			server.StopServer(t.Id)
 			server.StartTask(t.Id)
-			t.TargetArr = nil
 		}
 		s.AjaxOk("modified success")
 	}
@@ -243,7 +244,7 @@ func (s *IndexController) AddHost() {
 		h := &file.Host{
 			Id:           int(file.GetCsvDb().GetHostId()),
 			Host:         s.GetString("host"),
-			Target:       s.GetString("target"),
+			Target:       &file.Target{TargetStr: s.GetString("target")},
 			HeaderChange: s.GetString("header"),
 			HostChange:   s.GetString("hostchange"),
 			Remark:       s.GetString("remark"),
@@ -277,20 +278,29 @@ func (s *IndexController) EditHost() {
 		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
+			if h.Host != s.GetString("host") {
+				tmpHost := new(file.Host)
+				tmpHost.Host = s.GetString("host")
+				tmpHost.Location = s.GetString("location")
+				tmpHost.Scheme = s.GetString("scheme")
+				if file.GetCsvDb().IsHostExist(tmpHost) {
+					s.AjaxErr("host has exist")
+					return
+				}
+			}
+			if client, err := file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("modified error,the client is not exist")
+			} else {
+				h.Client = client
+			}
 			h.Host = s.GetString("host")
-			h.Target = s.GetString("target")
+			h.Target = &file.Target{TargetStr: s.GetString("target")}
 			h.HeaderChange = s.GetString("header")
 			h.HostChange = s.GetString("hostchange")
 			h.Remark = s.GetString("remark")
-			h.TargetArr = nil
 			h.Location = s.GetString("location")
 			h.Scheme = s.GetString("scheme")
 			file.GetCsvDb().StoreHostToCsv()
-			var err error
-			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("modified error")
-			}
-			h.TargetArr = nil
 		}
 		s.AjaxOk("modified success")
 	}

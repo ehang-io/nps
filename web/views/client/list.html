@@ -127,6 +127,8 @@
                     + '<b langtag="info-now-conn-num">当前连接数</b>：' + row.NowConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-flow-limit">流量限制</b>：' + row.Flow.FlowLimit + `m&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-rate-limit">带宽限制</b>：' + row.RateLimit + `kb/s&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-client-web-username">web登陆用户名</b>：' + row.WebUserName + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-client-web-password">web登陆密码</b>：' + row.WebPassword + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
                     + '<b langtag="info-crypt">加密</b>：' + row.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-compress">压缩</b>：' + row.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
@@ -141,19 +143,16 @@
                 field: 'Id',//域值
                 title: 'id',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
                 field: 'Remark',//域值
                 title: 'remark',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
                 field: 'VerifyKey',//域值
                 title: 'vkey',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     if (!row.NoStore) {
                         return value
@@ -166,10 +165,9 @@
                 field: 'Addr',//域值
                 title: 'client addr',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
-                field: 'Addr',//域值
+                field: 'InletFlow',//域值
                 title: 'in flow',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
@@ -178,7 +176,7 @@
                 }
             },
             {
-                field: 'Addr',//域值
+                field: 'ExportFlow',//域值
                 title: 'out flow',//标题
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
@@ -190,7 +188,6 @@
                 field: 'IsConnect',//域值
                 title: 'speed',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     return change(row.Rate.NowRate) + "/S"
                 }
@@ -199,7 +196,6 @@
                 field: 'Status',//域值
                 title: 'run',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     if (value) {
                         return '<span class="badge badge-primary">open</span>'
@@ -212,7 +208,6 @@
                 field: 'IsConnect',//域值
                 title: 'status',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     if (value) {
                         return '<span class="badge badge-primary">online</span>'
@@ -225,7 +220,6 @@
                 field: 'option',//域值
                 title: 'option',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
                     btn = `{{if eq true .isAdmin}}<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button>{{end}}<button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
@@ -241,7 +235,6 @@
                 field: 'show',//域值
                 title: 'show',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     return `<button onclick="tunnel(` + row.Id + `)" class="btn-info">tunnel</button><button onclick="host(` + row.Id + `)" class="btn-primary">host</button>`
                 }

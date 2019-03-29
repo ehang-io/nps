@@ -54,7 +54,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		return
 	}
 	defer s.task.Client.AddConn()
-	link := conn.NewLink(common.CONN_UDP, s.task.Target, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String())
+	link := conn.NewLink(common.CONN_UDP, s.task.Target.TargetStr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String())
 	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, addr.String(), s.task); err != nil {
 		return
 	} else {

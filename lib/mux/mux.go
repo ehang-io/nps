@@ -59,16 +59,9 @@ func (s *Mux) NewConn() (*conn, error) {
 		return nil, errors.New("the mux has closed")
 	}
 	conn := NewConn(s.getId(), s)
-	raw := bytes.NewBuffer([]byte{})
-	if err := binary.Write(raw, binary.LittleEndian, MUX_NEW_CONN); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(raw, binary.LittleEndian, conn.connId); err != nil {
-		return nil, err
-	}
 	//it must be set before send
 	s.connMap.Set(conn.connId, conn)
-	if _, err := s.conn.Write(raw.Bytes()); err != nil {
+	if err := s.sendInfo(MUX_NEW_CONN, conn.connId, nil); err != nil {
 		return nil, err
 	}
 	//set a timer timeout 30 second

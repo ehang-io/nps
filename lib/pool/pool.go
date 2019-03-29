@@ -52,12 +52,6 @@ func GetBufPoolCopy() ([]byte) {
 	return (*BufPoolCopy.Get().(*[]byte))[:PoolSizeCopy]
 }
 
-func PutBufPoolSmall(buf []byte) {
-	if cap(buf) == PoolSizeSmall {
-		BufPoolSmall.Put(buf[:PoolSizeSmall])
-	}
-}
-
 func PutBufPoolMax(buf []byte) {
 	if cap(buf) == PoolSize {
 		BufPoolMax.Put(buf[:PoolSize])

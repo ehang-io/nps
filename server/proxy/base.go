@@ -87,6 +87,5 @@ func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, 
 		}
 		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, client.Rate, flow, true, rb)
 	}
-	client.AddConn()
 	return nil
 }

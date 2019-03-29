@@ -92,12 +92,12 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 		} else if !status { //the status is true , return target to the targetArr
 			file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
 				v := value.(*file.Tunnel)
-				if v.Client.Id == id && v.Mode == "tcp" && strings.Contains(v.Target, info) {
+				if v.Client.Id == id && v.Mode == "tcp" && strings.Contains(v.Target.TargetStr, info) {
 					v.Lock()
-					if v.TargetArr == nil || (len(v.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
-						v.TargetArr = common.TrimArr(strings.Split(v.Target, "\n"))
+					if v.Target.TargetArr == nil || (len(v.Target.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
+						v.Target.TargetArr = common.TrimArr(strings.Split(v.Target.TargetStr, "\n"))
 					}
-					v.TargetArr = common.RemoveArrVal(v.TargetArr, info)
+					v.Target.TargetArr = common.RemoveArrVal(v.Target.TargetArr, info)
 					if v.HealthRemoveArr == nil {
 						v.HealthRemoveArr = make([]string, 0)
 					}
@@ -108,12 +108,12 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 			})
 			file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
 				v := value.(*file.Host)
-				if v.Client.Id == id && strings.Contains(v.Target, info) {
+				if v.Client.Id == id && strings.Contains(v.Target.TargetStr, info) {
 					v.Lock()
-					if v.TargetArr == nil || (len(v.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
-						v.TargetArr = common.TrimArr(strings.Split(v.Target, "\n"))
+					if v.Target.TargetArr == nil || (len(v.Target.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
+						v.Target.TargetArr = common.TrimArr(strings.Split(v.Target.TargetStr, "\n"))
 					}
-					v.TargetArr = common.RemoveArrVal(v.TargetArr, info)
+					v.Target.TargetArr = common.RemoveArrVal(v.Target.TargetArr, info)
 					if v.HealthRemoveArr == nil {
 						v.HealthRemoveArr = make([]string, 0)
 					}
@@ -125,9 +125,9 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 		} else { //the status is false,remove target from the targetArr
 			file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
 				v := value.(*file.Tunnel)
-				if v.Client.Id == id && v.Mode == "tcp" && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.TargetArr, info) {
+				if v.Client.Id == id && v.Mode == "tcp" && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.Target.TargetArr, info) {
 					v.Lock()
-					v.TargetArr = append(v.TargetArr, info)
+					v.Target.TargetArr = append(v.Target.TargetArr, info)
 					v.HealthRemoveArr = common.RemoveArrVal(v.HealthRemoveArr, info)
 					v.Unlock()
 				}
@@ -136,9 +136,9 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 
 			file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
 				v := value.(*file.Host)
-				if v.Client.Id == id && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.TargetArr, info) {
+				if v.Client.Id == id && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.Target.TargetArr, info) {
 					v.Lock()
-					v.TargetArr = append(v.TargetArr, info)
+					v.Target.TargetArr = append(v.Target.TargetArr, info)
 					v.HealthRemoveArr = common.RemoveArrVal(v.HealthRemoveArr, info)
 					v.Unlock()
 				}
@@ -207,7 +207,7 @@ func (s *Bridge) DelClient(id int) {
 		if file.GetCsvDb().IsPubClient(id) {
 			return
 		}
-		if c, err := file.GetCsvDb().GetClient(id); err == nil && c.NoStore {
+		if c, err := file.GetCsvDb().GetClient(id); err == nil {
 			s.CloseClient <- c.Id
 		}
 	}
@@ -320,7 +320,6 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string, t 
 		if t != nil && t.Mode == "file" {
 			return
 		}
-
 		if _, err = conn.NewConn(target).SendLinkInfo(link); err != nil {
 			logs.Info("new connect error ,the target %s refuse to connect", link.Host)
 			return
@@ -441,7 +440,7 @@ loop:
 				break loop
 			} else {
 				ports := common.GetPorts(t.Ports)
-				targets := common.GetPorts(t.Target)
+				targets := common.GetPorts(t.Target.TargetStr)
 				if len(ports) > 1 && (t.Mode == "tcp" || t.Mode == "udp") && (len(ports) != len(targets)) {
 					fail = true
 					c.WriteAddFail()
@@ -465,9 +464,9 @@ loop:
 					} else {
 						tl.Remark = t.Remark + "_" + strconv.Itoa(tl.Port)
 						if t.TargetAddr != "" {
-							tl.Target = t.TargetAddr + ":" + strconv.Itoa(targets[i])
+							tl.Target.TargetStr = t.TargetAddr + ":" + strconv.Itoa(targets[i])
 						} else {
-							tl.Target = strconv.Itoa(targets[i])
+							tl.Target.TargetStr = strconv.Itoa(targets[i])
 						}
 					}
 					tl.Id = int(file.GetCsvDb().GetTaskId())

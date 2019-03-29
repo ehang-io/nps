@@ -85,11 +85,12 @@ func (s *httpServer) processHttps(c net.Conn) {
 		c.Close()
 		return
 	}
+	defer host.Client.AddConn()
 	if err = s.auth(r, conn.NewConn(c), host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
 		logs.Warn("auth error", err, r.RemoteAddr)
 		return
 	}
-	if targetAddr, err = host.GetRandomTarget(); err != nil {
+	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
 		logs.Warn(err.Error())
 	}
 	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
@@ -101,7 +102,6 @@ func (s *httpServer) Start() error {
 	if s.errorContent, err = common.ReadAllFromFile(filepath.Join(common.GetRunPath(), "web", "static", "page", "error.html")); err != nil {
 		s.errorContent = []byte("easyProxy 404")
 	}
-
 	if s.httpPort > 0 {
 		s.httpServer = s.NewServer(s.httpPort, "http")
 		go func() {
@@ -181,7 +181,6 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) process(c *conn.Conn, r *http.Request) {
-	//多客户端域名代理
 	var (
 		isConn     = true
 		host       *file.Host
@@ -203,6 +202,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		c.Close()
 		return
 	}
+	defer host.Client.AddConn()
 	logs.Trace("new %s connection,clientId %d,host %s,url %s,remote address %s", r.URL.Scheme, host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 	lastHost = host
 	for {
@@ -212,7 +212,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Warn("auth error", err, r.RemoteAddr)
 				break
 			}
-			if targetAddr, err = host.GetRandomTarget(); err != nil {
+			if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
 				logs.Warn(err.Error())
 				break
 			}
@@ -249,10 +249,6 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 				break
 			} else if host != lastHost {
-				host.Client.AddConn()
-				if !hostTmp.Client.GetConn() {
-					break
-				}
 				host = hostTmp
 				lastHost = host
 				isConn = true
@@ -283,9 +279,6 @@ end:
 		target.Close()
 	}
 	wg.Wait()
-	if host != nil {
-		host.Client.AddConn()
-	}
 }
 
 func (s *httpServer) NewServer(port int, scheme string) *http.Server {

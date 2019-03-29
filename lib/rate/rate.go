@@ -6,10 +6,10 @@ import (
 )
 
 type Rate struct {
-	bucketSize        int64     //木桶容量
-	bucketSurplusSize int64     //当前桶中体积
-	bucketAddSize     int64     //每次加水大小
-	stopChan          chan bool //停止
+	bucketSize        int64
+	bucketSurplusSize int64
+	bucketAddSize     int64
+	stopChan          chan bool
 	NowRate           int64
 }
 

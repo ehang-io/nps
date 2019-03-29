@@ -40,6 +40,7 @@ func (s *TunnelModeServer) Start() error {
 		}
 		logs.Trace("new tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
 		s.process(conn.NewConn(c), s)
+		s.task.Client.AddConn()
 	}, &s.listener)
 }
 
@@ -87,7 +88,7 @@ type process func(c *conn.Conn, s *TunnelModeServer) error
 
 //tcp隧道模式
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	targetAddr, err := s.task.GetRandomTarget()
+	targetAddr, err := s.task.Target.GetRandomTarget()
 	if err != nil {
 		c.Close()
 		logs.Warn("tcp port %d ,client id %d,task id %d connect error %s", s.task.Port, s.task.Client.Id, s.task.Id, err.Error())

@@ -57,8 +57,12 @@ func DealBridgeTask() {
 		case t := <-Bridge.CloseTask:
 			StopServer(t.Id)
 		case id := <-Bridge.CloseClient:
-			DelTunnelAndHostByClientId(id)
-			file.GetCsvDb().DelClient(id)
+			DelTunnelAndHostByClientId(id, true)
+			if v, ok := file.GetCsvDb().Clients.Load(id); ok {
+				if v.(*file.Client).NoStore {
+					file.GetCsvDb().DelClient(id)
+				}
+			}
 		case tunnel := <-Bridge.OpenTask:
 			StartTask(tunnel.Id)
 		case s := <-Bridge.SecretChan:
@@ -68,7 +72,7 @@ func DealBridgeTask() {
 					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
 					s.Conn.Close()
 				} else if t.Status {
-					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target, nil, common.CONN_TCP, nil, t.Flow)
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target.TargetStr, nil, common.CONN_TCP, nil, t.Flow)
 				} else {
 					s.Conn.Close()
 					logs.Trace("This key %s cannot be processed,status is close", s.Password)
@@ -133,7 +137,6 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 		t := &file.Tunnel{
 			Port:   0,
 			Mode:   "httpHostServer",
-			Target: "",
 			Status: true,
 		}
 		AddTask(t)
@@ -223,7 +226,7 @@ func DelTask(id int) error {
 func GetTunnel(start, length int, typeVal string, clientId int, search string) ([]*file.Tunnel, int) {
 	list := make([]*file.Tunnel, 0)
 	var cnt int
-	keys := common.GetMapKeys(file.GetCsvDb().Tasks)
+	keys := file.GetMapKeys(file.GetCsvDb().Tasks, false, "", "")
 	for _, key := range keys {
 		if value, ok := file.GetCsvDb().Tasks.Load(key); ok {
 			v := value.(*file.Tunnel)
@@ -255,8 +258,8 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 }
 
 //获取客户端列表
-func GetClientList(start, length int, search string, clientId int) (list []*file.Client, cnt int) {
-	list, cnt = file.GetCsvDb().GetClientList(start, length, search, clientId)
+func GetClientList(start, length int, search, sort, order string, clientId int) (list []*file.Client, cnt int) {
+	list, cnt = file.GetCsvDb().GetClientList(start, length, search, sort, order, clientId)
 	dealClientData()
 	return
 }
@@ -293,10 +296,13 @@ func dealClientData() {
 }
 
 //根据客户端id删除其所属的所有隧道和域名
-func DelTunnelAndHostByClientId(clientId int) {
+func DelTunnelAndHostByClientId(clientId int, justDelNoStore bool) {
 	var ids []int
 	file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*file.Tunnel)
+		if justDelNoStore && !v.NoStore {
+			return true
+		}
 		if v.Client.Id == clientId {
 			ids = append(ids, v.Id)
 		}
@@ -308,6 +314,9 @@ func DelTunnelAndHostByClientId(clientId int) {
 	ids = ids[:0]
 	file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
 		v := value.(*file.Host)
+		if justDelNoStore && !v.NoStore {
+			return true
+		}
 		if v.Client.Id == clientId {
 			ids = append(ids, v.Id)
 		}
@@ -378,7 +387,7 @@ func GetDashboardData() map[string]interface{} {
 	tcpCount := 0
 
 	file.GetCsvDb().Clients.Range(func(key, value interface{}) bool {
-		tcpCount += value.(*file.Client).NowConn
+		tcpCount += int(value.(*file.Client).NowConn)
 		return true
 	})
 	data["tcpCount"] = tcpCount

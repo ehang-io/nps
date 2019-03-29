@@ -46,7 +46,7 @@
                         <label class="col-sm-2 control-label" langtag="info-target">内网目标(ip:端口)</label>
                         <div class="col-sm-10">
                             <textarea class="form-control" name="target" rows="4" placeholder="10.1.50.203:22
-10.1.50.202:22">{{.t.Target}}</textarea>
+10.1.50.202:22">{{.t.Target.TargetStr}}</textarea>
                             <span class="help-block m-b-none">can only fill in ports if it is local machine proxy, only tcp supports load balancing
 
 </span></div>
@@ -89,7 +89,7 @@
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
                             <button class="btn btn-success" href="#" id="add"><i
-                                    class="fa fa-fw fa-lg fa-eye"></i>新增
+                                    class="fa fa-fw fa-lg fa-eye"></i><span langtag="info-save">保存</span>
                             </button>
                         </div>
                     </div>

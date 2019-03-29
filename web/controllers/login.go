@@ -23,13 +23,25 @@ func (self *LoginController) Verify() {
 		server.Bridge.Register.Store(common.GetIpByAddr(self.Ctx.Request.RemoteAddr), time.Now().Add(time.Hour*time.Duration(2)))
 	}
 	b, err := beego.AppConfig.Bool("allow_user_login")
-	if err == nil && b && self.GetString("username") == "user" && !auth {
+	if err == nil && b && !auth {
 		file.GetCsvDb().Clients.Range(func(key, value interface{}) bool {
 			v := value.(*file.Client)
-			if v.VerifyKey == self.GetString("password") && v.Status {
+			if !v.Status || v.NoDisplay {
+				return true
+			}
+			if v.WebUserName == "" && v.WebPassword == "" {
+				if self.GetString("username") != "user" || v.VerifyKey != self.GetString("password") {
+					return true
+				} else {
+					auth = true
+				}
+			}
+			if !auth && v.WebPassword == self.GetString("password") && self.GetString("username") == v.WebUserName {
+				auth = true
+			}
+			if auth {
 				self.SetSession("isAdmin", false)
 				self.SetSession("clientId", v.Id)
-				auth = true
 				return false
 			}
 			return true
