@@ -23,6 +23,13 @@ func (s *Flow) Add(in, out int64) {
 	s.ExportFlow += int64(out)
 }
 
+type Config struct {
+	U        string
+	P        string
+	Compress bool
+	Crypt    bool
+}
+
 type Client struct {
 	Cnf             *Config
 	Id              int        //id
@@ -79,7 +86,7 @@ func (s *Client) GetConn() bool {
 }
 
 func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
-	GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*Tunnel)
 		if v.Client.Id == s.Id && v.Port == t.Port {
 			exist = true
@@ -92,7 +99,7 @@ func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
 
 func (s *Client) HasHost(h *Host) bool {
 	var has bool
-	GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+	GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
 		v := value.(*Host)
 		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
 			has = true
@@ -104,17 +111,17 @@ func (s *Client) HasHost(h *Host) bool {
 }
 
 type Tunnel struct {
-	Id         int //Id
-	Port       int //服务端监听端口
+	Id         int
+	Port       int
 	ServerIp   string
-	Mode       string  //启动方式
-	Status     bool    //设置是否开启
-	RunStatus  bool    //当前运行状态
-	Client     *Client //所属客户端id
-	Ports      string  //客户端与服务端传递
+	Mode       string
+	Status     bool
+	RunStatus  bool
+	Client     *Client
+	Ports      string
 	Flow       *Flow
-	Password   string //私密模式密码，唯一
-	Remark     string //备注
+	Password   string
+	Remark     string
 	TargetAddr string
 	NoStore    bool
 	LocalPath  string
@@ -137,10 +144,27 @@ type Health struct {
 	sync.RWMutex
 }
 
+type Host struct {
+	Id           int
+	Host         string //host
+	HeaderChange string //header change
+	HostChange   string //host change
+	Location     string //url router
+	Remark       string //remark
+	Scheme       string //http https all
+	NoStore      bool
+	IsClose      bool
+	Flow         *Flow
+	Client       *Client
+	Target       *Target //目标
+	Health       `json:"-"`
+	sync.RWMutex
+}
+
 type Target struct {
 	nowIndex  int
 	TargetStr string
-	TargetArr []string //目标
+	TargetArr []string
 	sync.RWMutex
 }
 
@@ -161,28 +185,4 @@ func (s *Target) GetRandomTarget() (string, error) {
 	}
 	s.nowIndex++
 	return s.TargetArr[s.nowIndex], nil
-}
-
-type Config struct {
-	U        string
-	P        string
-	Compress bool
-	Crypt    bool
-}
-
-type Host struct {
-	Id           int
-	Host         string //host
-	HeaderChange string //header change
-	HostChange   string //host change
-	Location     string //url router
-	Remark       string //remark
-	Scheme       string //http https all
-	NoStore      bool
-	IsClose      bool
-	Flow         *Flow
-	Client       *Client
-	Target       *Target //目标
-	Health       `json:"-"`
-	sync.RWMutex
 }

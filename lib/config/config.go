@@ -93,7 +93,6 @@ func NewConfig(path string) (c *Config, err error) {
 				}
 			}
 		}
-
 	}
 	return
 }

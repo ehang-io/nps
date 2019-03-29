@@ -210,21 +210,6 @@ func (s *Conn) SendHostInfo(h *file.Host) (int, error) {
 	return s.Write(raw.Bytes())
 }
 
-//get task or host result of add
-func (s *Conn) GetAddStatus() (b bool) {
-	binary.Read(s.Conn, binary.LittleEndian, &b)
-	return
-}
-
-func (s *Conn) WriteAddOk() error {
-	return binary.Write(s.Conn, binary.LittleEndian, true)
-}
-
-func (s *Conn) WriteAddFail() error {
-	defer s.Close()
-	return binary.Write(s.Conn, binary.LittleEndian, false)
-}
-
 //get task info
 func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 	var l int
@@ -238,7 +223,7 @@ func (s *Conn) GetHostInfo() (h *file.Host, err error) {
 		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
 		h = new(file.Host)
 		h.Target = new(file.Target)
-		h.Id = int(file.GetCsvDb().GetHostId())
+		h.Id = int(file.GetDb().JsonDb.GetHostId())
 		h.Host = arr[0]
 		h.Target.TargetStr = arr[1]
 		h.HeaderChange = arr[2]
@@ -328,7 +313,7 @@ func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
 		t.Mode = arr[0]
 		t.Ports = arr[1]
 		t.Target.TargetStr = arr[2]
-		t.Id = int(file.GetCsvDb().GetTaskId())
+		t.Id = int(file.GetDb().JsonDb.GetTaskId())
 		t.Status = true
 		t.Flow = new(file.Flow)
 		t.Remark = arr[3]
@@ -377,6 +362,21 @@ func (s *Conn) WriteConfig() (int, error) {
 //write chan
 func (s *Conn) WriteChan() (int, error) {
 	return s.Write([]byte(common.WORK_CHAN))
+}
+
+//get task or host result of add
+func (s *Conn) GetAddStatus() (b bool) {
+	binary.Read(s.Conn, binary.LittleEndian, &b)
+	return
+}
+
+func (s *Conn) WriteAddOk() error {
+	return binary.Write(s.Conn, binary.LittleEndian, true)
+}
+
+func (s *Conn) WriteAddFail() error {
+	defer s.Close()
+	return binary.Write(s.Conn, binary.LittleEndian, false)
 }
 
 //get the assembled amount data(len 4 and content)

@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 //Get the corresponding IP address through domain name
@@ -343,4 +344,13 @@ func BytesToNum(b []byte) int {
 	}
 	x, _ := strconv.Atoi(str)
 	return int(x)
+}
+
+func GeSynctMapLen(m sync.Map) int {
+	var c int
+	m.Range(func(key, value interface{}) bool {
+		c++
+		return true
+	})
+	return c
 }

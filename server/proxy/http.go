@@ -58,7 +58,7 @@ func (s *httpServer) processHttps(c net.Conn) {
 		return
 	}
 	var host *file.Host
-	file.GetCsvDb().Hosts.Range(func(key, value interface{}) bool {
+	file.GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
 		v := value.(*file.Host)
 		if v.Scheme != "https" && v.Scheme != "all" {
 			return true
@@ -193,7 +193,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		targetAddr string
 		wg         sync.WaitGroup
 	)
-	if host, err = file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
+	if host, err = file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 		goto end
 	}
@@ -245,7 +245,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				r.Method = "POST"
 			}
 			logs.Trace("new %s connection,clientId %d,host %s,url %s,remote address %s", r.URL.Scheme, host.Client.Id, r.Host, r.URL, r.RemoteAddr)
-			if hostTmp, err := file.GetCsvDb().GetInfoByHost(r.Host, r); err != nil {
+			if hostTmp, err := file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 				break
 			} else if host != lastHost {

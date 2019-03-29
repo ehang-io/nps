@@ -12,7 +12,7 @@ import (
 func TestServerConfig() {
 	var postTcpArr []int
 	var postUdpArr []int
-	file.GetCsvDb().Tasks.Range(func(key, value interface{}) bool {
+	file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*file.Tunnel)
 		if v.Mode == "udp" {
 			isInArr(&postUdpArr, v.Port, v.Remark, "udp")

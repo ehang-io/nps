@@ -94,7 +94,7 @@ func (s *IndexController) Add() {
 			ServerIp:  s.GetString("server_ip"),
 			Mode:      s.GetString("type"),
 			Target:    &file.Target{TargetStr: s.GetString("target")},
-			Id:        int(file.GetCsvDb().GetTaskId()),
+			Id:        int(file.GetDb().JsonDb.GetTaskId()),
 			Status:    true,
 			Remark:    s.GetString("remark"),
 			Password:  s.GetString("password"),
@@ -106,10 +106,10 @@ func (s *IndexController) Add() {
 			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
 		}
 		var err error
-		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+		if t.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		if err := file.GetCsvDb().NewTask(t); err != nil {
+		if err := file.GetDb().NewTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		}
 		if err := server.AddTask(t); err != nil {
@@ -122,7 +122,7 @@ func (s *IndexController) Add() {
 func (s *IndexController) GetOneTunnel() {
 	id := s.GetIntNoErr("id")
 	data := make(map[string]interface{})
-	if t, err := file.GetCsvDb().GetTask(id); err != nil {
+	if t, err := file.GetDb().GetTask(id); err != nil {
 		data["code"] = 0
 	} else {
 		data["code"] = 1
@@ -134,7 +134,7 @@ func (s *IndexController) GetOneTunnel() {
 func (s *IndexController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
 			s.Data["t"] = t
@@ -142,10 +142,10 @@ func (s *IndexController) Edit() {
 		s.SetInfo("edit tunnel")
 		s.display()
 	} else {
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
-			if client, err := file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error,the client is not exist")
 				return
 			} else {
@@ -166,7 +166,7 @@ func (s *IndexController) Edit() {
 			t.LocalPath = s.GetString("local_path")
 			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
-			file.GetCsvDb().UpdateTask(t)
+			file.GetDb().UpdateTask(t)
 			server.StopServer(t.Id)
 			server.StartTask(t.Id)
 		}
@@ -207,7 +207,7 @@ func (s *IndexController) HostList() {
 	} else {
 		start, length := s.GetAjaxParams()
 		clientId := s.GetIntNoErr("client_id")
-		list, cnt := file.GetCsvDb().GetHost(start, length, clientId, s.GetString("search"))
+		list, cnt := file.GetDb().GetHost(start, length, clientId, s.GetString("search"))
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
@@ -215,7 +215,7 @@ func (s *IndexController) HostList() {
 func (s *IndexController) GetHost() {
 	if s.Ctx.Request.Method == "POST" {
 		data := make(map[string]interface{})
-		if h, err := file.GetCsvDb().GetHostById(s.GetIntNoErr("id")); err != nil {
+		if h, err := file.GetDb().GetHostById(s.GetIntNoErr("id")); err != nil {
 			data["code"] = 0
 		} else {
 			data["data"] = h
@@ -228,7 +228,7 @@ func (s *IndexController) GetHost() {
 
 func (s *IndexController) DelHost() {
 	id := s.GetIntNoErr("id")
-	if err := file.GetCsvDb().DelHost(id); err != nil {
+	if err := file.GetDb().DelHost(id); err != nil {
 		s.AjaxErr("delete error")
 	}
 	s.AjaxOk("delete success")
@@ -242,7 +242,7 @@ func (s *IndexController) AddHost() {
 		s.display("index/hadd")
 	} else {
 		h := &file.Host{
-			Id:           int(file.GetCsvDb().GetHostId()),
+			Id:           int(file.GetDb().JsonDb.GetHostId()),
 			Host:         s.GetString("host"),
 			Target:       &file.Target{TargetStr: s.GetString("target")},
 			HeaderChange: s.GetString("header"),
@@ -253,10 +253,10 @@ func (s *IndexController) AddHost() {
 			Scheme:       s.GetString("scheme"),
 		}
 		var err error
-		if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+		if h.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr("add error")
 		}
-		if err := file.GetCsvDb().NewHost(h); err != nil {
+		if err := file.GetDb().NewHost(h); err != nil {
 			s.AjaxErr("add fail" + err.Error())
 		}
 		s.AjaxOk("add success")
@@ -267,7 +267,7 @@ func (s *IndexController) EditHost() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "host"
-		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
+		if h, err := file.GetDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
 			s.Data["h"] = h
@@ -275,7 +275,7 @@ func (s *IndexController) EditHost() {
 		s.SetInfo("edit")
 		s.display("index/hedit")
 	} else {
-		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
+		if h, err := file.GetDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
 			if h.Host != s.GetString("host") {
@@ -283,12 +283,12 @@ func (s *IndexController) EditHost() {
 				tmpHost.Host = s.GetString("host")
 				tmpHost.Location = s.GetString("location")
 				tmpHost.Scheme = s.GetString("scheme")
-				if file.GetCsvDb().IsHostExist(tmpHost) {
+				if file.GetDb().IsHostExist(tmpHost) {
 					s.AjaxErr("host has exist")
 					return
 				}
 			}
-			if client, err := file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error,the client is not exist")
 			} else {
 				h.Client = client
@@ -300,7 +300,7 @@ func (s *IndexController) EditHost() {
 			h.Remark = s.GetString("remark")
 			h.Location = s.GetString("location")
 			h.Scheme = s.GetString("scheme")
-			file.GetCsvDb().StoreHostToCsv()
+			file.GetDb().JsonDb.StoreHostToJsonFile()
 		}
 		s.AjaxOk("modified success")
 	}

@@ -24,7 +24,7 @@ func (self *LoginController) Verify() {
 	}
 	b, err := beego.AppConfig.Bool("allow_user_login")
 	if err == nil && b && !auth {
-		file.GetCsvDb().Clients.Range(func(key, value interface{}) bool {
+		file.GetDb().JsonDb.Clients.Range(func(key, value interface{}) bool {
 			v := value.(*file.Client)
 			if !v.Status || v.NoDisplay {
 				return true

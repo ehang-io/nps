@@ -40,7 +40,7 @@ func (s *ClientController) Add() {
 	} else {
 		t := &file.Client{
 			VerifyKey: s.GetString("vkey"),
-			Id:        int(file.GetCsvDb().GetClientId()),
+			Id:        int(file.GetDb().JsonDb.GetClientId()),
 			Status:    true,
 			Remark:    s.GetString("remark"),
 			Cnf: &file.Config{
@@ -64,7 +64,7 @@ func (s *ClientController) Add() {
 			t.Rate = rate.NewRate(int64(t.RateLimit * 1024))
 			t.Rate.Start()
 		}
-		if err := file.GetCsvDb().NewClient(t); err != nil {
+		if err := file.GetDb().NewClient(t); err != nil {
 			s.AjaxErr(err.Error())
 		}
 		s.AjaxOk("add success")
@@ -74,7 +74,7 @@ func (s *ClientController) GetClient() {
 	if s.Ctx.Request.Method == "POST" {
 		id := s.GetIntNoErr("id")
 		data := make(map[string]interface{})
-		if c, err := file.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetDb().GetClient(id); err != nil {
 			data["code"] = 0
 		} else {
 			data["code"] = 1
@@ -90,7 +90,7 @@ func (s *ClientController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		if c, err := file.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			s.Data["c"] = c
@@ -98,17 +98,17 @@ func (s *ClientController) Edit() {
 		s.SetInfo("edit client")
 		s.display()
 	} else {
-		if c, err := file.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			if s.GetString("web_username") != "" {
-				if s.GetString("web_username") == beego.AppConfig.String("web_username") || !file.GetCsvDb().VerifyUserName(s.GetString("web_username"), c.Id) {
+				if s.GetString("web_username") == beego.AppConfig.String("web_username") || !file.GetDb().VerifyUserName(s.GetString("web_username"), c.Id) {
 					s.AjaxErr("web login username duplicate, please reset")
 					return
 				}
 			}
 			if s.GetSession("isAdmin").(bool) {
-				if !file.GetCsvDb().VerifyVkey(s.GetString("vkey"), c.Id) {
+				if !file.GetDb().VerifyVkey(s.GetString("vkey"), c.Id) {
 					s.AjaxErr("Vkey duplicate, please reset")
 					return
 				}
@@ -135,7 +135,7 @@ func (s *ClientController) Edit() {
 				c.Rate = rate.NewRate(int64(2 << 23))
 				c.Rate.Start()
 			}
-			file.GetCsvDb().StoreClientsToCsv()
+			file.GetDb().JsonDb.StoreClientsToJsonFile()
 		}
 		s.AjaxOk("save success")
 	}
@@ -144,7 +144,7 @@ func (s *ClientController) Edit() {
 //更改状态
 func (s *ClientController) ChangeStatus() {
 	id := s.GetIntNoErr("id")
-	if client, err := file.GetCsvDb().GetClient(id); err == nil {
+	if client, err := file.GetDb().GetClient(id); err == nil {
 		client.Status = s.GetBoolNoErr("status")
 		if client.Status == false {
 			server.DelClientConnect(client.Id)
@@ -157,7 +157,7 @@ func (s *ClientController) ChangeStatus() {
 //删除客户端
 func (s *ClientController) Del() {
 	id := s.GetIntNoErr("id")
-	if err := file.GetCsvDb().DelClient(id); err != nil {
+	if err := file.GetDb().DelClient(id); err != nil {
 		s.AjaxErr("delete error")
 	}
 	server.DelTunnelAndHostByClientId(id, false)
