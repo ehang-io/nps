@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
 	"regexp"
@@ -13,7 +14,6 @@ type CommonConfig struct {
 	VKey             string
 	Tp               string //bridgeType kcp or tcp
 	AutoReconnection bool
-	Cnf              *file.Config
 	ProxyUrl         string
 	Client           *file.Client
 }
@@ -104,8 +104,8 @@ func getTitleContent(s string) string {
 
 func dealCommon(s string) *CommonConfig {
 	c := &CommonConfig{}
-	c.Cnf = new(file.Config)
 	c.Client = file.NewClient("", true, true)
+	c.Client.Cnf = new(file.Config)
 	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
 		if len(item) == 0 {
@@ -122,14 +122,18 @@ func dealCommon(s string) *CommonConfig {
 			c.Tp = item[1]
 		case "auto_reconnection":
 			c.AutoReconnection = common.GetBoolByStr(item[1])
-		case "username":
-			c.Cnf.U = item[1]
-		case "password":
-			c.Cnf.P = item[1]
+		case "basic_username":
+			c.Client.Cnf.U = item[1]
+		case "basic_password":
+			c.Client.Cnf.P = item[1]
+		case "web_password":
+			c.Client.WebPassword = item[1]
+		case "web_username":
+			c.Client.WebUserName = item[1]
 		case "compress":
-			c.Cnf.Compress = common.GetBoolByStr(item[1])
+			c.Client.Cnf.Compress = common.GetBoolByStr(item[1])
 		case "crypt":
-			c.Cnf.Crypt = common.GetBoolByStr(item[1])
+			c.Client.Cnf.Crypt = common.GetBoolByStr(item[1])
 		case "proxy_url":
 			c.ProxyUrl = item[1]
 		case "rate_limit":
@@ -270,7 +274,7 @@ func getAllTitle(content string) (arr []string, err error) {
 	m := make(map[string]bool)
 	for _, v := range arr {
 		if _, ok := m[v]; ok {
-			err = errors.New("Item names are not allowed to be duplicated")
+			err = errors.New(fmt.Sprintf("Item names %s are not allowed to be duplicated", v))
 			return
 		}
 		m[v] = true

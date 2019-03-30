@@ -88,7 +88,7 @@ func (s *Client) GetConn() bool {
 func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
 	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*Tunnel)
-		if v.Client.Id == s.Id && v.Port == t.Port {
+		if v.Client.Id == s.Id && v.Port == t.Port && t.Port != 0 {
 			exist = true
 			return false
 		}
@@ -152,8 +152,8 @@ type Host struct {
 	Location     string //url router
 	Remark       string //remark
 	Scheme       string //http https all
-	CertFilePath     string
-	KeyFilePath      string
+	CertFilePath string
+	KeyFilePath  string
 	NoStore      bool
 	IsClose      bool
 	Flow         *Flow

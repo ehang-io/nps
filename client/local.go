@@ -86,12 +86,13 @@ func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.Lo
 		logs.Error(err)
 		return
 	}
-	link := conn.NewLink(common.CONN_TCP, l.Target, config.Cnf.Crypt, config.Cnf.Compress, localTcpConn.LocalAddr().String())
-	if _, err := conn.NewConn(nowConn).SendLinkInfo(link); err != nil {
+	//TODO just support compress now because there is not tls file in client packages
+	link := conn.NewLink(common.CONN_TCP, l.Target, false, config.Client.Cnf.Compress, localTcpConn.LocalAddr().String())
+	if _, err := conn.NewConn(nowConn).SendInfo(link, ""); err != nil {
 		logs.Error(err)
 		return
 	}
-	conn.CopyWaitGroup(nowConn, localTcpConn, config.Cnf.Crypt, config.Cnf.Compress, nil, nil, false, nil)
+	conn.CopyWaitGroup(nowConn, localTcpConn, false, config.Client.Cnf.Compress, nil, nil, false, nil)
 }
 
 func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {

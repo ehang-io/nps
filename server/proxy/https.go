@@ -39,10 +39,7 @@ func (https *HttpsServer) Start() error {
 			if v, ok := https.httpsListenerMap.Load(serverName); ok {
 				l = v.(*HttpsListener)
 			} else {
-				r := new(http.Request)
-				r.RequestURI = "/"
-				r.URL = new(url.URL)
-				r.URL.Scheme = "https"
+				r := buildHttpsRequest(serverName)
 				if host, err := file.GetDb().GetInfoByHost(serverName, r); err != nil {
 					c.Close()
 					logs.Notice("the url %s can't be parsed!", serverName)
@@ -50,7 +47,7 @@ func (https *HttpsServer) Start() error {
 				} else {
 					if !common.FileExists(host.CertFilePath) || !common.FileExists(host.KeyFilePath) {
 						c.Close()
-						logs.Error("the key %s  cert %s file is not exist", host.KeyFilePath, host.CertFilePath)
+						logs.Error("the key %s cert %s file is not exist", host.KeyFilePath, host.CertFilePath)
 						return
 					}
 					l = NewHttpsListener(https.listener)
@@ -79,11 +76,7 @@ func (https *HttpsServer) NewHttps(l net.Listener, certFile string, keyFile stri
 func (https *HttpsServer) handleHttps(c net.Conn) {
 	hostName, rb := GetServerNameFromClientHello(c)
 	var targetAddr string
-	r := new(http.Request)
-	r.RequestURI = "/"
-	r.URL = new(url.URL)
-	r.URL.Scheme = "https"
-	r.Host = hostName
+	r := buildHttpsRequest(hostName)
 	var host *file.Host
 	var err error
 	if host, err = file.GetDb().GetInfoByHost(hostName, r); err != nil {
@@ -144,4 +137,13 @@ func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
 	clientHello := new(crypt.ClientHelloMsg)
 	clientHello.Unmarshal(data[5:n])
 	return clientHello.GetServerName(), buf[:n]
+}
+
+func buildHttpsRequest(hostName string) *http.Request {
+	r := new(http.Request)
+	r.RequestURI = "/"
+	r.URL = new(url.URL)
+	r.URL.Scheme = "https"
+	r.Host = hostName
+	return r
 }

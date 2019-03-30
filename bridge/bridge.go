@@ -173,7 +173,7 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	}
 	//write server version to client
 	c.Write([]byte(crypt.Md5(version.GetVersion())))
-	c.SetReadDeadlineByType(5, s.tunnelType)
+	c.SetReadDeadlineBySecond(5)
 	var buf []byte
 	var err error
 	//get vKey from client
@@ -318,9 +318,12 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string, t 
 			return
 		}
 		if t != nil && t.Mode == "file" {
+			//TODO if t.mode is file ,not use crypt or compress
+			link.Crypt = false
+			link.Compress = false
 			return
 		}
-		if _, err = conn.NewConn(target).SendLinkInfo(link); err != nil {
+		if _, err = conn.NewConn(target).SendInfo(link, ""); err != nil {
 			logs.Info("new connect error ,the target %s refuse to connect", link.Host)
 			return
 		}
@@ -445,7 +448,7 @@ loop:
 					fail = true
 					c.WriteAddFail()
 					break loop
-				} else if t.Mode == "secret" {
+				} else if t.Mode == "secret" || t.Mode == "p2p" {
 					ports = append(ports, 0)
 				}
 				if len(ports) == 0 {
