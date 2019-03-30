@@ -25,6 +25,7 @@ import (
 
 type Conn struct {
 	Conn net.Conn
+	Rb   []byte
 }
 
 //new conn
@@ -83,6 +84,26 @@ func (s *Conn) GetShortContent(l int) (b []byte, err error) {
 	return buf, binary.Read(s, binary.LittleEndian, &buf)
 }
 
+func (s *Conn) LocalAddr() net.Addr {
+	return s.Conn.LocalAddr()
+}
+
+func (s *Conn) RemoteAddr() net.Addr {
+	return s.Conn.RemoteAddr()
+}
+
+func (s *Conn) SetDeadline(t time.Time) error {
+	return s.Conn.SetDeadline(t)
+}
+
+func (s *Conn) SetWriteDeadline(t time.Time) error {
+	return s.Conn.SetWriteDeadline(t)
+}
+
+func (s *Conn) SetReadDeadline(t time.Time) error {
+	return s.Conn.SetReadDeadline(t)
+}
+
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int, buf []byte) (int, error) {
 	if cLen > len(buf) {
@@ -130,7 +151,7 @@ func (s *Conn) SetAlive(tp string) {
 }
 
 //set read deadline
-func (s *Conn) SetReadDeadline(t time.Duration, tp string) {
+func (s *Conn) SetReadDeadlineByType(t time.Duration, tp string) {
 	switch s.Conn.(type) {
 	case *kcp.UDPSession:
 		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
@@ -340,7 +361,15 @@ func (s *Conn) Write(b []byte) (int, error) {
 }
 
 //read
-func (s *Conn) Read(b []byte) (int, error) {
+func (s *Conn) Read(b []byte) (n int, err error) {
+	if s.Rb != nil {
+		if len(s.Rb) > 0 {
+			n = copy(b, s.Rb)
+			s.Rb = s.Rb[n:]
+			return
+		}
+		s.Rb = nil
+	}
 	return s.Conn.Read(b)
 }
 

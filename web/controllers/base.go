@@ -43,6 +43,7 @@ func (s *BaseController) Prepare() {
 	} else {
 		s.Data["isAdmin"] = true
 	}
+	s.Data["https_just_proxy"], _ = beego.AppConfig.Bool("https_just_proxy")
 }
 
 //加载模板

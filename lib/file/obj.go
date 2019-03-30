@@ -152,6 +152,8 @@ type Host struct {
 	Location     string //url router
 	Remark       string //remark
 	Scheme       string //http https all
+	CertFilePath     string
+	KeyFilePath      string
 	NoStore      bool
 	IsClose      bool
 	Flow         *Flow

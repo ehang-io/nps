@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
@@ -15,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -24,10 +22,8 @@ import (
 
 type httpServer struct {
 	BaseServer
-	httpPort      int //http端口
-	httpsPort     int //https监听端口
-	pemPath       string
-	keyPath       string
+	httpPort      int
+	httpsPort     int
 	httpServer    *http.Server
 	httpsServer   *http.Server
 	httpsListener net.Listener
@@ -36,8 +32,6 @@ type httpServer struct {
 func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 	httpPort, _ := beego.AppConfig.Int("http_proxy_port")
 	httpsPort, _ := beego.AppConfig.Int("https_proxy_port")
-	pemPath := beego.AppConfig.String("pem_path")
-	keyPath := beego.AppConfig.String("key_path")
 	return &httpServer{
 		BaseServer: BaseServer{
 			task:   c,
@@ -46,55 +40,7 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 		},
 		httpPort:  httpPort,
 		httpsPort: httpsPort,
-		pemPath:   pemPath,
-		keyPath:   keyPath,
 	}
-}
-
-func (s *httpServer) processHttps(c net.Conn) {
-	buf := make([]byte, 2048)
-	n, err := c.Read(buf)
-	if err != nil {
-		return
-	}
-	var host *file.Host
-	file.GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
-		v := value.(*file.Host)
-		if v.Scheme != "https" && v.Scheme != "all" {
-			return true
-		}
-		if bytes.Index(buf[:n], []byte(v.Host)) >= 0 && (host == nil || len(host.Host) < len(v.Host)) {
-			host = v
-			return false
-		}
-		return true
-	})
-	if host == nil {
-		logs.Error("new https connection can't be parsed!", c.RemoteAddr().String())
-		c.Close()
-		return
-	}
-	var targetAddr string
-	r := new(http.Request)
-	r.RequestURI = "/"
-	r.URL = new(url.URL)
-	r.URL.Scheme = "https"
-	r.Host = host.Host
-	if err := s.CheckFlowAndConnNum(host.Client); err != nil {
-		logs.Warn("client id %d, host id %d, error %s, when https connection", host.Client.Id, host.Id, err.Error())
-		c.Close()
-		return
-	}
-	defer host.Client.AddConn()
-	if err = s.auth(r, conn.NewConn(c), host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
-		logs.Warn("auth error", err, r.RemoteAddr)
-		return
-	}
-	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
-		logs.Warn(err.Error())
-	}
-	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
-	s.DealClient(conn.NewConn(c), host.Client, targetAddr, buf[:n], common.CONN_TCP, nil, host.Flow)
 }
 
 func (s *httpServer) Start() error {
@@ -125,30 +71,7 @@ func (s *httpServer) Start() error {
 				logs.Error(err)
 				os.Exit(0)
 			}
-			if b, err := beego.AppConfig.Bool("https_just_proxy"); err == nil && b {
-				for {
-					c, err := s.httpsListener.Accept()
-					if err != nil {
-						logs.Error(err)
-						break
-					}
-					go s.processHttps(c)
-				}
-			} else {
-				if !common.FileExists(s.pemPath) {
-					logs.Error("ssl certFile %s exist", s.keyPath)
-					os.Exit(0)
-				}
-				if !common.FileExists(s.keyPath) {
-					logs.Error("ssl keyFile %s exist", s.keyPath)
-					os.Exit(0)
-				}
-				err = s.httpsServer.ServeTLS(s.httpsListener, s.pemPath, s.keyPath)
-				if err != nil {
-					logs.Error(err)
-					os.Exit(0)
-				}
-			}
+			logs.Error(NewHttpsServer(s.httpsListener, s.bridge).Start())
 		}()
 	}
 	return nil
@@ -255,7 +178,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				goto start
 			}
 		}
-		//根据设定，修改header和host
+		//change the host and header and set proxy setting
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, false)
 		if err != nil {

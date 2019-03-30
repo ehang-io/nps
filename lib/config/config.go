@@ -130,7 +130,7 @@ func dealCommon(s string) *CommonConfig {
 			c.Cnf.Compress = common.GetBoolByStr(item[1])
 		case "crypt":
 			c.Cnf.Crypt = common.GetBoolByStr(item[1])
-		case "proxy_socks5_url":
+		case "proxy_url":
 			c.ProxyUrl = item[1]
 		case "rate_limit":
 			c.Client.RateLimit = common.GetIntNoErrByStr(item[1])

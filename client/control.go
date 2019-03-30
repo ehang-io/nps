@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
@@ -14,6 +15,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -180,11 +183,16 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 			if er != nil {
 				return nil, er
 			}
-			n, er := proxy.FromURL(u, nil)
-			if er != nil {
-				return nil, er
+			switch u.Scheme {
+			case "socks5":
+				n, er := proxy.FromURL(u, nil)
+				if er != nil {
+					return nil, er
+				}
+				connection, err = n.Dial("tcp", server)
+			case "http":
+				connection, err = NewHttpProxyConn(u, server)
 			}
-			connection, err = n.Dial("tcp", server)
 		} else {
 			connection, err = net.Dial("tcp", server)
 		}
@@ -229,4 +237,37 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	c.SetAlive(tp)
 
 	return c, nil
+}
+
+func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
+	req := &http.Request{
+		Method: "CONNECT",
+		URL:    url,
+		Host:   remoteAddr,
+		Header: http.Header{},
+		Proto:  "HTTP/1.1",
+	}
+	password, _ := url.User.Password()
+	req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(url.User.Username(), password))
+	b, err := httputil.DumpRequest(req, false)
+	if err != nil {
+		return nil, err
+	}
+	proxyConn, err := net.Dial("tcp", url.Host)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := proxyConn.Write(b); err != nil {
+		return nil, err
+	}
+	buf := make([]byte, 1024)
+	if _, err := proxyConn.Read(buf); err != nil {
+		return nil, err
+	}
+	return proxyConn, nil
+}
+
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }

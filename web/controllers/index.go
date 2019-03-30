@@ -251,10 +251,12 @@ func (s *IndexController) AddHost() {
 			Location:     s.GetString("location"),
 			Flow:         &file.Flow{},
 			Scheme:       s.GetString("scheme"),
+			KeyFilePath:  s.GetString("key_file_path"),
+			CertFilePath: s.GetString("cert_file_path"),
 		}
 		var err error
 		if h.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-			s.AjaxErr("add error")
+			s.AjaxErr("add error the client can not be found")
 		}
 		if err := file.GetDb().NewHost(h); err != nil {
 			s.AjaxErr("add fail" + err.Error())
@@ -300,6 +302,8 @@ func (s *IndexController) EditHost() {
 			h.Remark = s.GetString("remark")
 			h.Location = s.GetString("location")
 			h.Scheme = s.GetString("scheme")
+			h.KeyFilePath = s.GetString("key_file_path")
+			h.CertFilePath = s.GetString("cert_file_path")
 			file.GetDb().JsonDb.StoreHostToJsonFile()
 		}
 		s.AjaxOk("modified success")

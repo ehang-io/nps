@@ -86,7 +86,7 @@ func NewWebServer(bridge *bridge.Bridge) *WebServer {
 
 type process func(c *conn.Conn, s *TunnelModeServer) error
 
-//tcp隧道模式
+//tcp proxy
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
 	targetAddr, err := s.task.Target.GetRandomTarget()
 	if err != nil {
@@ -97,7 +97,7 @@ func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
 	return s.DealClient(c, s.task.Client, targetAddr, nil, common.CONN_TCP, nil, s.task.Flow)
 }
 
-//http代理模式
+//http proxy
 func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 	_, addr, rb, err, r := c.GetHost()
 	if err != nil {
