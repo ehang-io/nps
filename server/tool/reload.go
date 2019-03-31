@@ -1,6 +1,6 @@
 // +build !windows
 
-package daemon
+package tool
 
 import (
 	"github.com/cnlh/nps/lib/common"
