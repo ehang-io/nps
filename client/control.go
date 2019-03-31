@@ -212,31 +212,26 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	}
 	c := conn.NewConn(connection)
 	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
 		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
 		os.Exit(0)
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	if s, err := c.ReadFlag(); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	} else if s == common.VERIFY_EER {
 		logs.Error("Validation key %s incorrect", vkey)
 		os.Exit(0)
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	c.SetAlive(tp)
 
