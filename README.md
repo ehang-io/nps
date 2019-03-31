@@ -35,7 +35,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
     * [内网安全私密代理](#私密代理)
     * [p2p穿透](#p2p服务)
     * [简单的内网文件访问服务](#文件访问模式)
-* [服务端](#web管理模式)
+* [服务端](#web管理)
     * [服务端启动](#服务端启动)
        * [服务端测试](#服务端测试)
        * [服务端启动](#服务端启动)
@@ -114,8 +114,8 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 
 ## 安装
 
-### release安装
-> https://github.com/cnlh/nps/releases
+### releases安装
+> [releases](https://github.com/cnlh/nps/releases)
 
 下载对应的系统版本即可，服务端和客户端是单独的，go语言开发，无需任何第三方依赖
 
@@ -154,7 +154,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 
 现在访问（http|https://）`a.proxy.com`，`b.proxy.com`即可成功
 
-**https:** 如需使用https请在配置文件中将https端口设置为443，和将对应的证书文件路径添加到配置文件中，上面添加的这条记录将会把http、https都转发到内网目标
+**https:** 如需使用https请进行相关配置，详见 [使用https](#使用https)
 
 ### tcp隧道
 
@@ -256,7 +256,7 @@ port=2001
 
 
 
-## web管理模式
+## web管理
 
 ![image](https://github.com/cnlh/nps/blob/master/image/web2.png?raw=true)
 ### 介绍
@@ -309,8 +309,6 @@ web_port | web管理端口
 web_password | web界面管理密码
 web_username | web界面管理账号
 bridge_port  | 服务端客户端通信端口
-pem_path | ssl certFile绝对路径
-key_path | ssl keyFile绝对路径
 https_proxy_port | 域名代理https代理监听端口
 http_proxy_port | 域名代理http代理监听端口
 auth_key|web api密钥
@@ -327,13 +325,10 @@ p2p_port|p2p模式开启的udp端口
 
 **方式一：** 类似于nginx实现https的处理
 
-在配置文件中将https_proxy_port设置为443或者其他你想配置的端口，和将对应的证书文件路径添加到配置文件中，将`https_just_proxy`设置为false，然后就和http代理一样了，例如
+在配置文件中将https_proxy_port设置为443或者其他你想配置的端口，和在web中对应域名编辑中设置对应的证书路径，将`https_just_proxy`设置为false，然后就和http代理一样了
 
-- 需要访问`https://a.proxy.com` 对应内网`127.0.0.1:80`
 
-- 在域名代理中添加`a.proxy.com` 内网目标`127.0.0.1:80` 即可将所有到达本代理的http(s)请求都转发到127.0.0.1:80
-
-**方式二：**
+**方式二：** 在内网对应服务器上设置https
 
 在`nps.conf`中将`https_just_proxy`设置为true，并且打开`https_proxy_port`端口，然后nps将直接转发https请求到内网服务器上，由内网服务器进行https处理
 
@@ -404,7 +399,7 @@ web上可以自定义客户端连接的密钥，但是必须具有唯一性
 可以将`nps.conf`中的`web_port`设置为空或者删除
 
 ### 服务端多用户登陆
-如果将`nps.conf`中的`allow_user_login`设置为true,服务端web将支持多用户登陆，登陆用户名为user，密码为每个客户端的验证密钥，默认该功能是关闭的。
+如果将`nps.conf`中的`allow_user_login`设置为true,服务端web将支持多用户登陆，登陆用户名为user，默认密码为每个客户端的验证密钥，登陆后可以进入客户端编辑修改web登陆的用户名和密码，默认该功能是关闭的。
 
 ### 监听指定ip
 
@@ -616,14 +611,18 @@ auto_reconnection=true
 对于配置文件方式启动,设置
 ```ini
 [common]
-proxy_socks5_url=socks5://111:222@127.0.0.1:8024
+proxy_url=socks5://111:222@127.0.0.1:8024
 ```
 对于无配置文件模式,加上参数
 
 ```
 -proxy=socks5://111:222@127.0.0.1:8024
 ```
+支持socks5和http两种模式
+
 即socks5://username:password@ip:port
+
+或http://username:password@ip:port
 
 #### 日志输出级别
 ```
@@ -767,13 +766,14 @@ location=/static
 ```
 
 time为有效小时数，例如time=2，在当前时间后的两小时内，本机公网ip都可以访问nps代理.
+
 **方式二：**
-此外nps的web登陆也可提供验证的功能，成功登陆nps web admin后将自动为本机ip注册两小时的允许访问权限。
+此外nps的web登陆也可提供验证的功能，成功登陆nps web admin后将自动为登陆的ip注册两小时的允许访问权限。
 
 
 **注意：** 本机公网ip并不是一成不变的，请自行注意有效期的设置，同时同一网络下，多人也可能是在公用同一个公网ip。
 ### 客户端最大连接数
-为防止恶意大量长连接，影响服务端程序的稳定性，可以在web或客户端配置文件中为每个客户端设置最大连接数。该功能针对`socks5`、`http正向代理`、`域名代理`、`tcp代理`、`私密代理`生效。
+为防止恶意大量长连接，影响服务端程序的稳定性，可以在web或客户端配置文件中为每个客户端设置最大连接数。该功能针对`socks5`、`http正向代理`、`域名代理`、`tcp代理`、`udp代理`、`私密代理`生效。
 
 ### 端口复用
 在一些严格的网络环境中，对端口的个数等限制较大，nps支持强大端口复用功能。将`bridge_port`、 `http_proxy_port`、 `https_proxy_port` 、`web_port`都设置为同一端口，也能正常使用。
@@ -783,7 +783,7 @@ time为有效小时数，例如time=2，在当前时间后的两小时内，本�
 
 ### 多路复用
 
-nps默认支持多路复用，无需开启。
+nps主要通信默认基于多路复用，无需开启。
 
 ### 环境变量渲染
 npc支持环境变量渲染以适应在某些特殊场景下的要求。
@@ -854,10 +854,10 @@ health_http_url |  健康检查url，仅http模式适用
 
 在域名代理模式中，可以通过request请求 header 中的 X-Forwarded-For 和 X-Real-IP 来获取用户真实 IP。
 
-**本代理前会在每一个请求中添加了这两个 header。**
+**本代理前会在每一个http(s)请求中添加了这两个 header。**
 
 ### 热更新支持
-在web管理中的修改将实时使用，无需重启客户端或者服务端
+对于绝大多数配置，在web管理中的修改将实时使用，无需重启客户端或者服务端
 
 ### 客户端地址显示
 在web管理中将显示客户端的连接地址
@@ -914,7 +914,7 @@ POST /auth/getauthkey
 - 解密串编码方式 十六进制
 
 ### 详细文档
-- 此文档近期可能更新较慢，建议自行抓包
+- **此文档近期可能更新较慢，建议自行抓包**
 
 为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见
 [webAPI文档](https://github.com/cnlh/nps/wiki/webAPI%E6%96%87%E6%A1%A3)

@@ -64,6 +64,7 @@
                         </div>
                     </div>
                 {{end}}
+                {{if eq true .allow_user_login}}
                     <div class="form-group" id="web_username">
                         <label class="control-label col-sm-2" langtag="info-client-web-username">web登陆用户名</label>
                         <div class="col-sm-10">
@@ -78,6 +79,7 @@
                                    placeholder="empty means to be unrestricted">
                         </div>
                     </div>
+                {{end}}
                     <div class="form-group" id="config_conn_allow">
                         <label class="control-label col-sm-2" langtag="info-config-conn-allow">是否允许客户端以配置文件模式连接</label>
                         <div class="col-sm-10">
