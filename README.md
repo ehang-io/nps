@@ -1,6 +1,7 @@
 
 # nps
 ![](https://img.shields.io/github/stars/cnlh/nps.svg)   ![](https://img.shields.io/github/forks/cnlh/nps.svg)
+[![Gitter](https://badges.gitter.im/cnlh-nps/community.svg)](https://gitter.im/cnlh-nps/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何**tcp、udp**上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**、**p2p等**，并带有功能强大的web管理端。
 
@@ -326,6 +327,8 @@ p2p_port|p2p模式开启的udp端口
 **方式一：** 类似于nginx实现https的处理
 
 在配置文件中将https_proxy_port设置为443或者其他你想配置的端口，和在web中对应域名编辑中设置对应的证书路径，将`https_just_proxy`设置为false，然后就和http代理一样了
+
+**此外：** 可以在`nps.conf`中设置一个默认的https配置，当遇到未在web中设置https证书的域名解析时，将自动使用默认证书，另还有一种情况就是对于某些请求的clienthello不携带sni扩展信息，nps也将自动使用默认证书
 
 
 **方式二：** 在内网对应服务器上设置https
