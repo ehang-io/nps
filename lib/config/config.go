@@ -152,6 +152,7 @@ func dealCommon(s string) *CommonConfig {
 func dealHost(s string) *file.Host {
 	h := &file.Host{}
 	h.Target = new(file.Target)
+	h.Scheme = "all"
 	var headerChange string
 	for _, v := range splitStr(s) {
 		item := strings.Split(v, "=")
