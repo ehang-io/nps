@@ -11,7 +11,7 @@
                                    placeholder="remark">
                         </div>
                     </div>
-
+                {{if eq true .allow_flow_limit}}
                     <div class="form-group" id="flow_limit">
                         <label class="col-sm-2 control-label" langtag="info-flow-limit">流量限制</label>
                         <div class="col-sm-10">
@@ -20,7 +20,8 @@
                             <span class="help-block m-b-none" langtag="info-flow-limit-unit">unit: M</span>
                         </div>
                     </div>
-
+                {{end}}
+                {{if eq true .allow_rate_limit}}
                     <div class="form-group" id="rate_limit">
                         <label class="control-label col-sm-2" langtag="info-bandwidth">带宽限制</label>
                         <div class="col-sm-10">
@@ -29,6 +30,8 @@
                             <span class="help-block m-b-none" langtag="info-bandwidth-unit">unit: KB/S</span>
                         </div>
                     </div>
+                {{end}}
+                {{if eq true .allow_connection_num_limit}}
                     <div class="form-group" id="max_conn">
                         <label class="control-label col-sm-2" langtag="info-max-conn-num">客户端最大连接数量</label>
                         <div class="col-sm-10">
@@ -36,6 +39,7 @@
                                    placeholder="empty means to be unrestricted">
                         </div>
                     </div>
+                {{end}}
                     <div class="form-group" id="u">
                         <label class="control-label col-sm-2" langtag="info-web-auth-username">basic权限认证用户名</label>
                         <div class="col-sm-10">
