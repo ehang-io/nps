@@ -1,0 +1,27 @@
+{
+	"Vendor": true,
+	"DisableAll": true,
+	"Enable": [
+		"vet",
+		"safesql",
+		"errcheck",
+		"goconst",
+		"goimports",
+		"varcheck",
+		"gas",
+		"staticcheck",
+		"gosimple",
+		"lll",
+		"unconvert",
+		"misspell",
+		"unconvert"
+		],
+	"Aggregate": true,
+	"WarnUnmatchedNolint": true,
+	"LineLength": 240,
+	"Exclude": [
+		"stun/const.go"
+		],
+	"Deadline": "300s",
+	"Skip": []
+}
