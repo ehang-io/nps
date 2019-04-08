@@ -13,6 +13,7 @@ type LoginController struct {
 }
 
 func (self *LoginController) Index() {
+	self.Data["register_allow"], _ = beego.AppConfig.Bool("allow_user_register")
 	self.TplName = "login/index.html"
 }
 func (self *LoginController) Verify() {
@@ -55,6 +56,37 @@ func (self *LoginController) Verify() {
 	}
 	self.ServeJSON()
 }
+func (self *LoginController) Register() {
+	if self.Ctx.Request.Method == "GET" {
+		self.TplName = "login/register.html"
+	} else {
+		if b, err := beego.AppConfig.Bool("allow_user_register"); err != nil || !b {
+			self.Data["json"] = map[string]interface{}{"status": 0, "msg": "register is not allow"}
+			self.ServeJSON()
+			return
+		}
+		if self.GetString("username") == "" || self.GetString("password") == "" || self.GetString("username") == beego.AppConfig.String("web_username") {
+			self.Data["json"] = map[string]interface{}{"status": 0, "msg": "please check your input"}
+			self.ServeJSON()
+			return
+		}
+		t := &file.Client{
+			Id:          int(file.GetDb().JsonDb.GetClientId()),
+			Status:      true,
+			Cnf:         &file.Config{},
+			WebUserName: self.GetString("username"),
+			WebPassword: self.GetString("password"),
+			Flow:        &file.Flow{},
+		}
+		if err := file.GetDb().NewClient(t); err != nil {
+			self.Data["json"] = map[string]interface{}{"status": 0, "msg": err.Error()}
+		} else {
+			self.Data["json"] = map[string]interface{}{"status": 1, "msg": "register success"}
+		}
+		self.ServeJSON()
+	}
+}
+
 func (self *LoginController) Out() {
 	self.SetSession("auth", false)
 	self.Redirect("/login/index", 302)

@@ -43,8 +43,20 @@
                         </div>
                     </div>
 
+                {{if eq true .allow_local_proxy}}
+                    <div class="form-group" id="local_proxy">
+                        <label class="control-label col-sm-2" langtag="info-local-proxy">是否代理为服务端本地</label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="local_proxy">
+                                <option value="0">no</option>
+                                <option value="1">yes</option>
+                            </select>
+                        </div>
+                    </div>
+                {{end}}
+
                     <div class="form-group" id="target">
-                        <label class="col-sm-2 control-label" langtag="info-target">内网目标(ip:端口)</label>
+                        <label class="col-sm-2 control-label" langtag="info-target">目标(ip:端口)</label>
                         <div class="col-sm-10">
                             <textarea class="form-control" name="target" rows="4" placeholder="10.1.50.203:22
 10.1.50.202:22"></textarea>
@@ -103,9 +115,9 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["type", "port", "compress", "u", "p", "target", "password", "strip_pre", "local_path"]
-    arr["tcp"] = ["type", "port", "target", "compress", "u", "p", "tcp隧道模式，提供一条tcp隧道，适用于ssh、远程桌面等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的目标端口"]
-    arr["udp"] = ["type", "port", "target", "compress", "udp隧道模式，提供一条udp隧道，适用于dns、内网dns访问等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的udp目标端口"]
+    arr["all"] = ["type", "port", "compress", "u", "p", "target", "password", "strip_pre", "local_path", "local_proxy"]
+    arr["tcp"] = ["type", "port", "target", "compress", "u", "p", "local_proxy", "tcp隧道模式，提供一条tcp隧道，适用于ssh、远程桌面等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的目标端口"]
+    arr["udp"] = ["type", "port", "target", "compress", "local_proxy", "udp隧道模式，提供一条udp隧道，适用于dns、内网dns访问等，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，访问公网服务器的设定端口，则相当于访问内网目标地址的udp目标端口"]
     arr["socks5"] = ["type", "port", "compress", "u", "p", "socks5代理模式，内网socks5代理，配合proxifer，可如同使用vpn一样访问内网设备或资源，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置socks5代理，即访问内网设备或者资源 "]
     arr["httpProxy"] = ["type", "port", "compress", "u", "p", " http代理模式，内网http代理，可访问内网网站，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置http代理，即访问内网站点"]
     arr["secret"] = ["type", "target", "compress", "password", "u", "p", " http代理模式，内网http代理，可访问内网网站，添加后会自动生成一个客户端验证key<br>在内网机器执行<span style='color: red'>./easyProxy -vkey=生成的key -server=公网服务器ip:下面设定的端口</span><br>建立成功后，在外网环境下本机配置http代理，即访问内网站点"]

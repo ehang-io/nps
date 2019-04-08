@@ -70,7 +70,7 @@ func DealBridgeTask() {
 					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
 					s.Conn.Close()
 				} else if t.Status {
-					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target.TargetStr, nil, common.CONN_TCP, nil, t.Flow)
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target.TargetStr, nil, common.CONN_TCP, nil, t.Flow, t.Target.LocalProxy)
 				} else {
 					s.Conn.Close()
 					logs.Trace("This key %s cannot be processed,status is close", s.Password)
@@ -140,7 +140,11 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 		AddTask(t)
 		service = proxy.NewWebServer(Bridge)
 	case "httpHostServer":
-		service = proxy.NewHttp(Bridge, c)
+		httpPort, _ := beego.AppConfig.Int("http_proxy_port")
+		httpsPort, _ := beego.AppConfig.Int("https_proxy_port")
+		useCache, _ := beego.AppConfig.Bool("http_cache")
+		cacheLen, _ := beego.AppConfig.Int("http_cache_length")
+		service = proxy.NewHttp(Bridge, c, httpPort, httpsPort, useCache, cacheLen)
 	}
 	return service
 }

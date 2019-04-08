@@ -17,9 +17,11 @@ var (
 	ServerStatus []map[string]interface{}
 )
 
-func init() {
-	ServerStatus = make([]map[string]interface{}, 0, 1500)
-	go getSeverStatus()
+func StartSystemInfo() {
+	if b, err := beego.AppConfig.Bool("system_info_display"); err == nil && b {
+		ServerStatus = make([]map[string]interface{}, 0, 1500)
+		go getSeverStatus()
+	}
 }
 
 func InitAllowPort() {
@@ -86,5 +88,3 @@ func getSeverStatus() {
 		ServerStatus = append(ServerStatus, m)
 	}
 }
-
-

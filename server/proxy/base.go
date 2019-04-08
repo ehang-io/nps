@@ -75,9 +75,9 @@ func (s *BaseServer) CheckFlowAndConnNum(client *file.Client) error {
 }
 
 //与客户端建立通道
-func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, rb []byte, tp string, f func(), flow *file.Flow) error {
-	link := conn.NewLink(tp, addr, client.Cnf.Crypt, client.Cnf.Compress, c.Conn.RemoteAddr().String())
-	if target, err := s.bridge.SendLinkInfo(client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
+func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, rb []byte, tp string, f func(), flow *file.Flow, localProxy bool) error {
+	link := conn.NewLink(tp, addr, client.Cnf.Crypt, client.Cnf.Compress, c.Conn.RemoteAddr().String(), localProxy)
+	if target, err := s.bridge.SendLinkInfo(client.Id, link, s.task); err != nil {
 		logs.Warn("get connection from client id %d  error %s", client.Id, err.Error())
 		c.Close()
 		return err

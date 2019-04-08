@@ -54,6 +54,7 @@ func (s *ClientController) Add() {
 			MaxConn:         s.GetIntNoErr("max_conn"),
 			WebUserName:     s.GetString("web_username"),
 			WebPassword:     s.GetString("web_password"),
+			MaxTunnelNum:    s.GetIntNoErr("max_tunnel"),
 			Flow: &file.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
@@ -116,13 +117,17 @@ func (s *ClientController) Edit() {
 				c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
 				c.RateLimit = s.GetIntNoErr("rate_limit")
 				c.MaxConn = s.GetIntNoErr("max_conn")
+				c.MaxTunnelNum = s.GetIntNoErr("max_tunnel")
 			}
 			c.Remark = s.GetString("remark")
 			c.Cnf.U = s.GetString("u")
 			c.Cnf.P = s.GetString("p")
 			c.Cnf.Compress = common.GetBoolByStr(s.GetString("compress"))
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
-			c.WebUserName = s.GetString("web_username")
+			b, err := beego.AppConfig.Bool("allow_user_change_username")
+			if s.GetSession("isAdmin").(bool) || (err == nil && b) {
+				c.WebUserName = s.GetString("web_username")
+			}
 			c.WebPassword = s.GetString("web_password")
 			c.ConfigConnAllow = s.GetBoolNoErr("config_conn_allow")
 			if c.Rate != nil {

@@ -44,6 +44,15 @@
                         </div>
                     </div>
                 {{end}}
+                {{if eq true .allow_tunnel_num_limit}}
+                    <div class="form-group" id="max_tunnel">
+                        <label class="control-label col-sm-2" langtag="info-max-tunnel-num">客户端最大隧道数量</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" value="{{.c.MaxTunnelNum}}" type="text" name="max_tunnel"
+                                   placeholder="empty means to be unrestricted">
+                        </div>
+                    </div>
+                {{end}}
                 {{end}}
                     <div class="form-group" id="u">
                         <label class="control-label col-sm-2" langtag="info-web-auth-username">basic权限认证用户名</label>
@@ -72,6 +81,7 @@
                     </div>
                 {{end}}
                 {{if eq true .allow_user_login}}
+                {{if or (eq true .allow_user_change_username) (eq true .isAdmin)}}
                     <div class="form-group" id="web_username">
                         <label class="control-label col-sm-2" langtag="info-client-web-username">web登陆用户名</label>
                         <div class="col-sm-10">
@@ -79,6 +89,7 @@
                                    placeholder="empty means to be unrestricted">
                         </div>
                     </div>
+                {{end}}
                     <div class="form-group" id="web_password">
                         <label class="control-label col-sm-2" langtag="info-client-web-password">web登陆密码</label>
                         <div class="col-sm-10">

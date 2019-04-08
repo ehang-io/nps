@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"crypto/tls"
 	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/cache"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -27,12 +28,13 @@ type httpServer struct {
 	httpServer    *http.Server
 	httpsServer   *http.Server
 	httpsListener net.Listener
+	useCache      bool
+	cache         *cache.Cache
+	cacheLen      int
 }
 
-func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
-	httpPort, _ := beego.AppConfig.Int("http_proxy_port")
-	httpsPort, _ := beego.AppConfig.Int("https_proxy_port")
-	return &httpServer{
+func NewHttp(bridge *bridge.Bridge, c *file.Tunnel, httpPort, httpsPort int, useCache bool, cacheLen int) *httpServer {
+	httpServer := &httpServer{
 		BaseServer: BaseServer{
 			task:   c,
 			bridge: bridge,
@@ -40,7 +42,13 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel) *httpServer {
 		},
 		httpPort:  httpPort,
 		httpsPort: httpsPort,
+		useCache:  useCache,
+		cacheLen:  cacheLen,
 	}
+	if useCache {
+		httpServer.cache = cache.New(cacheLen)
+	}
+	return httpServer
 }
 
 func (s *httpServer) Start() error {
@@ -71,7 +79,7 @@ func (s *httpServer) Start() error {
 				logs.Error(err)
 				os.Exit(0)
 			}
-			logs.Error(NewHttpsServer(s.httpsListener, s.bridge).Start())
+			logs.Error(NewHttpsServer(s.httpsListener, s.bridge, s.useCache, s.cacheLen).Start())
 		}()
 	}
 	return nil
@@ -100,12 +108,12 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
-	s.process(conn.NewConn(c), r)
+	s.httpHandle(conn.NewConn(c), r)
 }
 
-func (s *httpServer) process(c *conn.Conn, r *http.Request) {
+func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 	var (
-		isConn     = true
+		isConn     = false
 		host       *file.Host
 		target     net.Conn
 		lastHost   *file.Host
@@ -114,7 +122,7 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		scheme     = r.URL.Scheme
 		lk         *conn.Link
 		targetAddr string
-		wg         sync.WaitGroup
+		readReq    bool
 	)
 	if host, err = file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
@@ -126,7 +134,6 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 		return
 	}
 	defer host.Client.AddConn()
-	logs.Trace("new %s connection,clientId %d,host %s,url %s,remote address %s", r.URL.Scheme, host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 	lastHost = host
 	for {
 	start:
@@ -139,22 +146,43 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				logs.Warn(err.Error())
 				break
 			}
-			lk = conn.NewLink(common.CONN_TCP, targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr)
-			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, c.Conn.RemoteAddr().String(), nil); err != nil {
+			lk = conn.NewLink(common.CONN_TCP, targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr, host.Target.LocalProxy)
+			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, nil); err != nil {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break
 			}
 			connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
 			isConn = false
 			go func() {
-				wg.Add(1)
-				w, _ := common.CopyBuffer(c, connClient)
-				host.Flow.Add(0, w)
-				c.Close()
-				target.Close()
-				wg.Done()
+				defer connClient.Close()
+				defer c.Close()
+				if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
+					return
+				} else {
+					//if the cache is start and the response is in the extension,store the response to the cache list
+					if s.useCache && strings.Contains(r.URL.Path, ".") {
+						b, err := httputil.DumpResponse(resp, true)
+						if err != nil {
+							return
+						}
+						c.Write(b)
+						host.Flow.Add(0, int64(len(b)))
+						s.cache.Add(filepath.Join(host.Host, r.URL.Path), b)
+					} else {
+						b, err := httputil.DumpResponse(resp, false)
+						if err != nil {
+							return
+						}
+						c.Write(b)
+						if bodyLen, err := common.CopyBuffer(c, resp.Body); err != nil {
+							return
+						} else {
+							host.Flow.Add(0, int64(len(b))+bodyLen)
+						}
+					}
+				}
 			}()
-		} else {
+		} else if readReq {
 			r, err = http.ReadRequest(bufio.NewReader(c))
 			if err != nil {
 				break
@@ -167,7 +195,6 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 			if r.Method == "OST" {
 				r.Method = "POST"
 			}
-			logs.Trace("new %s connection,clientId %d,host %s,url %s,remote address %s", r.URL.Scheme, host.Client.Id, r.Host, r.URL, r.RemoteAddr)
 			if hostTmp, err := file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 				break
@@ -178,13 +205,36 @@ func (s *httpServer) process(c *conn.Conn, r *http.Request) {
 				goto start
 			}
 		}
+		//if the cache start and the request is in the cache list, return the cache
+		if s.useCache {
+			if v, ok := s.cache.Get(filepath.Join(host.Host, r.URL.Path)); ok {
+				n, err := c.Write(v.([]byte))
+				if err != nil {
+					break
+				}
+				logs.Trace("%s request, method %s, host %s, url %s, remote address %s, return cache", r.URL.Scheme, r.Method, r.Host, r.URL.Path, c.RemoteAddr().String())
+				host.Flow.Add(0, int64(n))
+				//if return cache and does not create a new conn with client and Connection is not set or close, close the connection.
+				if connClient == nil && (strings.ToLower(r.Header.Get("Connection")) == "close" || strings.ToLower(r.Header.Get("Connection")) == "") {
+					c.Close()
+					break
+				}
+				readReq = true
+				goto start
+			}
+		}
+		if connClient == nil {
+			isConn = true
+			goto start
+		}
+		readReq = true
 		//change the host and header and set proxy setting
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		b, err := httputil.DumpRequest(r, false)
 		if err != nil {
 			break
 		}
-		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.RequestURI, r.RemoteAddr, lk.Host)
+		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.URL.Path, c.RemoteAddr().String(), lk.Host)
 		//write
 		connClient.Write(b)
 		if bodyLen, err := common.CopyBuffer(connClient, r.Body); err != nil {
@@ -201,7 +251,6 @@ end:
 	if target != nil {
 		target.Close()
 	}
-	wg.Wait()
 }
 
 func (s *httpServer) NewServer(port int, scheme string) *http.Server {

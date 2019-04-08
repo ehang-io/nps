@@ -48,6 +48,7 @@ type Client struct {
 	WebUserName     string     //the username of web login
 	WebPassword     string     //the password of web login
 	ConfigConnAllow bool       //is allow connected by config file
+	MaxTunnelNum    int
 	sync.RWMutex
 }
 
@@ -91,6 +92,17 @@ func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
 		if v.Client.Id == s.Id && v.Port == t.Port && t.Port != 0 {
 			exist = true
 			return false
+		}
+		return true
+	})
+	return
+}
+
+func (s *Client) GetTunnelNum() (num int) {
+	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*Tunnel)
+		if v.Client.Id == s.Id {
+			num++
 		}
 		return true
 	})
@@ -164,9 +176,10 @@ type Host struct {
 }
 
 type Target struct {
-	nowIndex  int
-	TargetStr string
-	TargetArr []string
+	nowIndex   int
+	TargetStr  string
+	TargetArr  []string
+	LocalProxy bool
 	sync.RWMutex
 }
 

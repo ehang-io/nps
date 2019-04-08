@@ -50,7 +50,7 @@ func main() {
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	} else {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"nps_log.log","daily":false,"color":true}`)
+		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+beego.AppConfig.String("log_path")+`","daily":false,"color":true}`)
 	}
 	task := &file.Tunnel{
 		Mode: "webServer",
@@ -62,7 +62,8 @@ func main() {
 	}
 	logs.Info("the version of server is %s ,allow client version to be %s", version.VERSION, version.GetVersion())
 	connection.InitConnectionService()
-	crypt.InitTls(filepath.Join(beego.AppPath, "conf", "server.pem"), filepath.Join(beego.AppPath, "conf", "server.key"))
+	crypt.InitTls(filepath.Join(common.GetRunPath(), "conf", "server.pem"), filepath.Join(common.GetRunPath(), "conf", "server.key"))
 	tool.InitAllowPort()
+	tool.StartSystemInfo()
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
 }

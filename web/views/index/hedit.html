@@ -59,6 +59,17 @@
                                    placeholder="client id">
                         </div>
                     </div>
+                {{if eq true .allow_local_proxy}}
+                    <div class="form-group" id="local_proxy">
+                        <label class="control-label col-sm-2" langtag="info-local-proxy">是否代理为服务端本地</label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="local_proxy">
+                                <option  {{if eq false .h.Target.LocalProxy}}selected{{end}} value="0">no</option>
+                                <option  {{if eq true .h.Target.LocalProxy}}selected{{end}} value="1">yes</option>
+                            </select>
+                        </div>
+                    </div>
+                {{end}}
                     <div class="form-group">
                         <label class="col-sm-2 control-label" langtag="info-target">内网目标(ip:端口)</label>
                         <div class="col-sm-10">

@@ -63,12 +63,19 @@
         detailView: true,
         smartDisplay: true, // 智能显示 pagination 和 cardview 等
         detailFormatter: function (index, row, element) {
-            return '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
+            tmp = '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-crypt">加密</b>：' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-compress">压缩</b>：' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-web-auth-username">basic权限认证用户名</b>：' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-web-auth-password">basic权限认证密码</b>：' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+            if (row.Mode == "p2p") {
+                return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -target=your target" + "</code>"
+            }
+            if (row.Mode = "secret") {
+                return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=secret" + "</code>"
+            }
+            return tmp
         },
         //表格的列
         columns: [
@@ -112,13 +119,13 @@
                 field: 'Password',//域值
                 title: 'secret',//标题
                 visible: true,//false表示不显示
-                
+
             },
             {
                 field: 'Status',//域值
                 title: 'setting',//内容
                 visible: true,//false表示不显示
-                
+
                 formatter: function (value, row, index) {
                     if (value) {
                         return '<span class="badge badge-primary">open</span>'
@@ -131,7 +138,7 @@
                 field: 'RunStatus',//域值
                 title: 'run',//内容
                 visible: true,//false表示不显示
-                
+
                 formatter: function (value, row, index) {
                     if (value) {
                         return '<span class="badge badge-primary">open</span>'
@@ -144,7 +151,7 @@
                 field: '',//域值
                 title: 'client',//内容
                 visible: true,//false表示不显示
-                
+
                 formatter: function (value, row, index) {
                     if (row.Client.IsConnect) {
                         return '<span class="badge badge-primary">online</span>'
@@ -157,7 +164,7 @@
                 field: 'option',//域值
                 title: 'option',//内容
                 visible: true,//false表示不显示
-                
+
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
                     btn = `<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button><button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`

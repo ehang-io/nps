@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/cache"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
@@ -21,9 +22,13 @@ type HttpsServer struct {
 	httpsListenerMap sync.Map
 }
 
-func NewHttpsServer(l net.Listener, bridge *bridge.Bridge) *HttpsServer {
+func NewHttpsServer(l net.Listener, bridge *bridge.Bridge, useCache bool, cacheLen int) *HttpsServer {
 	https := &HttpsServer{listener: l}
 	https.bridge = bridge
+	https.useCache = useCache
+	if useCache {
+		https.cache = cache.New(cacheLen)
+	}
 	return https
 }
 
@@ -116,7 +121,7 @@ func (https *HttpsServer) handleHttps(c net.Conn) {
 		logs.Warn(err.Error())
 	}
 	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
-	https.DealClient(conn.NewConn(c), host.Client, targetAddr, rb, common.CONN_TCP, nil, host.Flow)
+	https.DealClient(conn.NewConn(c), host.Client, targetAddr, rb, common.CONN_TCP, nil, host.Flow, host.Target.LocalProxy)
 }
 
 type HttpsListener struct {

@@ -44,6 +44,17 @@
                                    placeholder="such as 8024">
                         </div>
                     </div>
+                {{if eq true .allow_local_proxy}}
+                    <div class="form-group" id="local_proxy">
+                        <label class="control-label col-sm-2" langtag="info-local-proxy">是否代理为服务端本地</label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="local_proxy">
+                                <option  {{if eq false .t.Target.LocalProxy}}selected{{end}} value="0">no</option>
+                                <option  {{if eq true .t.Target.LocalProxy}}selected{{end}} value="1">yes</option>
+                            </select>
+                        </div>
+                    </div>
+                {{end}}
                     <div class="form-group" id="target">
                         <label class="col-sm-2 control-label" langtag="info-target">内网目标(ip:端口)</label>
                         <div class="col-sm-10">
@@ -103,9 +114,9 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["type", "port", "compress", "u", "p", "target", "password", "local_path", "strip_pre"]
-    arr["tcp"] = ["type", "port", "target", "u", "p", "compress"]
-    arr["udp"] = ["type", "port", "target", "compress"]
+    arr["all"] = ["type", "port", "compress", "u", "p", "target", "password", "local_path", "strip_pre", "local_proxy"]
+    arr["tcp"] = ["type", "port", "target", "u", "p", "compress", "local_proxy"]
+    arr["udp"] = ["type", "port", "target", "compress", "local_proxy"]
     arr["socks5"] = ["type", "port", "compress", "u", "p"]
     arr["httpProxy"] = ["type", "port", "compress", "u", "p"]
     arr["secret"] = ["type", "target", "compress", "u", "p", "password"]

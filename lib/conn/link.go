@@ -17,15 +17,17 @@ type Link struct {
 	Host       string //目标
 	Crypt      bool   //加密
 	Compress   bool
+	LocalProxy bool
 	RemoteAddr string
 }
 
-func NewLink(connType string, host string, crypt bool, compress bool, remoteAddr string) *Link {
+func NewLink(connType string, host string, crypt bool, compress bool, remoteAddr string, localProxy bool) *Link {
 	return &Link{
 		RemoteAddr: remoteAddr,
 		ConnType:   connType,
 		Host:       host,
 		Crypt:      crypt,
 		Compress:   compress,
+		LocalProxy: localProxy,
 	}
 }

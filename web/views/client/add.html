@@ -40,6 +40,15 @@
                         </div>
                     </div>
                 {{end}}
+                {{if eq true .allow_tunnel_num_limit}}
+                    <div class="form-group" id="max_tunnel">
+                        <label class="control-label col-sm-2" langtag="info-max-tunnel-num">客户端最大隧道数量</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="max_tunnel"
+                                   placeholder="empty means to be unrestricted">
+                        </div>
+                    </div>
+                {{end}}
                     <div class="form-group" id="u">
                         <label class="control-label col-sm-2" langtag="info-web-auth-username">basic权限认证用户名</label>
                         <div class="col-sm-10">

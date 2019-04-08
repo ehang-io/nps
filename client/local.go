@@ -11,12 +11,16 @@ import (
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"net/http"
+	"sync"
 )
 
-var LocalServer []*net.TCPListener
-var udpConn net.Conn
-var muxSession *mux.Mux
-var fileServer []*http.Server
+var (
+	LocalServer []*net.TCPListener
+	udpConn     net.Conn
+	muxSession  *mux.Mux
+	fileServer  []*http.Server
+	lock        sync.Mutex
+)
 
 func CloseLocalServer() {
 	for _, v := range LocalServer {
@@ -39,10 +43,10 @@ func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey stri
 	logs.Info("start local file system, local path %s, strip prefix %s ,remote port %s ", t.LocalPath, t.StripPre, t.Ports)
 	fileServer = append(fileServer, srv)
 	listener := mux.NewMux(remoteConn.Conn, common.CONN_TCP)
-	logs.Warn(srv.Serve(listener))
+	logs.Error(srv.Serve(listener))
 }
 
-func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
+func startLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
 	listener, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), l.Port, ""})
 	if err != nil {
 		logs.Error("local listener startup failed port %d, error %s", l.Port, err.Error())
@@ -52,15 +56,15 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 	logs.Info("successful start-up of local monitoring, port", l.Port)
 	conn.Accept(listener, func(c net.Conn) {
 		if l.Type == "secret" {
-			processSecret(c, config, l)
+			handleSecret(c, config, l)
 		} else {
-			processP2P(c, config, l)
+			handleP2PVisitor(c, config, l)
 		}
 	})
 	return nil
 }
 
-func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
+func handleSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_SECRET, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
@@ -73,21 +77,28 @@ func processSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config
 	conn.CopyWaitGroup(remoteConn.Conn, localTcpConn, false, false, nil, nil, false, nil)
 }
 
-func processP2P(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
+func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
+restart:
+	lock.Lock()
 	if udpConn == nil {
 		newUdpConn(config, l)
 		if udpConn == nil {
+			lock.Unlock()
 			return
 		}
 		muxSession = mux.NewMux(udpConn, "kcp")
 	}
+	lock.Unlock()
+	logs.Trace("start trying to connect with the server")
 	nowConn, err := muxSession.NewConn()
 	if err != nil {
-		logs.Error(err)
+		udpConn = nil
+		logs.Error(err, "reconnect......")
+		goto restart
 		return
 	}
 	//TODO just support compress now because there is not tls file in client packages
-	link := conn.NewLink(common.CONN_TCP, l.Target, false, config.Client.Cnf.Compress, localTcpConn.LocalAddr().String())
+	link := conn.NewLink(common.CONN_TCP, l.Target, false, config.Client.Cnf.Compress, localTcpConn.LocalAddr().String(), false)
 	if _, err := conn.NewConn(nowConn).SendInfo(link, ""); err != nil {
 		logs.Error(err)
 		return
@@ -111,49 +122,18 @@ func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
 		logs.Error(err)
 		return
 	}
-	//与服务端udp建立连接
-	tmpConn, err := common.GetLocalUdpAddr()
-	if err != nil {
+	var localConn net.PacketConn
+	var remoteAddress string
+	if remoteAddress, localConn, err = handleP2PUdp(string(rAddr), crypt.Md5(l.Password), common.WORK_P2P_VISITOR); err != nil {
+		logs.Error(err)
+		return
+	}
+	udpTunnel, err := kcp.NewConn(remoteAddress, nil, 150, 3, localConn)
+	if err != nil || udpTunnel == nil {
 		logs.Warn(err)
 		return
 	}
-	//与服务端建立udp连接
-	localAddr, _ := net.ResolveUDPAddr("udp", tmpConn.LocalAddr().String())
-	localConn, err := net.ListenUDP("udp", localAddr)
-	if err != nil {
-		logs.Error(err)
-		return
-	}
-	localKcpConn, err := kcp.NewConn(string(rAddr), nil, 150, 3, localConn)
-	if err != nil {
-		logs.Error(err)
-		return
-	}
-	conn.SetUdpSession(localKcpConn)
-	//写入密钥、provider身份
-	if _, err := localKcpConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
-		logs.Error(err)
-		return
-	}
-	if _, err := localKcpConn.Write([]byte(common.WORK_P2P_VISITOR)); err != nil {
-		logs.Error(err)
-		return
-	}
-	//接收服务端传的visitor地址
-	if b, err := conn.NewConn(localKcpConn).GetShortLenContent(); err != nil {
-		logs.Error(err)
-		return
-	} else {
-		//关闭与服务端连接
-		localConn.Close()
-		//建立新的连接
-		localConn, err = net.ListenUDP("udp", localAddr)
-		udpTunnel, err := kcp.NewConn(string(b), nil, 150, 3, localConn)
-		if err != nil || udpTunnel == nil {
-			logs.Warn(err)
-			return
-		}
-		conn.SetUdpSession(udpTunnel)
-		udpConn = udpTunnel
-	}
+	logs.Trace("successful create a connection with server", remoteAddress)
+	conn.SetUdpSession(udpTunnel)
+	udpConn = udpTunnel
 }

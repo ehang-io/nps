@@ -49,6 +49,10 @@ func (s *BaseController) Prepare() {
 	s.Data["allow_rate_limit"], _ = beego.AppConfig.Bool("allow_rate_limit")
 	s.Data["allow_connection_num_limit"], _ = beego.AppConfig.Bool("allow_connection_num_limit")
 	s.Data["allow_multi_ip"], _ = beego.AppConfig.Bool("allow_multi_ip")
+	s.Data["system_info_display"], _ = beego.AppConfig.Bool("system_info_display")
+	s.Data["allow_tunnel_num_limit"], _ = beego.AppConfig.Bool("allow_tunnel_num_limit")
+	s.Data["allow_local_proxy"], _ = beego.AppConfig.Bool("allow_local_proxy")
+	s.Data["allow_user_change_username"], _ = beego.AppConfig.Bool("allow_user_change_username")
 }
 
 //加载模板

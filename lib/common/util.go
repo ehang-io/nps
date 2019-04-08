@@ -218,6 +218,7 @@ func GetPorts(p string) []int {
 	return ps
 }
 
+//is the string a port
 func IsPort(p string) bool {
 	pi, err := strconv.Atoi(p)
 	if err != nil {
@@ -229,6 +230,7 @@ func IsPort(p string) bool {
 	return true
 }
 
+//if the s is just a port,return 127.0.0.1:s
 func FormatAddress(s string) string {
 	if strings.Contains(s, ":") {
 		return s
@@ -236,6 +238,7 @@ func FormatAddress(s string) string {
 	return "127.0.0.1:" + s
 }
 
+//get address from the complete address
 func GetIpByAddr(addr string) string {
 	arr := strings.Split(addr, ":")
 	return arr[0]
@@ -279,6 +282,7 @@ func GetLocalUdpAddr() (net.Conn, error) {
 	return tmpConn, tmpConn.Close()
 }
 
+//parse template
 func ParseStr(str string) (string, error) {
 	tmp := template.New("npc")
 	var err error
@@ -305,6 +309,7 @@ func GetEnvMap() map[string]string {
 	return m
 }
 
+//throw the empty element of the string array
 func TrimArr(arr []string) []string {
 	newArr := make([]string, 0)
 	for _, v := range arr {
@@ -315,6 +320,7 @@ func TrimArr(arr []string) []string {
 	return newArr
 }
 
+//
 func IsArrContains(arr []string, val string) bool {
 	if arr == nil {
 		return false
@@ -327,6 +333,7 @@ func IsArrContains(arr []string, val string) bool {
 	return false
 }
 
+//remove value from string array
 func RemoveArrVal(arr []string, val string) []string {
 	for k, v := range arr {
 		if v == val {
@@ -337,6 +344,7 @@ func RemoveArrVal(arr []string, val string) []string {
 	return arr
 }
 
+//convert bytes to num
 func BytesToNum(b []byte) int {
 	var str string
 	for i := 0; i < len(b); i++ {
@@ -346,6 +354,7 @@ func BytesToNum(b []byte) int {
 	return int(x)
 }
 
+//get the length of the sync map
 func GeSynctMapLen(m sync.Map) int {
 	var c int
 	m.Range(func(key, value interface{}) bool {
@@ -353,4 +362,13 @@ func GeSynctMapLen(m sync.Map) int {
 		return true
 	})
 	return c
+}
+
+func GetExtFromPath(path string) string {
+	s := strings.Split(path, ".")
+	re, err := regexp.Compile(`(\w+)`)
+	if err != nil {
+		return ""
+	}
+	return string(re.Find([]byte(s[0])))
 }

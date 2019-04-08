@@ -10,6 +10,7 @@ import (
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/vender/github.com/ccding/go-stun/stun"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"github.com/cnlh/nps/vender/golang.org/x/net/proxy"
 	"io/ioutil"
@@ -162,7 +163,7 @@ re:
 
 	//create local server secret or p2p
 	for _, v := range cnf.LocalServer {
-		go StartLocalServer(v, cnf.CommonConfig)
+		go startLocalServer(v, cnf.CommonConfig)
 	}
 
 	c.Close()
@@ -238,6 +239,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	return c, nil
 }
 
+//http proxy connection
 func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	req := &http.Request{
 		Method: "CONNECT",
@@ -266,7 +268,143 @@ func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	return proxyConn, nil
 }
 
+//get a basic auth string
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+func handleP2PUdp(rAddr, md5Password, role string) (remoteAddress string, c net.PacketConn, err error) {
+	tmpConn, err := common.GetLocalUdpAddr()
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	localConn, err := newUdpConnByAddr(tmpConn.LocalAddr().String())
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	localKcpConn, err := kcp.NewConn(rAddr, nil, 150, 3, localConn)
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	conn.SetUdpSession(localKcpConn)
+	localToolConn := conn.NewConn(localKcpConn)
+	//get local nat type
+	//localNatType, host, err := stun.NewClient().Discover()
+	//if err != nil || host == nil {
+	//	err = errors.New("get nat type error")
+	//	return
+	//}
+	localNatType := stun.NATRestricted
+	//write password
+	if _, err = localToolConn.Write([]byte(md5Password)); err != nil {
+		return
+	}
+	//write role
+	if _, err = localToolConn.Write([]byte(role)); err != nil {
+		return
+	}
+	if err = binary.Write(localToolConn, binary.LittleEndian, int32(localNatType)); err != nil {
+		return
+	}
+	//get another type address and nat type from server
+	var remoteAddr []byte
+	var remoteNatType int32
+	if remoteAddr, err = localToolConn.GetShortLenContent(); err != nil {
+		return
+	}
+	if err = binary.Read(localToolConn, binary.LittleEndian, &remoteNatType); err != nil {
+		return
+	}
+	localConn.Close()
+	//logs.Trace("remote nat type %d,local nat type %s", remoteNatType, localNatType)
+	if remoteAddress, err = sendP2PTestMsg(string(remoteAddr), tmpConn.LocalAddr().String()); err != nil {
+		return
+	}
+	c, err = newUdpConnByAddr(tmpConn.LocalAddr().String())
+	return
+}
+
+func handleP2P(natType1, natType2 int, addr1, addr2 string, role string) (string, error) {
+	switch natType1 {
+	case int(stun.NATFull):
+		return sendP2PTestMsg(addr2, addr1)
+	case int(stun.NATRestricted):
+		switch natType2 {
+		case int(stun.NATFull), int(stun.NATRestricted), int(stun.NATPortRestricted), int(stun.NATSymetric):
+			return sendP2PTestMsg(addr2, addr1)
+		}
+	case int(stun.NATPortRestricted):
+		switch natType2 {
+		case int(stun.NATFull), int(stun.NATRestricted), int(stun.NATPortRestricted):
+			return sendP2PTestMsg(addr2, addr1)
+		}
+	case int(stun.NATSymetric):
+		switch natType2 {
+		case int(stun.NATFull), int(stun.NATRestricted):
+			return sendP2PTestMsg(addr2, addr1)
+		}
+	}
+	return "", errors.New("not support p2p")
+}
+
+func sendP2PTestMsg(remoteAddr string, localAddr string) (string, error) {
+	remoteUdpAddr, err := net.ResolveUDPAddr("udp", remoteAddr)
+	if err != nil {
+		return "", err
+	}
+	localConn, err := newUdpConnByAddr(localAddr)
+	defer localConn.Close()
+	if err != nil {
+		return "", err
+	}
+	buf := make([]byte, 10)
+	for i := 20; i > 0; i-- {
+		logs.Trace("try send test packet to target %s", remoteAddr)
+		if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
+			return "", err
+		}
+		localConn.SetReadDeadline(time.Now().Add(time.Millisecond * 500))
+		n, addr, err := localConn.ReadFromUDP(buf)
+		localConn.SetReadDeadline(time.Time{})
+		switch string(buf[:n]) {
+		case common.WORK_P2P_SUCCESS:
+			for i := 20; i > 0; i-- {
+				if _, err = localConn.WriteTo([]byte(common.WORK_P2P_END), addr); err != nil {
+					return "", err
+				}
+			}
+			return addr.String(), nil
+		case common.WORK_P2P_END:
+			logs.Trace("Remotely Address %s Reply Packet Successfully Received", addr.String())
+			return addr.String(), nil
+		case common.WORK_P2P_CONNECT:
+			go func() {
+				for i := 20; i > 0; i-- {
+					logs.Trace("try send receive success packet to target %s", remoteAddr)
+					if _, err = localConn.WriteTo([]byte(common.WORK_P2P_SUCCESS), addr); err != nil {
+						return
+					}
+					time.Sleep(time.Second)
+				}
+			}()
+		}
+	}
+	localConn.Close()
+	return "", errors.New("connect to the target failed, maybe the nat type is not support p2p")
+}
+
+func newUdpConnByAddr(addr string) (*net.UDPConn, error) {
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	return udpConn, nil
 }

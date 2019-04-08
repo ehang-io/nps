@@ -152,7 +152,6 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 //验证失败，返回错误验证flag，并且关闭连接
 func (s *Bridge) verifyError(c *conn.Conn) {
 	c.Write([]byte(common.VERIFY_EER))
-	c.Conn.Close()
 }
 
 func (s *Bridge) verifySuccess(c *conn.Conn) {
@@ -291,11 +290,16 @@ func (s *Bridge) register(c *conn.Conn) {
 	}
 }
 
-func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, linkAddr string, t *file.Tunnel) (target net.Conn, err error) {
+func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
+	//if the proxy type is local
+	if link.LocalProxy {
+		target, err = net.Dial(link.ConnType, link.Host)
+		return
+	}
 	if v, ok := s.Client.Load(clientId); ok {
 		//If ip is restricted to do ip verification
 		if s.ipVerify {
-			ip := common.GetIpByAddr(linkAddr)
+			ip := common.GetIpByAddr(link.RemoteAddr)
 			if v, ok := s.Register.Load(ip); !ok {
 				return nil, errors.New(fmt.Sprintf("The ip %s is not in the validation list", ip))
 			} else {

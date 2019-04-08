@@ -93,7 +93,7 @@ func (s *IndexController) Add() {
 			Port:      s.GetIntNoErr("port"),
 			ServerIp:  s.GetString("server_ip"),
 			Mode:      s.GetString("type"),
-			Target:    &file.Target{TargetStr: s.GetString("target")},
+			Target:    &file.Target{TargetStr: s.GetString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
 			Id:        int(file.GetDb().JsonDb.GetTaskId()),
 			Status:    true,
 			Remark:    s.GetString("remark"),
@@ -108,6 +108,9 @@ func (s *IndexController) Add() {
 		var err error
 		if t.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
+		}
+		if t.Client.MaxTunnelNum != 0 && t.Client.GetTunnelNum() >= t.Client.MaxTunnelNum {
+			s.AjaxErr("The number of tunnels exceeds the limit")
 		}
 		if err := file.GetDb().NewTask(t); err != nil {
 			s.AjaxErr(err.Error())
@@ -166,6 +169,7 @@ func (s *IndexController) Edit() {
 			t.LocalPath = s.GetString("local_path")
 			t.StripPre = s.GetString("strip_pre")
 			t.Remark = s.GetString("remark")
+			t.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
 			file.GetDb().UpdateTask(t)
 			server.StopServer(t.Id)
 			server.StartTask(t.Id)
@@ -244,7 +248,7 @@ func (s *IndexController) AddHost() {
 		h := &file.Host{
 			Id:           int(file.GetDb().JsonDb.GetHostId()),
 			Host:         s.GetString("host"),
-			Target:       &file.Target{TargetStr: s.GetString("target")},
+			Target:       &file.Target{TargetStr: s.GetString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
 			HeaderChange: s.GetString("header"),
 			HostChange:   s.GetString("hostchange"),
 			Remark:       s.GetString("remark"),
@@ -304,6 +308,7 @@ func (s *IndexController) EditHost() {
 			h.Scheme = s.GetString("scheme")
 			h.KeyFilePath = s.GetString("key_file_path")
 			h.CertFilePath = s.GetString("cert_file_path")
+			h.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
 			file.GetDb().JsonDb.StoreHostToJsonFile()
 		}
 		s.AjaxOk("modified success")
