@@ -32,6 +32,7 @@ func NewHttpsServer(l net.Listener, bridge *bridge.Bridge, useCache bool, cacheL
 	return https
 }
 
+//start https server
 func (https *HttpsServer) Start() error {
 	if b, err := beego.AppConfig.Bool("https_just_proxy"); err == nil && b {
 		conn.Accept(https.listener, func(c net.Conn) {
@@ -86,16 +87,19 @@ func (https *HttpsServer) Start() error {
 	return nil
 }
 
+// close
 func (https *HttpsServer) Close() error {
 	return https.listener.Close()
 }
 
+// new https server by cert and key file
 func (https *HttpsServer) NewHttps(l net.Listener, certFile string, keyFile string) {
 	go func() {
 		logs.Error(https.NewServer(0, "https").ServeTLS(l, certFile, keyFile))
 	}()
 }
 
+//handle the https which is just proxy to other client
 func (https *HttpsServer) handleHttps(c net.Conn) {
 	hostName, rb := GetServerNameFromClientHello(c)
 	var targetAddr string
@@ -129,10 +133,12 @@ type HttpsListener struct {
 	parentListener net.Listener
 }
 
+// https listener
 func NewHttpsListener(l net.Listener) *HttpsListener {
 	return &HttpsListener{parentListener: l, acceptConn: make(chan *conn.Conn)}
 }
 
+// accept
 func (httpsListener *HttpsListener) Accept() (net.Conn, error) {
 	httpsConn := <-httpsListener.acceptConn
 	if httpsConn == nil {
@@ -141,14 +147,17 @@ func (httpsListener *HttpsListener) Accept() (net.Conn, error) {
 	return httpsConn, nil
 }
 
+// close
 func (httpsListener *HttpsListener) Close() error {
 	return nil
 }
 
+// addr
 func (httpsListener *HttpsListener) Addr() net.Addr {
 	return httpsListener.parentListener.Addr()
 }
 
+// get server name from connection by read client hello bytes
 func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
 	buf := make([]byte, 4096)
 	data := make([]byte, 4096)
@@ -162,6 +171,7 @@ func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
 	return clientHello.GetServerName(), buf[:n]
 }
 
+// build https request
 func buildHttpsRequest(hostName string) *http.Request {
 	r := new(http.Request)
 	r.RequestURI = "/"

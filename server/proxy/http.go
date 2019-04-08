@@ -123,6 +123,7 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 		lk         *conn.Link
 		targetAddr string
 		readReq    bool
+		reqCh      = make(chan *http.Request)
 	)
 	if host, err = file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
@@ -156,28 +157,31 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 			go func() {
 				defer connClient.Close()
 				defer c.Close()
-				if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
-					return
-				} else {
-					//if the cache is start and the response is in the extension,store the response to the cache list
-					if s.useCache && strings.Contains(r.URL.Path, ".") {
-						b, err := httputil.DumpResponse(resp, true)
-						if err != nil {
-							return
-						}
-						c.Write(b)
-						host.Flow.Add(0, int64(len(b)))
-						s.cache.Add(filepath.Join(host.Host, r.URL.Path), b)
+				for {
+					r := <-reqCh
+					if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
+						return
 					} else {
-						b, err := httputil.DumpResponse(resp, false)
-						if err != nil {
-							return
-						}
-						c.Write(b)
-						if bodyLen, err := common.CopyBuffer(c, resp.Body); err != nil {
-							return
+						//if the cache is start and the response is in the extension,store the response to the cache list
+						if s.useCache && strings.Contains(r.URL.Path, ".") {
+							b, err := httputil.DumpResponse(resp, true)
+							if err != nil {
+								return
+							}
+							c.Write(b)
+							host.Flow.Add(0, int64(len(b)))
+							s.cache.Add(filepath.Join(host.Host, r.URL.Path), b)
 						} else {
-							host.Flow.Add(0, int64(len(b))+bodyLen)
+							b, err := httputil.DumpResponse(resp, false)
+							if err != nil {
+								return
+							}
+							c.Write(b)
+							if bodyLen, err := common.CopyBuffer(c, resp.Body); err != nil {
+								return
+							} else {
+								host.Flow.Add(0, int64(len(b))+bodyLen)
+							}
 						}
 					}
 				}
@@ -242,6 +246,7 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 		} else {
 			host.Flow.Add(int64(len(b))+bodyLen, 0)
 		}
+		reqCh <- r
 	}
 end:
 	if isConn {
