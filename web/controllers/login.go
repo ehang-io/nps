@@ -43,6 +43,7 @@ func (self *LoginController) Verify() {
 			if auth {
 				self.SetSession("isAdmin", false)
 				self.SetSession("clientId", v.Id)
+				self.SetSession("username", v.WebUserName)
 				return false
 			}
 			return true

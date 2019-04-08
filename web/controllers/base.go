@@ -39,6 +39,7 @@ func (s *BaseController) Prepare() {
 		s.Ctx.Input.SetData("client_id", s.GetSession("clientId").(int))
 		s.Ctx.Input.SetParam("client_id", strconv.Itoa(s.GetSession("clientId").(int)))
 		s.Data["isAdmin"] = false
+		s.Data["username"] = s.GetSession("username")
 		s.CheckUserAuth()
 	} else {
 		s.Data["isAdmin"] = true
