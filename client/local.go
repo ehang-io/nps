@@ -46,7 +46,7 @@ func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey stri
 	logs.Error(srv.Serve(listener))
 }
 
-func startLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
+func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
 	listener, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), l.Port, ""})
 	if err != nil {
 		logs.Error("local listener startup failed port %d, error %s", l.Port, err.Error())

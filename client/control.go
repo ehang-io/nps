@@ -163,7 +163,7 @@ re:
 
 	//create local server secret or p2p
 	for _, v := range cnf.LocalServer {
-		go startLocalServer(v, cnf.CommonConfig)
+		go StartLocalServer(v, cnf.CommonConfig)
 	}
 
 	c.Close()
