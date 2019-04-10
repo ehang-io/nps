@@ -249,7 +249,7 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 		reqCh <- r
 	}
 end:
-	if isConn {
+	if !readReq {
 		s.writeConnFail(c.Conn)
 	}
 	c.Close()

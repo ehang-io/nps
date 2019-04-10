@@ -27,7 +27,7 @@ func (s *ClientController) List() {
 	} else {
 		clientId = clientIdSession.(int)
 	}
-	list, cnt := server.GetClientList(start, length, s.GetString("search"), s.GetString("sort"), s.GetString("order"), clientId)
+	list, cnt := server.GetClientList(start, length, s.getEscapeString("search"), s.getEscapeString("sort"), s.getEscapeString("order"), clientId)
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -39,21 +39,21 @@ func (s *ClientController) Add() {
 		s.display()
 	} else {
 		t := &file.Client{
-			VerifyKey: s.GetString("vkey"),
+			VerifyKey: s.getEscapeString("vkey"),
 			Id:        int(file.GetDb().JsonDb.GetClientId()),
 			Status:    true,
-			Remark:    s.GetString("remark"),
+			Remark:    s.getEscapeString("remark"),
 			Cnf: &file.Config{
-				U:        s.GetString("u"),
-				P:        s.GetString("p"),
-				Compress: common.GetBoolByStr(s.GetString("compress")),
+				U:        s.getEscapeString("u"),
+				P:        s.getEscapeString("p"),
+				Compress: common.GetBoolByStr(s.getEscapeString("compress")),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
 			ConfigConnAllow: s.GetBoolNoErr("config_conn_allow"),
 			RateLimit:       s.GetIntNoErr("rate_limit"),
 			MaxConn:         s.GetIntNoErr("max_conn"),
-			WebUserName:     s.GetString("web_username"),
-			WebPassword:     s.GetString("web_password"),
+			WebUserName:     s.getEscapeString("web_username"),
+			WebPassword:     s.getEscapeString("web_password"),
 			MaxTunnelNum:    s.GetIntNoErr("max_tunnel"),
 			Flow: &file.Flow{
 				ExportFlow: 0,
@@ -102,33 +102,33 @@ func (s *ClientController) Edit() {
 		if c, err := file.GetDb().GetClient(id); err != nil {
 			s.error()
 		} else {
-			if s.GetString("web_username") != "" {
-				if s.GetString("web_username") == beego.AppConfig.String("web_username") || !file.GetDb().VerifyUserName(s.GetString("web_username"), c.Id) {
+			if s.getEscapeString("web_username") != "" {
+				if s.getEscapeString("web_username") == beego.AppConfig.String("web_username") || !file.GetDb().VerifyUserName(s.getEscapeString("web_username"), c.Id) {
 					s.AjaxErr("web login username duplicate, please reset")
 					return
 				}
 			}
 			if s.GetSession("isAdmin").(bool) {
-				if !file.GetDb().VerifyVkey(s.GetString("vkey"), c.Id) {
+				if !file.GetDb().VerifyVkey(s.getEscapeString("vkey"), c.Id) {
 					s.AjaxErr("Vkey duplicate, please reset")
 					return
 				}
-				c.VerifyKey = s.GetString("vkey")
+				c.VerifyKey = s.getEscapeString("vkey")
 				c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
 				c.RateLimit = s.GetIntNoErr("rate_limit")
 				c.MaxConn = s.GetIntNoErr("max_conn")
 				c.MaxTunnelNum = s.GetIntNoErr("max_tunnel")
 			}
-			c.Remark = s.GetString("remark")
-			c.Cnf.U = s.GetString("u")
-			c.Cnf.P = s.GetString("p")
-			c.Cnf.Compress = common.GetBoolByStr(s.GetString("compress"))
+			c.Remark = s.getEscapeString("remark")
+			c.Cnf.U = s.getEscapeString("u")
+			c.Cnf.P = s.getEscapeString("p")
+			c.Cnf.Compress = common.GetBoolByStr(s.getEscapeString("compress"))
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
 			b, err := beego.AppConfig.Bool("allow_user_change_username")
 			if s.GetSession("isAdmin").(bool) || (err == nil && b) {
-				c.WebUserName = s.GetString("web_username")
+				c.WebUserName = s.getEscapeString("web_username")
 			}
-			c.WebPassword = s.GetString("web_password")
+			c.WebPassword = s.getEscapeString("web_password")
 			c.ConfigConnAllow = s.GetBoolNoErr("config_conn_allow")
 			if c.Rate != nil {
 				c.Rate.Stop()

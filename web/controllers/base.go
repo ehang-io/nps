@@ -6,6 +6,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	"html"
 	"math"
 	"strconv"
 	"strings"
@@ -26,7 +27,7 @@ func (s *BaseController) Prepare() {
 	// web api verify
 	// param 1 is md5(authKey+Current timestamp)
 	// param 2 is timestamp (It's limited to 20 seconds.)
-	md5Key := s.GetString("auth_key")
+	md5Key := s.getEscapeString("auth_key")
 	timestamp := s.GetIntNoErr("timestamp")
 	configKey := beego.AppConfig.String("auth_key")
 	timeNowUnix := time.Now().Unix()
@@ -83,6 +84,11 @@ func (s *BaseController) display(tpl ...string) {
 func (s *BaseController) error() {
 	s.Layout = "public/layout.html"
 	s.TplName = "public/error.html"
+}
+
+//getEscapeString
+func (s *BaseController) getEscapeString(key string) string {
+	return html.EscapeString(s.GetString(key))
 }
 
 //去掉没有err返回值的int
