@@ -65,7 +65,6 @@ func (s *P2PServer) p2pProcess(c *conn.Conn) {
 	logs.Trace("new p2p connection ,role %s , password %s, nat type %s ,local address %s", f, string(b), strconv.Itoa(int(natType)), c.RemoteAddr().String())
 	//存储
 	if f == common.WORK_P2P_VISITOR {
-		logs.Warn("try visitor")
 		v.visitorAddr = c.Conn.RemoteAddr().String()
 		v.visitorNatType = natType
 		v.visitor = c

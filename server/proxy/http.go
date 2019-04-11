@@ -158,10 +158,10 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 				defer connClient.Close()
 				defer c.Close()
 				for {
-					r := <-reqCh
 					if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
 						return
 					} else {
+						r := <-reqCh
 						//if the cache is start and the response is in the extension,store the response to the cache list
 						if s.useCache && strings.Contains(r.URL.Path, ".") {
 							b, err := httputil.DumpResponse(resp, true)
