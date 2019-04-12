@@ -384,3 +384,17 @@ func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) (io.
 	}
 	return rate.NewRateConn(conn, rt)
 }
+
+type LenConn struct {
+	conn io.Writer
+	Len  int
+}
+
+func NewLenConn(conn io.Writer) *LenConn {
+	return &LenConn{conn: conn}
+}
+func (c *LenConn) Write(p []byte) (n int, err error) {
+	n, err = c.conn.Write(p)
+	c.Len += n
+	return
+}

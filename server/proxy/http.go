@@ -172,16 +172,12 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 							host.Flow.Add(0, int64(len(b)))
 							s.cache.Add(filepath.Join(host.Host, r.URL.Path), b)
 						} else {
-							b, err := httputil.DumpResponse(resp, false)
-							if err != nil {
+							lenConn := conn.NewLenConn(c)
+							if err := resp.Write(lenConn); err != nil {
+								logs.Error(err)
 								return
 							}
-							c.Write(b)
-							if bodyLen, err := common.CopyBuffer(c, resp.Body); err != nil {
-								return
-							} else {
-								host.Flow.Add(0, int64(len(b))+bodyLen)
-							}
+							host.Flow.Add(0, int64(lenConn.Len))
 						}
 					}
 				}
@@ -234,18 +230,14 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 		readReq = true
 		//change the host and header and set proxy setting
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
-		b, err := httputil.DumpRequest(r, false)
-		if err != nil {
-			break
-		}
 		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.URL.Path, c.RemoteAddr().String(), lk.Host)
 		//write
-		connClient.Write(b)
-		if bodyLen, err := common.CopyBuffer(connClient, r.Body); err != nil {
+		lenConn := conn.NewLenConn(connClient)
+		if err := r.Write(lenConn); err != nil {
+			logs.Error(err)
 			break
-		} else {
-			host.Flow.Add(int64(len(b))+bodyLen, 0)
 		}
+		host.Flow.Add(int64(lenConn.Len), 0)
 		reqCh <- r
 	}
 end:
