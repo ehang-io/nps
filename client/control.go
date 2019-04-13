@@ -357,19 +357,30 @@ func sendP2PTestMsg(remoteAddr string, localAddr string) (string, error) {
 		return "", err
 	}
 	localConn, err := newUdpConnByAddr(localAddr)
-	defer localConn.Close()
 	if err != nil {
 		return "", err
 	}
-	buf := make([]byte, 10)
-	for i := 20; i > 0; i-- {
-		logs.Trace("try send test packet to target %s", remoteAddr)
-		if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
-			return "", err
+	defer localConn.Close()
+	ticker := time.NewTicker(time.Millisecond * 500)
+	go func(ticker *time.Ticker) {
+		for {
+			select {
+			case <-ticker.C:
+				logs.Trace("try send test packet to target %s", remoteAddr)
+				if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
+					return
+				}
+			}
 		}
-		localConn.SetReadDeadline(time.Now().Add(time.Millisecond * 500))
+	}(ticker)
+	buf := make([]byte, 10)
+	for {
+		localConn.SetReadDeadline(time.Now().Add(time.Second * 30))
 		n, addr, err := localConn.ReadFromUDP(buf)
 		localConn.SetReadDeadline(time.Time{})
+		if err != nil {
+			break
+		}
 		switch string(buf[:n]) {
 		case common.WORK_P2P_SUCCESS:
 			for i := 20; i > 0; i-- {
@@ -391,9 +402,12 @@ func sendP2PTestMsg(remoteAddr string, localAddr string) (string, error) {
 					time.Sleep(time.Second)
 				}
 			}()
+		default:
+			continue
 		}
+		ticker.Stop()
 	}
-	localConn.Close()
+	ticker.Stop()
 	return "", errors.New("connect to the target failed, maybe the nat type is not support p2p")
 }
 

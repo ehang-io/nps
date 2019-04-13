@@ -70,7 +70,7 @@
                     + '<b langtag="info-web-auth-username">basic权限认证用户名</b>：' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
                     + '<b langtag="info-web-auth-password">basic权限认证密码</b>：' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
             if (row.Mode == "p2p") {
-                return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -target=your target" + "</code>"
+                return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -target=" + row.Target.TargetStr + "</code>"
             }
             if (row.Mode = "secret") {
                 return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=secret" + "</code>"

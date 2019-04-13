@@ -248,6 +248,8 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 	case common.WORK_SECRET:
 		if b, err := c.GetShortContent(32); err == nil {
 			s.SecretChan <- conn.NewSecret(string(b), c)
+		} else {
+			logs.Error("secret error, failed to match the key successfully")
 		}
 	case common.WORK_FILE:
 		muxConn := mux.NewMux(c.Conn, s.tunnelType)
@@ -257,9 +259,9 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 	case common.WORK_P2P:
 		//read md5 secret
 		if b, err := c.GetShortContent(32); err != nil {
-			return
+			logs.Error("p2p error,", err.Error())
 		} else if t := file.GetDb().GetTaskByMd5Password(string(b)); t == nil {
-			return
+			logs.Error("p2p error, failed to match the key successfully")
 		} else {
 			if v, ok := s.Client.Load(t.Client.Id); !ok {
 				return

@@ -20,6 +20,7 @@ var (
 	muxSession  *mux.Mux
 	fileServer  []*http.Server
 	lock        sync.Mutex
+	hasP2PTry   bool
 )
 
 func CloseLocalServer() {
@@ -81,12 +82,18 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 restart:
 	lock.Lock()
 	if udpConn == nil {
-		newUdpConn(config, l)
+		if !hasP2PTry {
+			hasP2PTry = true
+			newUdpConn(config, l)
+		}
 		if udpConn == nil {
 			lock.Unlock()
+			logs.Notice("new conn, P2P can not penetrate successfully, traffic will be transferred through the server")
+			handleSecret(localTcpConn, config, l)
 			return
+		} else {
+			muxSession = mux.NewMux(udpConn, "kcp")
 		}
-		muxSession = mux.NewMux(udpConn, "kcp")
 	}
 	lock.Unlock()
 	logs.Trace("start trying to connect with the server")

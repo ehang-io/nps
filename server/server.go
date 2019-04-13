@@ -66,10 +66,7 @@ func DealBridgeTask() {
 		case s := <-Bridge.SecretChan:
 			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
 			if t := file.GetDb().GetTaskByMd5Password(s.Password); t != nil {
-				if !t.Client.GetConn() {
-					logs.Info("Connections exceed the current client %d limit", t.Client.Id)
-					s.Conn.Close()
-				} else if t.Status {
+				if t.Status {
 					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target.TargetStr, nil, common.CONN_TCP, nil, t.Flow, t.Target.LocalProxy)
 				} else {
 					s.Conn.Close()
