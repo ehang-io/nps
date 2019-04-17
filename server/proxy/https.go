@@ -165,6 +165,9 @@ func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
 	if err != nil {
 		return "", nil
 	}
+	if n < 42 {
+		return "", nil
+	}
 	copy(data, buf[:n])
 	clientHello := new(crypt.ClientHelloMsg)
 	clientHello.Unmarshal(data[5:n])
