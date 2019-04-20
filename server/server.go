@@ -242,7 +242,7 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 				v.Client.IsConnect = false
 			}
 			if start--; start < 0 {
-				if length--; length > 0 {
+				if length--; length >= 0 {
 					if _, ok := RunList[v.Id]; ok {
 						v.RunStatus = true
 					} else {

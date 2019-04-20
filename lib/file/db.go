@@ -64,7 +64,7 @@ func (s *DbUtils) GetClientList(start, length int, search, sort, order string, c
 			}
 			cnt++
 			if start--; start < 0 {
-				if length--; length > 0 {
+				if length--; length >= 0 {
 					list = append(list, v)
 				}
 			}
@@ -187,7 +187,7 @@ func (s *DbUtils) GetHost(start, length int, id int, search string) ([]*Host, in
 			if id == 0 || v.Client.Id == id {
 				cnt++
 				if start--; start < 0 {
-					if length--; length > 0 {
+					if length--; length >= 0 {
 						list = append(list, v)
 					}
 				}

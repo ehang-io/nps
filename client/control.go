@@ -211,6 +211,8 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if err != nil {
 		return nil, err
 	}
+	connection.SetDeadline(time.Now().Add(time.Second * 10))
+	defer connection.SetDeadline(time.Time{})
 	c := conn.NewConn(connection)
 	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
 		return nil, err
@@ -220,7 +222,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	}
 	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
 		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
-		os.Exit(0)
+		return nil, err
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
 		return nil, err
