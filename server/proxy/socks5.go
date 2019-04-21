@@ -3,7 +3,6 @@ package proxy
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
@@ -264,7 +263,7 @@ func (s *Sock5ModeServer) Start() error {
 }
 
 //new
-func NewSock5ModeServer(bridge *bridge.Bridge, task *file.Tunnel) *Sock5ModeServer {
+func NewSock5ModeServer(bridge NetBridge, task *file.Tunnel) *Sock5ModeServer {
 	s := new(Sock5ModeServer)
 	s.bridge = bridge
 	s.task = task

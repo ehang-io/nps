@@ -60,7 +60,7 @@ func main() {
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+*logLevel+`,"color":true}`)
 	} else {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"`+*logPath+`","daily":false,"color":true}`)
+		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"`+*logPath+`","daily":false,"maxlines":100000,"color":true}`)
 	}
 	//p2p or secret command
 	if *password != "" {

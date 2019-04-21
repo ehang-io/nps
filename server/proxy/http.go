@@ -147,7 +147,7 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 				logs.Warn(err.Error())
 				break
 			}
-			lk = conn.NewLink(common.CONN_TCP, targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr, host.Target.LocalProxy)
+			lk = conn.NewLink("http", targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr, host.Target.LocalProxy)
 			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, nil); err != nil {
 				logs.Notice("connect to target %s error %s", lk.Host, err)
 				break

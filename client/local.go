@@ -7,21 +7,35 @@ import (
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
+	"github.com/cnlh/nps/server/proxy"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"net/http"
-	"sync"
 )
 
 var (
-	LocalServer []*net.TCPListener
-	udpConn     net.Conn
-	muxSession  *mux.Mux
-	fileServer  []*http.Server
-	lock        sync.Mutex
-	hasP2PTry   bool
+	LocalServer  []*net.TCPListener
+	udpConn      net.Conn
+	muxSession   *mux.Mux
+	fileServer   []*http.Server
+	p2pNetBridge *p2pBridge
 )
+
+type p2pBridge struct {
+}
+
+func (p2pBridge *p2pBridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
+	nowConn, err := muxSession.NewConn()
+	if err != nil {
+		udpConn = nil
+		return nil, err
+	}
+	if _, err := conn.NewConn(nowConn).SendInfo(link, ""); err != nil {
+		return nil, err
+	}
+	return nowConn, nil
+}
 
 func CloseLocalServer() {
 	for _, v := range LocalServer {
@@ -48,20 +62,58 @@ func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey stri
 }
 
 func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
-	listener, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), l.Port, ""})
+	tmpConn, err := common.GetLocalUdpAddr()
 	if err != nil {
-		logs.Error("local listener startup failed port %d, error %s", l.Port, err.Error())
 		return err
 	}
-	LocalServer = append(LocalServer, listener)
-	logs.Info("successful start-up of local monitoring, port", l.Port)
-	conn.Accept(listener, func(c net.Conn) {
-		if l.Type == "secret" {
-			handleSecret(c, config, l)
-		} else {
-			handleP2PVisitor(c, config, l)
+	for i := 0; i < 10; i++ {
+		logs.Notice("try to connect to the server", i+1)
+		newUdpConn(tmpConn.LocalAddr().String(), config, l)
+		if udpConn != nil {
+			break
 		}
-	})
+	}
+	task := &file.Tunnel{
+		Port:     l.Port,
+		ServerIp: "0.0.0.0",
+		Status:   true,
+		Client: &file.Client{
+			Cnf: &file.Config{
+				U:        "",
+				P:        "",
+				Compress: config.Client.Cnf.Compress,
+			},
+			Status:    true,
+			RateLimit: 0,
+			Flow:      &file.Flow{},
+		},
+		Flow:   &file.Flow{},
+		Target: &file.Target{},
+	}
+	switch l.Type {
+	case "p2ps":
+		logs.Info("successful start-up of local socks5 monitoring, port", l.Port)
+		return proxy.NewSock5ModeServer(p2pNetBridge, task).Start()
+	case "p2pt":
+		logs.Info("successful start-up of local tcp trans monitoring, port", l.Port)
+		return proxy.NewTunnelModeServer(proxy.HandleTrans, p2pNetBridge, task).Start()
+	case "p2p", "secret":
+		listener, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), l.Port, ""})
+		if err != nil {
+			logs.Error("local listener startup failed port %d, error %s", l.Port, err.Error())
+			return err
+		}
+		LocalServer = append(LocalServer, listener)
+		logs.Info("successful start-up of local tcp monitoring, port", l.Port)
+		conn.Accept(listener, func(c net.Conn) {
+			logs.Trace("new %s connection", l.Type)
+			if l.Type == "secret" {
+				handleSecret(c, config, l)
+			} else if l.Type == "p2p" {
+				handleP2PVisitor(c, config, l)
+			}
+		})
+	}
 	return nil
 }
 
@@ -79,41 +131,22 @@ func handleSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.
 }
 
 func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
-restart:
-	lock.Lock()
 	if udpConn == nil {
-		if !hasP2PTry {
-			hasP2PTry = true
-			newUdpConn(config, l)
-		}
-		if udpConn == nil {
-			lock.Unlock()
-			logs.Notice("new conn, P2P can not penetrate successfully, traffic will be transferred through the server")
-			handleSecret(localTcpConn, config, l)
-			return
-		} else {
-			muxSession = mux.NewMux(udpConn, "kcp")
-		}
+		logs.Notice("new conn, P2P can not penetrate successfully, traffic will be transferred through the server")
+		handleSecret(localTcpConn, config, l)
 	}
-	lock.Unlock()
 	logs.Trace("start trying to connect with the server")
-	nowConn, err := muxSession.NewConn()
-	if err != nil {
-		udpConn = nil
-		logs.Error(err, "reconnect......")
-		goto restart
-		return
-	}
 	//TODO just support compress now because there is not tls file in client packages
 	link := conn.NewLink(common.CONN_TCP, l.Target, false, config.Client.Cnf.Compress, localTcpConn.LocalAddr().String(), false)
-	if _, err := conn.NewConn(nowConn).SendInfo(link, ""); err != nil {
+	if target, err := p2pNetBridge.SendLinkInfo(0, link, nil); err != nil {
 		logs.Error(err)
 		return
+	} else {
+		conn.CopyWaitGroup(target, localTcpConn, false, config.Client.Cnf.Compress, nil, nil, false, nil)
 	}
-	conn.CopyWaitGroup(nowConn, localTcpConn, false, config.Client.Cnf.Compress, nil, nil, false, nil)
 }
 
-func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
+func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalServer) {
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_P2P, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
@@ -131,7 +164,7 @@ func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
 	}
 	var localConn net.PacketConn
 	var remoteAddress string
-	if remoteAddress, localConn, err = handleP2PUdp(string(rAddr), crypt.Md5(l.Password), common.WORK_P2P_VISITOR); err != nil {
+	if remoteAddress, localConn, err = handleP2PUdp(localAddr, string(rAddr), crypt.Md5(l.Password), common.WORK_P2P_VISITOR); err != nil {
 		logs.Error(err)
 		return
 	}
@@ -143,4 +176,6 @@ func newUdpConn(config *config.CommonConfig, l *config.LocalServer) {
 	logs.Trace("successful create a connection with server", remoteAddress)
 	conn.SetUdpSession(udpTunnel)
 	udpConn = udpTunnel
+	muxSession = mux.NewMux(udpConn, "kcp")
+	p2pNetBridge = &p2pBridge{}
 }

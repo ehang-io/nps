@@ -4,17 +4,19 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/ccding/go-stun/stun"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"github.com/cnlh/nps/vender/golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
+	"math"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -276,108 +278,137 @@ func basicAuth(username, password string) string {
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-func handleP2PUdp(rAddr, md5Password, role string) (remoteAddress string, c net.PacketConn, err error) {
-	tmpConn, err := common.GetLocalUdpAddr()
+func getRemoteAddressFromServer(rAddr string, localConn *net.UDPConn, md5Password, role string, add int) error {
+	rAddr, err := getNextAddr(rAddr, add)
+	if err != nil {
+		logs.Error(err)
+		return err
+	}
+	addr, err := net.ResolveUDPAddr("udp", rAddr)
+	if err != nil {
+		return err
+	}
+	if _, err := localConn.WriteTo(common.GetWriteStr(md5Password, role), addr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleP2PUdp(localAddr, rAddr, md5Password, role string) (remoteAddress string, c net.PacketConn, err error) {
+	localConn, err := newUdpConnByAddr(localAddr)
+	if err != nil {
+		return
+	}
+	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 0)
 	if err != nil {
 		logs.Error(err)
 		return
 	}
-	localConn, err := newUdpConnByAddr(tmpConn.LocalAddr().String())
+	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 1)
 	if err != nil {
 		logs.Error(err)
 		return
 	}
-	localKcpConn, err := kcp.NewConn(rAddr, nil, 150, 3, localConn)
+	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 2)
 	if err != nil {
 		logs.Error(err)
 		return
 	}
-	conn.SetUdpSession(localKcpConn)
-	localToolConn := conn.NewConn(localKcpConn)
-	//get local nat type
-	//localNatType, host, err := stun.NewClient().Discover()
-	//if err != nil || host == nil {
-	//	err = errors.New("get nat type error")
-	//	return
-	//}
-	localNatType := stun.NATRestricted
-	//write password
-	if _, err = localToolConn.Write([]byte(md5Password)); err != nil {
+	var remoteAddr1, remoteAddr2, remoteAddr3 string
+	for {
+		buf := make([]byte, 1024)
+		if n, addr, er := localConn.ReadFromUDP(buf); er != nil {
+			err = er
+			return
+		} else {
+			rAddr2, _ := getNextAddr(rAddr, 1)
+			rAddr3, _ := getNextAddr(rAddr, 2)
+			switch addr.String() {
+			case rAddr:
+				remoteAddr1 = string(buf[:n])
+			case rAddr2:
+				remoteAddr2 = string(buf[:n])
+			case rAddr3:
+				remoteAddr3 = string(buf[:n])
+			}
+		}
+		if remoteAddr1 != "" && remoteAddr2 != "" && remoteAddr3 != "" {
+			break
+		}
+	}
+	if remoteAddress, err = sendP2PTestMsg(localConn, remoteAddr1, remoteAddr2, remoteAddr3); err != nil {
 		return
 	}
-	//write role
-	if _, err = localToolConn.Write([]byte(role)); err != nil {
-		return
-	}
-	if err = binary.Write(localToolConn, binary.LittleEndian, int32(localNatType)); err != nil {
-		return
-	}
-	//get another type address and nat type from server
-	var remoteAddr []byte
-	var remoteNatType int32
-	if remoteAddr, err = localToolConn.GetShortLenContent(); err != nil {
-		return
-	}
-	if err = binary.Read(localToolConn, binary.LittleEndian, &remoteNatType); err != nil {
-		return
-	}
-	localConn.Close()
-	//logs.Trace("remote nat type %d,local nat type %s", remoteNatType, localNatType)
-	if remoteAddress, err = sendP2PTestMsg(string(remoteAddr), tmpConn.LocalAddr().String()); err != nil {
-		return
-	}
-	c, err = newUdpConnByAddr(tmpConn.LocalAddr().String())
+	c, err = newUdpConnByAddr(localAddr)
 	return
 }
 
-func handleP2P(natType1, natType2 int, addr1, addr2 string, role string) (string, error) {
-	switch natType1 {
-	case int(stun.NATFull):
-		return sendP2PTestMsg(addr2, addr1)
-	case int(stun.NATRestricted):
-		switch natType2 {
-		case int(stun.NATFull), int(stun.NATRestricted), int(stun.NATPortRestricted), int(stun.NATSymetric):
-			return sendP2PTestMsg(addr2, addr1)
-		}
-	case int(stun.NATPortRestricted):
-		switch natType2 {
-		case int(stun.NATFull), int(stun.NATRestricted), int(stun.NATPortRestricted):
-			return sendP2PTestMsg(addr2, addr1)
-		}
-	case int(stun.NATSymetric):
-		switch natType2 {
-		case int(stun.NATFull), int(stun.NATRestricted):
-			return sendP2PTestMsg(addr2, addr1)
-		}
-	}
-	return "", errors.New("not support p2p")
-}
-
-func sendP2PTestMsg(remoteAddr string, localAddr string) (string, error) {
-	remoteUdpAddr, err := net.ResolveUDPAddr("udp", remoteAddr)
-	if err != nil {
-		return "", err
-	}
-	localConn, err := newUdpConnByAddr(localAddr)
-	if err != nil {
-		return "", err
-	}
+func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr3 string) (string, error) {
+	logs.Trace(remoteAddr3, remoteAddr2, remoteAddr1)
 	defer localConn.Close()
-	ticker := time.NewTicker(time.Millisecond * 500)
-	go func(ticker *time.Ticker) {
+	isClose := false
+	defer func() { isClose = true }()
+	interval, err := getAddrInterval(remoteAddr1, remoteAddr2, remoteAddr3)
+	if err != nil {
+		return "", err
+	}
+	go func() {
+		addr, err := getNextAddr(remoteAddr3, interval)
+		if err != nil {
+			return
+		}
+		remoteUdpAddr, err := net.ResolveUDPAddr("udp", addr)
+		if err != nil {
+			return
+		}
+		logs.Trace("try send test packet to target %s", addr)
+		ticker := time.NewTicker(time.Millisecond * 500)
 		for {
 			select {
 			case <-ticker.C:
-				logs.Trace("try send test packet to target %s", remoteAddr)
+				if isClose {
+					return
+				}
 				if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
 					return
 				}
 			}
 		}
-	}(ticker)
+	}()
+	if interval != 0 {
+		ip := common.GetIpByAddr(remoteAddr2)
+		go func() {
+			ports := getRandomPortArr(common.GetPortByAddr(remoteAddr3), common.GetPortByAddr(remoteAddr3)+interval*50)
+			for i := 0; i <= 50; i ++ {
+				go func(port int) {
+					trueAddress := ip + ":" + strconv.Itoa(port)
+					logs.Trace("try send test packet to target %s", trueAddress)
+					remoteUdpAddr, err := net.ResolveUDPAddr("udp", trueAddress)
+					if err != nil {
+						return
+					}
+					ticker := time.NewTicker(time.Second * 2)
+					for {
+						select {
+						case <-ticker.C:
+							if isClose {
+								return
+							}
+							if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
+								return
+							}
+						}
+					}
+				}(ports[i])
+				time.Sleep(time.Millisecond * 10)
+			}
+		}()
+
+	}
+
 	buf := make([]byte, 10)
 	for {
-		localConn.SetReadDeadline(time.Now().Add(time.Second * 30))
+		localConn.SetReadDeadline(time.Now().Add(time.Second * 10))
 		n, addr, err := localConn.ReadFromUDP(buf)
 		localConn.SetReadDeadline(time.Time{})
 		if err != nil {
@@ -397,7 +428,7 @@ func sendP2PTestMsg(remoteAddr string, localAddr string) (string, error) {
 		case common.WORK_P2P_CONNECT:
 			go func() {
 				for i := 20; i > 0; i-- {
-					logs.Trace("try send receive success packet to target %s", remoteAddr)
+					logs.Trace("try send receive success packet to target %s", addr.String())
 					if _, err = localConn.WriteTo([]byte(common.WORK_P2P_SUCCESS), addr); err != nil {
 						return
 					}
@@ -407,9 +438,7 @@ func sendP2PTestMsg(remoteAddr string, localAddr string) (string, error) {
 		default:
 			continue
 		}
-		ticker.Stop()
 	}
-	ticker.Stop()
 	return "", errors.New("connect to the target failed, maybe the nat type is not support p2p")
 }
 
@@ -423,4 +452,67 @@ func newUdpConnByAddr(addr string) (*net.UDPConn, error) {
 		return nil, err
 	}
 	return udpConn, nil
+}
+
+func getNextAddr(addr string, n int) (string, error) {
+	arr := strings.Split(addr, ":")
+	if len(arr) != 2 {
+		return "", errors.New(fmt.Sprintf("the format of %s incorrect", addr))
+	}
+	if p, err := strconv.Atoi(arr[1]); err != nil {
+		return "", err
+	} else {
+		return arr[0] + ":" + strconv.Itoa(p+n), nil
+	}
+}
+
+func getAddrInterval(addr1, addr2, addr3 string) (int, error) {
+	arr1 := strings.Split(addr1, ":")
+	if len(arr1) != 2 {
+		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr1))
+	}
+	arr2 := strings.Split(addr2, ":")
+	if len(arr2) != 2 {
+		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr2))
+	}
+	arr3 := strings.Split(addr3, ":")
+	if len(arr3) != 2 {
+		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr3))
+	}
+	p1, err := strconv.Atoi(arr1[1])
+	if err != nil {
+		return 0, err
+	}
+	p2, err := strconv.Atoi(arr2[1])
+	if err != nil {
+		return 0, err
+	}
+	p3, err := strconv.Atoi(arr3[1])
+	if err != nil {
+		return 0, err
+	}
+	interVal := int(math.Floor(math.Min(math.Abs(float64(p3-p2)), math.Abs(float64(p2-p1)))))
+	if p3-p1 < 0 {
+		return -interVal, nil
+	}
+	return interVal, nil
+}
+
+func getRandomPortArr(min, max int) []int {
+	if min > max {
+		min, max = max, min
+	}
+	addrAddr := make([]int, max-min+1)
+	for i := min; i <= max; i++ {
+		addrAddr[max-i] = i
+	}
+	rand.Seed(time.Now().UnixNano())
+	var r, temp int
+	for i := max - min; i > 0; i-- {
+		r = rand.Int() % i
+		temp = addrAddr[i]
+		addrAddr[i] = addrAddr[r]
+		addrAddr[r] = temp
+	}
+	return addrAddr
 }

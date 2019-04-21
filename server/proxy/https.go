@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/cache"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
@@ -22,7 +21,7 @@ type HttpsServer struct {
 	httpsListenerMap sync.Map
 }
 
-func NewHttpsServer(l net.Listener, bridge *bridge.Bridge, useCache bool, cacheLen int) *HttpsServer {
+func NewHttpsServer(l net.Listener, bridge NetBridge, useCache bool, cacheLen int) *HttpsServer {
 	https := &HttpsServer{listener: l}
 	https.bridge = bridge
 	https.useCache = useCache

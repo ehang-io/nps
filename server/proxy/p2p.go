@@ -1,28 +1,24 @@
 package proxy
 
 import (
-	"encoding/binary"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
-	"strconv"
+	"strings"
 	"time"
 )
 
 type P2PServer struct {
 	BaseServer
-	p2pPort int
-	p2p     map[string]*p2p
+	p2pPort  int
+	p2p      map[string]*p2p
+	listener *net.UDPConn
 }
 
 type p2p struct {
-	provider        *conn.Conn
-	visitor         *conn.Conn
-	visitorAddr     string
-	providerAddr    string
-	providerNatType int32
-	visitorNatType  int32
+	visitorAddr  *net.UDPAddr
+	providerAddr *net.UDPAddr
 }
 
 func NewP2PServer(p2pPort int) *P2PServer {
@@ -33,62 +29,52 @@ func NewP2PServer(p2pPort int) *P2PServer {
 }
 
 func (s *P2PServer) Start() error {
-	return conn.NewKcpListenerAndProcess(":"+strconv.Itoa(s.p2pPort), func(c net.Conn) {
-		s.p2pProcess(conn.NewConn(c))
-	})
+	logs.Info("start p2p server port", s.p2pPort)
+	var err error
+	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.p2pPort, ""})
+	if err != nil {
+		return err
+	}
+	for {
+		buf := pool.BufPoolUdp.Get().([]byte)
+		n, addr, err := s.listener.ReadFromUDP(buf)
+		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				break
+			}
+			continue
+		}
+		go s.handleP2P(addr, string(buf[:n]))
+	}
+	return nil
 }
 
-func (s *P2PServer) p2pProcess(c *conn.Conn) {
+func (s *P2PServer) handleP2P(addr *net.UDPAddr, str string) {
 	var (
-		f       string
-		b       []byte
-		err     error
-		v       *p2p
-		ok      bool
-		natType int32
+		v  *p2p
+		ok bool
 	)
-	if b, err = c.GetShortContent(32); err != nil {
+	arr := strings.Split(str, common.CONN_DATA_SEQ)
+	if len(arr) < 2 {
 		return
 	}
-	//get role
-	if f, err = c.ReadFlag(); err != nil {
-		return
-	}
-	//get nat type
-	if err := binary.Read(c, binary.LittleEndian, &natType); err != nil {
-		return
-	}
-	if v, ok = s.p2p[string(b)]; !ok {
+	if v, ok = s.p2p[arr[0]]; !ok {
 		v = new(p2p)
-		s.p2p[string(b)] = v
+		s.p2p[arr[0]] = v
 	}
-	logs.Trace("new p2p connection ,role %s , password %s, nat type %s ,local address %s", f, string(b), strconv.Itoa(int(natType)), c.RemoteAddr().String())
-	//存储
-	if f == common.WORK_P2P_VISITOR {
-		v.visitorAddr = c.Conn.RemoteAddr().String()
-		v.visitorNatType = natType
-		v.visitor = c
+	logs.Trace("new p2p connection ,role %s , password %s ,local address %s", arr[1], arr[0], addr.String())
+	if arr[1] == common.WORK_P2P_VISITOR {
+		v.visitorAddr = addr
 		for i := 20; i > 0; i-- {
-			if v.provider != nil {
-				v.provider.WriteLenContent([]byte(v.visitorAddr))
-				binary.Write(v.provider, binary.LittleEndian, v.visitorNatType)
+			if v.providerAddr != nil {
+				s.listener.WriteTo([]byte(v.providerAddr.String()), v.visitorAddr)
+				s.listener.WriteTo([]byte(v.visitorAddr.String()), v.providerAddr)
 				break
 			}
 			time.Sleep(time.Second)
 		}
-		v.provider = nil
+		delete(s.p2p, arr[0])
 	} else {
-		v.providerAddr = c.Conn.RemoteAddr().String()
-		v.providerNatType = natType
-		v.provider = c
-		for i := 20; i > 0; i-- {
-			if v.visitor != nil {
-				v.visitor.WriteLenContent([]byte(v.providerAddr))
-				binary.Write(v.visitor, binary.LittleEndian, v.providerNatType)
-				break
-			}
-			time.Sleep(time.Second)
-		}
-		v.visitor = nil
+		v.providerAddr = addr
 	}
 }

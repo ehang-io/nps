@@ -163,6 +163,13 @@ func TestUdpPort(port int) bool {
 //Length prevents sticking
 //# Characters are used to separate data
 func BinaryWrite(raw *bytes.Buffer, v ...string) {
+	b := GetWriteStr(v...)
+	binary.Write(raw, binary.LittleEndian, int32(len(b)))
+	binary.Write(raw, binary.LittleEndian, b)
+}
+
+// get seq str
+func GetWriteStr(v ...string) []byte {
 	buffer := new(bytes.Buffer)
 	var l int32
 	for _, v := range v {
@@ -170,8 +177,7 @@ func BinaryWrite(raw *bytes.Buffer, v ...string) {
 		binary.Write(buffer, binary.LittleEndian, []byte(v))
 		binary.Write(buffer, binary.LittleEndian, []byte(CONN_DATA_SEQ))
 	}
-	binary.Write(raw, binary.LittleEndian, l)
-	binary.Write(raw, binary.LittleEndian, buffer.Bytes())
+	return buffer.Bytes()
 }
 
 //inArray str interface
@@ -242,6 +248,19 @@ func FormatAddress(s string) string {
 func GetIpByAddr(addr string) string {
 	arr := strings.Split(addr, ":")
 	return arr[0]
+}
+
+//get port from the complete address
+func GetPortByAddr(addr string) int {
+	arr := strings.Split(addr, ":")
+	if len(arr) < 2 {
+		return 0
+	}
+	p, err := strconv.Atoi(arr[1])
+	if err != nil {
+		return 0
+	}
+	return p
 }
 
 func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {

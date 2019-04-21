@@ -90,8 +90,9 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		}
 	}()
 	if p, err := beego.AppConfig.Int("p2p_port"); err == nil {
-		logs.Info("start p2p server port", p)
 		go proxy.NewP2PServer(p).Start()
+		go proxy.NewP2PServer(p + 1).Start()
+		go proxy.NewP2PServer(p + 2).Start()
 	}
 	go DealBridgeTask()
 	go dealClientFlow()
@@ -125,6 +126,8 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 		service = proxy.NewSock5ModeServer(Bridge, c)
 	case "httpProxy":
 		service = proxy.NewTunnelModeServer(proxy.ProcessHttp, Bridge, c)
+	case "tcpTrans":
+		service = proxy.NewTunnelModeServer(proxy.HandleTrans, Bridge, c)
 	case "udp":
 		service = proxy.NewUdpModeServer(Bridge, c)
 	case "webServer":

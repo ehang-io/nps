@@ -17,10 +17,14 @@ type Service interface {
 	Close() error
 }
 
+type NetBridge interface {
+	SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error)
+}
+
 //BaseServer struct
 type BaseServer struct {
 	id           int
-	bridge       *bridge.Bridge
+	bridge       NetBridge
 	task         *file.Tunnel
 	errorContent []byte
 	sync.Mutex
