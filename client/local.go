@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
