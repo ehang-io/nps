@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
@@ -12,14 +13,18 @@ import (
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"net/http"
+	"sync"
+	"time"
 )
 
 var (
-	LocalServer  []*net.TCPListener
-	udpConn      net.Conn
-	muxSession   *mux.Mux
-	fileServer   []*http.Server
-	p2pNetBridge *p2pBridge
+	LocalServer   []*net.TCPListener
+	udpConn       net.Conn
+	muxSession    *mux.Mux
+	fileServer    []*http.Server
+	p2pNetBridge  *p2pBridge
+	lock          sync.RWMutex
+	udpConnStatus bool
 )
 
 type p2pBridge struct {
@@ -32,6 +37,7 @@ func (p2pBridge *p2pBridge) SendLinkInfo(clientId int, link *conn.Link, t *file.
 		return nil, err
 	}
 	if _, err := conn.NewConn(nowConn).SendInfo(link, ""); err != nil {
+		udpConnStatus = false
 		return nil, err
 	}
 	return nowConn, nil
@@ -62,16 +68,8 @@ func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey stri
 }
 
 func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
-	tmpConn, err := common.GetLocalUdpAddr()
-	if err != nil {
-		return err
-	}
-	for i := 0; i < 10; i++ {
-		logs.Notice("try to connect to the server", i+1)
-		newUdpConn(tmpConn.LocalAddr().String(), config, l)
-		if udpConn != nil {
-			break
-		}
+	if l.Type != "secret" {
+		go handleUdpMonitor(config, l)
 	}
 	task := &file.Tunnel{
 		Port:     l.Port,
@@ -117,6 +115,31 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 	return nil
 }
 
+func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
+	ticker := time.NewTicker(time.Second * 1)
+	for{
+		select {
+		case <-ticker.C:
+			if !udpConnStatus {
+				udpConn = nil
+				tmpConn, err := common.GetLocalUdpAddr()
+				if err != nil {
+					logs.Error(err)
+					return
+				}
+				for i := 0; i < 10; i++ {
+					logs.Notice("try to connect to the server", i+1)
+					newUdpConn(tmpConn.LocalAddr().String(), config, l)
+					if udpConn != nil {
+						udpConnStatus = true
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
 func handleSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_SECRET, config.ProxyUrl)
 	if err != nil {
@@ -140,6 +163,7 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 	link := conn.NewLink(common.CONN_TCP, l.Target, false, config.Client.Cnf.Compress, localTcpConn.LocalAddr().String(), false)
 	if target, err := p2pNetBridge.SendLinkInfo(0, link, nil); err != nil {
 		logs.Error(err)
+		udpConnStatus = false
 		return
 	} else {
 		conn.CopyWaitGroup(target, localTcpConn, false, config.Client.Cnf.Compress, nil, nil, false, nil)
@@ -147,6 +171,8 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 }
 
 func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalServer) {
+	lock.Lock()
+	defer lock.Unlock()
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_P2P, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())

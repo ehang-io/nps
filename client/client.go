@@ -163,14 +163,15 @@ func (s *TRPClient) handleChan(src net.Conn) {
 			logs.Warn("connect to %s error %s", lk.Host, err.Error())
 			src.Close()
 		} else {
+			srcConn := conn.GetConn(src, lk.Crypt, lk.Compress, nil, false)
 			go func() {
-				common.CopyBuffer(src, targetConn)
-				src.Close()
+				common.CopyBuffer(srcConn, targetConn)
+				srcConn.Close()
 				targetConn.Close()
 			}()
 			for {
-				if r, err := http.ReadRequest(bufio.NewReader(src)); err != nil {
-					src.Close()
+				if r, err := http.ReadRequest(bufio.NewReader(srcConn)); err != nil {
+					srcConn.Close()
 					targetConn.Close()
 					break
 				} else {
