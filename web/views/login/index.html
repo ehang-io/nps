@@ -8,10 +8,10 @@
 
     <title>nps admin login</title>
 
-    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/static/font-awesome/css/font-awesome.css" rel="stylesheet">
+    <link href="{{.web_base_url}}/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{.web_base_url}}/static/font-awesome/css/font-awesome.css" rel="stylesheet">
 
-    <link href="/static/css/style.css" rel="stylesheet">
+    <link href="{{.web_base_url}}/static/css/style.css" rel="stylesheet">
 
 </head>
 
@@ -56,7 +56,7 @@
 </div>
 
 </body>
-<script src="/static/js/jquery-2.1.1.js"></script>
+<script src="{{.web_base_url}}/static/js/jquery-2.1.1.js"></script>
 </html>
 
 
@@ -65,11 +65,11 @@
     function login() {
         $.ajax({
             type: "POST",
-            url: "/login/verify",
+            url: "{{.web_base_url}}/login/verify",
             data: $("form").serializeArray(),
             success: function (res) {
                 if (res.status) {
-                    window.location.href = "/index/index"
+                    window.location.href = "{{.web_base_url}}/index/index"
                 } else {
                     alert(res.msg)
                 }

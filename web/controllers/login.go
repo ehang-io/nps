@@ -9,6 +9,7 @@ type LoginController struct {
 }
 
 func (self *LoginController) Index() {
+	self.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	self.TplName = "login/index.html"
 }
 func (self *LoginController) Verify() {
@@ -23,5 +24,5 @@ func (self *LoginController) Verify() {
 }
 func (self *LoginController) Out() {
 	self.SetSession("auth", false)
-	self.Redirect("/login/index", 302)
+	self.Redirect(beego.AppConfig.String("web_base_url")+"/login/index", 302)
 }
