@@ -18,7 +18,7 @@
                 <div class="content">
                     <div class="table-responsive">
                         <div id="toolbar">
-                            <a href="/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
+                            <a href="{{.web_base_url}}/index/addhost?vkey={{.task_id}}&client_id={{.client_id}}"
                                class="btn btn-primary dim"
                                type="button" langtag="info-new">新增</a>
                         </div>
@@ -158,7 +158,7 @@
         if (confirm("Are you sure you want to delete it？？")) {
             $.ajax({
                 type: "POST",
-                url: "/index/delhost",
+                url: "{{.web_base_url}}/index/delhost",
                 data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
@@ -171,7 +171,7 @@
     }
 
     function edit(id) {
-        window.location.href = "/index/edithost?id=" + id
+        window.location.href = "{{.web_base_url}}/index/edithost?id=" + id
     }
 
 

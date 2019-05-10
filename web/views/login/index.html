@@ -49,7 +49,7 @@
                     </div>
                     <button onclick="login()" class="btn btn-primary block full-width m-b">login</button>
                 {{if eq true .register_allow}}
-                    <a class="btn btn-sm btn-white btn-block" href="/login/register">register</a>
+                    <a class="btn btn-sm btn-white btn-block" href="{{.web_base_url}}/login/register">register</a>
                 {{end}}
                 </form>
             </div>
@@ -68,11 +68,11 @@
     function login() {
         $.ajax({
             type: "POST",
-            url: "/login/verify",
+            url: "{{.web_base_url}}/login/verify",
             data: $("form").serializeArray(),
             success: function (res) {
                 if (res.status) {
-                    window.location.href = "/index/index"
+                    window.location.href = "{{.web_base_url}}/index/index"
                 } else {
                     alert(res.msg)
                 }

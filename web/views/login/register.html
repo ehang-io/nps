@@ -34,7 +34,7 @@
             </div>
             <button onclick="register()" type="submit" class="btn btn-primary block full-width m-b">register</button>
 
-            <a class="btn btn-sm btn-white btn-block" href="/login/index">login</a>
+            <a class="btn btn-sm btn-white btn-block" href="{{.web_base_url}}/login/index">login</a>
         </form>
     </div>
 </div>
@@ -44,12 +44,12 @@
     function register() {
         $.ajax({
             type: "POST",
-            url: "/login/register",
+            url: "{{.web_base_url}}/login/register",
             data: $("form").serializeArray(),
             success: function (res) {
                 alert(res.msg)
                 if (res.status) {
-                    window.location.href = "/login/index"
+                    window.location.href = "{{.web_base_url}}/login/index"
                 }
             }
         })
