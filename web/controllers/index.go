@@ -70,7 +70,7 @@ func (s *IndexController) Host() {
 
 func (s *IndexController) All() {
 	s.Data["menu"] = "client"
-	clientId := s.GetString("client_id")
+	clientId := s.getEscapeString("client_id")
 	s.Data["client_id"] = clientId
 	s.SetInfo("client id:" + clientId)
 	s.display("index/list")
@@ -78,39 +78,43 @@ func (s *IndexController) All() {
 
 func (s *IndexController) GetTunnel() {
 	start, length := s.GetAjaxParams()
-	taskType := s.GetString("type")
+	taskType := s.getEscapeString("type")
 	clientId := s.GetIntNoErr("client_id")
-	list, cnt := server.GetTunnel(start, length, taskType, clientId)
+	list, cnt := server.GetTunnel(start, length, taskType, clientId, s.getEscapeString("search"))
 	s.AjaxTable(list, cnt, cnt)
 }
 
 func (s *IndexController) Add() {
 	if s.Ctx.Request.Method == "GET" {
-		s.Data["type"] = s.GetString("type")
-		s.Data["client_id"] = s.GetString("client_id")
+		s.Data["type"] = s.getEscapeString("type")
+		s.Data["client_id"] = s.getEscapeString("client_id")
 		s.SetInfo("add tunnel")
 		s.display()
 	} else {
 		t := &file.Tunnel{
 			Port:      s.GetIntNoErr("port"),
-			Mode:      s.GetString("type"),
-			Target:    s.GetString("target"),
-			Id:        file.GetCsvDb().GetTaskId(),
+			ServerIp:  s.getEscapeString("server_ip"),
+			Mode:      s.getEscapeString("type"),
+			Target:    &file.Target{TargetStr: s.getEscapeString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
+			Id:        int(file.GetDb().JsonDb.GetTaskId()),
 			Status:    true,
-			Remark:    s.GetString("remark"),
-			Password:  s.GetString("password"),
-			LocalPath: s.GetString("local_path"),
-			StripPre:  s.GetString("strip_pre"),
+			Remark:    s.getEscapeString("remark"),
+			Password:  s.getEscapeString("password"),
+			LocalPath: s.getEscapeString("local_path"),
+			StripPre:  s.getEscapeString("strip_pre"),
 			Flow:      &file.Flow{},
 		}
 		if !tool.TestServerPort(t.Port, t.Mode) {
 			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
 		}
 		var err error
-		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+		if t.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		if err := file.GetCsvDb().NewTask(t); err != nil {
+		if t.Client.MaxTunnelNum != 0 && t.Client.GetTunnelNum() >= t.Client.MaxTunnelNum {
+			s.AjaxErr("The number of tunnels exceeds the limit")
+		}
+		if err := file.GetDb().NewTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		}
 		if err := server.AddTask(t); err != nil {
@@ -123,7 +127,7 @@ func (s *IndexController) Add() {
 func (s *IndexController) GetOneTunnel() {
 	id := s.GetIntNoErr("id")
 	data := make(map[string]interface{})
-	if t, err := file.GetCsvDb().GetTask(id); err != nil {
+	if t, err := file.GetDb().GetTask(id); err != nil {
 		data["code"] = 0
 	} else {
 		data["code"] = 1
@@ -135,7 +139,7 @@ func (s *IndexController) GetOneTunnel() {
 func (s *IndexController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
 			s.Data["t"] = t
@@ -143,21 +147,32 @@ func (s *IndexController) Edit() {
 		s.SetInfo("edit tunnel")
 		s.display()
 	} else {
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
-			t.Port = s.GetIntNoErr("port")
-			t.Mode = s.GetString("type")
-			t.Target = s.GetString("target")
-			t.Password = s.GetString("password")
-			t.Id = id
-			t.LocalPath = s.GetString("local_path")
-			t.StripPre = s.GetString("strip_pre")
-			t.Remark = s.GetString("remark")
-			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("modified error")
+			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("modified error,the client is not exist")
+				return
+			} else {
+				t.Client = client
 			}
-			file.GetCsvDb().UpdateTask(t)
+			if s.GetIntNoErr("port") != t.Port {
+				if !tool.TestServerPort(s.GetIntNoErr("port"), t.Mode) {
+					s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
+					return
+				}
+				t.Port = s.GetIntNoErr("port")
+			}
+			t.ServerIp = s.getEscapeString("server_ip")
+			t.Mode = s.getEscapeString("type")
+			t.Target = &file.Target{TargetStr: s.getEscapeString("target")}
+			t.Password = s.getEscapeString("password")
+			t.Id = id
+			t.LocalPath = s.getEscapeString("local_path")
+			t.StripPre = s.getEscapeString("strip_pre")
+			t.Remark = s.getEscapeString("remark")
+			t.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
+			file.GetDb().UpdateTask(t)
 			server.StopServer(t.Id)
 			server.StartTask(t.Id)
 		}
@@ -191,14 +206,14 @@ func (s *IndexController) Start() {
 
 func (s *IndexController) HostList() {
 	if s.Ctx.Request.Method == "GET" {
-		s.Data["client_id"] = s.GetString("client_id")
+		s.Data["client_id"] = s.getEscapeString("client_id")
 		s.Data["menu"] = "host"
 		s.SetInfo("host list")
 		s.display("index/hlist")
 	} else {
 		start, length := s.GetAjaxParams()
 		clientId := s.GetIntNoErr("client_id")
-		list, cnt := file.GetCsvDb().GetHost(start, length, clientId)
+		list, cnt := file.GetDb().GetHost(start, length, clientId, s.getEscapeString("search"))
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
@@ -206,7 +221,7 @@ func (s *IndexController) HostList() {
 func (s *IndexController) GetHost() {
 	if s.Ctx.Request.Method == "POST" {
 		data := make(map[string]interface{})
-		if h, err := file.GetCsvDb().GetHostById(s.GetIntNoErr("id")); err != nil {
+		if h, err := file.GetDb().GetHostById(s.GetIntNoErr("id")); err != nil {
 			data["code"] = 0
 		} else {
 			data["data"] = h
@@ -219,7 +234,7 @@ func (s *IndexController) GetHost() {
 
 func (s *IndexController) DelHost() {
 	id := s.GetIntNoErr("id")
-	if err := file.GetCsvDb().DelHost(id); err != nil {
+	if err := file.GetDb().DelHost(id); err != nil {
 		s.AjaxErr("delete error")
 	}
 	s.AjaxOk("delete success")
@@ -227,27 +242,29 @@ func (s *IndexController) DelHost() {
 
 func (s *IndexController) AddHost() {
 	if s.Ctx.Request.Method == "GET" {
-		s.Data["client_id"] = s.GetString("client_id")
+		s.Data["client_id"] = s.getEscapeString("client_id")
 		s.Data["menu"] = "host"
 		s.SetInfo("add host")
 		s.display("index/hadd")
 	} else {
 		h := &file.Host{
-			Id:           file.GetCsvDb().GetHostId(),
-			Host:         s.GetString("host"),
-			Target:       s.GetString("target"),
-			HeaderChange: s.GetString("header"),
-			HostChange:   s.GetString("hostchange"),
-			Remark:       s.GetString("remark"),
-			Location:     s.GetString("location"),
+			Id:           int(file.GetDb().JsonDb.GetHostId()),
+			Host:         s.getEscapeString("host"),
+			Target:       &file.Target{TargetStr: s.getEscapeString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
+			HeaderChange: s.getEscapeString("header"),
+			HostChange:   s.getEscapeString("hostchange"),
+			Remark:       s.getEscapeString("remark"),
+			Location:     s.getEscapeString("location"),
 			Flow:         &file.Flow{},
-			Scheme:       s.GetString("scheme"),
+			Scheme:       s.getEscapeString("scheme"),
+			KeyFilePath:  s.getEscapeString("key_file_path"),
+			CertFilePath: s.getEscapeString("cert_file_path"),
 		}
 		var err error
-		if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-			s.AjaxErr("add error")
+		if h.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+			s.AjaxErr("add error the client can not be found")
 		}
-		if err := file.GetCsvDb().NewHost(h); err != nil {
+		if err := file.GetDb().NewHost(h); err != nil {
 			s.AjaxErr("add fail" + err.Error())
 		}
 		s.AjaxOk("add success")
@@ -258,7 +275,7 @@ func (s *IndexController) EditHost() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "host"
-		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
+		if h, err := file.GetDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
 			s.Data["h"] = h
@@ -266,22 +283,35 @@ func (s *IndexController) EditHost() {
 		s.SetInfo("edit")
 		s.display("index/hedit")
 	} else {
-		if h, err := file.GetCsvDb().GetHostById(id); err != nil {
+		if h, err := file.GetDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
-			h.Host = s.GetString("host")
-			h.Target = s.GetString("target")
-			h.HeaderChange = s.GetString("header")
-			h.HostChange = s.GetString("hostchange")
-			h.Remark = s.GetString("remark")
-			h.TargetArr = nil
-			h.Location = s.GetString("location")
-			h.Scheme = s.GetString("scheme")
-			file.GetCsvDb().UpdateHost(h)
-			var err error
-			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("modified error")
+			if h.Host != s.getEscapeString("host") {
+				tmpHost := new(file.Host)
+				tmpHost.Host = s.getEscapeString("host")
+				tmpHost.Location = s.getEscapeString("location")
+				tmpHost.Scheme = s.getEscapeString("scheme")
+				if file.GetDb().IsHostExist(tmpHost) {
+					s.AjaxErr("host has exist")
+					return
+				}
 			}
+			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("modified error,the client is not exist")
+			} else {
+				h.Client = client
+			}
+			h.Host = s.getEscapeString("host")
+			h.Target = &file.Target{TargetStr: s.getEscapeString("target")}
+			h.HeaderChange = s.getEscapeString("header")
+			h.HostChange = s.getEscapeString("hostchange")
+			h.Remark = s.getEscapeString("remark")
+			h.Location = s.getEscapeString("location")
+			h.Scheme = s.getEscapeString("scheme")
+			h.KeyFilePath = s.getEscapeString("key_file_path")
+			h.CertFilePath = s.getEscapeString("cert_file_path")
+			h.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
+			file.GetDb().JsonDb.StoreHostToJsonFile()
 		}
 		s.AjaxOk("modified success")
 	}

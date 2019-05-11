@@ -17,10 +17,14 @@ type Service interface {
 	Close() error
 }
 
-//Server BaseServer struct
+type NetBridge interface {
+	SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error)
+}
+
+//BaseServer struct
 type BaseServer struct {
 	id           int
-	bridge       *bridge.Bridge
+	bridge       NetBridge
 	task         *file.Tunnel
 	errorContent []byte
 	sync.Mutex
@@ -35,6 +39,7 @@ func NewBaseServer(bridge *bridge.Bridge, task *file.Tunnel) *BaseServer {
 	}
 }
 
+//add the flow
 func (s *BaseServer) FlowAdd(in, out int64) {
 	s.Lock()
 	defer s.Unlock()
@@ -42,6 +47,7 @@ func (s *BaseServer) FlowAdd(in, out int64) {
 	s.task.Flow.InletFlow += in
 }
 
+//change the flow
 func (s *BaseServer) FlowAddHost(host *file.Host, in, out int64) {
 	s.Lock()
 	defer s.Unlock()
@@ -49,12 +55,13 @@ func (s *BaseServer) FlowAddHost(host *file.Host, in, out int64) {
 	host.Flow.InletFlow += in
 }
 
+//write fail bytes to the connection
 func (s *BaseServer) writeConnFail(c net.Conn) {
 	c.Write([]byte(common.ConnectionFailBytes))
 	c.Write(s.errorContent)
 }
 
-//权限认证
+//auth check
 func (s *BaseServer) auth(r *http.Request, c *conn.Conn, u, p string) error {
 	if u != "" && p != "" && !common.CheckAuth(r, u, p) {
 		c.Write([]byte(common.UnauthorizedBytes))
@@ -64,29 +71,29 @@ func (s *BaseServer) auth(r *http.Request, c *conn.Conn, u, p string) error {
 	return nil
 }
 
-func (s *BaseServer) checkFlow() error {
-	if s.task.Client.Flow.FlowLimit > 0 && (s.task.Client.Flow.FlowLimit<<20) < (s.task.Client.Flow.ExportFlow+s.task.Client.Flow.InletFlow) {
+//check flow limit of the client ,and decrease the allow num of client
+func (s *BaseServer) CheckFlowAndConnNum(client *file.Client) error {
+	if client.Flow.FlowLimit > 0 && (client.Flow.FlowLimit<<20) < (client.Flow.ExportFlow+client.Flow.InletFlow) {
 		return errors.New("Traffic exceeded")
+	}
+	if !client.GetConn() {
+		return errors.New("Connections exceed the current client limit")
 	}
 	return nil
 }
 
-//与客户端建立通道
-func (s *BaseServer) DealClient(c *conn.Conn, addr string, rb []byte, tp string) error {
-	link := conn.NewLink(tp, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.Conn.RemoteAddr().String())
-
-	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.Conn.RemoteAddr().String(), s.task); err != nil {
-		logs.Warn("task id %d get connection from client id %d  error %s", s.task.Id, s.task.Client.Id, err.Error())
+//create a new connection and start bytes copying
+func (s *BaseServer) DealClient(c *conn.Conn, client *file.Client, addr string, rb []byte, tp string, f func(), flow *file.Flow, localProxy bool) error {
+	link := conn.NewLink(tp, addr, client.Cnf.Crypt, client.Cnf.Compress, c.Conn.RemoteAddr().String(), localProxy)
+	if target, err := s.bridge.SendLinkInfo(client.Id, link, s.task); err != nil {
+		logs.Warn("get connection from client id %d  error %s", client.Id, err.Error())
 		c.Close()
 		return err
 	} else {
-		if rb != nil {
-			//HTTP proxy crypt or compress
-			conn.GetConn(target, link.Crypt, link.Compress, s.task.Client.Rate, true).Write(rb)
+		if f != nil {
+			f()
 		}
-		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Flow, true)
+		conn.CopyWaitGroup(target, c.Conn, link.Crypt, link.Compress, client.Rate, flow, true, rb)
 	}
-
-	s.task.Client.AddConn()
 	return nil
 }

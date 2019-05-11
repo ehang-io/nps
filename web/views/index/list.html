@@ -19,7 +19,7 @@
                     <div class="table-responsive">
                         <div id="toolbar">
                             <a href="{{.web_base_url}}/index/add?type={{.type}}&client_id={{.client_id}}" class="btn btn-primary dim"
-                               type="button">new</a>
+                               type="button" langtag="info-new">新增</a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
                                data-mobile-responsive="true"></table>
@@ -47,8 +47,10 @@
                 "limit": params.limit,
                 "type":{{.type}},
                 "client_id":{{.client_id}},
+                "search": params.search
             }
         },
+        search: true,
         contentType: "application/x-www-form-urlencoded",
         striped: true, // 设置为true会有隔行变色效果
         showHeader: true,
@@ -61,12 +63,23 @@
         detailView: true,
         smartDisplay: true, // 智能显示 pagination 和 cardview 等
         detailFormatter: function (index, row, element) {
-            return '<b>export flow: </b>' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>inlet flow: </b>' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b>crypt: </b>' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>compress: </b>' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>username: </b>' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b>password: </b>' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+            tmp = '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-crypt">加密</b>：' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-compress">压缩</b>：' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-username">basic权限认证用户名</b>：' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-password">basic权限认证密码</b>：' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+            if (row.Mode == "p2p") {
+                return tmp + "<br/><br>"
+                        + '<b langtag="info-command">访问端命令(tcp)</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -target=" + row.Target.TargetStr + "</code>" + "<br/><br>"
+                        + '<b langtag="info-command">访问端命令(socks5)</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=p2ps" + "</code>" + "<br/><br>"
+                        + '<b langtag="info-command">访问端命令(透明代理)</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=p2pt" + "</code>"
+
+            }
+            if (row.Mode = "secret") {
+                return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=secret" + "</code>"
+            }
+            return tmp
         },
         //表格的列
         columns: [
@@ -74,13 +87,11 @@
                 field: 'Id',//域值
                 title: 'id',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
                 field: 'Id',//域值
                 title: 'client id',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
                 formatter: function (value, row, index) {
                     return row.Client.Id
                 }
@@ -89,37 +100,36 @@
                 field: 'Remark',//域值
                 title: 'remark',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
                 field: 'Mode',//域值
                 title: 'mode',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
                 field: 'Port',//域值
                 title: 'port',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
             },
             {
                 field: 'Target',//域值
                 title: 'target',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+                formatter: function (value, row, index) {
+                    return row.Target.TargetStr
+                }
             },
             {
                 field: 'Password',//域值
                 title: 'secret',//标题
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+
             },
             {
                 field: 'Status',//域值
                 title: 'setting',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+
                 formatter: function (value, row, index) {
                     if (value) {
                         return '<span class="badge badge-primary">open</span>'
@@ -132,7 +142,7 @@
                 field: 'RunStatus',//域值
                 title: 'run',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+
                 formatter: function (value, row, index) {
                     if (value) {
                         return '<span class="badge badge-primary">open</span>'
@@ -145,7 +155,7 @@
                 field: '',//域值
                 title: 'client',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+
                 formatter: function (value, row, index) {
                     if (row.Client.IsConnect) {
                         return '<span class="badge badge-primary">online</span>'
@@ -158,7 +168,7 @@
                 field: 'option',//域值
                 title: 'option',//内容
                 visible: true,//false表示不显示
-                sortable: true,//启用排序
+
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
                     btn = `<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button><button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`

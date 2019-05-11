@@ -5,13 +5,14 @@ import (
 	"github.com/pkg/errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type Flow struct {
-	ExportFlow int64 //出口流量
-	InletFlow  int64 //入口流量
-	FlowLimit  int64 //流量限制，出口+入口 /M
+	ExportFlow int64
+	InletFlow  int64
+	FlowLimit  int64
 	sync.RWMutex
 }
 
@@ -22,22 +23,32 @@ func (s *Flow) Add(in, out int64) {
 	s.ExportFlow += int64(out)
 }
 
+type Config struct {
+	U        string
+	P        string
+	Compress bool
+	Crypt    bool
+}
+
 type Client struct {
-	Cnf       *Config
-	Id        int        //id
-	VerifyKey string     //验证密钥
-	Addr      string     //客户端ip地址
-	Remark    string     //备注
-	Status    bool       //是否开启
-	IsConnect bool       //是否连接
-	RateLimit int        //速度限制 /kb
-	Flow      *Flow      //流量
-	Rate      *rate.Rate //速度控制
-	NoStore   bool
-	NoDisplay bool
-	MaxConn   int //客户端最大连接数
-	NowConn   int //当前连接数
-	id        int
+	Cnf             *Config
+	Id              int        //id
+	VerifyKey       string     //verify key
+	Addr            string     //the ip of client
+	Remark          string     //remark
+	Status          bool       //is allow connect
+	IsConnect       bool       //is the client connect
+	RateLimit       int        //rate /kb
+	Flow            *Flow      //flow setting
+	Rate            *rate.Rate //rate limit
+	NoStore         bool       //no store to file
+	NoDisplay       bool       //no display on web
+	MaxConn         int        //the max connection num of client allow
+	NowConn         int32      //the connection num of now
+	WebUserName     string     //the username of web login
+	WebPassword     string     //the password of web login
+	ConfigConnAllow bool       //is allow connected by config file
+	MaxTunnelNum    int
 	sync.RWMutex
 }
 
@@ -60,70 +71,74 @@ func NewClient(vKey string, noStore bool, noDisplay bool) *Client {
 }
 
 func (s *Client) CutConn() {
-	s.Lock()
-	defer s.Unlock()
-	s.NowConn++
+	atomic.AddInt32(&s.NowConn, 1)
 }
 
 func (s *Client) AddConn() {
-	s.Lock()
-	defer s.Unlock()
-	s.NowConn--
+	atomic.AddInt32(&s.NowConn, -1)
 }
 
 func (s *Client) GetConn() bool {
-	if s.MaxConn == 0 || s.NowConn < s.MaxConn {
+	if s.MaxConn == 0 || int(s.NowConn) < s.MaxConn {
 		s.CutConn()
 		return true
 	}
 	return false
 }
 
-//modify the hosts and the tunnels by health information
-func (s *Client) ModifyTarget() {
-
+func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
+	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*Tunnel)
+		if v.Client.Id == s.Id && v.Port == t.Port && t.Port != 0 {
+			exist = true
+			return false
+		}
+		return true
+	})
+	return
 }
 
-func (s *Client) HasTunnel(t *Tunnel) bool {
-	GetCsvDb().Lock()
-	defer GetCsvDb().Unlock()
-	for _, v := range GetCsvDb().Tasks {
-		if v.Client.Id == s.Id && v.Port == t.Port {
-			return true
+func (s *Client) GetTunnelNum() (num int) {
+	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
+		v := value.(*Tunnel)
+		if v.Client.Id == s.Id {
+			num++
 		}
-	}
-	return false
+		return true
+	})
+	return
 }
 
 func (s *Client) HasHost(h *Host) bool {
-	GetCsvDb().Lock()
-	defer GetCsvDb().Unlock()
-	for _, v := range GetCsvDb().Hosts {
+	var has bool
+	GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
+		v := value.(*Host)
 		if v.Client.Id == s.Id && v.Host == h.Host && h.Location == v.Location {
-			return true
+			has = true
+			return false
 		}
-	}
-	return false
+		return true
+	})
+	return has
 }
 
 type Tunnel struct {
-	Id         int      //Id
-	Port       int      //服务端监听端口
-	Mode       string   //启动方式
-	Target     string   //目标
-	TargetArr  []string //目标
-	Status     bool     //设置是否开启
-	RunStatus  bool     //当前运行状态
-	Client     *Client  //所属客户端id
-	Ports      string   //客户端与服务端传递
+	Id         int
+	Port       int
+	ServerIp   string
+	Mode       string
+	Status     bool
+	RunStatus  bool
+	Client     *Client
+	Ports      string
 	Flow       *Flow
-	Password   string //私密模式密码，唯一
-	Remark     string //备注
+	Password   string
+	Remark     string
 	TargetAddr string
 	NoStore    bool
 	LocalPath  string
 	StripPre   string
-	NowIndex   int
+	Target     *Target
 	Health
 	sync.RWMutex
 }
@@ -138,56 +153,39 @@ type Health struct {
 	HealthRemoveArr     []string
 	HealthCheckType     string
 	HealthCheckTarget   string
-}
-
-func (s *Tunnel) GetRandomTarget() (string, error) {
-	if s.TargetArr == nil {
-		s.TargetArr = strings.Split(s.Target, "\n")
-	}
-	if len(s.TargetArr) == 1 {
-		return s.TargetArr[0], nil
-	}
-	if len(s.TargetArr) == 0 {
-		return "", errors.New("all inward-bending targets are offline")
-	}
-	s.Lock()
-	defer s.Unlock()
-	if s.NowIndex >= len(s.TargetArr)-1 {
-		s.NowIndex = -1
-	}
-	s.NowIndex++
-	return s.TargetArr[s.NowIndex], nil
-}
-
-type Config struct {
-	U        string //socks5验证用户名
-	P        string //socks5验证密码
-	Compress bool   //压缩方式
-	Crypt    bool   //是否加密
+	sync.RWMutex
 }
 
 type Host struct {
 	Id           int
-	Host         string //启动方式
-	Target       string //目标
-	HeaderChange string //host修改
-	HostChange   string //host修改
-	Location     string //url 路由
+	Host         string //host
+	HeaderChange string //header change
+	HostChange   string //host change
+	Location     string //url router
+	Remark       string //remark
+	Scheme       string //http https all
+	CertFilePath string
+	KeyFilePath  string
+	NoStore      bool
+	IsClose      bool
 	Flow         *Flow
 	Client       *Client
-	Remark       string //备注
-	NowIndex     int
-	TargetArr    []string
-	NoStore      bool
-	Scheme       string //http https all
-	IsClose      bool
-	Health
+	Target       *Target //目标
+	Health       `json:"-"`
 	sync.RWMutex
 }
 
-func (s *Host) GetRandomTarget() (string, error) {
+type Target struct {
+	nowIndex   int
+	TargetStr  string
+	TargetArr  []string
+	LocalProxy bool
+	sync.RWMutex
+}
+
+func (s *Target) GetRandomTarget() (string, error) {
 	if s.TargetArr == nil {
-		s.TargetArr = strings.Split(s.Target, "\n")
+		s.TargetArr = strings.Split(s.TargetStr, "\n")
 	}
 	if len(s.TargetArr) == 1 {
 		return s.TargetArr[0], nil
@@ -197,9 +195,9 @@ func (s *Host) GetRandomTarget() (string, error) {
 	}
 	s.Lock()
 	defer s.Unlock()
-	if s.NowIndex >= len(s.TargetArr)-1 {
-		s.NowIndex = -1
+	if s.nowIndex >= len(s.TargetArr)-1 {
+		s.nowIndex = -1
 	}
-	s.NowIndex++
-	return s.TargetArr[s.NowIndex], nil
+	s.nowIndex++
+	return s.TargetArr[s.nowIndex], nil
 }

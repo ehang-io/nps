@@ -48,6 +48,9 @@
                         <input name="password" type="password" class="form-control" placeholder="password" required="">
                     </div>
                     <button onclick="login()" class="btn btn-primary block full-width m-b">login</button>
+                {{if eq true .register_allow}}
+                    <a class="btn btn-sm btn-white btn-block" href="/login/register">register</a>
+                {{end}}
                 </form>
             </div>
         </div>

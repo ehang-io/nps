@@ -1,8 +1,10 @@
 package client
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
@@ -13,7 +15,11 @@ import (
 	"github.com/cnlh/nps/vender/golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
+	"math"
+	"math/rand"
 	"net"
+	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -31,11 +37,9 @@ func GetTaskStatus(path string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	if _, err := c.Write([]byte(common.WORK_STATUS)); err != nil {
 		log.Fatalln(err)
 	}
-
 	//read now vKey and write to server
 	if f, err := common.ReadAllFromFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt")); err != nil {
 		log.Fatalln(err)
@@ -86,7 +90,7 @@ func StartFromFile(path string) {
 	first := true
 	cnf, err := config.NewConfig(path)
 	if err != nil || cnf.CommonConfig == nil {
-		logs.Error("Config file %s loading error", path)
+		logs.Error("Config file %s loading error %s", path, err.Error())
 		os.Exit(0)
 	}
 	logs.Info("Loading configuration file %s successfully", path)
@@ -114,12 +118,12 @@ re:
 	vkey := cnf.CommonConfig.VKey
 	if isPub {
 		// send global configuration to server and get status of config setting
-		if _, err := c.SendConfigInfo(cnf.CommonConfig); err != nil {
+		if _, err := c.SendInfo(cnf.CommonConfig.Client, common.NEW_CONF); err != nil {
 			logs.Error(err)
 			goto re
 		}
 		if !c.GetAddStatus() {
-			logs.Error(errAdd)
+			logs.Error("the web_user may have been occupied!")
 			goto re
 		}
 
@@ -133,7 +137,7 @@ re:
 
 	//send hosts to server
 	for _, v := range cnf.Hosts {
-		if _, err := c.SendHostInfo(v); err != nil {
+		if _, err := c.SendInfo(v, common.NEW_HOST); err != nil {
 			logs.Error(err)
 			goto re
 		}
@@ -145,12 +149,12 @@ re:
 
 	//send  task to server
 	for _, v := range cnf.Tasks {
-		if _, err := c.SendTaskInfo(v); err != nil {
+		if _, err := c.SendInfo(v, common.NEW_TASK); err != nil {
 			logs.Error(err)
 			goto re
 		}
 		if !c.GetAddStatus() {
-			logs.Error(errAdd, v.Ports)
+			logs.Error(errAdd, v.Ports, v.Remark)
 			goto re
 		}
 		if v.Mode == "file" {
@@ -165,6 +169,11 @@ re:
 	}
 
 	c.Close()
+	if cnf.CommonConfig.Client.WebUserName == "" || cnf.CommonConfig.Client.WebPassword == "" {
+		logs.Notice("web access login username:user password:%s", vkey)
+	} else {
+		logs.Notice("web access login username:%s password:%s", cnf.CommonConfig.Client.WebUserName, cnf.CommonConfig.Client.WebPassword)
+	}
 	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf).Start()
 	CloseLocalServer()
 	goto re
@@ -181,51 +190,329 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 			if er != nil {
 				return nil, er
 			}
-			n, er := proxy.FromURL(u, nil)
-			if er != nil {
-				return nil, er
+			switch u.Scheme {
+			case "socks5":
+				n, er := proxy.FromURL(u, nil)
+				if er != nil {
+					return nil, er
+				}
+				connection, err = n.Dial("tcp", server)
+			case "http":
+				connection, err = NewHttpProxyConn(u, server)
 			}
-			connection, err = n.Dial("tcp", server)
 		} else {
 			connection, err = net.Dial("tcp", server)
 		}
 	} else {
 		sess, err = kcp.DialWithOptions(server, nil, 10, 3)
-		conn.SetUdpSession(sess)
-		connection = sess
+		if err == nil {
+			conn.SetUdpSession(sess)
+			connection = sess
+		}
 	}
 	if err != nil {
 		return nil, err
 	}
+	connection.SetDeadline(time.Now().Add(time.Second * 10))
+	defer connection.SetDeadline(time.Time{})
 	c := conn.NewConn(connection)
 	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
 		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
-		os.Exit(0)
+		return nil, err
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	if s, err := c.ReadFlag(); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	} else if s == common.VERIFY_EER {
 		logs.Error("Validation key %s incorrect", vkey)
 		os.Exit(0)
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		return nil, err
 	}
 	c.SetAlive(tp)
 
 	return c, nil
+}
+
+//http proxy connection
+func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
+	req := &http.Request{
+		Method: "CONNECT",
+		URL:    url,
+		Host:   remoteAddr,
+		Header: http.Header{},
+		Proto:  "HTTP/1.1",
+	}
+	password, _ := url.User.Password()
+	req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(url.User.Username(), password))
+	b, err := httputil.DumpRequest(req, false)
+	if err != nil {
+		return nil, err
+	}
+	proxyConn, err := net.Dial("tcp", url.Host)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := proxyConn.Write(b); err != nil {
+		return nil, err
+	}
+	buf := make([]byte, 1024)
+	if _, err := proxyConn.Read(buf); err != nil {
+		return nil, err
+	}
+	return proxyConn, nil
+}
+
+//get a basic auth string
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+func getRemoteAddressFromServer(rAddr string, localConn *net.UDPConn, md5Password, role string, add int) error {
+	rAddr, err := getNextAddr(rAddr, add)
+	if err != nil {
+		logs.Error(err)
+		return err
+	}
+	addr, err := net.ResolveUDPAddr("udp", rAddr)
+	if err != nil {
+		return err
+	}
+	if _, err := localConn.WriteTo(common.GetWriteStr(md5Password, role), addr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleP2PUdp(localAddr, rAddr, md5Password, role string) (remoteAddress string, c net.PacketConn, err error) {
+	localConn, err := newUdpConnByAddr(localAddr)
+	if err != nil {
+		return
+	}
+	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 0)
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 1)
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 2)
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+	var remoteAddr1, remoteAddr2, remoteAddr3 string
+	for {
+		buf := make([]byte, 1024)
+		if n, addr, er := localConn.ReadFromUDP(buf); er != nil {
+			err = er
+			return
+		} else {
+			rAddr2, _ := getNextAddr(rAddr, 1)
+			rAddr3, _ := getNextAddr(rAddr, 2)
+			switch addr.String() {
+			case rAddr:
+				remoteAddr1 = string(buf[:n])
+			case rAddr2:
+				remoteAddr2 = string(buf[:n])
+			case rAddr3:
+				remoteAddr3 = string(buf[:n])
+			}
+		}
+		if remoteAddr1 != "" && remoteAddr2 != "" && remoteAddr3 != "" {
+			break
+		}
+	}
+	if remoteAddress, err = sendP2PTestMsg(localConn, remoteAddr1, remoteAddr2, remoteAddr3); err != nil {
+		return
+	}
+	c, err = newUdpConnByAddr(localAddr)
+	return
+}
+
+func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr3 string) (string, error) {
+	logs.Trace(remoteAddr3, remoteAddr2, remoteAddr1)
+	defer localConn.Close()
+	isClose := false
+	defer func() { isClose = true }()
+	interval, err := getAddrInterval(remoteAddr1, remoteAddr2, remoteAddr3)
+	if err != nil {
+		return "", err
+	}
+	go func() {
+		addr, err := getNextAddr(remoteAddr3, interval)
+		if err != nil {
+			return
+		}
+		remoteUdpAddr, err := net.ResolveUDPAddr("udp", addr)
+		if err != nil {
+			return
+		}
+		logs.Trace("try send test packet to target %s", addr)
+		ticker := time.NewTicker(time.Millisecond * 500)
+		for {
+			select {
+			case <-ticker.C:
+				if isClose {
+					return
+				}
+				if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
+					return
+				}
+			}
+		}
+	}()
+	if interval != 0 {
+		ip := common.GetIpByAddr(remoteAddr2)
+		go func() {
+			ports := getRandomPortArr(common.GetPortByAddr(remoteAddr3), common.GetPortByAddr(remoteAddr3)+interval*50)
+			for i := 0; i <= 50; i ++ {
+				go func(port int) {
+					trueAddress := ip + ":" + strconv.Itoa(port)
+					logs.Trace("try send test packet to target %s", trueAddress)
+					remoteUdpAddr, err := net.ResolveUDPAddr("udp", trueAddress)
+					if err != nil {
+						return
+					}
+					ticker := time.NewTicker(time.Second * 2)
+					for {
+						select {
+						case <-ticker.C:
+							if isClose {
+								return
+							}
+							if _, err := localConn.WriteTo([]byte(common.WORK_P2P_CONNECT), remoteUdpAddr); err != nil {
+								return
+							}
+						}
+					}
+				}(ports[i])
+				time.Sleep(time.Millisecond * 10)
+			}
+		}()
+
+	}
+
+	buf := make([]byte, 10)
+	for {
+		localConn.SetReadDeadline(time.Now().Add(time.Second * 10))
+		n, addr, err := localConn.ReadFromUDP(buf)
+		localConn.SetReadDeadline(time.Time{})
+		if err != nil {
+			break
+		}
+		switch string(buf[:n]) {
+		case common.WORK_P2P_SUCCESS:
+			for i := 20; i > 0; i-- {
+				if _, err = localConn.WriteTo([]byte(common.WORK_P2P_END), addr); err != nil {
+					return "", err
+				}
+			}
+			return addr.String(), nil
+		case common.WORK_P2P_END:
+			logs.Trace("Remotely Address %s Reply Packet Successfully Received", addr.String())
+			return addr.String(), nil
+		case common.WORK_P2P_CONNECT:
+			go func() {
+				for i := 20; i > 0; i-- {
+					logs.Trace("try send receive success packet to target %s", addr.String())
+					if _, err = localConn.WriteTo([]byte(common.WORK_P2P_SUCCESS), addr); err != nil {
+						return
+					}
+					time.Sleep(time.Second)
+				}
+			}()
+		default:
+			continue
+		}
+	}
+	return "", errors.New("connect to the target failed, maybe the nat type is not support p2p")
+}
+
+func newUdpConnByAddr(addr string) (*net.UDPConn, error) {
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	return udpConn, nil
+}
+
+func getNextAddr(addr string, n int) (string, error) {
+	arr := strings.Split(addr, ":")
+	if len(arr) != 2 {
+		return "", errors.New(fmt.Sprintf("the format of %s incorrect", addr))
+	}
+	if p, err := strconv.Atoi(arr[1]); err != nil {
+		return "", err
+	} else {
+		return arr[0] + ":" + strconv.Itoa(p+n), nil
+	}
+}
+
+func getAddrInterval(addr1, addr2, addr3 string) (int, error) {
+	arr1 := strings.Split(addr1, ":")
+	if len(arr1) != 2 {
+		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr1))
+	}
+	arr2 := strings.Split(addr2, ":")
+	if len(arr2) != 2 {
+		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr2))
+	}
+	arr3 := strings.Split(addr3, ":")
+	if len(arr3) != 2 {
+		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr3))
+	}
+	p1, err := strconv.Atoi(arr1[1])
+	if err != nil {
+		return 0, err
+	}
+	p2, err := strconv.Atoi(arr2[1])
+	if err != nil {
+		return 0, err
+	}
+	p3, err := strconv.Atoi(arr3[1])
+	if err != nil {
+		return 0, err
+	}
+	interVal := int(math.Floor(math.Min(math.Abs(float64(p3-p2)), math.Abs(float64(p2-p1)))))
+	if p3-p1 < 0 {
+		return -interVal, nil
+	}
+	return interVal, nil
+}
+
+func getRandomPortArr(min, max int) []int {
+	if min > max {
+		min, max = max, min
+	}
+	addrAddr := make([]int, max-min+1)
+	for i := min; i <= max; i++ {
+		addrAddr[max-i] = i
+	}
+	rand.Seed(time.Now().UnixNano())
+	var r, temp int
+	for i := max - min; i > 0; i-- {
+		r = rand.Int() % i
+		temp = addrAddr[i]
+		addrAddr[i] = addrAddr[r]
+		addrAddr[r] = temp
+	}
+	return addrAddr
 }

@@ -25,14 +25,14 @@ func TestNewMux(t *testing.T) {
 	client()
 	time.Sleep(time.Second * 3)
 	go func() {
-		m2 := NewMux(conn2)
+		m2 := NewMux(conn2, "tcp")
 		for {
 			c, err := m2.Accept()
 			if err != nil {
 				log.Fatalln(err)
 			}
 			go func(c net.Conn) {
-				c2, err := net.Dial("tcp", "10.1.50.196:4000")
+				c2, err := net.Dial("tcp", "127.0.0.1:8082")
 				if err != nil {
 					log.Fatalln(err)
 				}
@@ -45,7 +45,7 @@ func TestNewMux(t *testing.T) {
 	}()
 
 	go func() {
-		m1 := NewMux(conn1)
+		m1 := NewMux(conn1, "tcp")
 		l, err := net.Listen("tcp", "127.0.0.1:7777")
 		if err != nil {
 			log.Fatalln(err)

@@ -39,6 +39,29 @@ func InitDaemon(f string, runPath string, pidPath string) {
 			log.Printf("%s is not running", f)
 		}
 		os.Exit(0)
+	case "reload":
+		reload(f, pidPath)
+		os.Exit(0)
+	}
+}
+
+func reload(f string, pidPath string) {
+	if f == "nps" && !common.IsWindows() && !status(f, pidPath) {
+		log.Println("reload fail")
+		return
+	}
+	var c *exec.Cmd
+	var err error
+	b, err := ioutil.ReadFile(filepath.Join(pidPath, f+".pid"))
+	if err == nil {
+		c = exec.Command("/bin/bash", "-c", `kill -30 `+string(b))
+	} else {
+		log.Fatalln("reload error,pid file does not exist")
+	}
+	if c.Run() == nil {
+		log.Println("reload success")
+	} else {
+		log.Println("reload fail")
 	}
 }
 

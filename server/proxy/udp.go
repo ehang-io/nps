@@ -26,7 +26,10 @@ func NewUdpModeServer(bridge *bridge.Bridge, task *file.Tunnel) *UdpModeServer {
 //开始
 func (s *UdpModeServer) Start() error {
 	var err error
-	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), s.task.Port, ""})
+	if s.task.ServerIp == "" {
+		s.task.ServerIp = "0.0.0.0"
+	}
+	s.listener, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP(s.task.ServerIp), s.task.Port, ""})
 	if err != nil {
 		return err
 	}
@@ -46,11 +49,13 @@ func (s *UdpModeServer) Start() error {
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	link := conn.NewLink(common.CONN_UDP, s.task.Target, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String())
-	if err := s.checkFlow(); err != nil {
+	if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
+		logs.Warn("client id %d, task id %d,error %s, when udp connection", s.task.Client.Id, s.task.Id, err.Error())
 		return
 	}
-	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, addr.String(), s.task); err != nil {
+	defer s.task.Client.AddConn()
+	link := conn.NewLink(common.CONN_UDP, s.task.Target.TargetStr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String(), s.task.Target.LocalProxy)
+	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, s.task); err != nil {
 		return
 	} else {
 		s.task.Flow.Add(int64(len(data)), 0)

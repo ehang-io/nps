@@ -12,17 +12,17 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
-	"strings"
+	"strconv"
 )
 
 type TunnelModeServer struct {
 	BaseServer
 	process  process
-	listener *net.TCPListener
+	listener net.Listener
 }
 
 //tcp|http|host
-func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *file.Tunnel) *TunnelModeServer {
+func NewTunnelModeServer(process process, bridge NetBridge, task *file.Tunnel) *TunnelModeServer {
 	s := new(TunnelModeServer)
 	s.bridge = bridge
 	s.process = process
@@ -32,33 +32,16 @@ func NewTunnelModeServer(process process, bridge *bridge.Bridge, task *file.Tunn
 
 //开始
 func (s *TunnelModeServer) Start() error {
-	var err error
-	s.listener, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), s.task.Port, ""})
-	if err != nil {
-		return err
-	}
-	for {
-		c, err := s.listener.AcceptTCP()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				break
-			}
-			logs.Info(err)
-			continue
-		}
-		if err := s.checkFlow(); err != nil {
-			logs.Warn("client id %d  task id %d  error  %s", s.task.Client.Id, s.task.Id, err.Error())
+	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
+			logs.Warn("client id %d, task id %d,error %s, when tcp connection", s.task.Client.Id, s.task.Id, err.Error())
 			c.Close()
+			return
 		}
-		if s.task.Client.GetConn() {
-			logs.Trace("New tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
-			go s.process(conn.NewConn(c), s)
-		} else {
-			logs.Info("Connections exceed the current client %d limit", s.task.Client.Id)
-			c.Close()
-		}
-	}
-	return nil
+		logs.Trace("new tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
+		s.process(conn.NewConn(c), s)
+		s.task.Client.AddConn()
+	}, &s.listener)
 }
 
 //close
@@ -78,10 +61,6 @@ func (s *WebServer) Start() error {
 		stop := make(chan struct{})
 		<-stop
 	}
-	//if !common.TestTcpPort(p) {
-	//	//	logs.Error("Web management port %d is occupied", p)
-	//	//	os.Exit(0)
-	//	//}
 	beego.BConfig.WebConfig.Session.SessionOn = true
 	beego.SetStaticPath(beego.AppConfig.String("web_base_url")+"/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
@@ -107,18 +86,18 @@ func NewWebServer(bridge *bridge.Bridge) *WebServer {
 
 type process func(c *conn.Conn, s *TunnelModeServer) error
 
-//tcp隧道模式
+//tcp proxy
 func ProcessTunnel(c *conn.Conn, s *TunnelModeServer) error {
-	targetAddr, err := s.task.GetRandomTarget()
+	targetAddr, err := s.task.Target.GetRandomTarget()
 	if err != nil {
 		c.Close()
 		logs.Warn("tcp port %d ,client id %d,task id %d connect error %s", s.task.Port, s.task.Client.Id, s.task.Id, err.Error())
 		return err
 	}
-	return s.DealClient(c, targetAddr, nil, common.CONN_TCP)
+	return s.DealClient(c, s.task.Client, targetAddr, nil, common.CONN_TCP, nil, s.task.Flow, s.task.Target.LocalProxy)
 }
 
-//http代理模式
+//http proxy
 func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 	_, addr, rb, err, r := c.GetHost()
 	if err != nil {
@@ -127,11 +106,11 @@ func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 		return err
 	}
 	if r.Method == "CONNECT" {
-		c.Write([]byte("HTTP/1.1 200 Connection Established\r\n"))
+		c.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 		rb = nil
 	}
 	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
 		return err
 	}
-	return s.DealClient(c, addr, rb, common.CONN_TCP)
+	return s.DealClient(c, s.task.Client, addr, rb, common.CONN_TCP, nil, s.task.Flow, s.task.Target.LocalProxy)
 }

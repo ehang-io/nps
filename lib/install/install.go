@@ -13,6 +13,9 @@ import (
 
 func InstallNps() {
 	path := common.GetInstallPath()
+	if common.FileExists(path) {
+		log.Fatalf("the path %s has exist, does not support install", path)
+	}
 	MkidrDirAll(path, "conf", "web/static", "web/views")
 	//复制文件到对应目录
 	if err := CopyDir(filepath.Join(common.GetAppPath(), "web", "views"), filepath.Join(path, "web", "views")); err != nil {

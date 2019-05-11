@@ -2,15 +2,20 @@ package crypt
 
 import (
 	"crypto/tls"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
 	"os"
-	"path/filepath"
 )
 
+var pemPath, keyPath string
+
+func InitTls(pem, key string) {
+	pemPath = pem
+	keyPath = key
+}
+
 func NewTlsServerConn(conn net.Conn) net.Conn {
-	cert, err := tls.LoadX509KeyPair(filepath.Join(beego.AppPath, "conf", "server.pem"), filepath.Join(beego.AppPath, "conf", "server.key"))
+	cert, err := tls.LoadX509KeyPair(pemPath, keyPath)
 	if err != nil {
 		logs.Error(err)
 		os.Exit(0)

@@ -19,11 +19,8 @@ func AesEncrypt(origData, key []byte) ([]byte, error) {
 	}
 	blockSize := block.BlockSize()
 	origData = PKCS5Padding(origData, blockSize)
-	// origData = ZeroPadding(origData, block.BlockSize())
 	blockMode := cipher.NewCBCEncrypter(block, key[:blockSize])
 	crypted := make([]byte, len(origData))
-	// 根据CryptBlocks方法的说明，如下方式初始化crypted也可以
-	// crypted := origData
 	blockMode.CryptBlocks(crypted, origData)
 	return crypted, nil
 }
@@ -52,7 +49,6 @@ func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
 //Remove excess
 func PKCS5UnPadding(origData []byte) (error, []byte) {
 	length := len(origData)
-	// 去掉最后一个字节 unpadding 次
 	unpadding := int(origData[length-1])
 	if (length - unpadding) < 0 {
 		return errors.New("len error"), nil

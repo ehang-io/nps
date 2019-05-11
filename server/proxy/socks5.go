@@ -3,7 +3,6 @@ package proxy
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
@@ -11,7 +10,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"strings"
 )
 
 const (
@@ -141,18 +139,9 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	} else {
 		ltype = common.CONN_TCP
 	}
-	//s.DealClient(conn.NewConn(c), addr, nil, ltype)
-	link := conn.NewLink(ltype, addr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.RemoteAddr().String())
-
-	if target, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, c.RemoteAddr().String(), s.task); err != nil {
-		c.Close()
-		return
-	} else {
+	s.DealClient(conn.NewConn(c), s.task.Client, addr, nil, ltype, func() {
 		s.sendReply(c, succeeded)
-		conn.CopyWaitGroup(target, c, link.Crypt, link.Compress, s.task.Client.Rate, s.task.Flow, true)
-	}
-
-	s.task.Client.AddConn()
+	}, s.task.Flow, s.task.Target.LocalProxy)
 	return
 }
 
@@ -261,43 +250,27 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 
 //start
 func (s *Sock5ModeServer) Start() error {
-	var err error
-	s.listener, err = net.Listen("tcp", ":"+strconv.Itoa(s.task.Port))
-	if err != nil {
-		return err
-	}
-	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				break
-			}
-			logs.Warn("accept error: ", err)
+	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
+			logs.Warn("client id %d, task id %d, error %s, when socks5 connection", s.task.Client.Id, s.task.Id, err.Error())
+			c.Close()
+			return
 		}
-		if err := s.checkFlow(); err != nil {
-			logs.Warn("client id %d  task id %d  error  %s", s.task.Client.Id, s.task.Id, err.Error())
-			conn.Close()
-		}
-		if s.task.Client.GetConn() {
-			logs.Trace("New socks5 connection,client %d,remote address %s", s.task.Client.Id, conn.RemoteAddr())
-			go s.handleConn(conn)
-		} else {
-			logs.Warn("Connections exceed the current client %d limit", s.task.Client.Id)
-			conn.Close()
-		}
-	}
-	return nil
+		logs.Trace("New socks5 connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
+		s.handleConn(c)
+		s.task.Client.AddConn()
+	}, &s.listener)
+}
+
+//new
+func NewSock5ModeServer(bridge NetBridge, task *file.Tunnel) *Sock5ModeServer {
+	s := new(Sock5ModeServer)
+	s.bridge = bridge
+	s.task = task
+	return s
 }
 
 //close
 func (s *Sock5ModeServer) Close() error {
 	return s.listener.Close()
-}
-
-//new
-func NewSock5ModeServer(bridge *bridge.Bridge, task *file.Tunnel) *Sock5ModeServer {
-	s := new(Sock5ModeServer)
-	s.bridge = bridge
-	s.task = task
-	return s
 }

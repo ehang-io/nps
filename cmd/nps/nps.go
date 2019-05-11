@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/install"
@@ -10,6 +11,7 @@ import (
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/test"
+	"github.com/cnlh/nps/server/tool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/web/routers"
@@ -33,7 +35,7 @@ func main() {
 			test.TestServerConfig()
 			log.Println("test ok, no error")
 			return
-		case "start", "restart", "stop", "status":
+		case "start", "restart", "stop", "status", "reload":
 			daemon.InitDaemon("nps", common.GetRunPath(), common.GetTmpPath())
 		case "install":
 			install.InstallNps()
@@ -49,7 +51,7 @@ func main() {
 	if *logType == "stdout" {
 		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	} else {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"nps_log.log"}`)
+		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+beego.AppConfig.String("log_path")+`","daily":false,"maxlines":100000,"color":true}`)
 	}
 	task := &file.Tunnel{
 		Mode: "webServer",
@@ -61,5 +63,8 @@ func main() {
 	}
 	logs.Info("the version of server is %s ,allow client version to be %s", version.VERSION, version.GetVersion())
 	connection.InitConnectionService()
+	crypt.InitTls(filepath.Join(common.GetRunPath(), "conf", "server.pem"), filepath.Join(common.GetRunPath(), "conf", "server.key"))
+	tool.InitAllowPort()
+	tool.StartSystemInfo()
 	server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
 }

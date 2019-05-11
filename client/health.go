@@ -63,7 +63,7 @@ func session(healths []*file.Health, h *sheap.IntHeap) {
 	}
 }
 
-//只针对一个端口 面向多个目标的情况
+// work when just one port and many target
 func check(t *file.Health) {
 	arr := strings.Split(t.HealthCheckTarget, ",")
 	var err error
@@ -79,6 +79,7 @@ func check(t *file.Health) {
 				err = errors.New("status code is not match")
 			}
 		}
+		t.Lock()
 		if err != nil {
 			t.HealthMap[v] += 1
 		} else if t.HealthMap[v] >= t.HealthMaxFail {
@@ -87,9 +88,10 @@ func check(t *file.Health) {
 			t.HealthMap[v] = 0
 		}
 
-		if t.HealthMap[v] == t.HealthMaxFail {
+		if t.HealthMap[v] > 0 && t.HealthMap[v]%t.HealthMaxFail == 0 {
 			//send fail remove
 			serverConn.SendHealthInfo(v, "0")
 		}
+		t.Unlock()
 	}
 }

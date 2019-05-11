@@ -22,32 +22,30 @@ const (
 	MUX_PING
 	MUX_CONN_CLOSE
 	MUX_PING_RETURN
-	MUX_STOP_WRITE
-	RETRY_TIME = 2 //Heart beat allowed fault tolerance times
 )
 
 type Mux struct {
 	net.Listener
-	conn          net.Conn
-	connMap       *connMap
-	newConnCh     chan *conn
-	id            int32
-	closeChan     chan struct{}
-	IsClose       bool
-	pingOk        int
-	waitQueueSize int
+	conn      net.Conn
+	connMap   *connMap
+	newConnCh chan *conn
+	id        int32
+	closeChan chan struct{}
+	IsClose   bool
+	pingOk    int
+	connType  string
 	sync.Mutex
 }
 
-func NewMux(c net.Conn) *Mux {
+func NewMux(c net.Conn, connType string) *Mux {
 	m := &Mux{
-		conn:          c,
-		connMap:       NewConnMap(),
-		id:            0,
-		closeChan:     make(chan struct{}),
-		newConnCh:     make(chan *conn),
-		IsClose:       false,
-		waitQueueSize: 10, //TODO :In order to be more efficient, this value can be dynamically generated according to the delay algorithm.
+		conn:      c,
+		connMap:   NewConnMap(),
+		id:        0,
+		closeChan: make(chan struct{}),
+		newConnCh: make(chan *conn),
+		IsClose:   false,
+		connType:  connType,
 	}
 	//read session by flag
 	go m.readSession()
@@ -61,20 +59,13 @@ func (s *Mux) NewConn() (*conn, error) {
 		return nil, errors.New("the mux has closed")
 	}
 	conn := NewConn(s.getId(), s)
-	raw := bytes.NewBuffer([]byte{})
-	if err := binary.Write(raw, binary.LittleEndian, MUX_NEW_CONN); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(raw, binary.LittleEndian, conn.connId); err != nil {
-		return nil, err
-	}
 	//it must be set before send
 	s.connMap.Set(conn.connId, conn)
-	if _, err := s.conn.Write(raw.Bytes()); err != nil {
+	if err := s.sendInfo(MUX_NEW_CONN, conn.connId, nil); err != nil {
 		return nil, err
 	}
 	//set a timer timeout 30 second
-	timer := time.NewTimer(time.Second * 30)
+	timer := time.NewTimer(time.Minute * 2)
 	defer timer.Stop()
 	select {
 	case <-conn.connStatusOkCh:
@@ -89,7 +80,11 @@ func (s *Mux) Accept() (net.Conn, error) {
 	if s.IsClose {
 		return nil, errors.New("accpet error,the conn has closed")
 	}
-	return <-s.newConnCh, nil
+	conn := <-s.newConnCh
+	if conn == nil {
+		return nil, errors.New("accpet error,the conn has closed")
+	}
+	return conn, nil
 }
 
 func (s *Mux) Addr() net.Addr {
@@ -104,7 +99,7 @@ func (s *Mux) sendInfo(flag int32, id int32, content []byte) error {
 		binary.Write(raw, binary.LittleEndian, int32(len(content)))
 		binary.Write(raw, binary.LittleEndian, content)
 	}
-	if _, err := s.conn.Write(raw.Bytes()); err != nil || s.pingOk > RETRY_TIME {
+	if _, err := s.conn.Write(raw.Bytes()); err != nil {
 		s.Close()
 		return err
 	}
@@ -113,7 +108,7 @@ func (s *Mux) sendInfo(flag int32, id int32, content []byte) error {
 
 func (s *Mux) ping() {
 	go func() {
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(time.Second * 1)
 		for {
 			select {
 			case <-ticker.C:
@@ -122,10 +117,11 @@ func (s *Mux) ping() {
 			if (math.MaxInt32 - s.id) < 10000 {
 				s.id = 0
 			}
-			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil || s.pingOk > RETRY_TIME {
+			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil || (s.pingOk > 10 && s.connType == "kcp") {
+				s.Close()
 				break
 			}
-			s.pingOk += 1
+			s.pingOk++
 		}
 	}()
 	select {
@@ -144,6 +140,7 @@ func (s *Mux) readSession() {
 				if binary.Read(s.conn, binary.LittleEndian, &i) != nil {
 					break
 				}
+				s.pingOk = 0
 				switch flag {
 				case MUX_NEW_CONN: //new conn
 					conn := NewConn(i, s)
@@ -155,7 +152,6 @@ func (s *Mux) readSession() {
 					s.sendInfo(MUX_PING_RETURN, MUX_PING, nil)
 					continue
 				case MUX_PING_RETURN:
-					s.pingOk -= 1
 					continue
 				case MUX_NEW_MSG:
 					buf = pool.GetBufPoolCopy()
@@ -173,19 +169,12 @@ func (s *Mux) readSession() {
 							conn.readWait = false
 							conn.readCh <- struct{}{}
 						}
-						if conn.waitQueue.Size() > s.waitQueueSize {
-							s.sendInfo(MUX_STOP_WRITE, conn.connId, nil)
-						}
-					case MUX_STOP_WRITE:
-						conn.stopWrite = true
 					case MUX_MSG_SEND_OK: //the remote has read
-						if conn.stopWrite {
-							conn.stopWrite = false
-							select {
-							case conn.getStatusCh <- struct{}{}:
-							default:
-							}
+						select {
+						case conn.getStatusCh <- struct{}{}:
+						default:
 						}
+						conn.hasWrite --
 					case MUX_NEW_CONN_OK: //conn ok
 						conn.connStatusOkCh <- struct{}{}
 					case MUX_NEW_CONN_Fail:
@@ -214,9 +203,13 @@ func (s *Mux) Close() error {
 	}
 	s.IsClose = true
 	s.connMap.Close()
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
+	select {
+	case s.closeChan <- struct{}{}:
+	}
+	select {
+	case s.closeChan <- struct{}{}:
+	}
+	close(s.newConnCh)
 	return s.conn.Close()
 }
 
