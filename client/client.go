@@ -2,6 +2,11 @@ package client
 
 import (
 	"bufio"
+	"net"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
@@ -9,10 +14,6 @@ import (
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
-	"net"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type TRPClient struct {
@@ -159,7 +160,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 	lk.Host = common.FormatAddress(lk.Host)
 	//if Conn type is http, read the request and log
 	if lk.ConnType == "http" {
-		if targetConn, err := net.Dial(common.CONN_TCP, lk.Host); err != nil {
+		if targetConn, err := net.DialTimeout(common.CONN_TCP, lk.Host, lk.Option.Timeout); err != nil {
 			logs.Warn("connect to %s error %s", lk.Host, err.Error())
 			src.Close()
 		} else {
@@ -183,7 +184,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 		return
 	}
 	//connect to target if conn type is tcp or udp
-	if targetConn, err := net.Dial(lk.ConnType, lk.Host); err != nil {
+	if targetConn, err := net.DialTimeout(lk.ConnType, lk.Host, lk.Option.Timeout); err != nil {
 		logs.Warn("connect to %s error %s", lk.Host, err.Error())
 		src.Close()
 	} else {

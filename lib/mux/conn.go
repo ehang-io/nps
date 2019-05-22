@@ -93,7 +93,8 @@ func (s *conn) Write(buf []byte) (int, error) {
 	if s.isClose {
 		return 0, errors.New("the conn has closed")
 	}
-	ch := make(chan struct{})
+	ch := make(chan error)
+	var err error
 	go s.write(buf, ch)
 	if t := s.writeTimeOut.Sub(time.Now()); t > 0 {
 		timer := time.NewTimer(t)
@@ -101,17 +102,20 @@ func (s *conn) Write(buf []byte) (int, error) {
 		select {
 		case <-timer.C:
 			return 0, errors.New("write timeout")
-		case <-ch:
+		case err = <-ch:
 		}
 	} else {
-		<-ch
+		err = <-ch
 	}
 	if s.isClose {
 		return 0, io.EOF
 	}
+	if err != nil {
+		return 0, err
+	}
 	return len(buf), nil
 }
-func (s *conn) write(buf []byte, ch chan struct{}) {
+func (s *conn) write(buf []byte, ch chan error) {
 	start := 0
 	l := len(buf)
 	for {
@@ -120,14 +124,18 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 		}
 		s.hasWrite++
 		if l-start > pool.PoolSizeCopy {
-			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:start+pool.PoolSizeCopy])
+			if err := s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:start+pool.PoolSizeCopy]); err != nil {
+				ch <- err
+			}
 			start += pool.PoolSizeCopy
 		} else {
-			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:l])
+			if err := s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:l]); err != nil {
+				ch <- err
+			}
 			break
 		}
 	}
-	ch <- struct{}{}
+	ch <- nil
 }
 
 func (s *conn) Close() error {
