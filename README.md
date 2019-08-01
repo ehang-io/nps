@@ -610,7 +610,7 @@ auto_reconnection=true
 ```
  ./npc nat
 ```
-如果p2p双方都是Symmetic Nat，肯定不能成功，其他组合都有较大成功率。
+如果p2p双方都是Symmetric Nat，肯定不能成功，其他组合都有较大成功率。
 #### 状态检查
 ```
  ./npc status -config=npc配置文件路径
