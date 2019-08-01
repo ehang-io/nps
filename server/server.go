@@ -2,6 +2,12 @@ package server
 
 import (
 	"errors"
+	"math"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
@@ -13,11 +19,6 @@ import (
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
-	"math"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -359,7 +360,7 @@ func GetDashboardData() map[string]interface{} {
 		case "tcp":
 			tcp += 1
 		case "socks5":
-			udp += 1
+			socks5 += 1
 		case "httpProxy":
 			http += 1
 		case "udp":
