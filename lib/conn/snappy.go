@@ -1,9 +1,10 @@
 package conn
 
 import (
+	"io"
+
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/golang/snappy"
-	"io"
 )
 
 type SnappyConn struct {

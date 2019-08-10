@@ -2,8 +2,9 @@ package mux
 
 import (
 	"errors"
-	"github.com/cnlh/nps/lib/pool"
 	"sync"
+
+	"github.com/cnlh/nps/lib/pool"
 )
 
 type Element *bufNode

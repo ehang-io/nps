@@ -4,6 +4,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
@@ -12,14 +21,6 @@ import (
 	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/tool"
-	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/logs"
-	"net"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 type Client struct {
@@ -146,7 +147,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 			})
 		}
 	}
-	s.DelClient(id, )
+	s.DelClient(id)
 }
 
 //验证失败，返回错误验证flag，并且关闭连接

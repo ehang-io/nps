@@ -3,13 +3,6 @@ package proxy
 import (
 	"bufio"
 	"crypto/tls"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/cache"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/connection"
-	"github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/cache"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server/connection"
 )
 
 type httpServer struct {

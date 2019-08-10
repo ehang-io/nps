@@ -2,9 +2,10 @@ package client
 
 import (
 	"encoding/binary"
-	"github.com/cnlh/nps/lib/common"
 	"log"
 	"os"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 func RegisterLocalIp(server string, vKey string, tp string, proxyUrl string, hour int) {

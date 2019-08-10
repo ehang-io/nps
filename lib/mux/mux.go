@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/cnlh/nps/lib/pool"
 	"math"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/cnlh/nps/lib/pool"
 )
 
 const (
@@ -174,7 +175,7 @@ func (s *Mux) readSession() {
 						case conn.getStatusCh <- struct{}{}:
 						default:
 						}
-						conn.hasWrite --
+						conn.hasWrite--
 					case MUX_NEW_CONN_OK: //conn ok
 						conn.connStatusOkCh <- struct{}{}
 					case MUX_NEW_CONN_Fail:

@@ -1,12 +1,13 @@
 package proxy
 
 import (
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/pool"
-	"github.com/astaxie/beego/logs"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/pool"
 )
 
 type P2PServer struct {

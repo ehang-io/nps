@@ -2,11 +2,12 @@ package mux
 
 import (
 	"errors"
-	"github.com/cnlh/nps/lib/pool"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/cnlh/nps/lib/pool"
 )
 
 type conn struct {

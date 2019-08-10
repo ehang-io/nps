@@ -2,9 +2,10 @@ package crypt
 
 import (
 	"crypto/tls"
-	"github.com/astaxie/beego/logs"
 	"net"
 	"os"
+
+	"github.com/astaxie/beego/logs"
 )
 
 var pemPath, keyPath string
