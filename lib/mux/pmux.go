@@ -6,7 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/astaxie/beego/logs"
 	"github.com/pkg/errors"
 	"io"
 	"net"

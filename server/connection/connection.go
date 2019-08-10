@@ -2,8 +2,8 @@ package connection
 
 import (
 	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"net"
 	"os"
 	"strconv"

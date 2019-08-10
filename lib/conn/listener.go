@@ -1,8 +1,8 @@
 package conn
 
 import (
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
+	"github.com/astaxie/beego/logs"
+	"github.com/xtaci/kcp-go"
 	"net"
 	"strings"
 )

@@ -2,7 +2,7 @@ package conn
 
 import (
 	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/vender/github.com/golang/snappy"
+	"github.com/golang/snappy"
 	"io"
 )
 

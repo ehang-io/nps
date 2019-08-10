@@ -12,7 +12,7 @@ import (
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
+	"github.com/xtaci/kcp-go"
 	"io"
 	"net"
 	"net/http"

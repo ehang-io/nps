@@ -9,7 +9,7 @@ import (
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"net/http"

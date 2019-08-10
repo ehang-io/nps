@@ -2,7 +2,7 @@ package crypt
 
 import (
 	"crypto/tls"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"github.com/astaxie/beego/logs"
 	"net"
 	"os"
 )
