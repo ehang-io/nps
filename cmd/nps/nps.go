@@ -2,6 +2,12 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/daemon"
@@ -12,12 +18,7 @@ import (
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/test"
 	"github.com/cnlh/nps/server/tool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	_ "github.com/cnlh/nps/web/routers"
-	"log"
-	"os"
-	"path/filepath"
 )
 
 var (

@@ -3,12 +3,13 @@
 package daemon
 
 import (
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	"github.com/astaxie/beego"
+	"github.com/cnlh/nps/lib/common"
 )
 
 func init() {

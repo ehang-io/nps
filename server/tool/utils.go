@@ -1,15 +1,16 @@
 package tool
 
 import (
+	"math"
+	"strconv"
+	"time"
+
+	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
-	"math"
-	"strconv"
-	"time"
 )
 
 var (

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/pool"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -16,6 +14,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/pool"
 )
 
 //Get the corresponding IP address through domain name

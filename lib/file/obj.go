@@ -1,12 +1,13 @@
 package file
 
 import (
-	"github.com/cnlh/nps/lib/rate"
-	"github.com/pkg/errors"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/cnlh/nps/lib/rate"
+	"github.com/pkg/errors"
 )
 
 type Flow struct {

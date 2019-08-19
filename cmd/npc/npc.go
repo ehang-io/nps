@@ -3,17 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/ccding/go-stun/stun"
 	"github.com/cnlh/nps/client"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/version"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/ccding/go-stun/stun"
-	"os"
-	"strings"
-	"time"
 )
 
 var (
