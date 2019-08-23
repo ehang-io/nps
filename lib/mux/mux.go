@@ -1,10 +1,10 @@
 package mux
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"math"
 	"net"
 	"sync"
@@ -12,40 +12,30 @@ import (
 	"time"
 )
 
-const (
-	MUX_PING_FLAG int32 = iota
-	MUX_NEW_CONN_OK
-	MUX_NEW_CONN_Fail
-	MUX_NEW_MSG
-	MUX_MSG_SEND_OK
-	MUX_NEW_CONN
-	MUX_PING
-	MUX_CONN_CLOSE
-	MUX_PING_RETURN
-)
-
 type Mux struct {
 	net.Listener
-	conn      net.Conn
-	connMap   *connMap
-	newConnCh chan *conn
-	id        int32
-	closeChan chan struct{}
-	IsClose   bool
-	pingOk    int
-	connType  string
+	conn       net.Conn
+	connMap    *connMap
+	newConnCh  chan *conn
+	id         int32
+	closeChan  chan struct{}
+	IsClose    bool
+	pingOk     int
+	connType   string
+	writeQueue *sliceEntry
 	sync.Mutex
 }
 
 func NewMux(c net.Conn, connType string) *Mux {
 	m := &Mux{
-		conn:      c,
-		connMap:   NewConnMap(),
-		id:        0,
-		closeChan: make(chan struct{}),
-		newConnCh: make(chan *conn),
-		IsClose:   false,
-		connType:  connType,
+		conn:       c,
+		connMap:    NewConnMap(),
+		id:         0,
+		closeChan:  make(chan struct{}),
+		newConnCh:  make(chan *conn),
+		IsClose:    false,
+		connType:   connType,
+		writeQueue: NewQueue(),
 	}
 	//read session by flag
 	go m.readSession()
@@ -61,7 +51,7 @@ func (s *Mux) NewConn() (*conn, error) {
 	conn := NewConn(s.getId(), s)
 	//it must be set before send
 	s.connMap.Set(conn.connId, conn)
-	if err := s.sendInfo(MUX_NEW_CONN, conn.connId, nil); err != nil {
+	if err := s.sendInfo(common.MUX_NEW_CONN, conn.connId, nil); err != nil {
 		return nil, err
 	}
 	//set a timer timeout 30 second
@@ -91,19 +81,28 @@ func (s *Mux) Addr() net.Addr {
 	return s.conn.LocalAddr()
 }
 
-func (s *Mux) sendInfo(flag int32, id int32, content []byte) error {
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, flag)
-	binary.Write(raw, binary.LittleEndian, id)
-	if content != nil && len(content) > 0 {
-		binary.Write(raw, binary.LittleEndian, int32(len(content)))
-		binary.Write(raw, binary.LittleEndian, content)
-	}
-	if _, err := s.conn.Write(raw.Bytes()); err != nil {
+func (s *Mux) sendInfo(flag uint8, id int32, content []byte) (err error) {
+	buf := pool.BuffPool.Get()
+	defer pool.BuffPool.Put(buf)
+	pack := common.MuxPackager{}
+	err = pack.NewPac(flag, id, content)
+	if err != nil {
 		s.Close()
-		return err
+		logs.Warn("new pack err", err)
+		return
 	}
-	return nil
+	err = pack.Pack(buf)
+	if err != nil {
+		s.Close()
+		logs.Warn("pack err", err)
+		return
+	}
+	_, err = buf.WriteTo(s.conn)
+	if err != nil {
+		s.Close()
+		logs.Warn("write err", err)
+	}
+	return
 }
 
 func (s *Mux) ping() {
@@ -117,7 +116,7 @@ func (s *Mux) ping() {
 			if (math.MaxInt32 - s.id) < 10000 {
 				s.id = 0
 			}
-			if err := s.sendInfo(MUX_PING_FLAG, MUX_PING, nil); err != nil || (s.pingOk > 10 && s.connType == "kcp") {
+			if err := s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, nil); err != nil || (s.pingOk > 10 && s.connType == "kcp") {
 				s.Close()
 				break
 			}
@@ -130,64 +129,47 @@ func (s *Mux) ping() {
 }
 
 func (s *Mux) readSession() {
-	var buf []byte
+	var pack common.MuxPackager
 	go func() {
 		for {
-			var flag, i int32
-			var n int
-			var err error
-			if binary.Read(s.conn, binary.LittleEndian, &flag) == nil {
-				if binary.Read(s.conn, binary.LittleEndian, &i) != nil {
-					break
-				}
-				s.pingOk = 0
-				switch flag {
-				case MUX_NEW_CONN: //new conn
-					conn := NewConn(i, s)
-					s.connMap.Set(i, conn) //it has been set before send ok
-					s.newConnCh <- conn
-					s.sendInfo(MUX_NEW_CONN_OK, i, nil)
-					continue
-				case MUX_PING_FLAG: //ping
-					s.sendInfo(MUX_PING_RETURN, MUX_PING, nil)
-					continue
-				case MUX_PING_RETURN:
-					continue
-				case MUX_NEW_MSG:
-					buf = pool.GetBufPoolCopy()
-					if n, err = ReadLenBytes(buf, s.conn); err != nil {
-						break
-					}
-				}
-				if conn, ok := s.connMap.Get(i); ok && !conn.isClose {
-					switch flag {
-					case MUX_NEW_MSG: //new msg from remote conn
-						//insert wait queue
-						conn.waitQueue.Push(NewBufNode(buf, n))
-						//judge len if >xxx ,send stop
-						if conn.readWait {
-							conn.readWait = false
-							conn.readCh <- struct{}{}
-						}
-					case MUX_MSG_SEND_OK: //the remote has read
-						select {
-						case conn.getStatusCh <- struct{}{}:
-						default:
-						}
-						conn.hasWrite --
-					case MUX_NEW_CONN_OK: //conn ok
-						conn.connStatusOkCh <- struct{}{}
-					case MUX_NEW_CONN_Fail:
-						conn.connStatusFailCh <- struct{}{}
-					case MUX_CONN_CLOSE: //close the connection
-						go conn.Close()
-						s.connMap.Delete(i)
-					}
-				} else if flag == MUX_NEW_MSG {
-					pool.PutBufPoolCopy(buf)
-				}
-			} else {
+			if pack.UnPack(s.conn) != nil {
 				break
+			}
+			s.pingOk = 0
+			switch pack.Flag {
+			case common.MUX_NEW_CONN: //new conn
+				logs.Warn("mux new conn", pack.Id)
+				conn := NewConn(pack.Id, s)
+				s.connMap.Set(pack.Id, conn) //it has been set before send ok
+				s.newConnCh <- conn
+				s.sendInfo(common.MUX_NEW_CONN_OK, pack.Id, nil)
+				continue
+			case common.MUX_PING_FLAG: //ping
+				s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, nil)
+				continue
+			case common.MUX_PING_RETURN:
+				continue
+			}
+			if conn, ok := s.connMap.Get(pack.Id); ok && !conn.isClose {
+				switch pack.Flag {
+				case common.MUX_NEW_MSG: //new msg from remote conn
+					//insert wait queue
+					conn.waitQueue.Push(NewBufNode(pack.Content, int(pack.Length)))
+					//judge len if >xxx ,send stop
+					if conn.readWait {
+						conn.readWait = false
+						conn.readCh <- struct{}{}
+					}
+				case common.MUX_NEW_CONN_OK: //conn ok
+					conn.connStatusOkCh <- struct{}{}
+				case common.MUX_NEW_CONN_Fail:
+					conn.connStatusFailCh <- struct{}{}
+				case common.MUX_CONN_CLOSE: //close the connection
+					conn.waitQueue.Push(NewBufNode(nil, 0))
+					s.connMap.Delete(pack.Id)
+				}
+			} else if pack.Flag == common.MUX_NEW_MSG {
+				pool.PutBufPoolCopy(pack.Content)
 			}
 		}
 		s.Close()
@@ -198,6 +180,7 @@ func (s *Mux) readSession() {
 }
 
 func (s *Mux) Close() error {
+	logs.Warn("close mux")
 	if s.IsClose {
 		return errors.New("the mux has closed")
 	}
@@ -214,6 +197,10 @@ func (s *Mux) Close() error {
 }
 
 //get new connId as unique flag
-func (s *Mux) getId() int32 {
-	return atomic.AddInt32(&s.id, 1)
+func (s *Mux) getId() (id int32) {
+	id = atomic.AddInt32(&s.id, 1)
+	if _, ok := s.connMap.Get(id); ok {
+		s.getId()
+	}
+	return
 }

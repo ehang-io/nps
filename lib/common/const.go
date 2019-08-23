@@ -36,3 +36,15 @@ WWW-Authenticate: Basic realm="easyProxy"
 
 `
 )
+
+const (
+	MUX_PING_FLAG uint8 = iota
+	MUX_NEW_CONN_OK
+	MUX_NEW_CONN_Fail
+	MUX_NEW_MSG
+	MUX_MSG_SEND_OK
+	MUX_NEW_CONN
+	MUX_CONN_CLOSE
+	MUX_PING_RETURN
+	MUX_PING int32 = -1
+)

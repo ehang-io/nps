@@ -32,13 +32,14 @@ func TestNewMux(t *testing.T) {
 				log.Fatalln(err)
 			}
 			go func(c net.Conn) {
-				c2, err := net.Dial("tcp", "127.0.0.1:8082")
+				c2, err := net.Dial("tcp", "127.0.0.1:80")
 				if err != nil {
 					log.Fatalln(err)
 				}
 				go common.CopyBuffer(c2, c)
 				common.CopyBuffer(c, c2)
 				c.Close()
+				//logs.Warn("close from out npc ")
 				c2.Close()
 			}(c)
 		}
@@ -64,6 +65,7 @@ func TestNewMux(t *testing.T) {
 				common.CopyBuffer(conn, tmpCpnn)
 				conn.Close()
 				tmpCpnn.Close()
+				logs.Warn("close from out nps ", tmpCpnn.connId)
 			}(conn)
 		}
 	}()

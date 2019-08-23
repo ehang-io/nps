@@ -2,10 +2,11 @@ package mux
 
 import (
 	"errors"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -29,8 +30,6 @@ type conn struct {
 	hasWrite         int
 	mux              *Mux
 }
-
-var connPool = sync.Pool{}
 
 func NewConn(connId int32, mux *Mux) *conn {
 	c := &conn{
@@ -73,9 +72,15 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 			return 0, io.EOF
 		} else {
 			pool.PutBufPoolCopy(s.readBuffer)
-			s.readBuffer = node.val
-			s.endRead = node.l
-			s.startRead = 0
+			if node.val == nil {
+				//close
+				s.Close()
+				logs.Warn("close from read msg ", s.connId)
+			} else {
+				s.readBuffer = node.val
+				s.endRead = node.l
+				s.startRead = 0
+			}
 		}
 	}
 	if len(buf) < s.endRead-s.startRead {
@@ -84,12 +89,11 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 	} else {
 		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
 		s.startRead += n
-		s.mux.sendInfo(MUX_MSG_SEND_OK, s.connId, nil)
 	}
 	return
 }
 
-func (s *conn) Write(buf []byte) (int, error) {
+func (s *conn) Write(buf []byte) (n int, err error) {
 	if s.isClose {
 		return 0, errors.New("the conn has closed")
 	}
@@ -115,15 +119,11 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 	start := 0
 	l := len(buf)
 	for {
-		if s.hasWrite > 50 {
-			<-s.getStatusCh
-		}
-		s.hasWrite++
 		if l-start > pool.PoolSizeCopy {
-			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:start+pool.PoolSizeCopy])
+			s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf[start:start+pool.PoolSizeCopy])
 			start += pool.PoolSizeCopy
 		} else {
-			s.mux.sendInfo(MUX_NEW_MSG, s.connId, buf[start:l])
+			s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf[start:l])
 			break
 		}
 	}
@@ -132,16 +132,7 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 
 func (s *conn) Close() error {
 	if s.isClose {
-		return errors.New("the conn has closed")
-	}
-	times := 0
-retry:
-	if s.waitQueue.Size() > 0 && times < 600 {
-		time.Sleep(time.Millisecond * 100)
-		times++
-		goto retry
-	}
-	if s.isClose {
+		logs.Warn("already closed", s.connId)
 		return errors.New("the conn has closed")
 	}
 	s.isClose = true
@@ -152,9 +143,8 @@ retry:
 	s.waitQueue.Clear()
 	s.mux.connMap.Delete(s.connId)
 	if !s.mux.IsClose {
-		s.mux.sendInfo(MUX_CONN_CLOSE, s.connId, nil)
+		s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
 	}
-	connPool.Put(s)
 	return nil
 }
 
