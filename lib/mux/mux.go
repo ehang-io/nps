@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"bytes"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/pool"
@@ -22,7 +23,7 @@ type Mux struct {
 	IsClose    bool
 	pingOk     int
 	connType   string
-	writeQueue *sliceEntry
+	writeQueue chan *bytes.Buffer
 	sync.Mutex
 }
 
@@ -35,12 +36,13 @@ func NewMux(c net.Conn, connType string) *Mux {
 		newConnCh:  make(chan *conn),
 		IsClose:    false,
 		connType:   connType,
-		writeQueue: NewQueue(),
+		writeQueue: make(chan *bytes.Buffer, 20),
 	}
 	//read session by flag
 	go m.readSession()
 	//ping
 	go m.ping()
+	//go m.writeSession()
 	return m
 }
 
@@ -82,8 +84,10 @@ func (s *Mux) Addr() net.Addr {
 }
 
 func (s *Mux) sendInfo(flag uint8, id int32, content []byte) (err error) {
+	if flag == common.MUX_NEW_MSG {
+		logs.Warn("trying write to mux new msg", id)
+	}
 	buf := pool.BuffPool.Get()
-	defer pool.BuffPool.Put(buf)
 	pack := common.MuxPackager{}
 	err = pack.NewPac(flag, id, content)
 	if err != nil {
@@ -97,12 +101,37 @@ func (s *Mux) sendInfo(flag uint8, id int32, content []byte) (err error) {
 		logs.Warn("pack err", err)
 		return
 	}
+	//s.writeQueue <- buf
 	_, err = buf.WriteTo(s.conn)
 	if err != nil {
 		s.Close()
 		logs.Warn("write err", err)
 	}
+	pool.BuffPool.Put(buf)
+	if flag == common.MUX_CONN_CLOSE {
+		logs.Warn("write to mux conn close success", id)
+	}
+	if flag == common.MUX_NEW_MSG {
+		logs.Warn("write to mux new msg success", id)
+	}
 	return
+}
+
+func (s *Mux) writeSession() {
+	go func() {
+		for {
+			buf := <-s.writeQueue
+			l := buf.Len()
+			n, err := buf.WriteTo(s.conn)
+			pool.BuffPool.Put(buf)
+			if err != nil || int(n) != l {
+				logs.Warn("close from write to ", err, n, l)
+				s.Close()
+				break
+			}
+		}
+	}()
+	<-s.closeChan
 }
 
 func (s *Mux) ping() {
@@ -138,7 +167,7 @@ func (s *Mux) readSession() {
 			s.pingOk = 0
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new conn
-				logs.Warn("mux new conn", pack.Id)
+				//logs.Warn("mux new conn", pack.Id)
 				conn := NewConn(pack.Id, s)
 				s.connMap.Set(pack.Id, conn) //it has been set before send ok
 				s.newConnCh <- conn
@@ -151,22 +180,30 @@ func (s *Mux) readSession() {
 				continue
 			}
 			if conn, ok := s.connMap.Get(pack.Id); ok && !conn.isClose {
+				logs.Warn("read session flag id", pack.Flag, pack.Id)
 				switch pack.Flag {
 				case common.MUX_NEW_MSG: //new msg from remote conn
 					//insert wait queue
-					conn.waitQueue.Push(NewBufNode(pack.Content, int(pack.Length)))
+					conn.readQueue.Push(NewBufNode(pack.Content, int(pack.Length)))
 					//judge len if >xxx ,send stop
 					if conn.readWait {
 						conn.readWait = false
 						conn.readCh <- struct{}{}
 					}
+					logs.Warn("push a read buffer ", conn.connId, pack.Id)
 				case common.MUX_NEW_CONN_OK: //conn ok
 					conn.connStatusOkCh <- struct{}{}
 				case common.MUX_NEW_CONN_Fail:
 					conn.connStatusFailCh <- struct{}{}
 				case common.MUX_CONN_CLOSE: //close the connection
-					conn.waitQueue.Push(NewBufNode(nil, 0))
+					conn.readQueue.Push(NewBufNode(nil, 0))
+					if conn.readWait {
+						logs.Warn("close read wait", pack.Id)
+						conn.readWait = false
+						conn.readCh <- struct{}{}
+					}
 					s.connMap.Delete(pack.Id)
+					logs.Warn("read session mux conn close finish", pack.Id)
 				}
 			} else if pack.Flag == common.MUX_NEW_MSG {
 				pool.PutBufPoolCopy(pack.Content)
@@ -192,6 +229,8 @@ func (s *Mux) Close() error {
 	select {
 	case s.closeChan <- struct{}{}:
 	}
+	s.closeChan <- struct{}{}
+	close(s.writeQueue)
 	close(s.newConnCh)
 	return s.conn.Close()
 }

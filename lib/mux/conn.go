@@ -22,11 +22,12 @@ type conn struct {
 	endRead          int //now end read
 	readFlag         bool
 	readCh           chan struct{}
-	waitQueue        *sliceEntry
+	readQueue        *sliceEntry
 	stopWrite        bool
 	connId           int32
 	isClose          bool
 	readWait         bool
+	sendClose        bool
 	hasWrite         int
 	mux              *Mux
 }
@@ -37,7 +38,7 @@ func NewConn(connId int32, mux *Mux) *conn {
 		getStatusCh:      make(chan struct{}),
 		connStatusOkCh:   make(chan struct{}),
 		connStatusFailCh: make(chan struct{}),
-		waitQueue:        NewQueue(),
+		readQueue:        NewQueue(),
 		connId:           connId,
 		mux:              mux,
 	}
@@ -45,11 +46,12 @@ func NewConn(connId int32, mux *Mux) *conn {
 }
 
 func (s *conn) Read(buf []byte) (n int, err error) {
+	logs.Warn("starting read ", s.connId)
 	if s.isClose || buf == nil {
 		return 0, errors.New("the conn has closed")
 	}
 	if s.endRead-s.startRead == 0 { //read finish or start
-		if s.waitQueue.Size() == 0 {
+		if s.readQueue.Size() == 0 {
 			s.readWait = true
 			if t := s.readTimeOut.Sub(time.Now()); t > 0 {
 				timer := time.NewTimer(t)
@@ -67,19 +69,22 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 		if s.isClose { //If the connection is closed instead of  continuing command
 			return 0, errors.New("the conn has closed")
 		}
-		if node, err := s.waitQueue.Pop(); err != nil {
+		if node, err := s.readQueue.Pop(); err != nil {
 			s.Close()
 			return 0, io.EOF
 		} else {
 			pool.PutBufPoolCopy(s.readBuffer)
 			if node.val == nil {
 				//close
+				s.sendClose = true
 				s.Close()
 				logs.Warn("close from read msg ", s.connId)
+				return 0, io.EOF
 			} else {
 				s.readBuffer = node.val
 				s.endRead = node.l
 				s.startRead = 0
+				logs.Warn("get a new data buffer ", s.connId)
 			}
 		}
 	}
@@ -90,10 +95,12 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
 		s.startRead += n
 	}
+	logs.Warn("end read ", s.connId)
 	return
 }
 
 func (s *conn) Write(buf []byte) (n int, err error) {
+	logs.Warn("trying write", s.connId)
 	if s.isClose {
 		return 0, errors.New("the conn has closed")
 	}
@@ -113,6 +120,7 @@ func (s *conn) Write(buf []byte) (n int, err error) {
 	if s.isClose {
 		return 0, io.EOF
 	}
+	logs.Warn("write success ", s.connId)
 	return len(buf), nil
 }
 func (s *conn) write(buf []byte, ch chan struct{}) {
@@ -130,7 +138,8 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 	ch <- struct{}{}
 }
 
-func (s *conn) Close() error {
+func (s *conn) Close() (err error) {
+	logs.Warn("start closing ", s.connId)
 	if s.isClose {
 		logs.Warn("already closed", s.connId)
 		return errors.New("the conn has closed")
@@ -140,12 +149,22 @@ func (s *conn) Close() error {
 	if s.readWait {
 		s.readCh <- struct{}{}
 	}
-	s.waitQueue.Clear()
+	s.readQueue.Clear()
 	s.mux.connMap.Delete(s.connId)
 	if !s.mux.IsClose {
-		s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
+		if !s.sendClose {
+			logs.Warn("start send closing msg", s.connId)
+			err = s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
+			logs.Warn("send closing msg ok ", s.connId)
+			if err != nil {
+				logs.Warn(err)
+				return
+			}
+		} else {
+			logs.Warn("send mux conn close pass ", s.connId)
+		}
 	}
-	return nil
+	return
 }
 
 func (s *conn) LocalAddr() net.Addr {

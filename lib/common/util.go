@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -268,8 +269,10 @@ func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	defer pool.PutBufPoolCopy(buf)
 	for {
 		nr, er := src.Read(buf)
+		logs.Warn("read finish", nr, er)
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
+			logs.Warn("write finish", nw, ew)
 			if nw > 0 {
 				written += int64(nw)
 			}

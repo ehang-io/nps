@@ -45,13 +45,13 @@ func (Self *BasePackager) Pack(writer io.Writer) (err error) {
 		return
 	}
 	err = binary.Write(writer, binary.LittleEndian, Self.Content)
-	//logs.Warn(Self.Length, string(Self.Content))
 	return
 }
 
 //Unpack 会导致传入的数字类型转化成float64！！
 //主要原因是json unmarshal并未传入正确的数据类型
 func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
+	Self.clean()
 	err = binary.Read(reader, binary.LittleEndian, &Self.Length)
 	if err != nil {
 		return
