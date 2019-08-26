@@ -160,6 +160,7 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 }
 
 func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
+	Self.Length=0
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return

@@ -46,7 +46,6 @@ func NewConn(connId int32, mux *Mux) *conn {
 }
 
 func (s *conn) Read(buf []byte) (n int, err error) {
-	logs.Warn("starting read ", s.connId)
 	if s.isClose || buf == nil {
 		return 0, errors.New("the conn has closed")
 	}
@@ -73,18 +72,16 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 			s.Close()
 			return 0, io.EOF
 		} else {
-			pool.PutBufPoolCopy(s.readBuffer)
+			//pool.PutBufPoolCopy(s.readBuffer)
 			if node.val == nil {
 				//close
 				s.sendClose = true
 				s.Close()
-				logs.Warn("close from read msg ", s.connId)
 				return 0, io.EOF
 			} else {
 				s.readBuffer = node.val
 				s.endRead = node.l
 				s.startRead = 0
-				logs.Warn("get a new data buffer ", s.connId)
 			}
 		}
 	}
@@ -95,12 +92,10 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
 		s.startRead += n
 	}
-	logs.Warn("end read ", s.connId)
 	return
 }
 
 func (s *conn) Write(buf []byte) (n int, err error) {
-	logs.Warn("trying write", s.connId)
 	if s.isClose {
 		return 0, errors.New("the conn has closed")
 	}
@@ -120,7 +115,6 @@ func (s *conn) Write(buf []byte) (n int, err error) {
 	if s.isClose {
 		return 0, io.EOF
 	}
-	logs.Warn("write success ", s.connId)
 	return len(buf), nil
 }
 func (s *conn) write(buf []byte, ch chan struct{}) {
@@ -139,9 +133,7 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 }
 
 func (s *conn) Close() (err error) {
-	logs.Warn("start closing ", s.connId)
 	if s.isClose {
-		logs.Warn("already closed", s.connId)
 		return errors.New("the conn has closed")
 	}
 	s.isClose = true
@@ -153,7 +145,6 @@ func (s *conn) Close() (err error) {
 	s.mux.connMap.Delete(s.connId)
 	if !s.mux.IsClose {
 		if !s.sendClose {
-			logs.Warn("start send closing msg", s.connId)
 			err = s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
 			logs.Warn("send closing msg ok ", s.connId)
 			if err != nil {
@@ -161,7 +152,6 @@ func (s *conn) Close() (err error) {
 				return
 			}
 		} else {
-			logs.Warn("send mux conn close pass ", s.connId)
 		}
 	}
 	return

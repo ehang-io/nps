@@ -26,25 +26,20 @@ func TestNewMux(t *testing.T) {
 	time.Sleep(time.Second * 3)
 	go func() {
 		m2 := NewMux(conn2, "tcp")
-		connCh := make(chan bool, 1)
 		for {
 			c, err := m2.Accept()
 			if err != nil {
 				log.Fatalln(err)
 			}
-			connCh <- true
-			go func(c net.Conn, ch chan bool) {
-				c2, err := net.Dial("tcp", "127.0.0.1:80")
-				if err != nil {
-					log.Fatalln(err)
-				}
-				go common.CopyBuffer(c2, c)
-				common.CopyBuffer(c, c2)
-				c2.Close()
-				c.Close()
-				logs.Warn("close npc")
-				<-ch
-			}(c, connCh)
+			c2, err := net.Dial("tcp", "127.0.0.1:8080")
+			if err != nil {
+				log.Fatalln(err)
+			}
+			go common.CopyBuffer(c2, c,0)
+			common.CopyBuffer(c, c2,0)
+			c2.Close()
+			c.Close()
+			logs.Warn("close npc")
 		}
 	}()
 
@@ -54,25 +49,22 @@ func TestNewMux(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		connCh := make(chan bool, 1)
 		for {
 			conn, err := l.Accept()
 			if err != nil {
 				log.Fatalln(err)
 			}
-			connCh <- true
-			go func(conn net.Conn, ch chan bool) {
-				tmpCpnn, err := m1.NewConn()
-				if err != nil {
-					log.Fatalln(err)
-				}
-				go common.CopyBuffer(tmpCpnn, conn)
-				common.CopyBuffer(conn, tmpCpnn)
-				conn.Close()
-				//tmpCpnn.Close()
-				logs.Warn("close from out nps ", tmpCpnn.connId)
-				<-ch
-			}(conn, connCh)
+
+			tmpCpnn, err := m1.NewConn()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			go common.CopyBuffer(tmpCpnn, conn,tmpCpnn.connId)
+			_, err = common.CopyBuffer(conn, tmpCpnn,tmpCpnn.connId)
+			logs.Warn(err, tmpCpnn.connId)
+			conn.Close()
+			tmpCpnn.Close()
+			logs.Warn("close from out nps ", tmpCpnn.connId)
 		}
 	}()
 
