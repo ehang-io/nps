@@ -63,7 +63,7 @@ func (entry *sliceEntry) Clear() bool {
 		return false
 	}
 	for i := 0; i < entry.Size(); i++ {
-		pool.PutBufPoolCopy(entry.element[i].val)
+		pool.CopyBuff.Put(entry.element[i].val)
 		entry.element[i] = nil
 	}
 	entry.element = nil

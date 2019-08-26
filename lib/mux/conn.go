@@ -72,7 +72,6 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 			s.Close()
 			return 0, io.EOF
 		} else {
-			//pool.PutBufPoolCopy(s.readBuffer)
 			if node.val == nil {
 				//close
 				s.sendClose = true
@@ -91,6 +90,7 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 	} else {
 		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
 		s.startRead += n
+		pool.CopyBuff.Put(s.readBuffer)
 	}
 	return
 }
@@ -137,7 +137,7 @@ func (s *conn) Close() (err error) {
 		return errors.New("the conn has closed")
 	}
 	s.isClose = true
-	pool.PutBufPoolCopy(s.readBuffer)
+	pool.CopyBuff.Put(s.readBuffer)
 	if s.readWait {
 		s.readCh <- struct{}{}
 	}

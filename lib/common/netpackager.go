@@ -20,6 +20,7 @@ type BasePackager struct {
 }
 
 func (Self *BasePackager) NewPac(contents ...interface{}) (err error) {
+	Self.Content = pool.CopyBuff.Get()
 	Self.clean()
 	for _, content := range contents {
 		switch content.(type) {
@@ -45,6 +46,7 @@ func (Self *BasePackager) Pack(writer io.Writer) (err error) {
 		return
 	}
 	err = binary.Write(writer, binary.LittleEndian, Self.Content)
+	pool.CopyBuff.Put(Self.Content)
 	return
 }
 
@@ -56,13 +58,13 @@ func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	Self.Content = pool.GetBufPoolCopy()
+	Self.Content = pool.CopyBuff.Get()
 	Self.Content = Self.Content[:Self.Length]
 	//n, err := io.ReadFull(reader, Self.Content)
 	//if n != int(Self.Length) {
 	//	err = io.ErrUnexpectedEOF
 	//}
-	err = binary.Read(reader, binary.LittleEndian, &Self.Content)
+	err = binary.Read(reader, binary.LittleEndian, Self.Content)
 	return
 }
 
@@ -160,7 +162,7 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 }
 
 func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
-	Self.Length=0
+	Self.Length = 0
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return

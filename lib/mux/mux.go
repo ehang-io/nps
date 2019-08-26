@@ -162,8 +162,8 @@ func (s *Mux) readSession() {
 				break
 			}
 			if pack.Flag != 0 && pack.Flag != 7 {
-				if pack.Length>10 {
-					logs.Warn(pack.Flag, pack.Id, pack.Length,string(pack.Content[:10]))
+				if pack.Length > 10 {
+					logs.Warn(pack.Flag, pack.Id, pack.Length, string(pack.Content[:10]))
 				}
 			}
 			s.pingOk = 0
@@ -205,7 +205,7 @@ func (s *Mux) readSession() {
 					s.connMap.Delete(pack.Id)
 				}
 			} else if pack.Flag == common.MUX_NEW_MSG {
-				pool.PutBufPoolCopy(pack.Content)
+				pool.CopyBuff.Put(pack.Content)
 			}
 		}
 		s.Close()

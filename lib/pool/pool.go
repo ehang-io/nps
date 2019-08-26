@@ -59,6 +59,27 @@ func PutBufPoolMax(buf []byte) {
 	}
 }
 
+type CopyBufferPool struct {
+	pool sync.Pool
+}
+
+func (Self *CopyBufferPool) New() {
+	Self.pool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, PoolSizeCopy)
+		},
+	}
+}
+
+func (Self *CopyBufferPool) Get() []byte {
+	return Self.pool.Get().([]byte)
+}
+
+func (Self *CopyBufferPool) Put(x []byte) {
+	x = x[:0]
+	Self.pool.Put(x)
+}
+
 type BufferPool struct {
 	pool sync.Pool
 }
@@ -82,7 +103,13 @@ func (Self *BufferPool) Put(x *bytes.Buffer) {
 
 var once = sync.Once{}
 var BuffPool = BufferPool{}
+var CopyBuff = CopyBufferPool{}
+
+func newPool() {
+	BuffPool.New()
+	CopyBuff.New()
+}
 
 func init() {
-	once.Do(BuffPool.New)
+	once.Do(newPool)
 }
