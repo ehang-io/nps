@@ -27,16 +27,31 @@ func (Self *BasePackager) NewPac(contents ...interface{}) (err error) {
 		case nil:
 			Self.Content = Self.Content[:0]
 		case []byte:
-			Self.Content = append(Self.Content, content.([]byte)...)
+			err = Self.appendByte(content.([]byte))
 		case string:
-			Self.Content = append(Self.Content, []byte(content.(string))...)
-			Self.Content = append(Self.Content, []byte(CONN_DATA_SEQ)...)
+			err = Self.appendByte([]byte(content.(string)))
+			if err != nil {
+				return
+			}
+			err = Self.appendByte([]byte(CONN_DATA_SEQ))
 		default:
 			err = Self.marshal(content)
 		}
 	}
 	Self.setLength()
 	return
+}
+
+func (Self *BasePackager) appendByte(data []byte) (err error) {
+	m := len(Self.Content)
+	n := m + len(data)
+	if n <= cap(Self.Content) {
+		Self.Content = Self.Content[0:n] // grow the length for copy
+		copy(Self.Content[m:n], data)
+		return nil
+	} else {
+		return bytes.ErrTooLarge
+	}
 }
 
 //似乎这里涉及到父类作用域问题，当子类调用父类的方法时，其struct仅仅为父类的
@@ -53,12 +68,12 @@ func (Self *BasePackager) Pack(writer io.Writer) (err error) {
 //Unpack 会导致传入的数字类型转化成float64！！
 //主要原因是json unmarshal并未传入正确的数据类型
 func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
+	Self.Content = pool.CopyBuff.Get()
 	Self.clean()
 	err = binary.Read(reader, binary.LittleEndian, &Self.Length)
 	if err != nil {
 		return
 	}
-	Self.Content = pool.CopyBuff.Get()
 	Self.Content = Self.Content[:Self.Length]
 	//n, err := io.ReadFull(reader, Self.Content)
 	//if n != int(Self.Length) {
@@ -73,7 +88,7 @@ func (Self *BasePackager) marshal(content interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	Self.Content = append(Self.Content, tmp...)
+	err = Self.appendByte(tmp)
 	return
 }
 
@@ -92,7 +107,7 @@ func (Self *BasePackager) setLength() {
 
 func (Self *BasePackager) clean() {
 	Self.Length = 0
-	Self.Content = Self.Content[:0]
+	Self.Content = Self.Content[:0] // reset length
 }
 
 func (Self *BasePackager) Split() (strList []string) {
@@ -162,7 +177,6 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 }
 
 func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
-	Self.Length = 0
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return

@@ -264,13 +264,19 @@ func GetPortByAddr(addr string) int {
 	return p
 }
 
-func CopyBuffer(dst io.Writer, src io.Reader,connId int32) (written int64, err error) {
-	buf := pool.GetBufPoolCopy()
-	defer pool.PutBufPoolCopy(buf)
+func CopyBuffer(dst io.Writer, src io.Reader, connId int32) (written int64, err error) {
+	buf := pool.CopyBuff.Get()
+	defer pool.CopyBuff.Put(buf)
 	for {
 		nr, er := src.Read(buf)
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
 		if nr > 0 {
-			logs.Warn("write",connId, nr, string(buf[0:10]))
+			logs.Warn("write", connId, nr, string(buf[0:10]))
 			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {
 				written += int64(nw)
@@ -283,12 +289,6 @@ func CopyBuffer(dst io.Writer, src io.Reader,connId int32) (written int64, err e
 				err = io.ErrShortWrite
 				break
 			}
-		}
-		if er != nil {
-			if er != io.EOF {
-				err = er
-			}
-			break
 		}
 	}
 	return written, err

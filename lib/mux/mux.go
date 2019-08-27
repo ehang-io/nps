@@ -228,7 +228,7 @@ func (s *Mux) Close() error {
 	select {
 	case s.closeChan <- struct{}{}:
 	}
-	s.closeChan <- struct{}{}
+	//s.closeChan <- struct{}{}
 	close(s.writeQueue)
 	close(s.newConnCh)
 	return s.conn.Close()

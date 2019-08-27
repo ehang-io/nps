@@ -66,13 +66,14 @@ type CopyBufferPool struct {
 func (Self *CopyBufferPool) New() {
 	Self.pool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, PoolSizeCopy)
+			return make([]byte, PoolSizeCopy, PoolSizeCopy)
 		},
 	}
 }
 
 func (Self *CopyBufferPool) Get() []byte {
-	return Self.pool.Get().([]byte)
+	buf := Self.pool.Get().([]byte)
+	return buf[:cap(buf)] // grow to capacity
 }
 
 func (Self *CopyBufferPool) Put(x []byte) {
