@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"net"
 	"strings"
@@ -36,7 +35,7 @@ func (s *P2PServer) Start() error {
 		return err
 	}
 	for {
-		buf := pool.BufPoolUdp.Get().([]byte)
+		buf := common.BufPoolUdp.Get().([]byte)
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {

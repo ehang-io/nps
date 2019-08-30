@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"html/template"
 	"io"
@@ -264,34 +264,96 @@ func GetPortByAddr(addr string) int {
 	return p
 }
 
-func CopyBuffer(dst io.Writer, src io.Reader, connId int32) (written int64, err error) {
-	buf := pool.CopyBuff.Get()
-	defer pool.CopyBuff.Put(buf)
-	for {
-		nr, er := src.Read(buf)
-		if er != nil {
-			if er != io.EOF {
-				err = er
-			}
-			break
+type ConnCopy struct {
+	dst    net.Conn
+	src    net.Conn
+	buf    []byte
+	connId int32
+}
+
+func (Self *ConnCopy) New(dst net.Conn, src net.Conn, connId int32) {
+	Self.dst = dst
+	Self.src = src
+	Self.buf = CopyBuff.Get()
+	Self.connId = connId
+}
+
+func (Self *ConnCopy) copyBufferOnce() (written int64, err error) {
+	nr, er := Self.src.Read(Self.buf)
+	if nr > 0 {
+		//logs.Warn("write", Self.connId, nr, string(buf[0:10]))
+		nw, ew := Self.dst.Write(Self.buf[0:nr])
+		if nw > 0 {
+			written = int64(nw)
 		}
-		if nr > 0 {
-			logs.Warn("write", connId, nr, string(buf[0:10]))
-			nw, ew := dst.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
+		if ew != nil {
+			//logs.Warn("write err ew id nw", ew, Self.connId, nw)
+			err = ew
+			return
+		}
+		if nr != nw {
+			err = io.ErrShortWrite
+			return
+		}
+		if nw == 0 {
+			err = errors.New("io: write on closed pipe")
+			//logs.Warn("write buffer", err)
+			return
 		}
 	}
-	return written, err
+	if nr == 0 && er == nil {
+		err = errors.New("io: read on closed pipe")
+		//logs.Warn("read buffer", err)
+		return
+	}
+	if er != nil {
+		err = er
+		return
+	}
+	return
+}
+
+func (Self *ConnCopy) copyBuffer() (written int64, err error) {
+	var write int64
+	write, err = Self.copyBufferOnce() // first copy, if written is zero and err is io.EOF
+	// means conn already closed, so need to close all the conn
+	written += write
+	if err == io.EOF && written == 0 {
+		err = errors.New("io: read on closed pipe")
+		return
+	} else if err == io.EOF && written > 0 {
+		err = nil
+		return
+	}
+	for {
+		write, err = Self.copyBufferOnce()
+		written += write
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+	}
+}
+
+func (Self *ConnCopy) CopyConn() (written int64, err error) {
+	defer CopyBuff.Put(Self.buf)
+	if Self.dst != nil && Self.src != nil {
+		written, err = Self.copyBuffer()
+	} else {
+		return 0, errors.New("copy conn nil src or dst")
+	}
+	if err != nil { // copyBuffer do not return io.EOF ,close all conn
+		logs.Warn("close by copy conn ", Self.connId, err)
+		if Self.dst != nil {
+			Self.dst.Close()
+		}
+		if Self.src != nil {
+			Self.src.Close()
+		}
+	}
+	return
 }
 
 //send this ip forget to get a local udp port

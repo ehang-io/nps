@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/cnlh/nps/lib/pool"
+	"errors"
+	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"strings"
 )
@@ -20,7 +21,6 @@ type BasePackager struct {
 }
 
 func (Self *BasePackager) NewPac(contents ...interface{}) (err error) {
-	Self.Content = pool.CopyBuff.Get()
 	Self.clean()
 	for _, content := range contents {
 		switch content.(type) {
@@ -50,7 +50,8 @@ func (Self *BasePackager) appendByte(data []byte) (err error) {
 		copy(Self.Content[m:n], data)
 		return nil
 	} else {
-		return bytes.ErrTooLarge
+		logs.Warn(len(data), len(Self.Content), cap(Self.Content))
+		return errors.New("pack content too large")
 	}
 }
 
@@ -61,20 +62,22 @@ func (Self *BasePackager) Pack(writer io.Writer) (err error) {
 		return
 	}
 	err = binary.Write(writer, binary.LittleEndian, Self.Content)
-	pool.CopyBuff.Put(Self.Content)
 	return
 }
 
 //Unpack 会导致传入的数字类型转化成float64！！
 //主要原因是json unmarshal并未传入正确的数据类型
 func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
-	Self.Content = pool.CopyBuff.Get()
 	Self.clean()
 	err = binary.Read(reader, binary.LittleEndian, &Self.Length)
 	if err != nil {
 		return
 	}
-	Self.Content = Self.Content[:Self.Length]
+	if int(Self.Length) > cap(Self.Content) {
+		logs.Warn("unpack", cap(Self.Content))
+		err = errors.New("unpack err, content length too large")
+	}
+	Self.Content = Self.Content[:int(Self.Length)]
 	//n, err := io.ReadFull(reader, Self.Content)
 	//if n != int(Self.Length) {
 	//	err = io.ErrUnexpectedEOF
@@ -177,6 +180,7 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 }
 
 func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
+	Self.BasePackager.clean() // also clean the content
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return

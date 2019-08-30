@@ -1,4 +1,4 @@
-package pool
+package common
 
 import (
 	"bytes"
@@ -73,12 +73,15 @@ func (Self *CopyBufferPool) New() {
 
 func (Self *CopyBufferPool) Get() []byte {
 	buf := Self.pool.Get().([]byte)
-	return buf[:cap(buf)] // grow to capacity
+	return buf[:PoolSizeCopy] // just like make a new slice, but data may not be 0
 }
 
 func (Self *CopyBufferPool) Put(x []byte) {
-	x = x[:0]
-	Self.pool.Put(x)
+	if len(x) == PoolSizeCopy {
+		Self.pool.Put(x)
+	} else {
+		x = nil // buf is not full, maybe truncated by gc in pool, not allowed
+	}
 }
 
 type BufferPool struct {
@@ -102,13 +105,40 @@ func (Self *BufferPool) Put(x *bytes.Buffer) {
 	Self.pool.Put(x)
 }
 
+type MuxPackagerPool struct {
+	pool sync.Pool
+}
+
+func (Self *MuxPackagerPool) New() {
+	Self.pool = sync.Pool{
+		New: func() interface{} {
+			pack := MuxPackager{}
+			return &pack
+		},
+	}
+}
+
+func (Self *MuxPackagerPool) Get() *MuxPackager {
+	pack := Self.pool.Get().(*MuxPackager)
+	buf := CopyBuff.Get()
+	pack.Content = buf
+	return pack
+}
+
+func (Self *MuxPackagerPool) Put(pack *MuxPackager) {
+	CopyBuff.Put(pack.Content)
+	Self.pool.Put(pack)
+}
+
 var once = sync.Once{}
 var BuffPool = BufferPool{}
 var CopyBuff = CopyBufferPool{}
+var MuxPack = MuxPackagerPool{}
 
 func newPool() {
 	BuffPool.New()
 	CopyBuff.New()
+	MuxPack.New()
 }
 
 func init() {

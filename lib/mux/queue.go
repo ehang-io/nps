@@ -2,7 +2,7 @@ package mux
 
 import (
 	"errors"
-	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/lib/common"
 	"sync"
 )
 
@@ -63,7 +63,7 @@ func (entry *sliceEntry) Clear() bool {
 		return false
 	}
 	for i := 0; i < entry.Size(); i++ {
-		pool.CopyBuff.Put(entry.element[i].val)
+		common.CopyBuff.Put(entry.element[i].val)
 		entry.element[i] = nil
 	}
 	entry.element = nil

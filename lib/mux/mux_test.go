@@ -2,9 +2,7 @@ package mux
 
 import (
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -27,19 +25,29 @@ func TestNewMux(t *testing.T) {
 	go func() {
 		m2 := NewMux(conn2, "tcp")
 		for {
+			logs.Warn("npc starting accept")
 			c, err := m2.Accept()
 			if err != nil {
-				log.Fatalln(err)
+				logs.Warn(err)
+				continue
 			}
-			c2, err := net.Dial("tcp", "127.0.0.1:8080")
+			logs.Warn("npc accept success ")
+			c2, err := net.Dial("tcp", "127.0.0.1:80")
 			if err != nil {
-				log.Fatalln(err)
+				logs.Warn(err)
+				continue
 			}
-			go common.CopyBuffer(c2, c,0)
-			common.CopyBuffer(c, c2,0)
-			c2.Close()
-			c.Close()
-			logs.Warn("close npc")
+			var npcToServer common.ConnCopy
+			npcToServer.New(c2, c, 0)
+			go npcToServer.CopyConn()
+			var serverToNpc common.ConnCopy
+			serverToNpc.New(c, c2, 10000)
+			_, err = serverToNpc.CopyConn()
+			if err == nil {
+				logs.Warn("close npc")
+				c2.Close()
+				c.Close()
+			}
 		}
 	}()
 
@@ -47,24 +55,33 @@ func TestNewMux(t *testing.T) {
 		m1 := NewMux(conn1, "tcp")
 		l, err := net.Listen("tcp", "127.0.0.1:7777")
 		if err != nil {
-			log.Fatalln(err)
+			logs.Warn(err)
 		}
 		for {
+			logs.Warn("nps starting accept")
 			conn, err := l.Accept()
 			if err != nil {
-				log.Fatalln(err)
+				logs.Warn(err)
+				continue
 			}
-
+			logs.Warn("nps accept success starting new conn")
 			tmpCpnn, err := m1.NewConn()
 			if err != nil {
-				log.Fatalln(err)
+				logs.Warn("nps new conn err ", err)
+				continue
 			}
-			go common.CopyBuffer(tmpCpnn, conn,tmpCpnn.connId)
-			_, err = common.CopyBuffer(conn, tmpCpnn,tmpCpnn.connId)
-			logs.Warn(err, tmpCpnn.connId)
-			conn.Close()
-			tmpCpnn.Close()
-			logs.Warn("close from out nps ", tmpCpnn.connId)
+			logs.Warn("nps new conn success ", tmpCpnn.connId)
+			var userToNps common.ConnCopy
+			userToNps.New(tmpCpnn, conn, tmpCpnn.connId)
+			go userToNps.CopyConn()
+			var npsToUser common.ConnCopy
+			npsToUser.New(conn, tmpCpnn, tmpCpnn.connId+10000)
+			_, err = npsToUser.CopyConn()
+			if err == nil {
+				logs.Warn("close from out nps ", tmpCpnn.connId)
+				conn.Close()
+				tmpCpnn.Close()
+			}
 		}
 	}()
 
@@ -77,12 +94,12 @@ func server() {
 	var err error
 	l, err := net.Listen("tcp", "127.0.0.1:9999")
 	if err != nil {
-		log.Fatalln(err)
+		logs.Warn(err)
 	}
 	go func() {
 		conn1, err = l.Accept()
 		if err != nil {
-			log.Fatalln(err)
+			logs.Warn(err)
 		}
 	}()
 	return
@@ -92,12 +109,12 @@ func client() {
 	var err error
 	conn2, err = net.Dial("tcp", "127.0.0.1:9999")
 	if err != nil {
-		log.Fatalln(err)
+		logs.Warn(err)
 	}
 }
 
 func TestNewConn(t *testing.T) {
-	buf := pool.GetBufPoolCopy()
+	buf := common.GetBufPoolCopy()
 	logs.Warn(len(buf), cap(buf))
 	//b := pool.GetBufPoolCopy()
 	//b[0] = 1

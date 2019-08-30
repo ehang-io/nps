@@ -10,7 +10,6 @@ import (
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"io"
@@ -158,8 +157,8 @@ func (s *Conn) SendHealthInfo(info, status string) (int, error) {
 //get health info from conn
 func (s *Conn) GetHealthInfo() (info string, status bool, err error) {
 	var l int
-	buf := pool.BufPoolMax.Get().([]byte)
-	defer pool.PutBufPoolMax(buf)
+	buf := common.BufPoolMax.Get().([]byte)
+	defer common.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
 	} else if _, err = s.ReadLen(l, buf); err != nil {
@@ -232,8 +231,8 @@ func (s *Conn) SendInfo(t interface{}, flag string) (int, error) {
 //get task info
 func (s *Conn) getInfo(t interface{}) (err error) {
 	var l int
-	buf := pool.BufPoolMax.Get().([]byte)
-	defer pool.PutBufPoolMax(buf)
+	buf := common.BufPoolMax.Get().([]byte)
+	defer common.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
 	} else if _, err = s.ReadLen(l, buf); err != nil {
@@ -373,7 +372,7 @@ func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Ra
 }
 
 //get crypt or snappy conn
-func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) (io.ReadWriteCloser) {
+func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) io.ReadWriteCloser {
 	if cpt {
 		if isServer {
 			return rate.NewRateConn(crypt.NewTlsServerConn(conn), rt)
