@@ -41,7 +41,7 @@ func NewMux(c net.Conn, connType string) *Mux {
 	go m.readSession()
 	//ping
 	go m.ping()
-	//go m.writeSession()
+	go m.writeSession()
 	return m
 }
 
@@ -107,13 +107,13 @@ func (s *Mux) sendInfo(flag uint8, id int32, content []byte) {
 	if pack.Flag == common.MUX_NEW_CONN {
 		logs.Warn("sendinfo mux new conn, insert to write queue", pack.Id)
 	}
-	//s.writeQueue <- buf
-	_, err = buf.WriteTo(s.conn)
-	if err != nil {
-		s.Close()
-		logs.Warn("write err, close mux", err)
-	}
-	common.BuffPool.Put(buf)
+	s.writeQueue <- buf
+	//_, err = buf.WriteTo(s.conn)
+	//if err != nil {
+	//	s.Close()
+	//	logs.Warn("write err, close mux", err)
+	//}
+	//common.BuffPool.Put(buf)
 	return
 }
 

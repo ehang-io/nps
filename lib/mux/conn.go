@@ -148,12 +148,7 @@ func (s *conn) Close() (err error) {
 }
 
 func (s *conn) closeProcess() {
-	if s.isClose {
-		logs.Warn("has closed ", s.connId)
-		return
-	}
 	s.isClose = true
-	s.readWait = false
 	s.mux.connMap.Delete(s.connId)
 	common.CopyBuff.Put(s.readBuffer)
 	close(s.readCh)
