@@ -6,6 +6,7 @@ import (
 	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -27,9 +28,10 @@ type conn struct {
 	isClose          bool
 	readWait         bool
 	sendClose        bool // MUX_CONN_CLOSE already send
-	writeClose       bool // close conn Write
+	closeFlag        bool // close conn flag
 	hasWrite         int
 	mux              *Mux
+	once             sync.Once
 }
 
 func NewConn(connId int32, mux *Mux) *conn {
@@ -41,6 +43,7 @@ func NewConn(connId int32, mux *Mux) *conn {
 		readQueue:        NewQueue(),
 		connId:           connId,
 		mux:              mux,
+		once:             sync.Once{},
 	}
 	return c
 }
@@ -72,18 +75,14 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 			logs.Warn("conn close by read pop err", s.connId, err)
 			s.Close()
 			return 0, io.EOF
+		} else if node.val == nil {
+			s.sendClose = true
+			logs.Warn("conn close by read ", s.connId)
+			s.Close()
 		} else {
-			if node.val == nil {
-				//close
-				s.sendClose = true
-				logs.Warn("conn close by read ", s.connId)
-				s.Close()
-				return 0, io.EOF
-			} else {
-				s.readBuffer = node.val
-				s.endRead = node.l
-				s.startRead = 0
-			}
+			s.readBuffer = node.val
+			s.endRead = node.l
+			s.startRead = 0
 		}
 	}
 	if len(buf) < s.endRead-s.startRead {
@@ -101,7 +100,7 @@ func (s *conn) Write(buf []byte) (n int, err error) {
 	if s.isClose {
 		return 0, errors.New("the conn has closed")
 	}
-	if s.writeClose {
+	if s.closeFlag {
 		s.sendClose = true
 		logs.Warn("conn close by write ", s.connId)
 		s.Close()
@@ -131,11 +130,11 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 	l := len(buf)
 	for {
 		if l-start > common.PoolSizeCopy {
-			logs.Warn("conn write > poolsizecopy")
+			//logs.Warn("conn write > poolsizecopy")
 			s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf[start:start+common.PoolSizeCopy])
 			start += common.PoolSizeCopy
 		} else {
-			logs.Warn("conn write <= poolsizecopy, start, len", start, l)
+			//logs.Warn("conn write <= poolsizecopy, start, len", start, l)
 			s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf[start:l])
 			break
 		}
@@ -144,20 +143,25 @@ func (s *conn) write(buf []byte, ch chan struct{}) {
 }
 
 func (s *conn) Close() (err error) {
+	s.once.Do(s.closeProcess)
+	return
+}
+
+func (s *conn) closeProcess() {
 	if s.isClose {
-		return errors.New("the conn has closed")
+		logs.Warn("has closed ", s.connId)
+		return
 	}
 	s.isClose = true
+	s.readWait = false
 	s.mux.connMap.Delete(s.connId)
 	common.CopyBuff.Put(s.readBuffer)
-	if s.readWait {
-		s.readCh <- struct{}{}
-	}
+	close(s.readCh)
 	s.readQueue.Clear()
 	if !s.mux.IsClose {
 		if !s.sendClose {
-			logs.Warn("conn send close")
-			go s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
+			logs.Warn("conn send close", s.connId)
+			s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
 		}
 	}
 	return
