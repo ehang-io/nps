@@ -150,8 +150,9 @@ func (Self *ConnPackager) UnPack(reader io.Reader) (err error) {
 }
 
 type MuxPackager struct {
-	Flag uint8
-	Id   int32
+	Flag   uint8
+	Id     int32
+	Window uint16
 	BasePackager
 }
 
@@ -160,6 +161,15 @@ func (Self *MuxPackager) NewPac(flag uint8, id int32, content ...interface{}) (e
 	Self.Id = id
 	if flag == MUX_NEW_MSG {
 		err = Self.BasePackager.NewPac(content...)
+	}
+	if flag == MUX_MSG_SEND_OK {
+		// MUX_MSG_SEND_OK only allows one data
+		switch content[0].(type) {
+		case int:
+			Self.Window = uint16(content[0].(int))
+		case uint16:
+			Self.Window = content[0].(uint16)
+		}
 	}
 	return
 }
@@ -176,6 +186,9 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 	if Self.Flag == MUX_NEW_MSG {
 		err = Self.BasePackager.Pack(writer)
 	}
+	if Self.Flag == MUX_MSG_SEND_OK {
+		err = binary.Write(writer, binary.LittleEndian, Self.Window)
+	}
 	return
 }
 
@@ -191,6 +204,9 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
 	}
 	if Self.Flag == MUX_NEW_MSG {
 		err = Self.BasePackager.UnPack(reader)
+	}
+	if Self.Flag == MUX_MSG_SEND_OK {
+		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
 	}
 	return
 }

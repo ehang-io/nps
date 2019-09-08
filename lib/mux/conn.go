@@ -17,34 +17,37 @@ type conn struct {
 	connStatusFailCh chan struct{}
 	readTimeOut      time.Time
 	writeTimeOut     time.Time
-	readBuffer       []byte
-	startRead        int //now read position
-	endRead          int //now end read
-	readFlag         bool
-	readCh           chan struct{}
-	readQueue        *sliceEntry
-	stopWrite        bool
-	connId           int32
-	isClose          bool
-	readWait         bool
-	sendClose        bool // MUX_CONN_CLOSE already send
-	closeFlag        bool // close conn flag
-	hasWrite         int
-	mux              *Mux
-	once             sync.Once
+	//readBuffer       []byte
+	//startRead        int //now read position
+	//endRead          int //now end read
+	//readFlag         bool
+	//readCh           chan struct{}
+	//readQueue        *sliceEntry
+	//stopWrite        bool
+	connId  int32
+	isClose bool
+	//readWait         bool
+	closeFlag     bool // close conn flag
+	hasWrite      int
+	receiveWindow *window
+	sendWindow    *window
+	mux           *Mux
+	once          sync.Once
 }
 
 func NewConn(connId int32, mux *Mux) *conn {
 	c := &conn{
-		readCh:           make(chan struct{}),
 		getStatusCh:      make(chan struct{}),
 		connStatusOkCh:   make(chan struct{}),
 		connStatusFailCh: make(chan struct{}),
-		readQueue:        NewQueue(),
 		connId:           connId,
+		receiveWindow:    new(window),
+		sendWindow:       new(window),
 		mux:              mux,
 		once:             sync.Once{},
 	}
+	c.receiveWindow.NewReceive()
+	c.sendWindow.NewSend()
 	return c
 }
 
@@ -52,48 +55,44 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 	if s.isClose || buf == nil {
 		return 0, errors.New("the conn has closed")
 	}
-	if s.endRead-s.startRead == 0 { //read finish or start
-		if s.readQueue.Size() == 0 {
-			s.readWait = true
-			if t := s.readTimeOut.Sub(time.Now()); t > 0 {
-				timer := time.NewTimer(t)
-				defer timer.Stop()
-				select {
-				case <-timer.C:
-					s.readWait = false
-					return 0, errors.New("read timeout")
-				case <-s.readCh:
-				}
-			} else {
-				<-s.readCh
-			}
+	nCh := make(chan int)
+	errCh := make(chan error)
+	defer close(nCh)
+	defer close(errCh)
+	// waiting for takeout from receive window finish or timeout
+	go s.readWindow(buf, nCh, errCh)
+	if t := s.readTimeOut.Sub(time.Now()); t > 0 {
+		timer := time.NewTimer(t)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			return 0, errors.New("read timeout")
+		case n = <-nCh:
+			err = <-errCh
 		}
-		if s.isClose { //If the connection is closed instead of  continuing command
-			return 0, errors.New("the conn has closed")
-		}
-		if node, err := s.readQueue.Pop(); err != nil {
-			logs.Warn("conn close by read pop err", s.connId, err)
-			s.Close()
-			return 0, io.EOF
-		} else if node.val == nil {
-			s.sendClose = true
-			logs.Warn("conn close by read ", s.connId)
-			s.Close()
-		} else {
-			s.readBuffer = node.val
-			s.endRead = node.l
-			s.startRead = 0
-		}
-	}
-	if len(buf) < s.endRead-s.startRead {
-		n = copy(buf, s.readBuffer[s.startRead:s.startRead+len(buf)])
-		s.startRead += n
 	} else {
-		n = copy(buf, s.readBuffer[s.startRead:s.endRead])
-		s.startRead += n
-		common.CopyBuff.Put(s.readBuffer)
+		n = <-nCh
+		err = <-errCh
 	}
+	logs.Warn("read window finish conn read n err buf", n, err, string(buf[:15]))
 	return
+}
+
+func (s *conn) readWindow(buf []byte, nCh chan int, errCh chan error) {
+	n, err := s.receiveWindow.Read(buf)
+	//logs.Warn("readwindow goroutine status n err buf", n, err, string(buf[:15]))
+	if s.receiveWindow.WindowFull {
+		if s.receiveWindow.Size() > 0 {
+			// window.Read may be invoked before window.Write, and WindowFull flag change to true
+			// so make sure that receiveWindow is free some space
+			s.receiveWindow.WindowFull = false
+			logs.Warn("defer send mux msg send ok size", s.receiveWindow.Size())
+			s.mux.sendInfo(common.MUX_MSG_SEND_OK, s.connId, s.receiveWindow.Size())
+			// acknowledge other side, have empty some receive window space
+		}
+	}
+	nCh <- n
+	errCh <- err
 }
 
 func (s *conn) Write(buf []byte) (n int, err error) {
@@ -101,45 +100,54 @@ func (s *conn) Write(buf []byte) (n int, err error) {
 		return 0, errors.New("the conn has closed")
 	}
 	if s.closeFlag {
-		s.sendClose = true
 		logs.Warn("conn close by write ", s.connId)
-		s.Close()
+		//s.Close()
 		return 0, errors.New("io: write on closed conn")
 	}
-	ch := make(chan struct{})
-	go s.write(buf, ch)
+
+	nCh := make(chan int)
+	errCh := make(chan error)
+	defer close(nCh)
+	defer close(errCh)
+	s.sendWindow.SetSendBuf(buf) // set the buf to send window
+	go s.write(nCh, errCh)
+	// waiting for send to other side or timeout
 	if t := s.writeTimeOut.Sub(time.Now()); t > 0 {
 		timer := time.NewTimer(t)
 		defer timer.Stop()
 		select {
 		case <-timer.C:
 			return 0, errors.New("write timeout")
-		case <-ch:
+		case n = <-nCh:
+			err = <-errCh
 		}
 	} else {
-		<-ch
+		n = <-nCh
+		err = <-errCh
 	}
-	close(ch)
-	//if s.isClose {
-	//	return 0, io.ErrClosedPipe
-	//}
-	return len(buf), nil
+	return
 }
-func (s *conn) write(buf []byte, ch chan struct{}) {
-	start := 0
-	l := len(buf)
+func (s *conn) write(nCh chan int, errCh chan error) {
+	var n int
+	var err error
 	for {
-		if l-start > common.PoolSizeCopy {
-			//logs.Warn("conn write > poolsizecopy")
-			s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf[start:start+common.PoolSizeCopy])
-			start += common.PoolSizeCopy
-		} else {
-			//logs.Warn("conn write <= poolsizecopy, start, len", start, l)
-			s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf[start:l])
+		buf, err := s.sendWindow.WriteTo()
+		// get the usable window size buf from send window
+		if buf == nil && err == io.EOF {
+			// send window is drain, break the loop
+			err = nil
 			break
 		}
+		if err != nil {
+			break
+		}
+		n += len(buf)
+		//logs.Warn("send window buf len", len(buf))
+		s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf)
+		// send to other side, not send nil data to other side
 	}
-	ch <- struct{}{}
+	nCh <- n
+	errCh <- err
 }
 
 func (s *conn) Close() (err error) {
@@ -150,15 +158,14 @@ func (s *conn) Close() (err error) {
 func (s *conn) closeProcess() {
 	s.isClose = true
 	s.mux.connMap.Delete(s.connId)
-	common.CopyBuff.Put(s.readBuffer)
-	close(s.readCh)
-	s.readQueue.Clear()
 	if !s.mux.IsClose {
-		if !s.sendClose {
-			logs.Warn("conn send close", s.connId)
-			s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
-		}
+		logs.Warn("conn send close", s.connId)
+		// if server or user close the conn while reading, will get a io.EOF
+		// and this Close method will be invoke, send this signal to close other side
+		s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
 	}
+	s.sendWindow.CloseWindow()
+	s.receiveWindow.CloseWindow()
 	return
 }
 
@@ -184,4 +191,227 @@ func (s *conn) SetReadDeadline(t time.Time) error {
 func (s *conn) SetWriteDeadline(t time.Time) error {
 	s.writeTimeOut = t
 	return nil
+}
+
+type window struct {
+	windowBuff          []byte
+	off                 uint16
+	readOp              chan struct{}
+	readWait            bool
+	WindowFull          bool
+	usableReceiveWindow chan uint16
+	WriteWg             sync.WaitGroup
+	closeOp             bool
+	closeOpCh           chan struct{}
+	WriteEndOp          chan struct{}
+	mutex               sync.Mutex
+}
+
+func (Self *window) NewReceive() {
+	// initial a window for receive
+	Self.windowBuff = common.WindowBuff.Get()
+	Self.readOp = make(chan struct{})
+	Self.WriteEndOp = make(chan struct{})
+	Self.closeOpCh = make(chan struct{}, 2)
+}
+
+func (Self *window) NewSend() {
+	// initial a window for send
+	Self.usableReceiveWindow = make(chan uint16)
+	Self.closeOpCh = make(chan struct{}, 2)
+}
+
+func (Self *window) SetSendBuf(buf []byte) {
+	// send window buff from conn write method, set it to send window
+	Self.mutex.Lock()
+	Self.windowBuff = buf
+	Self.off = 0
+	Self.mutex.Unlock()
+}
+
+func (Self *window) fullSlide() {
+	// slide by allocate
+	newBuf := common.WindowBuff.Get()
+	copy(newBuf[0:Self.len()], Self.windowBuff[Self.off:])
+	Self.off = 0
+	common.WindowBuff.Put(Self.windowBuff)
+	Self.windowBuff = newBuf
+	return
+}
+
+func (Self *window) liteSlide() {
+	// slide by re slice
+	Self.windowBuff = Self.windowBuff[Self.off:]
+	Self.off = 0
+	return
+}
+
+func (Self *window) Size() (n int) {
+	// receive Window remaining
+	n = common.PoolSizeWindow - Self.len()
+	return
+}
+
+func (Self *window) len() (n int) {
+	n = len(Self.windowBuff[Self.off:])
+	return
+}
+
+func (Self *window) cap() (n int) {
+	n = cap(Self.windowBuff[Self.off:])
+	return
+}
+
+func (Self *window) grow(n int) {
+	Self.windowBuff = Self.windowBuff[:Self.len()+n]
+}
+
+func (Self *window) Write(p []byte) (n int, err error) {
+	if Self.closeOp {
+		logs.Warn("window write closed len p", len(p))
+		return 0, errors.New("conn.receiveWindow: write on closed window")
+	}
+	if len(p) > Self.Size() {
+		return 0, errors.New("conn.receiveWindow: write too large")
+	}
+	if Self.readWait {
+		defer Self.allowRead()
+	}
+	//logs.Warn("window write p string", len(p), string(p[:15]))
+	Self.mutex.Lock()
+	// slide the offset
+	if len(p) > Self.cap()-Self.len() {
+		// not enough space, need to allocate
+		Self.fullSlide()
+		//logs.Warn("window write full slide len cap", Self.len(), Self.cap())
+	} else {
+		// have enough space, re slice
+		Self.liteSlide()
+		//logs.Warn("window write lite slide len cap", Self.len(), Self.cap())
+	}
+	length := Self.len()                  // length before grow
+	Self.grow(len(p))                     // grow for copy
+	n = copy(Self.windowBuff[length:], p) // must copy data before allow Read
+	//logs.Warn("window write copy n len cap buf", n, Self.len(), Self.cap(), string(Self.windowBuff[Self.len()-n:Self.len()+15-n]))
+	Self.mutex.Unlock()
+	return n, nil
+}
+
+func (Self *window) allowRead() (closed bool) {
+	//logs.Warn("length 0 read op")
+	Self.readWait = false
+	if Self.closeOp {
+		close(Self.readOp)
+		return true
+	}
+	select {
+	case <-Self.closeOpCh:
+		close(Self.readOp)
+		return true
+	case Self.readOp <- struct{}{}:
+		//logs.Warn("length 0 read op finish")
+		return false
+	}
+}
+
+func (Self *window) Read(p []byte) (n int, err error) {
+	//logs.Warn("starting window read method len ", Self.len())
+	if Self.closeOp {
+		return 0, io.EOF // Write method receive close signal, returns eof
+	}
+	if Self.len() == 0 {
+		// window is empty, waiting for Write method send a success readOp signal
+		// or get timeout or close
+		Self.readWait = true
+		ticker := time.NewTicker(2 * time.Minute)
+		defer ticker.Stop()
+		select {
+		case _, ok := <-Self.readOp:
+			//logs.Warn("read window read op len cap", Self.len(), Self.cap())
+			if !ok {
+				return 0, errors.New("conn.receiveWindow: window closed")
+			}
+		case <-Self.WriteEndOp:
+			return 0, io.EOF // receive eof signal, returns eof
+		case <-ticker.C:
+			return 0, errors.New("conn.receiveWindow: read time out")
+		case <-Self.closeOpCh:
+			close(Self.readOp)
+			return 0, io.EOF // receive close signal, returns eof
+		}
+	}
+	//logs.Warn("window read start len window buff", Self.len(), string(Self.windowBuff[Self.off:Self.off+15]))
+	Self.mutex.Lock()
+	n = copy(p, Self.windowBuff[Self.off:])
+	Self.off += uint16(n)
+	p = p[:n]
+	//logs.Warn("window read finish n len p p", n, len(p), string(p[:15]))
+	Self.mutex.Unlock()
+	return
+}
+
+func (Self *window) WriteTo() (p []byte, err error) {
+	if Self.closeOp {
+		logs.Warn("window write to closed")
+		return nil, errors.New("conn.writeWindow: window closed")
+	}
+	if Self.len() == 0 {
+		return nil, io.EOF
+		// send window buff is drain, return eof and get another one
+	}
+	var windowSize uint16
+	var ok bool
+waiting:
+	ticker := time.NewTicker(2 * time.Minute)
+	defer ticker.Stop()
+	// waiting for receive usable window size, or timeout
+	select {
+	case windowSize, ok = <-Self.usableReceiveWindow:
+		if !ok {
+			return nil, errors.New("conn.writeWindow: window closed")
+		}
+	case <-ticker.C:
+		return nil, errors.New("conn.writeWindow: write to time out")
+	}
+	if windowSize == 0 {
+		goto waiting // waiting for another usable window size
+	}
+	Self.mutex.Lock()
+	if windowSize > uint16(Self.len()) {
+		// usable window size is bigger than window buff size, send the full buff
+		//logs.Warn("window size overflow windowSize len()", windowSize, Self.len())
+		windowSize = uint16(Self.len())
+	}
+	//logs.Warn("window buff off windowSize", Self.off, windowSize)
+	p = Self.windowBuff[Self.off : windowSize+Self.off]
+	Self.off += windowSize
+	Self.mutex.Unlock()
+	return
+}
+
+func (Self *window) SetAllowSize(value uint16) (closed bool) {
+	defer func() {
+		if recover() != nil {
+			closed = true
+		}
+	}()
+	if Self.closeOp {
+		close(Self.usableReceiveWindow)
+		return true
+	}
+	select {
+	case Self.usableReceiveWindow <- value:
+		return false
+	case <-Self.closeOpCh:
+		close(Self.usableReceiveWindow)
+		return true
+	}
+}
+
+func (Self *window) CloseWindow() {
+	Self.closeOp = true
+	Self.closeOpCh <- struct{}{}
+	Self.closeOpCh <- struct{}{}
+	close(Self.closeOpCh)
+	return
 }

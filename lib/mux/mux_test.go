@@ -37,14 +37,17 @@ func TestNewMux(t *testing.T) {
 				logs.Warn(err)
 				continue
 			}
-			var npcToServer common.ConnCopy
-			npcToServer.New(c2, c, 0)
-			go npcToServer.CopyConn()
-			var serverToNpc common.ConnCopy
-			serverToNpc.New(c, c2, 10000)
-			_, err = serverToNpc.CopyConn()
-			if err == nil {
-				logs.Warn("close npc")
+			go func() {
+				_, err = common.CopyBuffer(c2, c)
+				if err != nil {
+					logs.Warn("close npc by copy from nps", err)
+					c2.Close()
+					c.Close()
+				}
+			}()
+			_, err = common.CopyBuffer(c, c2)
+			if err != nil {
+				logs.Warn("close npc by copy from server", err)
 				c2.Close()
 				c.Close()
 			}
@@ -71,14 +74,18 @@ func TestNewMux(t *testing.T) {
 				continue
 			}
 			logs.Warn("nps new conn success ", tmpCpnn.connId)
-			var userToNps common.ConnCopy
-			userToNps.New(tmpCpnn, conn, tmpCpnn.connId)
-			go userToNps.CopyConn()
-			var npsToUser common.ConnCopy
-			npsToUser.New(conn, tmpCpnn, tmpCpnn.connId+10000)
-			_, err = npsToUser.CopyConn()
-			if err == nil {
-				logs.Warn("close from out nps ", tmpCpnn.connId)
+			go func() {
+				_, err := common.CopyBuffer(tmpCpnn, conn)
+				if err != nil {
+					logs.Warn("close nps by copy from user", tmpCpnn.connId)
+					conn.Close()
+					tmpCpnn.Close()
+				}
+			}()
+			//time.Sleep(time.Second)
+			_, err = common.CopyBuffer(conn, tmpCpnn)
+			if err != nil {
+				logs.Warn("close nps by copy from npc ", tmpCpnn.connId)
 				conn.Close()
 				tmpCpnn.Close()
 			}
