@@ -239,10 +239,36 @@ func dealTunnel(s string) *file.Tunnel {
 			t.LocalPath = item[1]
 		case "strip_pre":
 			t.StripPre = item[1]
+		case "multi_user":
+			// TODO 解析多账号配置文件
+			t.Client.Cnf.MultiUser = true
+			if b, err := common.ReadAllFromFile(item[1]); err != nil {
+				panic(err)
+			} else {
+				if content, err := common.ParseStr(string(b)); err != nil {
+					panic(err)
+				} else {
+					t.Client.Cnf.MultiUserMap = dealMultiUser(content)
+				}
+			}
 		}
 	}
 	return t
 
+}
+
+func dealMultiUser(s string) map[string]string {
+	multiUserMap := make(map[string]string)
+	for _, v := range splitStr(s) {
+		item := strings.Split(v, "=")
+		if len(item) == 0 {
+			continue
+		} else if len(item) == 1 {
+			item = append(item, "")
+		}
+		multiUserMap[strings.TrimSpace(item[0])] = item[1]
+	}
+	return multiUserMap
 }
 
 func delLocalService(s string) *LocalServer {

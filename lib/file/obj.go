@@ -25,10 +25,12 @@ func (s *Flow) Add(in, out int64) {
 }
 
 type Config struct {
-	U        string
-	P        string
-	Compress bool
-	Crypt    bool
+	U            string
+	P            string
+	Compress     bool
+	Crypt        bool
+	MultiUser    bool              // enable multi user authentication.
+	MultiUserMap map[string]string // multi user and pwd
 }
 
 type Client struct {
