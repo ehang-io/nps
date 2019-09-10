@@ -240,7 +240,7 @@ func dealTunnel(s string) *file.Tunnel {
 		case "strip_pre":
 			t.StripPre = item[1]
 		case "multi_user":
-			// TODO 解析多账号配置文件
+			// TODO add test with multi user config file
 			t.Client.Cnf.MultiUser = true
 			if b, err := common.ReadAllFromFile(item[1]); err != nil {
 				panic(err)
