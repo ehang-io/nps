@@ -179,12 +179,14 @@ func (s *Mux) readSession() {
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new connection
 				logs.Warn("rec mux new connection", pack.Id)
-				conn := NewConn(pack.Id, s)
-				s.connMap.Set(pack.Id, conn) //it has been set before send ok
-				s.newConnCh <- conn
-				go conn.sendWindow.SetAllowSize(512) // set the initial receive window
-				s.sendInfo(common.MUX_NEW_CONN_OK, pack.Id, nil)
-				logs.Warn("send mux new connection ok", pack.Id)
+				connection := NewConn(pack.Id, s)
+				s.connMap.Set(pack.Id, connection) //it has been set before send ok
+				go func(connection *conn) {
+					connection.sendWindow.SetAllowSize(512) // set the initial receive window
+				}(connection)
+				s.newConnCh <- connection
+				s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)
+				logs.Warn("send mux new connection ok", connection.connId)
 				continue
 			case common.MUX_PING_FLAG: //ping
 				//logs.Warn("send mux ping return")
@@ -202,7 +204,7 @@ func (s *Mux) readSession() {
 						continue
 					}
 					connection.receiveWindow.WriteWg.Add(1)
-					logs.Warn("rec mux new msg ", pack.Id, string(pack.Content[0:15]))
+					logs.Warn("rec mux new msg ", connection.connId, string(pack.Content[0:15]))
 					go func(connection *conn, content []byte) { // do not block read session
 						_, err := connection.receiveWindow.Write(content)
 						if err != nil {
@@ -214,7 +216,7 @@ func (s *Mux) readSession() {
 							connection.receiveWindow.WindowFull = true
 						}
 						s.sendInfo(common.MUX_MSG_SEND_OK, connection.connId, size)
-						logs.Warn("send mux new msg ok", pack.Id, size)
+						logs.Warn("send mux new msg ok", connection.connId, size)
 						connection.receiveWindow.WriteWg.Done()
 					}(connection, pack.Content)
 					continue
@@ -241,7 +243,9 @@ func (s *Mux) readSession() {
 					s.connMap.Delete(pack.Id)
 					connection.closeFlag = true
 					go func(connection *conn) {
+						logs.Warn("receive mux connection close, wg waiting", connection.connId)
 						connection.receiveWindow.WriteWg.Wait()
+						logs.Warn("receive mux connection close, wg waited", connection.connId)
 						connection.receiveWindow.WriteEndOp <- struct{}{} // close signal to receive window
 						logs.Warn("receive mux connection close, finish", connection.connId)
 					}(connection)

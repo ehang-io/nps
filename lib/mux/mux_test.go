@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"sync"
 	"testing"
 	"time"
 )
@@ -37,20 +38,29 @@ func TestNewMux(t *testing.T) {
 				logs.Warn(err)
 				continue
 			}
+			wg := sync.WaitGroup{}
+			wg.Add(1)
 			go func() {
 				_, err = common.CopyBuffer(c2, c)
 				if err != nil {
-					logs.Warn("close npc by copy from nps", err)
 					c2.Close()
 					c.Close()
+					logs.Warn("close npc by copy from nps", err)
 				}
+				wg.Done()
 			}()
-			_, err = common.CopyBuffer(c, c2)
-			if err != nil {
-				logs.Warn("close npc by copy from server", err)
-				c2.Close()
-				c.Close()
-			}
+			wg.Add(1)
+			go func() {
+				_, err = common.CopyBuffer(c, c2)
+				if err != nil {
+					c2.Close()
+					c.Close()
+					logs.Warn("close npc by copy from server", err)
+				}
+				wg.Done()
+			}()
+			logs.Warn("npc wait")
+			wg.Wait()
 		}
 	}()
 
@@ -77,17 +87,17 @@ func TestNewMux(t *testing.T) {
 			go func() {
 				_, err := common.CopyBuffer(tmpCpnn, conn)
 				if err != nil {
-					logs.Warn("close nps by copy from user", tmpCpnn.connId)
 					conn.Close()
 					tmpCpnn.Close()
+					logs.Warn("close nps by copy from user", tmpCpnn.connId)
 				}
 			}()
 			//time.Sleep(time.Second)
 			_, err = common.CopyBuffer(conn, tmpCpnn)
 			if err != nil {
-				logs.Warn("close nps by copy from npc ", tmpCpnn.connId)
 				conn.Close()
 				tmpCpnn.Close()
+				logs.Warn("close nps by copy from npc ", tmpCpnn.connId)
 			}
 		}
 	}()

@@ -52,6 +52,7 @@ func NewConn(connId int32, mux *Mux) *conn {
 }
 
 func (s *conn) Read(buf []byte) (n int, err error) {
+	logs.Warn("starting conn read", s.connId)
 	if s.isClose || buf == nil {
 		return 0, errors.New("the conn has closed")
 	}
@@ -315,7 +316,7 @@ func (Self *window) allowRead() (closed bool) {
 }
 
 func (Self *window) Read(p []byte) (n int, err error) {
-	//logs.Warn("starting window read method len ", Self.len())
+	logs.Warn("starting window read method len ", Self.len())
 	if Self.closeOp {
 		return 0, io.EOF // Write method receive close signal, returns eof
 	}
