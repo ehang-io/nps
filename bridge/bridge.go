@@ -488,7 +488,7 @@ loop:
 					tl.Password = t.Password
 					tl.LocalPath = t.LocalPath
 					tl.StripPre = t.StripPre
-					tl.MultiUser = t.MultiUser
+					tl.MultiAccount = t.MultiAccount
 					if !client.HasTunnel(tl) {
 						if err := file.GetDb().NewTask(tl); err != nil {
 							logs.Notice("Add task error ", err.Error())

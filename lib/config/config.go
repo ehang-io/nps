@@ -239,15 +239,15 @@ func dealTunnel(s string) *file.Tunnel {
 			t.LocalPath = item[1]
 		case "strip_pre":
 			t.StripPre = item[1]
-		case "multi_user":
-			t.MultiUser = new(file.MultiUser)
+		case "multi_account":
+			t.MultiAccount = &file.MultiAccount{}
 			if b, err := common.ReadAllFromFile(item[1]); err != nil {
 				panic(err)
 			} else {
 				if content, err := common.ParseStr(string(b)); err != nil {
 					panic(err)
 				} else {
-					t.MultiUser.UserMap = dealMultiUser(content)
+					t.MultiAccount.AccountMap = dealMultiUser(content)
 				}
 			}
 		}
