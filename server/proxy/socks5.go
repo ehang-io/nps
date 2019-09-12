@@ -199,7 +199,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Close()
 		return
 	}
-	if (s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "") || (s.task.Client.Cnf.MultiUser && len(s.task.Client.Cnf.MultiUserMap) > 0) {
+	if (s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "") || (s.task.MultiUser != nil && len(s.task.MultiUser.UserMap) > 0) {
 		buf[1] = UserPassAuth
 		c.Write(buf)
 		if err := s.Auth(c); err != nil {
@@ -238,11 +238,11 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	}
 
 	var U, P string
-	if s.task.Client.Cnf.MultiUser {
+	if s.task.MultiUser != nil {
 		// enable multi user auth
 		U = string(user)
 		var ok bool
-		P, ok = s.task.Client.Cnf.MultiUserMap[U]
+		P, ok = s.task.MultiUser.UserMap[U]
 		if !ok {
 			return errors.New("验证不通过")
 		}

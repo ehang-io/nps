@@ -25,12 +25,10 @@ func (s *Flow) Add(in, out int64) {
 }
 
 type Config struct {
-	U            string
-	P            string
-	Compress     bool
-	Crypt        bool
-	MultiUser    bool              // enable multi user authentication.
-	MultiUserMap map[string]string // multi user and pwd
+	U        string
+	P        string
+	Compress bool
+	Crypt    bool
 }
 
 type Client struct {
@@ -142,6 +140,7 @@ type Tunnel struct {
 	LocalPath  string
 	StripPre   string
 	Target     *Target
+	MultiUser  *MultiUser
 	Health
 	sync.RWMutex
 }
@@ -184,6 +183,10 @@ type Target struct {
 	TargetArr  []string
 	LocalProxy bool
 	sync.RWMutex
+}
+
+type MultiUser struct {
+	UserMap map[string]string // multi user and pwd
 }
 
 func (s *Target) GetRandomTarget() (string, error) {
