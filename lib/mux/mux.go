@@ -53,7 +53,7 @@ func (s *Mux) NewConn() (*conn, error) {
 	//it must be set before send
 	s.connMap.Set(conn.connId, conn)
 	s.sendInfo(common.MUX_NEW_CONN, conn.connId, nil)
-	logs.Warn("send mux new conn ", conn.connId)
+	//logs.Warn("send mux new conn ", conn.connId)
 	//set a timer timeout 30 second
 	timer := time.NewTimer(time.Minute * 2)
 	defer timer.Stop()
@@ -85,7 +85,7 @@ func (s *Mux) sendInfo(flag uint8, id int32, data interface{}) {
 	var err error
 	if flag == common.MUX_NEW_MSG {
 		if len(data.([]byte)) == 0 {
-			logs.Warn("send info content is nil")
+			//logs.Warn("send info content is nil")
 		}
 	}
 	buf := common.BuffPool.Get()
@@ -94,18 +94,18 @@ func (s *Mux) sendInfo(flag uint8, id int32, data interface{}) {
 	defer common.MuxPack.Put(pack)
 	err = pack.NewPac(flag, id, data)
 	if err != nil {
-		logs.Warn("new pack err", err)
+		//logs.Warn("new pack err", err)
 		common.BuffPool.Put(buf)
 		return
 	}
 	err = pack.Pack(buf)
 	if err != nil {
-		logs.Warn("pack err", err)
+		//logs.Warn("pack err", err)
 		common.BuffPool.Put(buf)
 		return
 	}
 	if pack.Flag == common.MUX_NEW_CONN {
-		logs.Warn("sendinfo mux new conn, insert to write queue", pack.Id)
+		//logs.Warn("sendinfo mux new conn, insert to write queue", pack.Id)
 	}
 	s.writeQueue <- buf
 	//_, err = buf.WriteTo(s.conn)
@@ -125,7 +125,7 @@ func (s *Mux) writeSession() {
 			n, err := buf.WriteTo(s.conn)
 			common.BuffPool.Put(buf)
 			if err != nil || int(n) != l {
-				logs.Warn("close from write session fail ", err, n, l)
+				//logs.Warn("close from write session fail ", err, n, l)
 				s.Close()
 				break
 			}
@@ -173,12 +173,12 @@ func (s *Mux) readSession() {
 				}
 			}
 			if pack.Flag == common.MUX_NEW_CONN {
-				logs.Warn("unpack mux new connection", pack.Id)
+				//logs.Warn("unpack mux new connection", pack.Id)
 			}
 			s.pingOk = 0
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new connection
-				logs.Warn("rec mux new connection", pack.Id)
+				//logs.Warn("rec mux new connection", pack.Id)
 				connection := NewConn(pack.Id, s)
 				s.connMap.Set(pack.Id, connection) //it has been set before send ok
 				go func(connection *conn) {
@@ -186,7 +186,7 @@ func (s *Mux) readSession() {
 				}(connection)
 				s.newConnCh <- connection
 				s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)
-				logs.Warn("send mux new connection ok", connection.connId)
+				//logs.Warn("send mux new connection ok", connection.connId)
 				continue
 			case common.MUX_PING_FLAG: //ping
 				//logs.Warn("send mux ping return")
@@ -204,61 +204,61 @@ func (s *Mux) readSession() {
 						continue
 					}
 					connection.receiveWindow.WriteWg.Add(1)
-					logs.Warn("rec mux new msg ", connection.connId, string(pack.Content[0:15]))
+					//logs.Warn("rec mux new msg ", connection.connId, string(pack.Content[0:15]))
 					go func(connection *conn, content []byte) { // do not block read session
 						_, err := connection.receiveWindow.Write(content)
 						if err != nil {
 							logs.Warn("mux new msg err close", err)
-							s.Close()
+							connection.Close()
 						}
 						size := connection.receiveWindow.Size()
 						if size == 0 {
 							connection.receiveWindow.WindowFull = true
 						}
 						s.sendInfo(common.MUX_MSG_SEND_OK, connection.connId, size)
-						logs.Warn("send mux new msg ok", connection.connId, size)
+						//logs.Warn("send mux new msg ok", connection.connId, size)
 						connection.receiveWindow.WriteWg.Done()
 					}(connection, pack.Content)
 					continue
 				case common.MUX_NEW_CONN_OK: //connection ok
-					logs.Warn("rec mux new connection ok ", pack.Id)
+					//logs.Warn("rec mux new connection ok ", pack.Id)
 					connection.connStatusOkCh <- struct{}{}
 					go connection.sendWindow.SetAllowSize(512)
 					// set the initial receive window both side
 					continue
 				case common.MUX_NEW_CONN_Fail:
-					logs.Warn("rec mux new connection fail", pack.Id)
+					//logs.Warn("rec mux new connection fail", pack.Id)
 					connection.connStatusFailCh <- struct{}{}
 					continue
 				case common.MUX_MSG_SEND_OK:
 					if connection.isClose {
-						logs.Warn("rec mux msg send ok id window closed!", pack.Id, pack.Window)
+						//logs.Warn("rec mux msg send ok id window closed!", pack.Id, pack.Window)
 						continue
 					}
-					logs.Warn("rec mux msg send ok id window", pack.Id, pack.Window)
+					//logs.Warn("rec mux msg send ok id window", pack.Id, pack.Window)
 					go connection.sendWindow.SetAllowSize(pack.Window)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
-					logs.Warn("rec mux connection close", pack.Id)
+					//logs.Warn("rec mux connection close", pack.Id)
 					s.connMap.Delete(pack.Id)
 					connection.closeFlag = true
 					go func(connection *conn) {
-						logs.Warn("receive mux connection close, wg waiting", connection.connId)
+						//logs.Warn("receive mux connection close, wg waiting", connection.connId)
 						connection.receiveWindow.WriteWg.Wait()
-						logs.Warn("receive mux connection close, wg waited", connection.connId)
+						//logs.Warn("receive mux connection close, wg waited", connection.connId)
 						connection.receiveWindow.WriteEndOp <- struct{}{} // close signal to receive window
-						logs.Warn("receive mux connection close, finish", connection.connId)
+						//logs.Warn("receive mux connection close, finish", connection.connId)
 					}(connection)
 					continue
 				}
 			} else if pack.Flag == common.MUX_CONN_CLOSE {
-				logs.Warn("rec mux connection close no id ", pack.Id)
+				//logs.Warn("rec mux connection close no id ", pack.Id)
 				continue
 			}
 			common.MuxPack.Put(pack)
 		}
 		common.MuxPack.Put(pack)
-		logs.Warn("read session put pack ", pack.Id)
+		//logs.Warn("read session put pack ", pack.Id)
 		s.Close()
 	}()
 	select {
