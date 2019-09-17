@@ -1,82 +1,95 @@
 package mux
 
 import (
-	"errors"
+	"container/list"
 	"github.com/cnlh/nps/lib/common"
 	"sync"
 )
 
-type Element *bufNode
-
-type bufNode struct {
-	val []byte //buf value
-	l   int    //length
+type Queue struct {
+	list    *list.List
+	readOp  chan struct{}
+	cleanOp chan struct{}
+	popWait bool
+	mutex   sync.Mutex
 }
 
-func NewBufNode(buf []byte, l int) *bufNode {
-	return &bufNode{
-		val: buf,
-		l:   l,
+func (Self *Queue) New() {
+	Self.list = list.New()
+	Self.readOp = make(chan struct{})
+	Self.cleanOp = make(chan struct{}, 2)
+}
+
+func (Self *Queue) Push(packager *common.MuxPackager) {
+	Self.mutex.Lock()
+	if Self.popWait {
+		defer Self.allowPop()
 	}
-}
-
-type Queue interface {
-	Push(e Element) //向队列中添加元素
-	Pop() Element   //移除队列中最前面的元素
-	Clear() bool    //清空队列
-	Size() int      //获取队列的元素个数
-	IsEmpty() bool  //判断队列是否是空
-}
-
-type sliceEntry struct {
-	element []Element
-	sync.Mutex
-}
-
-func NewQueue() *sliceEntry {
-	return &sliceEntry{}
-}
-
-//向队列中添加元素
-func (entry *sliceEntry) Push(e Element) {
-	entry.Lock()
-	defer entry.Unlock()
-	entry.element = append(entry.element, e)
-}
-
-//移除队列中最前面的额元素
-func (entry *sliceEntry) Pop() (Element, error) {
-	if entry.IsEmpty() {
-		return nil, errors.New("queue is empty!")
+	if packager.Flag == common.MUX_CONN_CLOSE {
+		Self.insert(packager) // the close package may need priority,
+		// prevent wait too long to close
+	} else {
+		Self.list.PushBack(packager)
 	}
-	entry.Lock()
-	defer entry.Unlock()
-	firstElement := entry.element[0]
-	entry.element = entry.element[1:]
-	return firstElement, nil
+	Self.mutex.Unlock()
+	return
 }
 
-func (entry *sliceEntry) Clear() bool {
-	entry.Lock()
-	defer entry.Unlock()
-	if entry.IsEmpty() {
+func (Self *Queue) allowPop() (closed bool) {
+	Self.mutex.Lock()
+	Self.popWait = false
+	Self.mutex.Unlock()
+	select {
+	case Self.readOp <- struct{}{}:
 		return false
-	}
-	for i := 0; i < entry.Size(); i++ {
-		common.CopyBuff.Put(entry.element[i].val)
-		entry.element[i] = nil
-	}
-	entry.element = nil
-	return true
-}
-
-func (entry *sliceEntry) Size() int {
-	return len(entry.element)
-}
-
-func (entry *sliceEntry) IsEmpty() bool {
-	if len(entry.element) == 0 {
+	case <-Self.cleanOp:
 		return true
 	}
-	return false
+}
+
+func (Self *Queue) insert(packager *common.MuxPackager) {
+	element := Self.list.Back()
+	for {
+		if element == nil { // Queue dose not have any of msg package with this close package id
+			Self.list.PushFront(packager) // insert close package to first
+			break
+		}
+		if element.Value.(*common.MuxPackager).Flag == common.MUX_NEW_MSG &&
+			element.Value.(*common.MuxPackager).Id == packager.Id {
+			Self.list.InsertAfter(packager, element) // Queue has some msg package
+			// with this close package id, insert close package after last msg package
+			break
+		}
+		element = element.Prev()
+	}
+}
+
+func (Self *Queue) Pop() (packager *common.MuxPackager) {
+	Self.mutex.Lock()
+	element := Self.list.Front()
+	if element != nil {
+		packager = element.Value.(*common.MuxPackager)
+		Self.list.Remove(element)
+		Self.mutex.Unlock()
+		return
+	}
+	Self.popWait = true // Queue is empty, notice Push method
+	Self.mutex.Unlock()
+	select {
+	case <-Self.readOp:
+		return Self.Pop()
+	case <-Self.cleanOp:
+		return nil
+	}
+}
+
+func (Self *Queue) Len() (n int) {
+	n = Self.list.Len()
+	return
+}
+
+func (Self *Queue) Clean() {
+	Self.cleanOp <- struct{}{}
+	Self.cleanOp <- struct{}{}
+	close(Self.cleanOp)
 }

@@ -187,6 +187,7 @@ type window struct {
 	windowBuff          []byte
 	off                 uint16
 	readOp              chan struct{}
+	readWait            bool
 	WindowFull          bool
 	usableReceiveWindow chan uint16
 	WriteWg             sync.WaitGroup
@@ -274,7 +275,11 @@ func (Self *window) Write(p []byte) (n int, err error) {
 	length := Self.len()                  // length before grow
 	Self.grow(len(p))                     // grow for copy
 	n = copy(Self.windowBuff[length:], p) // must copy data before allow Read
-	if length == 0 {
+	if Self.readWait {
+		// if there condition is length == 0 and
+		// Read method just take away all the windowBuff,
+		// this method will block until windowBuff is empty again
+
 		// allow continue read
 		defer Self.allowRead()
 	}
@@ -287,6 +292,9 @@ func (Self *window) allowRead() (closed bool) {
 		close(Self.readOp)
 		return true
 	}
+	Self.mutex.Lock()
+	Self.readWait = false
+	Self.mutex.Unlock()
 	select {
 	case <-Self.closeOpCh:
 		close(Self.readOp)
@@ -303,10 +311,11 @@ func (Self *window) Read(p []byte) (n int, err error) {
 	Self.mutex.Lock()
 	length := Self.len() // protect the length data, it invokes
 	// before Write lock and after Write unlock
-	Self.mutex.Unlock()
 	if length == 0 {
 		// window is empty, waiting for Write method send a success readOp signal
 		// or get timeout or close
+		Self.readWait = true
+		Self.mutex.Unlock()
 		ticker := time.NewTicker(2 * time.Minute)
 		defer ticker.Stop()
 		select {
@@ -322,6 +331,8 @@ func (Self *window) Read(p []byte) (n int, err error) {
 			close(Self.readOp)
 			return 0, io.EOF // receive close signal, returns eof
 		}
+	} else {
+		Self.mutex.Unlock()
 	}
 	Self.mutex.Lock()
 	n = copy(p, Self.windowBuff[Self.off:])
