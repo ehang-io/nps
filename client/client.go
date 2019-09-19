@@ -2,17 +2,18 @@ package client
 
 import (
 	"bufio"
+	"net"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
-	"net"
-	"net/http"
-	"strconv"
-	"time"
+	"github.com/xtaci/kcp-go"
 )
 
 type TRPClient struct {

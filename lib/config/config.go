@@ -3,10 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
 	"regexp"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/file"
 )
 
 type CommonConfig struct {
@@ -226,8 +227,10 @@ func dealTunnel(s string) *file.Tunnel {
 			t.ServerIp = item[1]
 		case "mode":
 			t.Mode = item[1]
-		case "target_port", "target_addr":
+		case "target_addr":
 			t.Target.TargetStr = strings.Replace(item[1], ",", "\n", -1)
+		case "target_port":
+			t.Target.TargetStr = item[1]
 		case "target_ip":
 			t.TargetAddr = item[1]
 		case "password":

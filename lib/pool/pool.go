@@ -36,6 +36,7 @@ var BufPoolCopy = sync.Pool{
 		return &buf
 	},
 }
+
 func PutBufPoolUdp(buf []byte) {
 	if cap(buf) == PoolSizeUdp {
 		BufPoolUdp.Put(buf[:PoolSizeUdp])
@@ -48,7 +49,7 @@ func PutBufPoolCopy(buf []byte) {
 	}
 }
 
-func GetBufPoolCopy() ([]byte) {
+func GetBufPoolCopy() []byte {
 	return (*BufPoolCopy.Get().(*[]byte))[:PoolSizeCopy]
 }
 

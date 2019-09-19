@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/sheap"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/pkg/errors"
 )
 
