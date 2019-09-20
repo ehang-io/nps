@@ -538,11 +538,13 @@ vkey=123
 [socks5]
 mode=socks5
 server_port=9004
+multi_account=multi_account.conf
 ```
 项 | 含义
 ---|---
 mode | socks5
 server_port | 在服务端的代理端口
+multi_account | socks5多账号配置文件（可选）
 ##### 私密代理模式
 
 ```ini
