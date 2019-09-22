@@ -66,7 +66,7 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 		n = <-s.readCh.nCh
 		err = <-s.readCh.errCh
 	}
-	//logs.Warn("read window finish conn read n err buf", n, err, string(buf[:15]))
+	//logs.Warn("read window finish conn read n err buf", n, err, string(buf[:15]), s.connId)
 	return
 }
 
@@ -115,6 +115,7 @@ func (s *conn) Write(buf []byte) (n int, err error) {
 		n = <-s.writeCh.nCh
 		err = <-s.writeCh.errCh
 	}
+	//logs.Warn("write window finish n err buf id", n, err, string(buf[:15]), s.connId)
 	return
 }
 func (s *conn) write(nCh chan int, errCh chan error) {
@@ -334,11 +335,22 @@ func (Self *window) Read(p []byte) (n int, err error) {
 	} else {
 		Self.mutex.Unlock()
 	}
-	Self.mutex.Lock()
-	n = copy(p, Self.windowBuff[Self.off:])
-	Self.off += uint16(n)
+	minCopy := 512
+	for {
+		Self.mutex.Lock()
+		if len(p) == n || Self.len() == 0 {
+			Self.mutex.Unlock()
+			break
+		}
+		if n+minCopy > len(p) {
+			minCopy = len(p) - n
+		}
+		i := copy(p[n:n+minCopy], Self.windowBuff[Self.off:])
+		Self.off += uint16(i)
+		n += i
+		Self.mutex.Unlock()
+	}
 	p = p[:n]
-	Self.mutex.Unlock()
 	return
 }
 
