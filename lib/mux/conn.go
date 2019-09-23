@@ -223,10 +223,10 @@ func (Self *window) SetSendBuf(buf []byte) {
 func (Self *window) fullSlide() {
 	// slide by allocate
 	newBuf := common.WindowBuff.Get()
-	copy(newBuf[0:Self.len()], Self.windowBuff[Self.off:])
-	Self.off = 0
+	Self.liteSlide()
+	n := copy(newBuf[:Self.len()], Self.windowBuff)
 	common.WindowBuff.Put(Self.windowBuff)
-	Self.windowBuff = newBuf
+	Self.windowBuff = newBuf[:n]
 	return
 }
 
