@@ -544,7 +544,7 @@ multi_account=multi_account.conf
 ---|---
 mode | socks5
 server_port | 在服务端的代理端口
-multi_account | socks5多账号配置文件（可选）
+multi_account | socks5多账号配置文件（可选),配置后使用basic_username和basic_password无法通过认证
 ##### 私密代理模式
 
 ```ini
