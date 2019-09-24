@@ -3,10 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
 	"regexp"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/file"
 )
 
 type CommonConfig struct {

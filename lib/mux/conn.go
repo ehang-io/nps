@@ -2,12 +2,12 @@ package mux
 
 import (
 	"errors"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 type conn struct {
@@ -47,7 +47,6 @@ func NewConn(connId int32, mux *Mux) *conn {
 }
 
 func (s *conn) Read(buf []byte) (n int, err error) {
-	//logs.Warn("starting conn read", s.connId)
 	if s.isClose || buf == nil {
 		return 0, errors.New("the conn has closed")
 	}
@@ -66,7 +65,6 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 		n = <-s.readCh.nCh
 		err = <-s.readCh.errCh
 	}
-	//logs.Warn("read window finish conn read n err buf", n, err, string(buf[:15]), s.connId)
 	return
 }
 
@@ -78,7 +76,6 @@ func (s *conn) readWindow(buf []byte, nCh chan int, errCh chan error) {
 			// window.Read may be invoked before window.Write, and WindowFull flag change to true
 			// so make sure that receiveWindow is free some space
 			s.receiveWindow.WindowFull = false
-			logs.Warn("defer send mux msg send ok size", s.receiveWindow.Size())
 			s.mux.sendInfo(common.MUX_MSG_SEND_OK, s.connId, s.receiveWindow.Size())
 			// acknowledge other side, have empty some receive window space
 		}
@@ -88,18 +85,14 @@ func (s *conn) readWindow(buf []byte, nCh chan int, errCh chan error) {
 }
 
 func (s *conn) Write(buf []byte) (n int, err error) {
-	//logs.Warn("write starting", s.connId)
-	//defer logs.Warn("write end ", s.connId)
 	if s.isClose {
 		return 0, errors.New("the conn has closed")
 	}
 	if s.closeFlag {
-		//logs.Warn("conn close by write ", s.connId)
 		//s.Close()
 		return 0, errors.New("io: write on closed conn")
 	}
 	s.sendWindow.SetSendBuf(buf) // set the buf to send window
-	//logs.Warn("write set send buf success")
 	go s.write(s.writeCh.nCh, s.writeCh.errCh)
 	// waiting for send to other side or timeout
 	if t := s.writeTimeOut.Sub(time.Now()); t > 0 {
@@ -115,7 +108,6 @@ func (s *conn) Write(buf []byte) (n int, err error) {
 		n = <-s.writeCh.nCh
 		err = <-s.writeCh.errCh
 	}
-	//logs.Warn("write window finish n err buf id", n, err, string(buf[:15]), s.connId)
 	return
 }
 func (s *conn) write(nCh chan int, errCh chan error) {
@@ -133,7 +125,6 @@ func (s *conn) write(nCh chan int, errCh chan error) {
 			break
 		}
 		n += len(buf)
-		//logs.Warn("send window buf len", len(buf))
 		s.mux.sendInfo(common.MUX_NEW_MSG, s.connId, buf)
 		// send to other side, not send nil data to other side
 	}
@@ -150,7 +141,6 @@ func (s *conn) closeProcess() {
 	s.isClose = true
 	s.mux.connMap.Delete(s.connId)
 	if !s.mux.IsClose {
-		//logs.Warn("conn send close", s.connId)
 		// if server or user close the conn while reading, will get a io.EOF
 		// and this Close method will be invoke, send this signal to close other side
 		s.mux.sendInfo(common.MUX_CONN_CLOSE, s.connId, nil)
@@ -356,7 +346,6 @@ func (Self *window) Read(p []byte) (n int, err error) {
 
 func (Self *window) WriteTo() (p []byte, err error) {
 	if Self.closeOp {
-		//logs.Warn("window write to closed")
 		return nil, errors.New("conn.writeWindow: window closed")
 	}
 	if Self.len() == 0 {

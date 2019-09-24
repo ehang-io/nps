@@ -3,12 +3,13 @@ package install
 import (
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 func InstallNps() {

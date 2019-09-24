@@ -1,16 +1,17 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
 	"html"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/astaxie/beego"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server"
 )
 
 type BaseController struct {

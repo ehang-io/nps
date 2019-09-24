@@ -2,15 +2,16 @@ package client
 
 import (
 	"container/heap"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/sheap"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/pkg/errors"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/sheap"
+	"github.com/pkg/errors"
 )
 
 var isStart bool
@@ -70,7 +71,7 @@ func check(t *file.Health) {
 	var rs *http.Response
 	for _, v := range arr {
 		if t.HealthCheckType == "tcp" {
-			_, err = net.DialTimeout("tcp", v, time.Duration(t.HealthCheckTimeout)*time.Second);
+			_, err = net.DialTimeout("tcp", v, time.Duration(t.HealthCheckTimeout)*time.Second)
 		} else {
 			client := &http.Client{}
 			client.Timeout = time.Duration(t.HealthCheckTimeout) * time.Second

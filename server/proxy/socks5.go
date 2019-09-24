@@ -3,13 +3,14 @@ package proxy
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"strconv"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
 )
 
 const (

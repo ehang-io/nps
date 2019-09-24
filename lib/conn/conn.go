@@ -10,6 +10,7 @@ import (
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
+	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"io"
@@ -20,6 +21,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/mux"
+	"github.com/cnlh/nps/lib/rate"
+	"github.com/xtaci/kcp-go"
 )
 
 type Conn struct {

@@ -1,12 +1,13 @@
 package client
 
 import (
-	"github.com/cnlh/nps/lib/common"
-	conn2 "github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
 	"net"
 	"sync"
 	"testing"
+
+	"github.com/cnlh/nps/lib/common"
+	conn2 "github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
 )
 
 func TestConfig(t *testing.T) {

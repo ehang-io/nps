@@ -1,14 +1,17 @@
 package mux
 
 import (
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/pool"
 )
 
 var conn1 net.Conn
