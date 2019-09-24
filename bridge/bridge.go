@@ -473,6 +473,7 @@ loop:
 						tl.Remark = t.Remark
 					} else {
 						tl.Remark = t.Remark + "_" + strconv.Itoa(tl.Port)
+						tl.Target = new(file.Target)
 						if t.TargetAddr != "" {
 							tl.Target.TargetStr = t.TargetAddr + ":" + strconv.Itoa(targets[i])
 						} else {
