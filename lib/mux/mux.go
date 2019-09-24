@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 )
 
@@ -173,7 +174,7 @@ func (s *Mux) readSession() {
 			s.pingOk = 0
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new connection
-								connection := NewConn(pack.Id, s)
+				connection := NewConn(pack.Id, s)
 				s.connMap.Set(pack.Id, connection) //it has been set before send ok
 				go func(connection *conn) {
 					connection.sendWindow.SetAllowSize(512) // set the initial receive window

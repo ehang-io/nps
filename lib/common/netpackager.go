@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"strings"
 )
@@ -50,7 +49,6 @@ func (Self *BasePackager) appendByte(data []byte) (err error) {
 		copy(Self.Content[m:n], data)
 		return nil
 	} else {
-		logs.Warn(len(data), len(Self.Content), cap(Self.Content))
 		return errors.New("pack content too large")
 	}
 }
@@ -74,7 +72,6 @@ func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
 		return
 	}
 	if int(Self.Length) > cap(Self.Content) {
-		logs.Warn("unpack", cap(Self.Content))
 		err = errors.New("unpack err, content length too large")
 	}
 	Self.Content = Self.Content[:int(Self.Length)]

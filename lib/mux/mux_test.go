@@ -1,7 +1,6 @@
 package mux
 
 import (
-	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/pool"
 )
 
 var conn1 net.Conn
@@ -41,29 +39,31 @@ func TestNewMux(t *testing.T) {
 				logs.Warn(err)
 				continue
 			}
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				_, err = common.CopyBuffer(c2, c)
-				if err != nil {
-					c2.Close()
-					c.Close()
-					logs.Warn("close npc by copy from nps", err)
-				}
-				wg.Done()
-			}()
-			wg.Add(1)
-			go func() {
-				_, err = common.CopyBuffer(c, c2)
-				if err != nil {
-					c2.Close()
-					c.Close()
-					logs.Warn("close npc by copy from server", err)
-				}
-				wg.Done()
-			}()
-			logs.Warn("npc wait")
-			wg.Wait()
+			go func(c2 net.Conn, c net.Conn) {
+				wg := sync.WaitGroup{}
+				wg.Add(1)
+				go func() {
+					_, err = common.CopyBuffer(c2, c)
+					if err != nil {
+						c2.Close()
+						c.Close()
+						logs.Warn("close npc by copy from nps", err)
+					}
+					wg.Done()
+				}()
+				wg.Add(1)
+				go func() {
+					_, err = common.CopyBuffer(c, c2)
+					if err != nil {
+						c2.Close()
+						c.Close()
+						logs.Warn("close npc by copy from server", err)
+					}
+					wg.Done()
+				}()
+				logs.Warn("npc wait")
+				wg.Wait()
+			}(c2, c)
 		}
 	}()
 
@@ -87,21 +87,23 @@ func TestNewMux(t *testing.T) {
 				continue
 			}
 			logs.Warn("nps new conn success ", tmpCpnn.connId)
-			go func() {
-				_, err := common.CopyBuffer(tmpCpnn, conn)
+			go func(tmpCpnn net.Conn, conn net.Conn) {
+				go func() {
+					_, err := common.CopyBuffer(tmpCpnn, conn)
+					if err != nil {
+						conn.Close()
+						tmpCpnn.Close()
+						logs.Warn("close nps by copy from user")
+					}
+				}()
+				//time.Sleep(time.Second)
+				_, err = common.CopyBuffer(conn, tmpCpnn)
 				if err != nil {
 					conn.Close()
 					tmpCpnn.Close()
-					logs.Warn("close nps by copy from user", tmpCpnn.connId)
+					logs.Warn("close nps by copy from npc ")
 				}
-			}()
-			//time.Sleep(time.Second)
-			_, err = common.CopyBuffer(conn, tmpCpnn)
-			if err != nil {
-				conn.Close()
-				tmpCpnn.Close()
-				logs.Warn("close nps by copy from npc ", tmpCpnn.connId)
-			}
+			}(tmpCpnn, conn)
 		}
 	}()
 

@@ -70,7 +70,6 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 
 func (s *conn) readWindow(buf []byte, nCh chan int, errCh chan error) {
 	n, err := s.receiveWindow.Read(buf)
-	//logs.Warn("readwindow goroutine status n err buf", n, err, string(buf[:15]))
 	if s.receiveWindow.WindowFull {
 		if s.receiveWindow.Size() > 0 {
 			// window.Read may be invoked before window.Write, and WindowFull flag change to true
