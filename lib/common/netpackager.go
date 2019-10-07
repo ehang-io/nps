@@ -15,7 +15,7 @@ type NetPackager interface {
 }
 
 type BasePackager struct {
-	Length  uint32
+	Length  uint16
 	Content []byte
 }
 
@@ -101,7 +101,7 @@ func (Self *BasePackager) Unmarshal(content interface{}) (err error) {
 }
 
 func (Self *BasePackager) setLength() {
-	Self.Length = uint32(len(Self.Content))
+	Self.Length = uint16(len(Self.Content))
 	return
 }
 
@@ -147,25 +147,32 @@ func (Self *ConnPackager) UnPack(reader io.Reader) (err error) {
 }
 
 type MuxPackager struct {
-	Flag   uint8
-	Id     int32
-	Window uint16
+	Flag       uint8
+	Id         int32
+	Window     uint32
+	ReadLength uint32
 	BasePackager
 }
 
 func (Self *MuxPackager) NewPac(flag uint8, id int32, content ...interface{}) (err error) {
 	Self.Flag = flag
 	Self.Id = id
-	if flag == MUX_NEW_MSG {
+	if flag == MUX_NEW_MSG || flag == MUX_NEW_MSG_PART || flag == MUX_PING_FLAG {
 		err = Self.BasePackager.NewPac(content...)
 	}
 	if flag == MUX_MSG_SEND_OK {
 		// MUX_MSG_SEND_OK only allows one data
 		switch content[0].(type) {
 		case int:
-			Self.Window = uint16(content[0].(int))
-		case uint16:
-			Self.Window = content[0].(uint16)
+			Self.Window = uint32(content[0].(int))
+		case uint32:
+			Self.Window = content[0].(uint32)
+		}
+		switch content[1].(type) {
+		case int:
+			Self.ReadLength = uint32(content[1].(int))
+		case uint32:
+			Self.ReadLength = content[1].(uint32)
 		}
 	}
 	return
@@ -180,11 +187,15 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 	if err != nil {
 		return
 	}
-	if Self.Flag == MUX_NEW_MSG {
+	if Self.Flag == MUX_NEW_MSG || Self.Flag == MUX_NEW_MSG_PART || Self.Flag == MUX_PING_FLAG {
 		err = Self.BasePackager.Pack(writer)
 	}
 	if Self.Flag == MUX_MSG_SEND_OK {
 		err = binary.Write(writer, binary.LittleEndian, Self.Window)
+		if err != nil {
+			return
+		}
+		err = binary.Write(writer, binary.LittleEndian, Self.ReadLength)
 	}
 	return
 }
@@ -199,11 +210,15 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	if Self.Flag == MUX_NEW_MSG {
+	if Self.Flag == MUX_NEW_MSG || Self.Flag == MUX_NEW_MSG_PART || Self.Flag == MUX_PING_FLAG {
 		err = Self.BasePackager.UnPack(reader)
 	}
 	if Self.Flag == MUX_MSG_SEND_OK {
 		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
+		if err != nil {
+			return
+		}
+		err = binary.Read(reader, binary.LittleEndian, &Self.ReadLength)
 	}
 	return
 }

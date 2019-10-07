@@ -3,6 +3,7 @@ package mux
 import (
 	"bytes"
 	"errors"
+	"io"
 	"math"
 	"net"
 	"sync"
@@ -22,8 +23,10 @@ type Mux struct {
 	closeChan  chan struct{}
 	IsClose    bool
 	pingOk     int
+	latency    float64
+	pingCh     chan []byte
 	connType   string
-	writeQueue Queue
+	writeQueue PriorityQueue
 	bufCh      chan *bytes.Buffer
 	sync.Mutex
 }
@@ -38,13 +41,15 @@ func NewMux(c net.Conn, connType string) *Mux {
 		IsClose:   false,
 		connType:  connType,
 		bufCh:     make(chan *bytes.Buffer),
+		pingCh:    make(chan []byte),
 	}
 	m.writeQueue.New()
 	//read session by flag
-	go m.readSession()
+	m.readSession()
 	//ping
-	go m.ping()
-	go m.writeSession()
+	m.ping()
+	m.pingReturn()
+	m.writeSession()
 	return m
 }
 
@@ -83,10 +88,10 @@ func (s *Mux) Addr() net.Addr {
 	return s.conn.LocalAddr()
 }
 
-func (s *Mux) sendInfo(flag uint8, id int32, data interface{}) {
+func (s *Mux) sendInfo(flag uint8, id int32, data ...interface{}) {
 	var err error
 	pack := common.MuxPack.Get()
-	err = pack.NewPac(flag, id, data)
+	err = pack.NewPac(flag, id, data...)
 	if err != nil {
 		common.MuxPack.Put(pack)
 		return
@@ -98,11 +103,13 @@ func (s *Mux) sendInfo(flag uint8, id int32, data interface{}) {
 func (s *Mux) writeSession() {
 	go s.packBuf()
 	go s.writeBuf()
-	<-s.closeChan
 }
 
 func (s *Mux) packBuf() {
 	for {
+		if s.IsClose {
+			break
+		}
 		pack := s.writeQueue.Pop()
 		buffer := common.BuffPool.Get()
 		err := pack.Pack(buffer)
@@ -117,12 +124,14 @@ func (s *Mux) packBuf() {
 		case <-s.closeChan:
 			break
 		}
-
 	}
 }
 
 func (s *Mux) writeBuf() {
 	for {
+		if s.IsClose {
+			break
+		}
 		select {
 		case buffer := <-s.bufCh:
 			l := buffer.Len()
@@ -141,8 +150,15 @@ func (s *Mux) writeBuf() {
 
 func (s *Mux) ping() {
 	go func() {
-		ticker := time.NewTicker(time.Second * 1)
+		now, _ := time.Now().MarshalText()
+		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
+		// send the ping flag and get the latency first
+		ticker := time.NewTicker(time.Second * 15)
 		for {
+			if s.IsClose {
+				ticker.Stop()
+				break
+			}
 			select {
 			case <-ticker.C:
 			}
@@ -150,7 +166,8 @@ func (s *Mux) ping() {
 			if (math.MaxInt32 - s.id) < 10000 {
 				s.id = 0
 			}
-			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, nil)
+			now, _ := time.Now().MarshalText()
+			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 			if s.pingOk > 10 && s.connType == "kcp" {
 				s.Close()
 				break
@@ -158,15 +175,32 @@ func (s *Mux) ping() {
 			s.pingOk++
 		}
 	}()
-	select {
-	case <-s.closeChan:
-	}
+}
+
+func (s *Mux) pingReturn() {
+	go func() {
+		var now time.Time
+		var data []byte
+		for {
+			select {
+			case data = <-s.pingCh:
+			case <-s.closeChan:
+				break
+			}
+			_ = now.UnmarshalText(data)
+			s.latency = time.Since(now).Seconds()
+			s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, nil)
+		}
+	}()
 }
 
 func (s *Mux) readSession() {
 	go func() {
 		pack := common.MuxPack.Get()
 		for {
+			if s.IsClose {
+				break
+			}
 			pack = common.MuxPack.Get()
 			if pack.UnPack(s.conn) != nil {
 				break
@@ -176,44 +210,25 @@ func (s *Mux) readSession() {
 			case common.MUX_NEW_CONN: //new connection
 				connection := NewConn(pack.Id, s)
 				s.connMap.Set(pack.Id, connection) //it has been set before send ok
-				go func(connection *conn) {
-					connection.sendWindow.SetAllowSize(512) // set the initial receive window
-				}(connection)
 				s.newConnCh <- connection
 				s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)
 				continue
 			case common.MUX_PING_FLAG: //ping
-				go s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, nil)
+				s.pingCh <- pack.Content
 				continue
 			case common.MUX_PING_RETURN:
 				continue
 			}
 			if connection, ok := s.connMap.Get(pack.Id); ok && !connection.isClose {
 				switch pack.Flag {
-				case common.MUX_NEW_MSG: //new msg from remote connection
-					//insert wait queue
-					if connection.isClose {
-						continue
+				case common.MUX_NEW_MSG, common.MUX_NEW_MSG_PART: //new msg from remote connection
+					err := s.newMsg(connection, pack)
+					if err != nil {
+						connection.Close()
 					}
-					connection.receiveWindow.WriteWg.Add(1)
-					go func(connection *conn, content []byte) { // do not block read session
-						_, err := connection.receiveWindow.Write(content)
-						if err != nil {
-							logs.Warn("mux new msg err close", err)
-							connection.Close()
-						}
-						size := connection.receiveWindow.Size()
-						if size == 0 {
-							connection.receiveWindow.WindowFull = true
-						}
-						s.sendInfo(common.MUX_MSG_SEND_OK, connection.connId, size)
-						connection.receiveWindow.WriteWg.Done()
-					}(connection, pack.Content)
 					continue
 				case common.MUX_NEW_CONN_OK: //connection ok
 					connection.connStatusOkCh <- struct{}{}
-					go connection.sendWindow.SetAllowSize(512)
-					// set the initial receive window both side
 					continue
 				case common.MUX_NEW_CONN_Fail:
 					connection.connStatusFailCh <- struct{}{}
@@ -222,15 +237,12 @@ func (s *Mux) readSession() {
 					if connection.isClose {
 						continue
 					}
-					go connection.sendWindow.SetAllowSize(pack.Window)
+					connection.sendWindow.SetSize(pack.Window, pack.ReadLength)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
 					s.connMap.Delete(pack.Id)
 					connection.closeFlag = true
-					go func(connection *conn) {
-						connection.receiveWindow.WriteWg.Wait()
-						connection.receiveWindow.WriteEndOp <- struct{}{} // close signal to receive window
-					}(connection)
+					connection.receiveWindow.Stop() // close signal to receive window
 					continue
 				}
 			} else if pack.Flag == common.MUX_CONN_CLOSE {
@@ -241,9 +253,24 @@ func (s *Mux) readSession() {
 		common.MuxPack.Put(pack)
 		s.Close()
 	}()
-	select {
-	case <-s.closeChan:
+}
+
+func (s *Mux) newMsg(connection *conn, pack *common.MuxPackager) (err error) {
+	if connection.isClose {
+		err = io.ErrClosedPipe
+		return
 	}
+	//logs.Warn("read session receive new msg", pack.Length)
+	//go func(connection *conn, pack *common.MuxPackager) { // do not block read session
+	//insert into queue
+	if pack.Flag == common.MUX_NEW_MSG_PART {
+		err = connection.receiveWindow.Write(pack.Content, pack.Length, true, pack.Id)
+	}
+	if pack.Flag == common.MUX_NEW_MSG {
+		err = connection.receiveWindow.Write(pack.Content, pack.Length, false, pack.Id)
+	}
+	//logs.Warn("read session write success", pack.Length)
+	return
 }
 
 func (s *Mux) Close() error {
@@ -253,9 +280,6 @@ func (s *Mux) Close() error {
 	}
 	s.IsClose = true
 	s.connMap.Close()
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
 	s.closeChan <- struct{}{}
 	s.closeChan <- struct{}{}
 	close(s.newConnCh)
