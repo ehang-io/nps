@@ -9,7 +9,8 @@ const PoolSize = 64 * 1024
 const PoolSizeSmall = 100
 const PoolSizeUdp = 1472
 const PoolSizeCopy = 32 << 10
-const PoolSizeWindow = 1<<16 - 1
+const PoolSizeBuffer = 4096
+const PoolSizeWindow = PoolSizeBuffer - 16 - 32 - 32 - 8
 
 var BufPool = sync.Pool{
 	New: func() interface{} {
@@ -92,18 +93,18 @@ type windowBufferPool struct {
 func (Self *windowBufferPool) New() {
 	Self.pool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 0, PoolSizeWindow)
+			return make([]byte, PoolSizeWindow, PoolSizeWindow)
 		},
 	}
 }
 
 func (Self *windowBufferPool) Get() (buf []byte) {
 	buf = Self.pool.Get().([]byte)
-	return buf[:0]
+	return buf[:PoolSizeWindow]
 }
 
 func (Self *windowBufferPool) Put(x []byte) {
-	if cap(x) == PoolSizeWindow {
+	if len(x) == PoolSizeWindow {
 		Self.pool.Put(x[:PoolSizeWindow]) // make buf to full
 	} else {
 		x = nil
@@ -117,7 +118,7 @@ type bufferPool struct {
 func (Self *bufferPool) New() {
 	Self.pool = sync.Pool{
 		New: func() interface{} {
-			return new(bytes.Buffer)
+			return bytes.NewBuffer(make([]byte, 0, PoolSizeBuffer))
 		},
 	}
 }
@@ -146,13 +147,12 @@ func (Self *muxPackagerPool) New() {
 
 func (Self *muxPackagerPool) Get() *MuxPackager {
 	pack := Self.pool.Get().(*MuxPackager)
-	buf := CopyBuff.Get()
-	pack.Content = buf
+	pack.Content = WindowBuff.Get()
 	return pack
 }
 
 func (Self *muxPackagerPool) Put(pack *MuxPackager) {
-	CopyBuff.Put(pack.Content)
+	WindowBuff.Put(pack.Content)
 	Self.pool.Put(pack)
 }
 

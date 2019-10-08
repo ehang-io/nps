@@ -48,5 +48,5 @@ const (
 	MUX_CONN_CLOSE
 	MUX_PING_RETURN
 	MUX_PING             int32 = -1
-	MAXIMUM_SEGMENT_SIZE       = 4096 - 16 - 32 - 32 - 8
+	MAXIMUM_SEGMENT_SIZE       = PoolSizeWindow
 )
