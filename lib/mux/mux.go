@@ -150,7 +150,7 @@ func (s *Mux) writeBuf() {
 
 func (s *Mux) ping() {
 	go func() {
-		now, _ := time.Now().MarshalText()
+		now, _ := time.Now().UTC().MarshalText()
 		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 		// send the ping flag and get the latency first
 		ticker := time.NewTicker(time.Second * 15)
@@ -166,7 +166,7 @@ func (s *Mux) ping() {
 			if (math.MaxInt32 - s.id) < 10000 {
 				s.id = 0
 			}
-			now, _ := time.Now().MarshalText()
+			now, _ := time.Now().UTC().MarshalText()
 			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 			if s.pingOk > 10 && s.connType == "kcp" {
 				s.Close()
@@ -188,8 +188,11 @@ func (s *Mux) pingReturn() {
 				break
 			}
 			_ = now.UnmarshalText(data)
-			s.latency = time.Since(now).Seconds()
-			s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, nil)
+			s.latency = time.Now().UTC().Sub(now).Seconds() / 2
+			//logs.Warn("latency", s.latency)
+			if s.latency <= 0 {
+				logs.Warn("latency err", s.latency)
+			}
 		}
 	}()
 }
@@ -214,9 +217,10 @@ func (s *Mux) readSession() {
 				s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)
 				continue
 			case common.MUX_PING_FLAG: //ping
-				s.pingCh <- pack.Content
+				s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, pack.Content)
 				continue
 			case common.MUX_PING_RETURN:
+				s.pingCh <- pack.Content
 				continue
 			}
 			if connection, ok := s.connMap.Get(pack.Id); ok && !connection.isClose {

@@ -2,7 +2,6 @@ package mux
 
 import (
 	"errors"
-	"github.com/astaxie/beego/logs"
 	"io"
 	"math"
 	"net"
@@ -169,14 +168,13 @@ func (Self *ReceiveWindow) ReadSize() (n uint32) {
 	n = Self.readLength
 	Self.readLength = 0
 	Self.bufQueue.mutex.Unlock()
-	Self.count += 1
 	return
 }
 
 func (Self *ReceiveWindow) CalcSize() {
 	// calculating maximum receive window size
 	if Self.count == 0 {
-		logs.Warn("ping, bw", Self.mux.latency, Self.bw.Get())
+		//logs.Warn("ping, bw", Self.mux.latency, Self.bw.Get())
 		n := uint32(2 * Self.mux.latency * Self.bw.Get())
 		if n < 8192 {
 			n = 8192
@@ -185,10 +183,11 @@ func (Self *ReceiveWindow) CalcSize() {
 			n = Self.bufQueue.Len()
 		}
 		// set the minimal size
-		logs.Warn("n", n)
+		//logs.Warn("n", n)
 		Self.maxSize = n
 		Self.count = -5
 	}
+	Self.count += 1
 }
 
 func (Self *ReceiveWindow) Write(buf []byte, l uint16, part bool, id int32) (err error) {
@@ -205,7 +204,7 @@ func (Self *ReceiveWindow) Write(buf []byte, l uint16, part bool, id int32) (err
 	//logs.Warn("read session calc size ", Self.maxSize)
 	// calculating the receive window size
 	Self.CalcSize()
-	logs.Warn("read session calc size finish", Self.maxSize)
+	//logs.Warn("read session calc size finish", Self.maxSize)
 	if Self.RemainingSize() == 0 {
 		Self.windowFull = true
 		//logs.Warn("window full true", Self.windowFull)
@@ -325,10 +324,10 @@ func (Self *SendWindow) SetSize(windowSize, readLength uint32) (closed bool) {
 		return true
 	}
 	if readLength == 0 && Self.maxSize == windowSize {
-		logs.Warn("waiting for another window size")
+		//logs.Warn("waiting for another window size")
 		return false // waiting for receive another usable window size
 	}
-	logs.Warn("set send window size to ", windowSize, readLength)
+	//logs.Warn("set send window size to ", windowSize, readLength)
 	Self.mutex.Lock()
 	Self.slide(windowSize, readLength)
 	if Self.setSizeWait {
@@ -513,7 +512,7 @@ func (Self *bandwidth) calcWriteBandwidth() {
 func (Self *bandwidth) Get() (bw float64) {
 	// The zero value, 0 for numeric types
 	if Self.writeBW == 0 && Self.readBW == 0 {
-		logs.Warn("bw both 0")
+		//logs.Warn("bw both 0")
 		return 100
 	}
 	if Self.writeBW == 0 && Self.readBW != 0 {

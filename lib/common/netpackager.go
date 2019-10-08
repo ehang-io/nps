@@ -157,11 +157,11 @@ type MuxPackager struct {
 func (Self *MuxPackager) NewPac(flag uint8, id int32, content ...interface{}) (err error) {
 	Self.Flag = flag
 	Self.Id = id
-	if flag == MUX_NEW_MSG || flag == MUX_NEW_MSG_PART || flag == MUX_PING_FLAG {
+	switch flag {
+	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
 		err = Self.BasePackager.NewPac(content...)
-	}
-	if flag == MUX_MSG_SEND_OK {
-		// MUX_MSG_SEND_OK only allows one data
+	case MUX_MSG_SEND_OK:
+		// MUX_MSG_SEND_OK contains two data
 		switch content[0].(type) {
 		case int:
 			Self.Window = uint32(content[0].(int))
@@ -187,10 +187,10 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 	if err != nil {
 		return
 	}
-	if Self.Flag == MUX_NEW_MSG || Self.Flag == MUX_NEW_MSG_PART || Self.Flag == MUX_PING_FLAG {
+	switch Self.Flag {
+	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
 		err = Self.BasePackager.Pack(writer)
-	}
-	if Self.Flag == MUX_MSG_SEND_OK {
+	case MUX_MSG_SEND_OK:
 		err = binary.Write(writer, binary.LittleEndian, Self.Window)
 		if err != nil {
 			return
@@ -210,10 +210,10 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	if Self.Flag == MUX_NEW_MSG || Self.Flag == MUX_NEW_MSG_PART || Self.Flag == MUX_PING_FLAG {
+	switch Self.Flag {
+	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
 		err = Self.BasePackager.UnPack(reader)
-	}
-	if Self.Flag == MUX_MSG_SEND_OK {
+	case MUX_MSG_SEND_OK:
 		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
 		if err != nil {
 			return
