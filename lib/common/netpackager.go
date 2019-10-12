@@ -158,8 +158,10 @@ func (Self *MuxPackager) NewPac(flag uint8, id int32, content ...interface{}) (e
 	Self.Flag = flag
 	Self.Id = id
 	switch flag {
-	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
+	case MUX_PING_FLAG, MUX_PING_RETURN, MUX_NEW_MSG, MUX_NEW_MSG_PART:
+		Self.Content = WindowBuff.Get()
 		err = Self.BasePackager.NewPac(content...)
+		//logs.Warn(Self.Length, string(Self.Content))
 	case MUX_MSG_SEND_OK:
 		// MUX_MSG_SEND_OK contains two data
 		switch content[0].(type) {
@@ -190,6 +192,7 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 	switch Self.Flag {
 	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
 		err = Self.BasePackager.Pack(writer)
+		WindowBuff.Put(Self.Content)
 	case MUX_MSG_SEND_OK:
 		err = binary.Write(writer, binary.LittleEndian, Self.Window)
 		if err != nil {
@@ -201,7 +204,6 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 }
 
 func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
-	Self.BasePackager.clean() // also clean the content
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return
@@ -212,7 +214,10 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
 	}
 	switch Self.Flag {
 	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
+		Self.Content = WindowBuff.Get() // need get a window buf from pool
+		Self.BasePackager.clean()       // also clean the content
 		err = Self.BasePackager.UnPack(reader)
+		//logs.Warn("unpack", Self.Length, string(Self.Content))
 	case MUX_MSG_SEND_OK:
 		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
 		if err != nil {

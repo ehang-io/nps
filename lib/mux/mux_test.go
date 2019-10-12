@@ -1,8 +1,11 @@
 package mux
 
 import (
+	"bufio"
+	"fmt"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	_ "net/http/pprof"
 	"sync"
 	"testing"
@@ -37,6 +40,7 @@ func TestNewMux(t *testing.T) {
 			c2, err := net.Dial("tcp", "127.0.0.1:80")
 			if err != nil {
 				logs.Warn(err)
+				c.Close()
 				continue
 			}
 			go func(c2 net.Conn, c net.Conn) {
@@ -107,6 +111,9 @@ func TestNewMux(t *testing.T) {
 		}
 	}()
 
+	time.Sleep(time.Second * 5)
+	//go test_request()
+
 	for {
 		time.Sleep(time.Second * 5)
 	}
@@ -132,6 +139,51 @@ func client() {
 	conn2, err = net.Dial("tcp", "127.0.0.1:9999")
 	if err != nil {
 		logs.Warn(err)
+	}
+}
+
+func test_request() {
+	conn, _ := net.Dial("tcp", "127.0.0.1:7777")
+	for {
+		conn.Write([]byte(`GET /videojs5/video.js HTTP/1.1
+Host: 127.0.0.1:7777
+Connection: keep-alive
+
+
+`))
+		r, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			logs.Warn("close by read response err", err)
+			break
+		}
+		logs.Warn("read response success", r)
+		b, err := httputil.DumpResponse(r, true)
+		if err != nil {
+			logs.Warn("close by dump response err", err)
+			break
+		}
+		fmt.Println(string(b[:20]), err)
+		time.Sleep(time.Second)
+	}
+}
+
+func test_raw() {
+	conn, _ := net.Dial("tcp", "127.0.0.1:7777")
+	for {
+		conn.Write([]byte(`GET /videojs5/test HTTP/1.1
+Host: 127.0.0.1:7777
+Connection: keep-alive
+
+
+`))
+		buf := make([]byte, 1000000)
+		n, err := conn.Read(buf)
+		if err != nil {
+			logs.Warn("close by read response err", err)
+			break
+		}
+		logs.Warn(n, string(buf[:50]), "\n--------------\n", string(buf[n-50:n]))
+		time.Sleep(time.Second)
 	}
 }
 

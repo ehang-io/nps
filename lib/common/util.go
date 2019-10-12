@@ -268,6 +268,9 @@ func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 	defer CopyBuff.Put(buf)
 	for {
 		nr, er := src.Read(buf)
+		//if len(pr)>0 && pr[0] && nr > 50 {
+		//	logs.Warn(string(buf[:50]))
+		//}
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {

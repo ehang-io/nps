@@ -104,11 +104,7 @@ func (Self *windowBufferPool) Get() (buf []byte) {
 }
 
 func (Self *windowBufferPool) Put(x []byte) {
-	if len(x) == PoolSizeWindow {
-		Self.pool.Put(x[:PoolSizeWindow]) // make buf to full
-	} else {
-		x = nil
-	}
+	Self.pool.Put(x[:PoolSizeWindow]) // make buf to full
 }
 
 type bufferPool struct {
@@ -146,13 +142,10 @@ func (Self *muxPackagerPool) New() {
 }
 
 func (Self *muxPackagerPool) Get() *MuxPackager {
-	pack := Self.pool.Get().(*MuxPackager)
-	pack.Content = WindowBuff.Get()
-	return pack
+	return Self.pool.Get().(*MuxPackager)
 }
 
 func (Self *muxPackagerPool) Put(pack *MuxPackager) {
-	WindowBuff.Put(pack.Content)
 	Self.pool.Put(pack)
 }
 

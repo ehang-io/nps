@@ -223,8 +223,13 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
 		return nil, err
 	}
-	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
-		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
+	b, err := c.GetShortContent(32)
+	if err != nil {
+		logs.Error(err)
+		return nil, err
+	}
+	if crypt.Md5(version.GetVersion()) != string(b) {
+		logs.Error("The client does not match the server version. The current core version of the client is", version.GetVersion())
 		return nil, err
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {

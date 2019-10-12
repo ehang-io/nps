@@ -183,6 +183,10 @@ func (Self *ReceiveWindow) CalcSize() {
 			n = Self.bufQueue.Len()
 		}
 		// set the minimal size
+		if n > common.MAXIMUM_WINDOW_SIZE {
+			n = common.MAXIMUM_WINDOW_SIZE
+		}
+		// set the maximum size
 		//logs.Warn("n", n)
 		Self.maxSize = n
 		Self.count = -5
@@ -248,6 +252,10 @@ copyData:
 	l = 0
 	Self.bw.EndRead()
 	Self.sendStatus(id)
+	if Self.off == uint32(Self.element.l) {
+		//logs.Warn("put the element end ", string(Self.element.buf[:15]))
+		common.WindowBuff.Put(Self.element.buf)
+	}
 	if pOff < len(p) && Self.element.part {
 		// element is a part of the segments, trying to fill up buf p
 		goto copyData

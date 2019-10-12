@@ -197,6 +197,9 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 在刚才创建的客户端隧道管理中添加一条socks5代理，填写监听的端口（8003），保存。
 - 在外网环境的本机配置socks5代理(例如使用proxifier进行全局代理)，ip为公网服务器ip（1.1.1.1），端口为填写的监听端口(8003)，即可畅享内网了
 
+**注意**
+经过socks5代理，当收到socks5数据包时socket已经是accept状态。表现是扫描端口全open，建立连接后短时间关闭。若想同内网表现一致，建议远程连接一台设备。
+
 ### http正向代理
 
 **适用范围：**  在外网环境下使用http正向代理访问内网站点
@@ -375,7 +378,13 @@ server {
 ```
 (./nps|nps.exe) install
 ```
-安装成功后，对于linux，darwin，将会把配置文件和静态文件放置于/etc/nps/，并将可执行文件nps复制到/usr/bin/nps或者/usr/local/bin/nps，安装成功后可在任何位置执行
+安装成功后，对于linux，darwin，将会把配置文件和静态文件放置于/etc/nps/，并将可执行文件nps复制到/usr/bin/nps或者/usr/local/bin/nps，安装成功后可在任何位置执行，同时也会添加systemd配置。
+
+```
+sudo systemctl enable|disable|start|stop|restart|status nps
+```
+systemd，带有开机自启，自动重启配置，当进程结束后15秒会启动，日志输出至/var/log/nps/nps.log。
+建议采用此方式启动，能够捕获panic信息，便于排查问题。
 
 ```
 nps test|start|stop|restart|status

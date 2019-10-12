@@ -25,6 +25,7 @@ type Mux struct {
 	pingOk     int
 	latency    float64
 	pingCh     chan []byte
+	pingTimer  *time.Timer
 	connType   string
 	writeQueue PriorityQueue
 	bufCh      chan *bytes.Buffer
@@ -42,6 +43,7 @@ func NewMux(c net.Conn, connType string) *Mux {
 		connType:  connType,
 		bufCh:     make(chan *bytes.Buffer),
 		pingCh:    make(chan []byte),
+		pingTimer: time.NewTimer(15 * time.Second),
 	}
 	m.writeQueue.New()
 	//read session by flag
@@ -119,6 +121,7 @@ func (s *Mux) packBuf() {
 			common.BuffPool.Put(buffer)
 			break
 		}
+		//logs.Warn(buffer.String())
 		select {
 		case s.bufCh <- buffer:
 		case <-s.closeChan:
@@ -153,7 +156,7 @@ func (s *Mux) ping() {
 		now, _ := time.Now().UTC().MarshalText()
 		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 		// send the ping flag and get the latency first
-		ticker := time.NewTicker(time.Second * 15)
+		ticker := time.NewTicker(time.Second * 5)
 		for {
 			if s.IsClose {
 				ticker.Stop()
@@ -168,6 +171,10 @@ func (s *Mux) ping() {
 			}
 			now, _ := time.Now().UTC().MarshalText()
 			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
+			if !s.pingTimer.Stop() {
+				<-s.pingTimer.C
+			}
+			s.pingTimer.Reset(15 * time.Second)
 			if s.pingOk > 10 && s.connType == "kcp" {
 				s.Close()
 				break
@@ -186,10 +193,15 @@ func (s *Mux) pingReturn() {
 			case data = <-s.pingCh:
 			case <-s.closeChan:
 				break
+			case <-s.pingTimer.C:
+				logs.Error("mux: ping time out")
+				s.Close()
+				break
 			}
 			_ = now.UnmarshalText(data)
 			s.latency = time.Now().UTC().Sub(now).Seconds() / 2
-			//logs.Warn("latency", s.latency)
+			logs.Warn("latency", s.latency)
+			common.WindowBuff.Put(data)
 			if s.latency <= 0 {
 				logs.Warn("latency err", s.latency)
 			}
@@ -218,6 +230,7 @@ func (s *Mux) readSession() {
 				continue
 			case common.MUX_PING_FLAG: //ping
 				s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, pack.Content)
+				common.WindowBuff.Put(pack.Content)
 				continue
 			case common.MUX_PING_RETURN:
 				s.pingCh <- pack.Content
