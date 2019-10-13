@@ -199,6 +199,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Close()
 		return
 	}
+
 	if s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "" {
 		buf[1] = UserPassAuth
 		c.Write(buf)
