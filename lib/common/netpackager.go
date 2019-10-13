@@ -65,8 +65,9 @@ func (Self *BasePackager) Pack(writer io.Writer) (err error) {
 
 //Unpack 会导致传入的数字类型转化成float64！！
 //主要原因是json unmarshal并未传入正确的数据类型
-func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
+func (Self *BasePackager) UnPack(reader io.Reader) (n uint16, err error) {
 	Self.clean()
+	n += 2 // uint16
 	err = binary.Read(reader, binary.LittleEndian, &Self.Length)
 	if err != nil {
 		return
@@ -80,6 +81,7 @@ func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
 	//	err = io.ErrUnexpectedEOF
 	//}
 	err = binary.Read(reader, binary.LittleEndian, Self.Content)
+	n += Self.Length
 	return
 }
 
@@ -137,12 +139,13 @@ func (Self *ConnPackager) Pack(writer io.Writer) (err error) {
 	return
 }
 
-func (Self *ConnPackager) UnPack(reader io.Reader) (err error) {
+func (Self *ConnPackager) UnPack(reader io.Reader) (n uint16, err error) {
 	err = binary.Read(reader, binary.LittleEndian, &Self.ConnType)
 	if err != nil && err != io.EOF {
 		return
 	}
-	err = Self.BasePackager.UnPack(reader)
+	n, err = Self.BasePackager.UnPack(reader)
+	n += 2
 	return
 }
 
@@ -203,7 +206,7 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 	return
 }
 
-func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
+func (Self *MuxPackager) UnPack(reader io.Reader) (n uint16, err error) {
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return
@@ -216,14 +219,17 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
 	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
 		Self.Content = WindowBuff.Get() // need get a window buf from pool
 		Self.BasePackager.clean()       // also clean the content
-		err = Self.BasePackager.UnPack(reader)
+		n, err = Self.BasePackager.UnPack(reader)
 		//logs.Warn("unpack", Self.Length, string(Self.Content))
 	case MUX_MSG_SEND_OK:
 		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
 		if err != nil {
 			return
 		}
+		n += 4 // uint32
 		err = binary.Read(reader, binary.LittleEndian, &Self.ReadLength)
+		n += 4 // uint32
 	}
+	n += 5 //uint8 int32
 	return
 }

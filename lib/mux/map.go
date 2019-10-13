@@ -20,6 +20,10 @@ func NewConnMap() *connMap {
 	return connMap
 }
 
+func (s *connMap) Size() (n int) {
+	return len(s.connMap)
+}
+
 func (s *connMap) Get(id int32) (*conn, bool) {
 	s.Lock()
 	defer s.Unlock()

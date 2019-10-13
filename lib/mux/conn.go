@@ -3,7 +3,6 @@ package mux
 import (
 	"errors"
 	"io"
-	"math"
 	"net"
 	"sync"
 	"time"
@@ -137,8 +136,8 @@ type ReceiveWindow struct {
 	readWait   bool
 	windowFull bool
 	count      int8
-	bw         *bandwidth
-	once       sync.Once
+	//bw         *bandwidth
+	once sync.Once
 	window
 }
 
@@ -146,7 +145,7 @@ func (Self *ReceiveWindow) New(mux *Mux) {
 	// initial a window for receive
 	Self.readOp = make(chan struct{})
 	Self.bufQueue.New()
-	Self.bw = new(bandwidth)
+	//Self.bw = new(bandwidth)
 	Self.element = new(ListElement)
 	Self.maxSize = 8192
 	Self.mux = mux
@@ -175,7 +174,7 @@ func (Self *ReceiveWindow) CalcSize() {
 	// calculating maximum receive window size
 	if Self.count == 0 {
 		//logs.Warn("ping, bw", Self.mux.latency, Self.bw.Get())
-		n := uint32(2 * Self.mux.latency * Self.bw.Get())
+		n := uint32(2 * Self.mux.latency * Self.mux.bw.Get() * 1.5 / float64(Self.mux.connMap.Size()))
 		if n < 8192 {
 			n = 8192
 		}
@@ -183,13 +182,16 @@ func (Self *ReceiveWindow) CalcSize() {
 			n = Self.bufQueue.Len()
 		}
 		// set the minimal size
+		if n > 2*Self.maxSize {
+			n = 2 * Self.maxSize
+		}
 		if n > common.MAXIMUM_WINDOW_SIZE {
 			n = common.MAXIMUM_WINDOW_SIZE
 		}
 		// set the maximum size
 		//logs.Warn("n", n)
 		Self.maxSize = n
-		Self.count = -5
+		Self.count = -10
 	}
 	Self.count += 1
 }
@@ -225,7 +227,7 @@ func (Self *ReceiveWindow) Read(p []byte, id int32) (n int, err error) {
 	l := 0
 	//logs.Warn("receive window read off, element.l", Self.off, Self.element.l)
 copyData:
-	Self.bw.StartRead()
+	//Self.bw.StartRead()
 	if Self.off == uint32(Self.element.l) {
 		// on the first Read method invoked, Self.off and Self.element.l
 		// both zero value
@@ -241,7 +243,7 @@ copyData:
 		//logs.Warn("pop element", Self.element.l, Self.element.part)
 	}
 	l = copy(p[pOff:], Self.element.buf[Self.off:])
-	Self.bw.SetCopySize(l)
+	//Self.bw.SetCopySize(l)
 	pOff += l
 	Self.off += uint32(l)
 	Self.bufQueue.mutex.Lock()
@@ -250,7 +252,7 @@ copyData:
 	Self.bufQueue.mutex.Unlock()
 	n += l
 	l = 0
-	Self.bw.EndRead()
+	//Self.bw.EndRead()
 	Self.sendStatus(id)
 	if Self.off == uint32(Self.element.l) {
 		//logs.Warn("put the element end ", string(Self.element.buf[:15]))
@@ -469,65 +471,81 @@ func (Self *SendWindow) SetTimeOut(t time.Time) {
 	Self.timeout = t
 }
 
-type bandwidth struct {
-	lastReadStart time.Time
-	readStart     time.Time
-	readEnd       time.Time
-	bufLength     int
-	lastBufLength int
-	count         int8
-	readBW        float64
-	writeBW       float64
-}
-
-func (Self *bandwidth) StartRead() {
-	Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
-}
-
-func (Self *bandwidth) EndRead() {
-	if !Self.lastReadStart.IsZero() {
-		if Self.count == 0 {
-			Self.calcWriteBandwidth()
-		}
-	}
-	Self.readEnd = time.Now()
-	if Self.count == 0 {
-		Self.calcReadBandwidth()
-		Self.count = -3
-	}
-	Self.count += 1
-}
-
-func (Self *bandwidth) SetCopySize(n int) {
-	// must be invoke between StartRead and EndRead
-	Self.lastBufLength, Self.bufLength = Self.bufLength, n
-}
-
-func (Self *bandwidth) calcReadBandwidth() {
-	// Bandwidth between nps and npc
-	readTime := Self.readEnd.Sub(Self.readStart)
-	Self.readBW = float64(Self.bufLength) / readTime.Seconds()
-	//logs.Warn("calc read bw", Self.bufLength, readTime.Seconds())
-}
-
-func (Self *bandwidth) calcWriteBandwidth() {
-	// Bandwidth between nps and user, npc and application
-	//logs.Warn("calc write bw")
-	writeTime := Self.readEnd.Sub(Self.lastReadStart)
-	Self.writeBW = float64(Self.lastBufLength) / writeTime.Seconds()
-}
-
-func (Self *bandwidth) Get() (bw float64) {
-	// The zero value, 0 for numeric types
-	if Self.writeBW == 0 && Self.readBW == 0 {
-		//logs.Warn("bw both 0")
-		return 100
-	}
-	if Self.writeBW == 0 && Self.readBW != 0 {
-		return Self.readBW
-	}
-	if Self.readBW == 0 && Self.writeBW != 0 {
-		return Self.writeBW
-	}
-	return math.Min(Self.readBW, Self.writeBW)
-}
+//type bandwidth struct {
+//	readStart     time.Time
+//	lastReadStart time.Time
+//	readEnd       time.Time
+//	lastReadEnd time.Time
+//	bufLength     int
+//	lastBufLength int
+//	count         int8
+//	readBW        float64
+//	writeBW       float64
+//	readBandwidth float64
+//}
+//
+//func (Self *bandwidth) StartRead() {
+//	Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
+//	if !Self.lastReadStart.IsZero() {
+//		if Self.count == -5 {
+//			Self.calcBandWidth()
+//		}
+//	}
+//}
+//
+//func (Self *bandwidth) EndRead() {
+//	Self.lastReadEnd, Self.readEnd = Self.readEnd, time.Now()
+//	if Self.count == -5 {
+//		Self.calcWriteBandwidth()
+//	}
+//	if Self.count == 0 {
+//		Self.calcReadBandwidth()
+//		Self.count = -6
+//	}
+//	Self.count += 1
+//}
+//
+//func (Self *bandwidth) SetCopySize(n int) {
+//	// must be invoke between StartRead and EndRead
+//	Self.lastBufLength, Self.bufLength = Self.bufLength, n
+//}
+//// calculating
+//// start end start end
+////     read     read
+////        write
+//
+//func (Self *bandwidth) calcBandWidth()  {
+//	t := Self.readStart.Sub(Self.lastReadStart)
+//	if Self.lastBufLength >= 32768 {
+//		Self.readBandwidth = float64(Self.lastBufLength) / t.Seconds()
+//	}
+//}
+//
+//func (Self *bandwidth) calcReadBandwidth() {
+//	// Bandwidth between nps and npc
+//	readTime := Self.readEnd.Sub(Self.readStart)
+//	Self.readBW = float64(Self.bufLength) / readTime.Seconds()
+//	//logs.Warn("calc read bw", Self.readBW, Self.bufLength, readTime.Seconds())
+//}
+//
+//func (Self *bandwidth) calcWriteBandwidth() {
+//	// Bandwidth between nps and user, npc and application
+//	writeTime := Self.readStart.Sub(Self.lastReadEnd)
+//	Self.writeBW = float64(Self.lastBufLength) / writeTime.Seconds()
+//	//logs.Warn("calc write bw", Self.writeBW, Self.bufLength, writeTime.Seconds())
+//}
+//
+//func (Self *bandwidth) Get() (bw float64) {
+//	// The zero value, 0 for numeric types
+//	if Self.writeBW == 0 && Self.readBW == 0 {
+//		//logs.Warn("bw both 0")
+//		return 100
+//	}
+//	if Self.writeBW == 0 && Self.readBW != 0 {
+//		return Self.readBW
+//	}
+//	if Self.readBW == 0 && Self.writeBW != 0 {
+//		return Self.writeBW
+//	}
+//	return Self.readBandwidth
+//}

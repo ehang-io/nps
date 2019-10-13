@@ -24,6 +24,7 @@ type Mux struct {
 	IsClose    bool
 	pingOk     int
 	latency    float64
+	bw         *bandwidth
 	pingCh     chan []byte
 	pingTimer  *time.Timer
 	connType   string
@@ -37,8 +38,9 @@ func NewMux(c net.Conn, connType string) *Mux {
 		conn:      c,
 		connMap:   NewConnMap(),
 		id:        0,
-		closeChan: make(chan struct{}),
+		closeChan: make(chan struct{}, 3),
 		newConnCh: make(chan *conn),
+		bw:        new(bandwidth),
 		IsClose:   false,
 		connType:  connType,
 		bufCh:     make(chan *bytes.Buffer),
@@ -91,6 +93,9 @@ func (s *Mux) Addr() net.Addr {
 }
 
 func (s *Mux) sendInfo(flag uint8, id int32, data ...interface{}) {
+	if s.IsClose {
+		return
+	}
 	var err error
 	pack := common.MuxPack.Get()
 	err = pack.NewPac(flag, id, data...)
@@ -160,6 +165,9 @@ func (s *Mux) ping() {
 		for {
 			if s.IsClose {
 				ticker.Stop()
+				if !s.pingTimer.Stop() {
+					<-s.pingTimer.C
+				}
 				break
 			}
 			select {
@@ -189,6 +197,9 @@ func (s *Mux) pingReturn() {
 		var now time.Time
 		var data []byte
 		for {
+			if s.IsClose {
+				break
+			}
 			select {
 			case data = <-s.pingCh:
 			case <-s.closeChan:
@@ -199,12 +210,12 @@ func (s *Mux) pingReturn() {
 				break
 			}
 			_ = now.UnmarshalText(data)
-			s.latency = time.Now().UTC().Sub(now).Seconds() / 2
-			logs.Warn("latency", s.latency)
-			common.WindowBuff.Put(data)
-			if s.latency <= 0 {
-				logs.Warn("latency err", s.latency)
+			latency := time.Now().UTC().Sub(now).Seconds() / 2
+			if latency < 0.5 && latency > 0 {
+				s.latency = latency
 			}
+			//logs.Warn("latency", s.latency)
+			common.WindowBuff.Put(data)
 		}
 	}()
 }
@@ -212,14 +223,18 @@ func (s *Mux) pingReturn() {
 func (s *Mux) readSession() {
 	go func() {
 		pack := common.MuxPack.Get()
+		var l uint16
+		var err error
 		for {
 			if s.IsClose {
 				break
 			}
 			pack = common.MuxPack.Get()
-			if pack.UnPack(s.conn) != nil {
+			s.bw.StartRead()
+			if l, err = pack.UnPack(s.conn); err != nil {
 				break
 			}
+			s.bw.SetCopySize(l)
 			s.pingOk = 0
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new connection
@@ -239,7 +254,7 @@ func (s *Mux) readSession() {
 			if connection, ok := s.connMap.Get(pack.Id); ok && !connection.isClose {
 				switch pack.Flag {
 				case common.MUX_NEW_MSG, common.MUX_NEW_MSG_PART: //new msg from remote connection
-					err := s.newMsg(connection, pack)
+					err = s.newMsg(connection, pack)
 					if err != nil {
 						connection.Close()
 					}
@@ -299,6 +314,7 @@ func (s *Mux) Close() error {
 	s.connMap.Close()
 	s.closeChan <- struct{}{}
 	s.closeChan <- struct{}{}
+	s.closeChan <- struct{}{}
 	close(s.newConnCh)
 	return s.conn.Close()
 }
@@ -310,4 +326,39 @@ func (s *Mux) getId() (id int32) {
 		s.getId()
 	}
 	return
+}
+
+type bandwidth struct {
+	readStart     time.Time
+	lastReadStart time.Time
+	bufLength     uint16
+	readBandwidth float64
+}
+
+func (Self *bandwidth) StartRead() {
+	if Self.readStart.IsZero() {
+		Self.readStart = time.Now()
+	}
+	if Self.bufLength >= 16384 {
+		Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
+		Self.calcBandWidth()
+	}
+}
+
+func (Self *bandwidth) SetCopySize(n uint16) {
+	Self.bufLength += n
+}
+
+func (Self *bandwidth) calcBandWidth() {
+	t := Self.readStart.Sub(Self.lastReadStart)
+	Self.readBandwidth = float64(Self.bufLength) / t.Seconds()
+	Self.bufLength = 0
+}
+
+func (Self *bandwidth) Get() (bw float64) {
+	// The zero value, 0 for numeric types
+	if Self.readBandwidth <= 0 {
+		Self.readBandwidth = 100
+	}
+	return Self.readBandwidth
 }
