@@ -12,23 +12,21 @@ import (
 type Handshake struct {
 }
 
-func (handshake *Handshake) GetConfigName() []*core.Config {
+func (handshake *Handshake) GetConfigName()*core.NpsConfigs{
 	return nil
 }
 func (handshake *Handshake) GetStage() core.Stage {
 	return core.STAGE_RUN
 }
-func (handshake *Handshake) GetBeforePlugin() core.Plugin {
-	return nil
-}
+
 func (handshake *Handshake) Start(ctx context.Context, config map[string]string) error {
 	return nil
 }
 
 func (handshake *Handshake) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value("clientConn")
+	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
 	if clientCtxConn == nil {
-		return errors.New("the client connection is not exist")
+		return core.CLIENT_CONNECTION_NOT_EXIST
 	}
 	clientConn := clientCtxConn.(net.Conn)
 

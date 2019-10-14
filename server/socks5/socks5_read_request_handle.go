@@ -32,10 +32,6 @@ const (
 )
 
 func (request *Request) GetConfigName() []*core.Config {
-	c := make([]*core.Config, 0)
-	c = append(c, &core.Config{ConfigName: "socks5_check_request", Description: "need check the permission?"})
-	c = append(c, &core.Config{ConfigName: "socks5_request_username", Description: "auth username"})
-	c = append(c, &core.Config{ConfigName: "socks5_request_password", Description: "auth password"})
 	return nil
 }
 
@@ -51,9 +47,9 @@ func (request *Request) End(ctx context.Context, config map[string]string) error
 }
 
 func (request *Request) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value("clientConn")
+	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
 	if clientCtxConn == nil {
-		return errors.New("the client request.clientConnection is not exist")
+		return core.CLIENT_CONNECTION_NOT_EXIST
 	}
 	request.clientConn = clientCtxConn.(net.Conn)
 	request.ctx = ctx
@@ -76,12 +72,12 @@ func (request *Request) Run(ctx context.Context, config map[string]string) error
 
 	switch header[1] {
 	case connectMethod:
-		context.WithValue(request.ctx, "socks5_target_type", "tcp")
+		context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "tcp")
 		return request.doConnect()
 	case bindMethod:
 		return request.handleBind()
 	case associateMethod:
-		context.WithValue(request.ctx, "socks5_target_type", "udp")
+		context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "udp")
 		return request.handleUDP()
 	default:
 		request.sendReply(commandNotSupported)
@@ -97,7 +93,6 @@ func (request *Request) sendReply(rep uint8) error {
 		0,
 		1,
 	}
-
 	localAddr := request.clientConn.LocalAddr().String()
 	localHost, localPort, _ := net.SplitHostPort(localAddr)
 	ipBytes := net.ParseIP(localHost).To4()
@@ -139,8 +134,8 @@ func (request *Request) doConnect() error {
 	var port uint16
 	binary.Read(request.clientConn, binary.BigEndian, &port)
 
-	context.WithValue(request.ctx, "socks5_target_host", host)
-	context.WithValue(request.ctx, "socks5_target_port", port)
+	context.WithValue(request.ctx, core.PROXY_CONNECTION_ADDR, host)
+	context.WithValue(request.ctx, core.PROXY_CONNECTION_PORT, port)
 	return nil
 }
 

@@ -293,6 +293,22 @@ func (s *Bridge) register(c *conn.Conn) {
 	}
 }
 
+func (s *Bridge) GetConnByClientId(clientId int) (target net.Conn, err error) {
+	if v, ok := s.Client.Load(clientId); ok {
+		var tunnel *mux.Mux
+		tunnel = v.(*Client).tunnel
+		if tunnel == nil {
+			err = errors.New("the client connect error")
+			return
+		}
+		target, err = tunnel.NewConn()
+		return
+	} else {
+		err = errors.New(fmt.Sprintf("the client %d is not connect", clientId))
+	}
+	return
+}
+
 func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
 	//if the proxy type is local
 	if link.LocalProxy {

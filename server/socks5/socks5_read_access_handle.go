@@ -18,24 +18,14 @@ const (
 
 type Access struct {
 	clientConn net.Conn
-	username   string
-	password   string
 }
 
-func (access *Access) GetConfigName() []*core.Config {
-	c := make([]*core.Config, 0)
-	c = append(c, &core.Config{ConfigName: "socks5_check_access", Description: "need check the permission?"})
-	c = append(c, &core.Config{ConfigName: "socks5_access_username", Description: "auth username"})
-	c = append(c, &core.Config{ConfigName: "socks5_access_password", Description: "auth password"})
-	return nil
+func (access *Access) GetConfigName() *core.NpsConfigs {
+	return core.NewNpsConfigs("socks5_check_access_check", "need check the permission simply")
 }
 
 func (access *Access) GetStage() core.Stage {
 	return core.STAGE_RUN
-}
-
-func (access *Access) GetBeforePlugin() core.Plugin {
-	return &Handshake{}
 }
 
 func (access *Access) Start(ctx context.Context, config map[string]string) error {
@@ -46,17 +36,12 @@ func (access *Access) End(ctx context.Context, config map[string]string) error {
 }
 
 func (access *Access) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value("clientConn")
+	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
 	if clientCtxConn == nil {
-		return errors.New("the client access.clientConnection is not exist")
+		return core.CLIENT_CONNECTION_NOT_EXIST
 	}
 	access.clientConn = clientCtxConn.(net.Conn)
 	if config["socks5_check_access"] != "true" {
-		return access.sendAccessMsgToClient(UserNoAuth)
-	}
-	configUsername := config["socks5_access_username"]
-	configPassword := config["socks5_access_password"]
-	if configUsername == "" || configPassword == "" {
 		return access.sendAccessMsgToClient(UserNoAuth)
 	}
 	// need auth
@@ -64,14 +49,14 @@ func (access *Access) Run(ctx context.Context, config map[string]string) error {
 		return err
 	}
 	// send auth reply to client ,and get the auth information
-	var err error
-	access.username, access.password, err = access.getAuthInfoFromClient()
+	username, password, err := access.getAuthInfoFromClient()
 	if err != nil {
 		return err
 	}
-	context.WithValue(ctx, access.username, access.password)
+	context.WithValue(ctx, "socks_client_username", username)
+	context.WithValue(ctx, "socks_client_password", password)
 	// check
-	return access.checkAuth(configUsername, configPassword)
+	return nil
 }
 
 func (access *Access) sendAccessMsgToClient(auth uint8) error {
@@ -112,17 +97,4 @@ func (access *Access) getAuthInfoFromClient() (username string, password string,
 	username = string(user)
 	password = string(pass)
 	return
-}
-
-func (access *Access) checkAuth(configUserName, configPassword string) error {
-	if access.username == configUserName && access.password == configPassword {
-		_, err := access.clientConn.Write([]byte{userAuthVersion, authSuccess})
-		return err
-	} else {
-		_, err := access.clientConn.Write([]byte{userAuthVersion, authFailure})
-		if err != nil {
-			return err
-		}
-		return errors.New("auth check error,username or password does not match")
-	}
 }

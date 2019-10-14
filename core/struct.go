@@ -2,13 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
 )
-
-// This structure is used to describe the plugin configuration item name and description.
-type Config struct {
-	ConfigName  string
-	Description string
-}
 
 type Stage uint8
 
@@ -21,11 +16,23 @@ const (
 	STAGE_START
 	STAGE_END
 	STAGE_RUN
+	PROXY_CONNECTION_TYPE = "proxy_target_type"
+	PROXY_CONNECTION_ADDR = "proxy_target_addr"
+	PROXY_CONNECTION_PORT = "proxy_target_port"
+	CLIENT_CONNECTION     = "clientConn"
+	BRIDGE                = "bridge"
+	CLIENT_ID             = "client_id"
+)
+
+var (
+	CLIENT_CONNECTION_NOT_EXIST = errors.New("the client connection is not exist")
+	BRIDGE_NOT_EXIST            = errors.New("the client connection is not exist")
+	REQUEST_EOF                 = errors.New("the request has finished")
 )
 
 // Plugin interface, all plugins must implement those functions.
 type Plugin interface {
-	GetConfigName() []*Config
+	GetConfigName() *NpsConfigs
 	GetBeforePlugin() Plugin
 	GetStage() Stage
 	Start(ctx context.Context, config map[string]string) error
