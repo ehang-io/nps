@@ -17,8 +17,10 @@ type connLog struct {
 var m map[int]*connLog
 
 var copyMap map[int]*connLog
+var stashTimeNow time.Time
 
 func deepCopyMap() {
+	stashTimeNow = time.Now()
 	copyMap = make(map[int]*connLog)
 	for k, v := range m {
 		copyMap[k] = &connLog{
@@ -29,24 +31,24 @@ func deepCopyMap() {
 	}
 }
 
-//func init() {
-//	m = make(map[int]*connLog)
-//	m[0] = &connLog{
-//		startTime: time.Now(),
-//		isClose:   false,
-//		logs:      []string{"111", "222", "333"},
-//	}
-//	m[1] = &connLog{
-//		startTime: time.Now(),
-//		isClose:   false,
-//		logs:      []string{"111", "222", "333", "444"},
-//	}
-//	m[2] = &connLog{
-//		startTime: time.Now(),
-//		isClose:   true,
-//		logs:      []string{"111", "222", "333", "555"},
-//	}
-//}
+func init() {
+	m = make(map[int]*connLog)
+	m[0] = &connLog{
+		startTime: time.Now(),
+		isClose:   false,
+		logs:      []string{"111", "222", "333"},
+	}
+	m[1] = &connLog{
+		startTime: time.Now(),
+		isClose:   false,
+		logs:      []string{"111", "222", "333", "444"},
+	}
+	m[2] = &connLog{
+		startTime: time.Now(),
+		isClose:   true,
+		logs:      []string{"111", "222", "333", "555"},
+	}
+}
 
 type IntSlice []int
 
@@ -78,7 +80,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 	for v := range keys {
 		connL := copyMap[v]
 		s += "<a href='/detail?id=" + strconv.Itoa(v) + "'>" + strconv.Itoa(v) + "</a>----------"
-		s += strconv.Itoa(int(time.Now().Unix()-connL.startTime.Unix())) + "s----------"
+		s += strconv.Itoa(int(stashTimeNow.Unix()-connL.startTime.Unix())) + "s----------"
 		s += strconv.FormatBool(connL.isClose)
 		s += "<br>"
 	}
