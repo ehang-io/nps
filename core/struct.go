@@ -34,7 +34,6 @@ var (
 // Plugin interface, all plugins must implement those functions.
 type Plugin interface {
 	GetConfigName() *NpsConfigs
-	GetBeforePlugin() Plugin
 	GetStage() Stage
 	Start(ctx context.Context, config map[string]string) error
 	Run(ctx context.Context, config map[string]string) error
