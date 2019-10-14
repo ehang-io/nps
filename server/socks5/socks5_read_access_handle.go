@@ -17,6 +17,7 @@ const (
 )
 
 type Access struct {
+	core.NpsPlugin
 	clientConn net.Conn
 }
 
@@ -24,23 +25,8 @@ func (access *Access) GetConfigName() *core.NpsConfigs {
 	return core.NewNpsConfigs("socks5_check_access_check", "need check the permission simply")
 }
 
-func (access *Access) GetStage() core.Stage {
-	return core.STAGE_RUN
-}
-
-func (access *Access) Start(ctx context.Context, config map[string]string) error {
-	return nil
-}
-func (access *Access) End(ctx context.Context, config map[string]string) error {
-	return nil
-}
-
 func (access *Access) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
-	if clientCtxConn == nil {
-		return core.CLIENT_CONNECTION_NOT_EXIST
-	}
-	access.clientConn = clientCtxConn.(net.Conn)
+	access.clientConn = access.GetClientConn(ctx)
 	if config["socks5_check_access"] != "true" {
 		return access.sendAccessMsgToClient(UserNoAuth)
 	}

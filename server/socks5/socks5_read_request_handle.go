@@ -11,6 +11,7 @@ import (
 )
 
 type Request struct {
+	core.NpsPlugin
 	clientConn net.Conn
 	ctx        context.Context
 }
@@ -31,27 +32,8 @@ const (
 	addrTypeNotSupported = 8
 )
 
-func (request *Request) GetConfigName() []*core.Config {
-	return nil
-}
-
-func (request *Request) GetStage() core.Stage {
-	return core.STAGE_RUN
-}
-
-func (request *Request) Start(ctx context.Context, config map[string]string) error {
-	return nil
-}
-func (request *Request) End(ctx context.Context, config map[string]string) error {
-	return nil
-}
-
 func (request *Request) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
-	if clientCtxConn == nil {
-		return core.CLIENT_CONNECTION_NOT_EXIST
-	}
-	request.clientConn = clientCtxConn.(net.Conn)
+	request.clientConn = request.GetClientConn(ctx)
 	request.ctx = ctx
 
 	/*

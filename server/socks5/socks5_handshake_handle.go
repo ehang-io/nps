@@ -6,30 +6,14 @@ import (
 	"fmt"
 	"github.com/cnlh/nps/core"
 	"io"
-	"net"
 )
 
 type Handshake struct {
-}
-
-func (handshake *Handshake) GetConfigName()*core.NpsConfigs{
-	return nil
-}
-func (handshake *Handshake) GetStage() core.Stage {
-	return core.STAGE_RUN
-}
-
-func (handshake *Handshake) Start(ctx context.Context, config map[string]string) error {
-	return nil
+	core.NpsPlugin
 }
 
 func (handshake *Handshake) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
-	if clientCtxConn == nil {
-		return core.CLIENT_CONNECTION_NOT_EXIST
-	}
-	clientConn := clientCtxConn.(net.Conn)
-
+	clientConn := handshake.GetClientConn(ctx)
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(clientConn, buf); err != nil {
 		return errors.New("negotiation err while read 2 bytes from client connection: " + err.Error())
@@ -48,9 +32,5 @@ func (handshake *Handshake) Run(ctx context.Context, config map[string]string) e
 		context.WithValue(ctx, "methods", methods[:n])
 	}
 
-	return nil
-}
-
-func (handshake *Handshake) End(ctx context.Context, config map[string]string) error {
 	return nil
 }

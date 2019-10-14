@@ -8,6 +8,7 @@ import (
 )
 
 type CheckAccess struct {
+	core.NpsPlugin
 	clientConn     net.Conn
 	clientUsername string
 	clientPassword string
@@ -22,27 +23,11 @@ func (check *CheckAccess) GetConfigName() *core.NpsConfigs {
 	return c
 }
 
-func (check *CheckAccess) GetStage() core.Stage {
-	return core.STAGE_RUN
-}
-
-func (check *CheckAccess) Start(ctx context.Context, config map[string]string) error {
-	return nil
-}
-
 func (check *CheckAccess) Run(ctx context.Context, config map[string]string) error {
-	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
-	if clientCtxConn == nil {
-		return core.CLIENT_CONNECTION_NOT_EXIST
-	}
-	check.clientConn = clientCtxConn.(net.Conn)
+	check.clientConn = check.GetClientConn(ctx)
 	check.configUsername = config["socks5_access_username"]
 	check.configPassword = config["socks5_access_password"]
 
-	return nil
-}
-
-func (check *CheckAccess) End(ctx context.Context, config map[string]string) error {
 	return nil
 }
 

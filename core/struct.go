@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"net"
 )
 
 type Stage uint8
@@ -28,7 +29,7 @@ var (
 	CLIENT_CONNECTION_NOT_EXIST = errors.New("the client connection is not exist")
 	BRIDGE_NOT_EXIST            = errors.New("the client connection is not exist")
 	REQUEST_EOF                 = errors.New("the request has finished")
-	CLIENT_ID_NOT_EXIST        = errors.New("the request has finished")
+	CLIENT_ID_NOT_EXIST         = errors.New("the request has finished")
 )
 
 // Plugin interface, all plugins must implement those functions.
@@ -38,4 +39,31 @@ type Plugin interface {
 	Start(ctx context.Context, config map[string]string) error
 	Run(ctx context.Context, config map[string]string) error
 	End(ctx context.Context, config map[string]string) error
+}
+
+type NpsPlugin struct {
+}
+
+func (npsPlugin *NpsPlugin) GetConfigName() *NpsConfigs {
+	return nil
+}
+
+func (npsPlugin *NpsPlugin) GetStage() Stage {
+	return STAGE_RUN
+}
+
+func (npsPlugin *NpsPlugin) Start(ctx context.Context, config map[string]string) error {
+	return nil
+}
+
+func (npsPlugin *NpsPlugin) Run(ctx context.Context, config map[string]string) error {
+	return nil
+}
+
+func (npsPlugin *NpsPlugin) End(ctx context.Context, config map[string]string) error {
+	return nil
+}
+
+func (npsPlugin *NpsPlugin) GetClientConn(ctx context.Context) net.Conn {
+	return ctx.Value(CLIENT_CONNECTION).(net.Conn)
 }
