@@ -28,6 +28,7 @@ var (
 	CLIENT_CONNECTION_NOT_EXIST = errors.New("the client connection is not exist")
 	BRIDGE_NOT_EXIST            = errors.New("the client connection is not exist")
 	REQUEST_EOF                 = errors.New("the request has finished")
+	CLIENT_ID_NOT_EXIST        = errors.New("the request has finished")
 )
 
 // Plugin interface, all plugins must implement those functions.
