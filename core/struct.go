@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"github.com/cnlh/nps/bridge"
 	"net"
 )
 
@@ -66,4 +67,12 @@ func (npsPlugin *NpsPlugin) End(ctx context.Context, config map[string]string) e
 
 func (npsPlugin *NpsPlugin) GetClientConn(ctx context.Context) net.Conn {
 	return ctx.Value(CLIENT_CONNECTION).(net.Conn)
+}
+
+func (npsPlugin *NpsPlugin) GetBridge(ctx context.Context) *bridge.Bridge {
+	return ctx.Value(BRIDGE).(*bridge.Bridge)
+}
+
+func (npsPlugin *NpsPlugin) GetClientId(ctx context.Context) int {
+	return ctx.Value(CLIENT_ID).(int)
 }

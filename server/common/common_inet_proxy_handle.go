@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/core"
 	"net"
 )
@@ -20,25 +19,20 @@ func (proxy *Proxy) GetConfigName() *core.NpsConfigs {
 func (proxy *Proxy) Run(ctx context.Context, config map[string]string) error {
 	proxy.clientConn = proxy.GetClientConn(ctx)
 	proxy.ctx = ctx
-	bg := ctx.Value(core.BRIDGE)
-	if bg == nil {
-		return core.BRIDGE_NOT_EXIST
-	}
+
 	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
 	if clientCtxConn == nil {
 		return core.CLIENT_CONNECTION_NOT_EXIST
 	}
 
-	clientId := ctx.Value(core.CLIENT_ID)
-	if clientId == nil {
-		return core.CLIENT_ID_NOT_EXIST
-	}
+	clientId := proxy.GetClientId(ctx)
 
-	brg := bg.(*bridge.Bridge)
-	severConn, err := brg.GetConnByClientId(clientId.(int))
+	brg := proxy.GetBridge(ctx)
+	severConn, err := brg.GetConnByClientId(clientId)
 	if err != nil {
 		return err
 	}
+
 	go core.CopyBuffer(severConn, clientCtxConn.(net.Conn))
 	core.CopyBuffer(clientCtxConn.(net.Conn), severConn)
 	return nil
