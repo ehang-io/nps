@@ -111,6 +111,7 @@ func TestNewMux(t *testing.T) {
 		}
 	}()
 
+	go NewLogServer()
 	time.Sleep(time.Second * 5)
 	//go test_request()
 

@@ -61,7 +61,7 @@ func (s *Mux) NewConn() (*conn, error) {
 	if s.IsClose {
 		return nil, errors.New("the mux has closed")
 	}
-	conn := NewConn(s.getId(), s)
+	conn := NewConn(s.getId(), s, "nps ")
 	//it must be set before send
 	s.connMap.Set(conn.connId, conn)
 	s.sendInfo(common.MUX_NEW_CONN, conn.connId, nil)
@@ -238,7 +238,7 @@ func (s *Mux) readSession() {
 			s.pingOk = 0
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new connection
-				connection := NewConn(pack.Id, s)
+				connection := NewConn(pack.Id, s, "npc ")
 				s.connMap.Set(pack.Id, connection) //it has been set before send ok
 				s.newConnCh <- connection
 				s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)

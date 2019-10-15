@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,9 +22,10 @@ type conn struct {
 	receiveWindow    *ReceiveWindow
 	sendWindow       *SendWindow
 	once             sync.Once
+	label            string
 }
 
-func NewConn(connId int32, mux *Mux) *conn {
+func NewConn(connId int32, mux *Mux, label ...string) *conn {
 	c := &conn{
 		getStatusCh:      make(chan struct{}),
 		connStatusOkCh:   make(chan struct{}),
@@ -33,8 +35,17 @@ func NewConn(connId int32, mux *Mux) *conn {
 		sendWindow:       new(SendWindow),
 		once:             sync.Once{},
 	}
+	if len(label) > 0 {
+		c.label = label[0]
+	}
 	c.receiveWindow.New(mux)
 	c.sendWindow.New(mux)
+	logm := &connLog{
+		startTime: time.Now(),
+		isClose:   false,
+		logs:      []string{c.label + "new conn success"},
+	}
+	setM(label[0], int(connId), logm)
 	return c
 }
 
@@ -47,6 +58,15 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 	}
 	// waiting for takeout from receive window finish or timeout
 	n, err = s.receiveWindow.Read(buf, s.connId)
+	var errstr string
+	if err == nil {
+		errstr = "err:nil"
+	} else {
+		errstr = err.Error()
+	}
+	d := getM(s.label, int(s.connId))
+	d.logs = append(d.logs, s.label+"read "+strconv.Itoa(n)+" "+errstr)
+	setM(s.label, int(s.connId), d)
 	return
 }
 
@@ -81,6 +101,10 @@ func (s *conn) closeProcess() {
 	}
 	s.sendWindow.CloseWindow()
 	s.receiveWindow.CloseWindow()
+	d := getM(s.label, int(s.connId))
+	d.isClose = true
+	d.logs = append(d.logs, s.label+"close "+time.Now().String())
+	setM(s.label, int(s.connId), d)
 	return
 }
 
