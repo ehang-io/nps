@@ -23,12 +23,12 @@ func (check *CheckAccess) GetConfigName() *core.NpsConfigs {
 	return c
 }
 
-func (check *CheckAccess) Run(ctx context.Context, config map[string]string) error {
+func (check *CheckAccess) Run(ctx context.Context, config map[string]string) (context.Context, error) {
 	check.clientConn = check.GetClientConn(ctx)
 	check.configUsername = config["socks5_access_username"]
 	check.configPassword = config["socks5_access_password"]
 
-	return nil
+	return ctx, nil
 }
 
 func (check *CheckAccess) checkAuth(configUserName, configPassword string) error {

@@ -16,24 +16,18 @@ func (proxy *Proxy) GetConfigName() *core.NpsConfigs {
 	return core.NewNpsConfigs("socks5_proxy", "proxy to inet")
 }
 
-func (proxy *Proxy) Run(ctx context.Context, config map[string]string) error {
-	proxy.clientConn = proxy.GetClientConn(ctx)
+func (proxy *Proxy) Run(ctx context.Context, config map[string]string) (context.Context, error) {
 	proxy.ctx = ctx
-
-	clientCtxConn := ctx.Value(core.CLIENT_CONNECTION)
-	if clientCtxConn == nil {
-		return core.CLIENT_CONNECTION_NOT_EXIST
-	}
-
+	proxy.clientConn = proxy.GetClientConn(ctx)
 	clientId := proxy.GetClientId(ctx)
-
 	brg := proxy.GetBridge(ctx)
+
 	severConn, err := brg.GetConnByClientId(clientId)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
-	go core.CopyBuffer(severConn, clientCtxConn.(net.Conn))
-	core.CopyBuffer(clientCtxConn.(net.Conn), severConn)
-	return nil
+	go core.CopyBuffer(severConn, proxy.clientConn)
+	core.CopyBuffer(proxy.clientConn, severConn)
+	return ctx, nil
 }

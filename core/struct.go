@@ -1,10 +1,7 @@
 package core
 
 import (
-	"context"
 	"errors"
-	"github.com/cnlh/nps/bridge"
-	"net"
 )
 
 type Stage uint8
@@ -26,53 +23,18 @@ const (
 	CLIENT_ID             = "client_id"
 )
 
+type ConfigLevel uint8
+
+const (
+	CONFIG_LEVEL_CLIENT ConfigLevel = iota
+	CONFIG_LEVEL_PLUGIN
+	CONFIG_LEVEL_GLOBAL
+)
+
 var (
 	CLIENT_CONNECTION_NOT_EXIST = errors.New("the client connection is not exist")
 	BRIDGE_NOT_EXIST            = errors.New("the client connection is not exist")
 	REQUEST_EOF                 = errors.New("the request has finished")
-	CLIENT_ID_NOT_EXIST         = errors.New("the request has finished")
+	CLIENT_ID_NOT_EXIST         = errors.New("the client id is not exist")
 )
 
-// Plugin interface, all plugins must implement those functions.
-type Plugin interface {
-	GetConfigName() *NpsConfigs
-	GetStage() Stage
-	Start(ctx context.Context, config map[string]string) error
-	Run(ctx context.Context, config map[string]string) error
-	End(ctx context.Context, config map[string]string) error
-}
-
-type NpsPlugin struct {
-}
-
-func (npsPlugin *NpsPlugin) GetConfigName() *NpsConfigs {
-	return nil
-}
-
-func (npsPlugin *NpsPlugin) GetStage() Stage {
-	return STAGE_RUN
-}
-
-func (npsPlugin *NpsPlugin) Start(ctx context.Context, config map[string]string) error {
-	return nil
-}
-
-func (npsPlugin *NpsPlugin) Run(ctx context.Context, config map[string]string) error {
-	return nil
-}
-
-func (npsPlugin *NpsPlugin) End(ctx context.Context, config map[string]string) error {
-	return nil
-}
-
-func (npsPlugin *NpsPlugin) GetClientConn(ctx context.Context) net.Conn {
-	return ctx.Value(CLIENT_CONNECTION).(net.Conn)
-}
-
-func (npsPlugin *NpsPlugin) GetBridge(ctx context.Context) *bridge.Bridge {
-	return ctx.Value(BRIDGE).(*bridge.Bridge)
-}
-
-func (npsPlugin *NpsPlugin) GetClientId(ctx context.Context) int {
-	return ctx.Value(CLIENT_ID).(int)
-}

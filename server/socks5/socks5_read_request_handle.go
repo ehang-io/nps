@@ -32,7 +32,7 @@ const (
 	addrTypeNotSupported = 8
 )
 
-func (request *Request) Run(ctx context.Context, config map[string]string) error {
+func (request *Request) Run(ctx context.Context, config map[string]string) (context.Context, error) {
 	request.clientConn = request.GetClientConn(ctx)
 	request.ctx = ctx
 
@@ -49,23 +49,23 @@ func (request *Request) Run(ctx context.Context, config map[string]string) error
 	_, err := io.ReadFull(request.clientConn, header)
 
 	if err != nil {
-		return errors.New("illegal request" + err.Error())
+		return request.ctx, errors.New("illegal request" + err.Error())
 	}
 
 	switch header[1] {
 	case connectMethod:
-		context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "tcp")
-		return request.doConnect()
+		request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "tcp")
+		return request.ctx, request.doConnect()
 	case bindMethod:
-		return request.handleBind()
+		return request.ctx, request.handleBind()
 	case associateMethod:
-		context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "udp")
-		return request.handleUDP()
+		request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "udp")
+		return request.ctx, request.handleUDP()
 	default:
 		request.sendReply(commandNotSupported)
-		return errors.New("command not supported")
+		return request.ctx, errors.New("command not supported")
 	}
-	return nil
+	return request.ctx, nil
 }
 
 func (request *Request) sendReply(rep uint8) error {
@@ -116,8 +116,8 @@ func (request *Request) doConnect() error {
 	var port uint16
 	binary.Read(request.clientConn, binary.BigEndian, &port)
 
-	context.WithValue(request.ctx, core.PROXY_CONNECTION_ADDR, host)
-	context.WithValue(request.ctx, core.PROXY_CONNECTION_PORT, port)
+	request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_ADDR, host)
+	request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_PORT, port)
 	return nil
 }
 

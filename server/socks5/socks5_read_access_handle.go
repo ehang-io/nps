@@ -25,24 +25,24 @@ func (access *Access) GetConfigName() *core.NpsConfigs {
 	return core.NewNpsConfigs("socks5_check_access_check", "need check the permission simply")
 }
 
-func (access *Access) Run(ctx context.Context, config map[string]string) error {
+func (access *Access) Run(ctx context.Context, config map[string]string) (context.Context, error) {
 	access.clientConn = access.GetClientConn(ctx)
 	if config["socks5_check_access"] != "true" {
-		return access.sendAccessMsgToClient(UserNoAuth)
+		return ctx, access.sendAccessMsgToClient(UserNoAuth)
 	}
 	// need auth
 	if err := access.sendAccessMsgToClient(UserPassAuth); err != nil {
-		return err
+		return ctx, err
 	}
 	// send auth reply to client ,and get the auth information
 	username, password, err := access.getAuthInfoFromClient()
 	if err != nil {
-		return err
+		return ctx, err
 	}
-	context.WithValue(ctx, "socks_client_username", username)
-	context.WithValue(ctx, "socks_client_password", password)
+	ctx = context.WithValue(ctx, "socks_client_username", username)
+	ctx = context.WithValue(ctx, "socks_client_password", password)
 	// check
-	return nil
+	return ctx, nil
 }
 
 func (access *Access) sendAccessMsgToClient(auth uint8) error {
