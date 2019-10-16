@@ -1,8 +1,9 @@
 package socks5
 
 import (
+	"context"
+	"fmt"
 	"github.com/cnlh/nps/core"
-	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/server/common"
 	"net"
 	"strconv"
@@ -29,8 +30,28 @@ func NewS5Server(globalConfig, clientConfig, pluginConfig map[string]string) *S5
 	return s5
 }
 
-func (s5 *S5Server) Start() error {
-	return conn.NewTcpListenerAndProcess(s5.ServerIp+":"+strconv.Itoa(s5.ServerPort), func(c net.Conn) {
+func (s5 *S5Server) Start(ctx context.Context) error {
+	// init config of plugin
+	for _, pg := range s5.plugins.AllPgs {
+		pg.InitConfig(s5.globalConfig, s5.clientConfig, s5.pluginConfig)
+	}
+	// run the plugin contains start
+	if core.RunPlugin(ctx, s5.plugins.StartPgs) != nil {
+		return nil
+	}
 
+	return core.NewTcpListenerAndProcess(s5.ServerIp+":"+strconv.Itoa(s5.ServerPort), func(c net.Conn) {
+		// init ctx value clientConn
+		ctx = context.WithValue(ctx, core.CLIENT_CONNECTION, c)
+		// start run the plugin run
+		if err := core.RunPlugin(ctx, s5.plugins.RunPgs); err != nil {
+			fmt.Println(err)
+			return
+		}
+		// start run the plugin end
+		if err := core.RunPlugin(ctx, s5.plugins.EndPgs); err != nil {
+			fmt.Println(err)
+			return
+		}
 	}, &s5.listener)
 }

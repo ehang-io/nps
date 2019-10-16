@@ -12,7 +12,7 @@ type Handshake struct {
 	core.NpsPlugin
 }
 
-func (handshake *Handshake) Run(ctx context.Context, config map[string]string) (context.Context, error) {
+func (handshake *Handshake) Run(ctx context.Context) (context.Context, error) {
 	clientConn := handshake.GetClientConn(ctx)
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(clientConn, buf); err != nil {

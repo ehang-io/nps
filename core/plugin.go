@@ -9,45 +9,60 @@ import (
 // Plugin interface, all plugins must implement those functions.
 type Plugin interface {
 	GetConfigName() *NpsConfigs
-	GetConfigLevel() ConfigLevel
-	GetStage() Stage
-	Start(ctx context.Context, config map[string]string) (context.Context, error)
-	Run(ctx context.Context, config map[string]string) (context.Context, error)
-	End(ctx context.Context, config map[string]string) (context.Context, error)
+	InitConfig(globalConfig, clientConfig, pluginConfig map[string]string)
+	GetStage() []Stage
+	Start(ctx context.Context) (context.Context, error)
+	Run(ctx context.Context) (context.Context, error)
+	End(ctx context.Context) (context.Context, error)
 }
 
 type NpsPlugin struct {
 	Version string
+	Configs map[string]string
 }
 
 func (npsPlugin *NpsPlugin) GetConfigName() *NpsConfigs {
 	return nil
 }
 
-// describe the config level
-func (npsPlugin *NpsPlugin) GetConfigLevel() ConfigLevel {
-	return CONFIG_LEVEL_PLUGIN
+func (npsPlugin *NpsPlugin) InitConfig(globalConfig, clientConfig, pluginConfig map[string]string) {
+	npsPlugin.Configs = make(map[string]string)
+	for _, cfg := range npsPlugin.GetConfigName().GetAll() {
+		switch cfg.ConfigLevel {
+		case CONFIG_LEVEL_PLUGIN:
+			npsPlugin.Configs[cfg.ConfigName] = pluginConfig[cfg.ConfigName]
+		case CONFIG_LEVEL_CLIENT:
+			npsPlugin.Configs[cfg.ConfigName] = clientConfig[cfg.ConfigName]
+		case CONFIG_LEVEL_GLOBAL:
+			npsPlugin.Configs[cfg.ConfigName] = globalConfig[cfg.ConfigName]
+		}
+	}
+	return
 }
 
 // describe the stage of the plugin
-func (npsPlugin *NpsPlugin) GetStage() Stage {
-	return STAGE_RUN
+func (npsPlugin *NpsPlugin) GetStage() []Stage {
+	return []Stage{STAGE_RUN}
 }
 
-func (npsPlugin *NpsPlugin) Start(ctx context.Context, config map[string]string) (context.Context, error) {
+func (npsPlugin *NpsPlugin) Start(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
-func (npsPlugin *NpsPlugin) Run(ctx context.Context, config map[string]string) (context.Context, error) {
+func (npsPlugin *NpsPlugin) Run(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
-func (npsPlugin *NpsPlugin) End(ctx context.Context, config map[string]string) (context.Context, error) {
+func (npsPlugin *NpsPlugin) End(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
 func (npsPlugin *NpsPlugin) GetClientConn(ctx context.Context) net.Conn {
 	return ctx.Value(CLIENT_CONNECTION).(net.Conn)
+}
+
+func (npsPlugin *NpsPlugin) SetClientConn(ctx context.Context, conn net.Conn) context.Context {
+	return context.WithValue(ctx, CLIENT_CONNECTION, conn)
 }
 
 func (npsPlugin *NpsPlugin) GetBridge(ctx context.Context) *bridge.Bridge {
@@ -59,17 +74,44 @@ func (npsPlugin *NpsPlugin) GetClientId(ctx context.Context) int {
 }
 
 type Plugins struct {
-	pgs []Plugin
+	StartPgs []Plugin
+	RunPgs   []Plugin
+	EndPgs   []Plugin
+	AllPgs   []Plugin
 }
 
 func NewPlugins() *Plugins {
 	p := &Plugins{}
-	p.pgs = make([]Plugin, 0)
+	p.StartPgs = make([]Plugin, 0)
+	p.RunPgs = make([]Plugin, 0)
+	p.EndPgs = make([]Plugin, 0)
+	p.AllPgs = make([]Plugin, 0)
 	return p
 }
 
 func (pl *Plugins) Add(plugins ...Plugin) {
 	for _, plugin := range plugins {
-		pl.pgs = append(pl.pgs, plugin)
+		for _, v := range plugin.GetStage() {
+			pl.AllPgs = append(pl.RunPgs, plugin)
+			switch v {
+			case STAGE_RUN:
+				pl.RunPgs = append(pl.RunPgs, plugin)
+			case STAGE_END:
+				pl.EndPgs = append(pl.EndPgs, plugin)
+			case STAGE_START:
+				pl.StartPgs = append(pl.StartPgs, plugin)
+			}
+		}
 	}
+}
+
+func RunPlugin(ctx context.Context, pgs []Plugin) error {
+	var err error
+	for _, pg := range pgs {
+		ctx, err = pg.Start(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -13,10 +13,10 @@ type Proxy struct {
 }
 
 func (proxy *Proxy) GetConfigName() *core.NpsConfigs {
-	return core.NewNpsConfigs("socks5_proxy", "proxy to inet")
+	return core.NewNpsConfigs("socks5_proxy", "proxy to inet", core.CONFIG_LEVEL_PLUGIN)
 }
 
-func (proxy *Proxy) Run(ctx context.Context, config map[string]string) (context.Context, error) {
+func (proxy *Proxy) Run(ctx context.Context) (context.Context, error) {
 	proxy.ctx = ctx
 	proxy.clientConn = proxy.GetClientConn(ctx)
 	clientId := proxy.GetClientId(ctx)
@@ -27,7 +27,13 @@ func (proxy *Proxy) Run(ctx context.Context, config map[string]string) (context.
 		return ctx, err
 	}
 
+	// send connection information to the npc
+	if _, err := core.SendInfo(severConn, nil); err != nil {
+		return ctx, err
+	}
+
+	// data exchange
 	go core.CopyBuffer(severConn, proxy.clientConn)
 	core.CopyBuffer(proxy.clientConn, severConn)
-	return ctx, nil
+	return ctx, core.REQUEST_EOF
 }

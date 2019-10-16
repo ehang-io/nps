@@ -17,16 +17,16 @@ type CheckAccess struct {
 }
 
 func (check *CheckAccess) GetConfigName() *core.NpsConfigs {
-	c := core.NewNpsConfigs("socks5_simple_access_check", "need check the permission simply")
-	c.Add("socks5_simple_access_username", "simple auth username")
-	c.Add("socks5_simple_access_password", "simple auth password")
+	c := core.NewNpsConfigs("socks5_simple_access_check", "need check the permission simply", core.CONFIG_LEVEL_PLUGIN)
+	c.Add("socks5_simple_access_username", "simple auth username", core.CONFIG_LEVEL_PLUGIN)
+	c.Add("socks5_simple_access_password", "simple auth password", core.CONFIG_LEVEL_PLUGIN)
 	return c
 }
 
-func (check *CheckAccess) Run(ctx context.Context, config map[string]string) (context.Context, error) {
+func (check *CheckAccess) Run(ctx context.Context) (context.Context, error) {
 	check.clientConn = check.GetClientConn(ctx)
-	check.configUsername = config["socks5_access_username"]
-	check.configPassword = config["socks5_access_password"]
+	check.configUsername = check.Configs["socks5_access_username"]
+	check.configPassword = check.Configs["socks5_access_password"]
 
 	return ctx, nil
 }

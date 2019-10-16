@@ -22,12 +22,12 @@ type Access struct {
 }
 
 func (access *Access) GetConfigName() *core.NpsConfigs {
-	return core.NewNpsConfigs("socks5_check_access_check", "need check the permission simply")
+	return core.NewNpsConfigs("socks5_check_access_check", "need check the permission simply",core.CONFIG_LEVEL_PLUGIN)
 }
 
-func (access *Access) Run(ctx context.Context, config map[string]string) (context.Context, error) {
+func (access *Access) Run(ctx context.Context) (context.Context, error) {
 	access.clientConn = access.GetClientConn(ctx)
-	if config["socks5_check_access"] != "true" {
+	if access.Configs["socks5_check_access"] != "true" {
 		return ctx, access.sendAccessMsgToClient(UserNoAuth)
 	}
 	// need auth

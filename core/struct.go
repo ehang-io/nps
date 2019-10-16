@@ -8,11 +8,7 @@ type Stage uint8
 
 // These constants are meant to describe the stage in which the plugin is running.
 const (
-	STAGE_START_RUN_END Stage = iota
-	STAGE_START_RUN
-	STAGE_START_END
-	STAGE_RUN_END
-	STAGE_START
+	STAGE_START Stage = iota
 	STAGE_END
 	STAGE_RUN
 	PROXY_CONNECTION_TYPE = "proxy_target_type"
@@ -33,8 +29,7 @@ const (
 
 var (
 	CLIENT_CONNECTION_NOT_EXIST = errors.New("the client connection is not exist")
-	BRIDGE_NOT_EXIST            = errors.New("the client connection is not exist")
+	BRIDGE_NOT_EXIST            = errors.New("the bridge is not exist")
 	REQUEST_EOF                 = errors.New("the request has finished")
 	CLIENT_ID_NOT_EXIST         = errors.New("the client id is not exist")
 )
-

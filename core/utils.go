@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"github.com/astaxie/beego/logs"
 	"io"
 	"net"
+	"strings"
 )
 
 func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
@@ -69,3 +71,28 @@ func GetLenBytes(buf []byte) (b []byte, err error) {
 	b = raw.Bytes()
 	return
 }
+
+func NewTcpListenerAndProcess(addr string, f func(c net.Conn), listener *net.Listener) error {
+	var err error
+	*listener, err = net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	Accept(*listener, f)
+	return nil
+}
+
+func Accept(l net.Listener, f func(c net.Conn)) {
+	for {
+		c, err := l.Accept()
+		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				break
+			}
+			logs.Warn(err)
+			continue
+		}
+		go f(c)
+	}
+}
+

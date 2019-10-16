@@ -32,7 +32,7 @@ const (
 	addrTypeNotSupported = 8
 )
 
-func (request *Request) Run(ctx context.Context, config map[string]string) (context.Context, error) {
+func (request *Request) Run(ctx context.Context) (context.Context, error) {
 	request.clientConn = request.GetClientConn(ctx)
 	request.ctx = ctx
 
