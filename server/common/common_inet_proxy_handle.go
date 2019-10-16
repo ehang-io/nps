@@ -22,16 +22,19 @@ func (proxy *Proxy) Run(ctx context.Context) (context.Context, error) {
 	clientId := proxy.GetClientId(ctx)
 	brg := proxy.GetBridge(ctx)
 
-	severConn, err := brg.GetConnByClientId(clientId)
+	//severConn, err := brg.GetConnByClientId(clientId)
+	//if err != nil {
+	//	return ctx, err
+	//}
+	//
+	//// send connection information to the npc
+	//if _, err := core.SendInfo(severConn, nil); err != nil {
+	//	return ctx, err
+	//}
+	severConn, err := net.Dial(ctx.Value(core.PROXY_CONNECTION_TYPE).(string), ctx.Value(core.PROXY_CONNECTION_ADDR).(string)+":"+ctx.Value(core.PROXY_CONNECTION_PORT).(string))
 	if err != nil {
 		return ctx, err
 	}
-
-	// send connection information to the npc
-	if _, err := core.SendInfo(severConn, nil); err != nil {
-		return ctx, err
-	}
-
 	// data exchange
 	go core.CopyBuffer(severConn, proxy.clientConn)
 	core.CopyBuffer(proxy.clientConn, severConn)

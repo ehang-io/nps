@@ -19,12 +19,14 @@ type S5Server struct {
 	listener     net.Listener
 }
 
-func NewS5Server(globalConfig, clientConfig, pluginConfig map[string]string) *S5Server {
+func NewS5Server(globalConfig, clientConfig, pluginConfig map[string]string, ServerIp string, ServerPort int) *S5Server {
 	s5 := &S5Server{
 		globalConfig: globalConfig,
 		clientConfig: clientConfig,
 		pluginConfig: pluginConfig,
 		plugins:      &core.Plugins{},
+		ServerIp:     ServerIp,
+		ServerPort:   ServerPort,
 	}
 	s5.plugins.Add(new(Handshake), new(Access), new(CheckAccess), new(Request), new(common.Proxy))
 	return s5
