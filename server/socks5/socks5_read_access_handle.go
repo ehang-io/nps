@@ -18,24 +18,23 @@ const (
 
 type Access struct {
 	core.NpsPlugin
-	clientConn net.Conn
 }
 
 func (access *Access) GetConfigName() *core.NpsConfigs {
-	return core.NewNpsConfigs("socks5_check_access_check", "need check the permission simply",core.CONFIG_LEVEL_PLUGIN)
+	return core.NewNpsConfigs("socks5_check_access", "need check the permission simply", core.CONFIG_LEVEL_PLUGIN)
 }
 
 func (access *Access) Run(ctx context.Context) (context.Context, error) {
-	access.clientConn = access.GetClientConn(ctx)
+	clientConn := access.GetClientConn(ctx)
 	if access.Configs["socks5_check_access"] != "true" {
-		return ctx, access.sendAccessMsgToClient(UserNoAuth)
+		return ctx, access.sendAccessMsgToClient(clientConn, UserNoAuth)
 	}
 	// need auth
-	if err := access.sendAccessMsgToClient(UserPassAuth); err != nil {
+	if err := access.sendAccessMsgToClient(clientConn, UserPassAuth); err != nil {
 		return ctx, err
 	}
 	// send auth reply to client ,and get the auth information
-	username, password, err := access.getAuthInfoFromClient()
+	username, password, err := access.getAuthInfoFromClient(clientConn)
 	if err != nil {
 		return ctx, err
 	}
@@ -45,20 +44,20 @@ func (access *Access) Run(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
-func (access *Access) sendAccessMsgToClient(auth uint8) error {
+func (access *Access) sendAccessMsgToClient(clientConn net.Conn, auth uint8) error {
 	buf := make([]byte, 2)
 	buf[0] = 5
 	buf[1] = auth
-	n, err := access.clientConn.Write(buf)
+	n, err := clientConn.Write(buf)
 	if err != nil || n != 2 {
 		return errors.New("write access message to client error " + err.Error())
 	}
 	return nil
 }
 
-func (access *Access) getAuthInfoFromClient() (username string, password string, err error) {
+func (access *Access) getAuthInfoFromClient(clientConn net.Conn) (username string, password string, err error) {
 	header := []byte{0, 0}
-	if _, err = io.ReadAtLeast(access.clientConn, header, 2); err != nil {
+	if _, err = io.ReadAtLeast(clientConn, header, 2); err != nil {
 		return
 	}
 	if header[0] != userAuthVersion {
@@ -67,16 +66,16 @@ func (access *Access) getAuthInfoFromClient() (username string, password string,
 	}
 	userLen := int(header[1])
 	user := make([]byte, userLen)
-	if _, err = io.ReadAtLeast(access.clientConn, user, userLen); err != nil {
+	if _, err = io.ReadAtLeast(clientConn, user, userLen); err != nil {
 		return
 	}
-	if _, err := access.clientConn.Read(header[:1]); err != nil {
+	if _, err = clientConn.Read(header[:1]); err != nil {
 		err = errors.New("get password length error" + err.Error())
 		return
 	}
 	passLen := int(header[0])
 	pass := make([]byte, passLen)
-	if _, err := io.ReadAtLeast(access.clientConn, pass, passLen); err != nil {
+	if _, err = io.ReadAtLeast(clientConn, pass, passLen); err != nil {
 		err = errors.New("get password error" + err.Error())
 		return
 	}

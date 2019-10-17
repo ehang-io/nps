@@ -12,8 +12,6 @@ import (
 
 type Request struct {
 	core.NpsPlugin
-	clientConn net.Conn
-	ctx        context.Context
 }
 
 const (
@@ -30,11 +28,11 @@ const (
 	maxUDPPacketSize     = 1476
 	commandNotSupported  = 7
 	addrTypeNotSupported = 8
+	succeeded            = 0
 )
 
 func (request *Request) Run(ctx context.Context) (context.Context, error) {
-	request.clientConn = request.GetClientConn(ctx)
-	request.ctx = ctx
+	clientConn := request.GetClientConn(ctx)
 
 	/*
 		The SOCKS request is formed as follows:
@@ -46,36 +44,36 @@ func (request *Request) Run(ctx context.Context) (context.Context, error) {
 	*/
 	header := make([]byte, 3)
 
-	_, err := io.ReadFull(request.clientConn, header)
+	_, err := io.ReadFull(clientConn, header)
 
 	if err != nil {
-		return request.ctx, errors.New("illegal request" + err.Error())
+		return ctx, errors.New("illegal request" + err.Error())
 	}
 
 	switch header[1] {
 	case connectMethod:
-		request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "tcp")
-		return request.ctx, request.doConnect()
+		ctx = context.WithValue(ctx, core.PROXY_CONNECTION_TYPE, "tcp")
+		return request.doConnect(ctx, clientConn)
 	case bindMethod:
-		return request.ctx, request.handleBind()
+		return ctx, request.handleBind()
 	case associateMethod:
-		request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_TYPE, "udp")
-		return request.ctx, request.handleUDP()
+		ctx = context.WithValue(ctx, core.PROXY_CONNECTION_TYPE, "udp")
+		return request.handleUDP(ctx, clientConn)
 	default:
-		request.sendReply(commandNotSupported)
-		return request.ctx, errors.New("command not supported")
+		request.sendReply(clientConn, commandNotSupported)
+		return ctx, errors.New("command not supported")
 	}
-	return request.ctx, nil
+	return ctx, nil
 }
 
-func (request *Request) sendReply(rep uint8) error {
+func (request *Request) sendReply(clientConn net.Conn, rep uint8) error {
 	reply := []byte{
 		5,
 		rep,
 		0,
 		1,
 	}
-	localAddr := request.clientConn.LocalAddr().String()
+	localAddr := clientConn.LocalAddr().String()
 	localHost, localPort, _ := net.SplitHostPort(localAddr)
 	ipBytes := net.ParseIP(localHost).To4()
 	nPort, _ := strconv.Atoi(localPort)
@@ -83,42 +81,41 @@ func (request *Request) sendReply(rep uint8) error {
 	portBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(portBytes, uint16(nPort))
 	reply = append(reply, portBytes...)
-	_, err := request.clientConn.Write(reply)
+	_, err := clientConn.Write(reply)
 	return err
 }
 
 //do conn
-func (request *Request) doConnect() error {
+func (request *Request) doConnect(ctx context.Context, clientConn net.Conn) (context.Context, error) {
 	addrType := make([]byte, 1)
-	request.clientConn.Read(addrType)
+	clientConn.Read(addrType)
 
 	var host string
 	switch addrType[0] {
 	case ipV4:
 		ipv4 := make(net.IP, net.IPv4len)
-		request.clientConn.Read(ipv4)
+		clientConn.Read(ipv4)
 		host = ipv4.String()
 	case ipV6:
 		ipv6 := make(net.IP, net.IPv6len)
-		request.clientConn.Read(ipv6)
+		clientConn.Read(ipv6)
 		host = ipv6.String()
 	case domainName:
 		var domainLen uint8
-		binary.Read(request.clientConn, binary.BigEndian, &domainLen)
+		binary.Read(clientConn, binary.BigEndian, &domainLen)
 		domain := make([]byte, domainLen)
-		request.clientConn.Read(domain)
+		clientConn.Read(domain)
 		host = string(domain)
 	default:
-		request.sendReply(addrTypeNotSupported)
-		return errors.New("target address type is not support")
+		request.sendReply(clientConn, addrTypeNotSupported)
+		return ctx, errors.New("target address type is not support")
 	}
-
 	var port uint16
-	binary.Read(request.clientConn, binary.BigEndian, &port)
-
-	request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_ADDR, host)
-	request.ctx = context.WithValue(request.ctx, core.PROXY_CONNECTION_PORT, port)
-	return nil
+	binary.Read(clientConn, binary.BigEndian, &port)
+	ctx = context.WithValue(ctx, core.PROXY_CONNECTION_ADDR, host)
+	ctx = context.WithValue(ctx, core.PROXY_CONNECTION_PORT, port)
+	request.sendReply(clientConn, succeeded)
+	return ctx, nil
 }
 
 // passive mode
@@ -127,7 +124,7 @@ func (request *Request) handleBind() error {
 }
 
 //udp
-func (request *Request) handleUDP() error {
+func (request *Request) handleUDP(ctx context.Context, clientConn net.Conn) (context.Context, error) {
 	/*
 	   +----+------+------+----------+----------+----------+
 	   |RSV | FRAG | ATYP | DST.ADDR | DST.PORT |   DATA   |
@@ -136,13 +133,13 @@ func (request *Request) handleUDP() error {
 	   +----+------+------+----------+----------+----------+
 	*/
 	buf := make([]byte, 3)
-	request.clientConn.Read(buf)
+	clientConn.Read(buf)
 	// relay udp datagram silently, without any notification to the requesting client
 	if buf[2] != 0 {
 		// does not support fragmentation, drop it
 		dummy := make([]byte, maxUDPPacketSize)
-		request.clientConn.Read(dummy)
-		return errors.New("does not support fragmentation, drop")
+		clientConn.Read(dummy)
+		return ctx, errors.New("does not support fragmentation, drop")
 	}
-	return request.doConnect()
+	return request.doConnect(ctx, clientConn)
 }

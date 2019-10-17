@@ -9,7 +9,7 @@ import (
 // Plugin interface, all plugins must implement those functions.
 type Plugin interface {
 	GetConfigName() *NpsConfigs
-	InitConfig(globalConfig, clientConfig, pluginConfig map[string]string)
+	InitConfig(globalConfig, clientConfig, pluginConfig map[string]string, pgCnf []*Config)
 	GetStage() []Stage
 	Start(ctx context.Context) (context.Context, error)
 	Run(ctx context.Context) (context.Context, error)
@@ -25,9 +25,9 @@ func (npsPlugin *NpsPlugin) GetConfigName() *NpsConfigs {
 	return nil
 }
 
-func (npsPlugin *NpsPlugin) InitConfig(globalConfig, clientConfig, pluginConfig map[string]string) {
+func (npsPlugin *NpsPlugin) InitConfig(globalConfig, clientConfig, pluginConfig map[string]string, pgCnf []*Config) {
 	npsPlugin.Configs = make(map[string]string)
-	for _, cfg := range npsPlugin.GetConfigName().GetAll() {
+	for _, cfg := range pgCnf {
 		switch cfg.ConfigLevel {
 		case CONFIG_LEVEL_PLUGIN:
 			npsPlugin.Configs[cfg.ConfigName] = pluginConfig[cfg.ConfigName]
@@ -105,13 +105,20 @@ func (pl *Plugins) Add(plugins ...Plugin) {
 	}
 }
 
-func RunPlugin(ctx context.Context, pgs []Plugin) error {
+func RunPlugin(ctx context.Context, pgs []Plugin, stage Stage) (context.Context, error) {
 	var err error
 	for _, pg := range pgs {
-		ctx, err = pg.Start(ctx)
+		switch stage {
+		case STAGE_RUN:
+			ctx, err = pg.Run(ctx)
+		case STAGE_START:
+			ctx, err = pg.Start(ctx)
+		case STAGE_END:
+			ctx, err = pg.End(ctx)
+		}
 		if err != nil {
-			return err
+			return ctx, err
 		}
 	}
-	return nil
+	return ctx, nil
 }

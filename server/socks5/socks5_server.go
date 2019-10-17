@@ -35,25 +35,33 @@ func NewS5Server(globalConfig, clientConfig, pluginConfig map[string]string, Ser
 func (s5 *S5Server) Start(ctx context.Context) error {
 	// init config of plugin
 	for _, pg := range s5.plugins.AllPgs {
-		pg.InitConfig(s5.globalConfig, s5.clientConfig, s5.pluginConfig)
-	}
-	// run the plugin contains start
-	if core.RunPlugin(ctx, s5.plugins.StartPgs) != nil {
-		return nil
+		if pg.GetConfigName() != nil {
+			pg.InitConfig(s5.globalConfig, s5.clientConfig, s5.pluginConfig, pg.GetConfigName().GetAll())
+		}
 	}
 
-	return core.NewTcpListenerAndProcess(s5.ServerIp+":"+strconv.Itoa(s5.ServerPort), func(c net.Conn) {
+	core.NewTcpListenerAndProcess(s5.ServerIp+":"+strconv.Itoa(s5.ServerPort), func(c net.Conn) {
 		// init ctx value clientConn
-		ctx = context.WithValue(ctx, core.CLIENT_CONNECTION, c)
-		// start run the plugin run
-		if err := core.RunPlugin(ctx, s5.plugins.RunPgs); err != nil {
+		connCtx := context.WithValue(ctx, core.CLIENT_CONNECTION, c)
+		var err error
+
+		// run the plugin contains start
+		if connCtx, err = core.RunPlugin(connCtx, s5.plugins.StartPgs, core.STAGE_START); err != nil {
 			fmt.Println(err)
 			return
 		}
+
+		// start run the plugin run
+		if connCtx, err = core.RunPlugin(connCtx, s5.plugins.RunPgs, core.STAGE_RUN); err != nil {
+			fmt.Println(err)
+			return
+		}
+
 		// start run the plugin end
-		if err := core.RunPlugin(ctx, s5.plugins.EndPgs); err != nil {
+		if connCtx, err = core.RunPlugin(connCtx, s5.plugins.EndPgs, core.STAGE_END); err != nil {
 			fmt.Println(err)
 			return
 		}
 	}, &s5.listener)
+	return nil
 }
