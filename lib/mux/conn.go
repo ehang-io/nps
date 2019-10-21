@@ -2,10 +2,12 @@ package mux
 
 import (
 	"errors"
+	"github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cnlh/nps/lib/common"
@@ -65,7 +67,7 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 		errstr = err.Error()
 	}
 	d := getM(s.label, int(s.connId))
-	d.logs = append(d.logs, s.label+"read "+strconv.Itoa(n)+" "+errstr)
+	d.logs = append(d.logs, s.label+"read "+strconv.Itoa(n)+" "+errstr+" "+string(buf[:100]))
 	setM(s.label, int(s.connId), d)
 	return
 }
@@ -187,11 +189,7 @@ func (Self *ReceiveWindow) RemainingSize() (n uint32) {
 
 func (Self *ReceiveWindow) ReadSize() (n uint32) {
 	// acknowledge the size already read
-	Self.bufQueue.mutex.Lock()
-	n = Self.readLength
-	Self.readLength = 0
-	Self.bufQueue.mutex.Unlock()
-	return
+	return atomic.SwapUint32(&Self.readLength, 0)
 }
 
 func (Self *ReceiveWindow) CalcSize() {
@@ -270,10 +268,8 @@ copyData:
 	//Self.bw.SetCopySize(l)
 	pOff += l
 	Self.off += uint32(l)
-	Self.bufQueue.mutex.Lock()
-	Self.readLength += uint32(l)
+	atomic.AddUint32(&Self.readLength, uint32(l))
 	//logs.Warn("window read length buf len", Self.readLength, Self.bufQueue.Len())
-	Self.bufQueue.mutex.Unlock()
 	n += l
 	l = 0
 	//Self.bw.EndRead()
@@ -422,6 +418,7 @@ func (Self *SendWindow) WriteTo() (p []byte, part bool, err error) {
 	if len(Self.buf[Self.off:]) > common.MAXIMUM_SEGMENT_SIZE {
 		sendSize = common.MAXIMUM_SEGMENT_SIZE
 		part = true
+		logs.Warn("cut buf by mss")
 	} else {
 		sendSize = uint32(len(Self.buf[Self.off:]))
 		part = false
@@ -430,6 +427,7 @@ func (Self *SendWindow) WriteTo() (p []byte, part bool, err error) {
 		// usable window size is small than
 		// window MAXIMUM_SEGMENT_SIZE or send buf left
 		sendSize = Self.RemainingSize()
+		logs.Warn("cut buf by remainingsize", sendSize, len(Self.buf[Self.off:]))
 		part = true
 	}
 	//logs.Warn("send size", sendSize)

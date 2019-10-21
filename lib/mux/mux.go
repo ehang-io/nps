@@ -34,6 +34,8 @@ type Mux struct {
 }
 
 func NewMux(c net.Conn, connType string) *Mux {
+	//c.(*net.TCPConn).SetReadBuffer(0)
+	//c.(*net.TCPConn).SetWriteBuffer(0)
 	m := &Mux{
 		conn:      c,
 		connMap:   NewConnMap(),
@@ -172,10 +174,6 @@ func (s *Mux) ping() {
 			}
 			select {
 			case <-ticker.C:
-			}
-			//Avoid going beyond the scope
-			if (math.MaxInt32 - s.id) < 10000 {
-				s.id = 0
 			}
 			now, _ := time.Now().UTC().MarshalText()
 			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
@@ -321,6 +319,10 @@ func (s *Mux) Close() error {
 
 //get new connId as unique flag
 func (s *Mux) getId() (id int32) {
+	//Avoid going beyond the scope
+	if (math.MaxInt32 - s.id) < 10000 {
+		atomic.SwapInt32(&s.id, 0)
+	}
 	id = atomic.AddInt32(&s.id, 1)
 	if _, ok := s.connMap.Get(id); ok {
 		s.getId()

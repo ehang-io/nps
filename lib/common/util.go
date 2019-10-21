@@ -263,7 +263,7 @@ func GetPortByAddr(addr string) int {
 	return p
 }
 
-func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
+func CopyBuffer(dst io.Writer, src io.Reader, label ...string) (written int64, err error) {
 	buf := CopyBuff.Get()
 	defer CopyBuff.Put(buf)
 	for {
