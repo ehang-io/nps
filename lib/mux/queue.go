@@ -73,6 +73,8 @@ func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
 	return
 }
 
+const maxHunger uint8 = 10
+
 func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
 startPop:
 	ptr, ok := Self.highestChain.popTail()
@@ -80,7 +82,7 @@ startPop:
 		packager = (*common.MuxPackager)(ptr)
 		return
 	}
-	if Self.hunger < 100 {
+	if Self.hunger < maxHunger {
 		ptr, ok = Self.middleChain.popTail()
 		if ok {
 			packager = (*common.MuxPackager)(ptr)
@@ -95,6 +97,13 @@ startPop:
 			Self.hunger = uint8(Self.hunger / 2)
 		}
 		return
+	}
+	if Self.hunger > 0 {
+		ptr, ok = Self.middleChain.popTail()
+		if ok {
+			packager = (*common.MuxPackager)(ptr)
+			return
+		}
 	}
 	// PriorityQueue is empty, notice Push method
 	if atomic.CompareAndSwapInt32(&Self.popWait, 0, 1) {
@@ -141,7 +150,7 @@ func (Self *FIFOQueue) New() {
 
 func (Self *FIFOQueue) Push(element *ListElement) {
 	Self.chain.pushHead(unsafe.Pointer(element))
-	Self.length += uint32(element.l)
+	atomic.AddUint32(&Self.length, uint32(element.l))
 	Self.allowPop()
 	return
 }
@@ -151,7 +160,7 @@ startPop:
 	ptr, ok := Self.chain.popTail()
 	if ok {
 		element = (*ListElement)(ptr)
-		Self.length -= uint32(element.l)
+		atomic.AddUint32(&Self.length, ^uint32(element.l-1))
 		return
 	}
 	if atomic.CompareAndSwapInt32(&Self.popWait, 0, 1) {
@@ -178,7 +187,7 @@ startPop:
 }
 
 func (Self *FIFOQueue) Len() (n uint32) {
-	return Self.length
+	return atomic.LoadUint32(&Self.length)
 }
 
 func (Self *FIFOQueue) Stop() {
@@ -273,16 +282,15 @@ func (d *bufDequeue) popTail() (unsafe.Pointer, bool) {
 		return nil, false
 	}
 	slot := &d.vals[tail&uint32(len(d.vals)-1)]
+	var val unsafe.Pointer
 	for {
-		typ := atomic.LoadPointer(slot)
-		if typ != nil {
+		val = atomic.LoadPointer(slot)
+		if val != nil {
+			// We now own slot.
 			break
 		}
 		// Another goroutine is still pushing data on the tail.
 	}
-
-	// We now own slot.
-	val := *slot
 
 	// Tell pushHead that we're done with this slot. Zeroing the
 	// slot is also important so we don't leave behind references
@@ -369,10 +377,10 @@ func (c *bufChain) pushHead(val unsafe.Pointer) {
 
 			d2 := &bufChainElt{prev: d}
 			d2.vals = make([]unsafe.Pointer, newSize)
-			storePoolChainElt(&c.head, d2)
-			storePoolChainElt(&d.next, d2)
 			d2.pushHead(val)
-			atomic.SwapInt32(&c.chainStatus, 0)
+			storePoolChainElt(&d.next, d2)
+			storePoolChainElt(&c.head, d2)
+			atomic.StoreInt32(&c.chainStatus, 0)
 		}
 	}
 }

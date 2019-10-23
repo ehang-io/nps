@@ -41,7 +41,7 @@ func NewMux(c net.Conn, connType string) *Mux {
 		connMap:   NewConnMap(),
 		id:        0,
 		closeChan: make(chan struct{}, 3),
-		newConnCh: make(chan *conn),
+		newConnCh: make(chan *conn, 10),
 		bw:        new(bandwidth),
 		IsClose:   false,
 		connType:  connType,
@@ -321,11 +321,11 @@ func (s *Mux) Close() error {
 func (s *Mux) getId() (id int32) {
 	//Avoid going beyond the scope
 	if (math.MaxInt32 - s.id) < 10000 {
-		atomic.SwapInt32(&s.id, 0)
+		atomic.StoreInt32(&s.id, 0)
 	}
 	id = atomic.AddInt32(&s.id, 1)
 	if _, ok := s.connMap.Get(id); ok {
-		s.getId()
+		return s.getId()
 	}
 	return
 }
