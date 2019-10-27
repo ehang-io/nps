@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"net"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,12 +40,12 @@ func NewConn(connId int32, mux *Mux, label ...string) *conn {
 	}
 	c.receiveWindow.New(mux)
 	c.sendWindow.New(mux)
-	logm := &connLog{
-		startTime: time.Now(),
-		isClose:   false,
-		logs:      []string{c.label + "new conn success"},
-	}
-	setM(label[0], int(connId), logm)
+	//logm := &connLog{
+	//	startTime: time.Now(),
+	//	isClose:   false,
+	//	logs:      []string{c.label + "new conn success"},
+	//}
+	//setM(label[0], int(connId), logm)
 	return c
 }
 
@@ -59,15 +58,15 @@ func (s *conn) Read(buf []byte) (n int, err error) {
 	}
 	// waiting for takeout from receive window finish or timeout
 	n, err = s.receiveWindow.Read(buf, s.connId)
-	var errstr string
-	if err == nil {
-		errstr = "err:nil"
-	} else {
-		errstr = err.Error()
-	}
-	d := getM(s.label, int(s.connId))
-	d.logs = append(d.logs, s.label+"read "+strconv.Itoa(n)+" "+errstr+" "+string(buf[:100]))
-	setM(s.label, int(s.connId), d)
+	//var errstr string
+	//if err == nil {
+	//	errstr = "err:nil"
+	//} else {
+	//	errstr = err.Error()
+	//}
+	//d := getM(s.label, int(s.connId))
+	//d.logs = append(d.logs, s.label+"read "+strconv.Itoa(n)+" "+errstr+" "+string(buf[:100]))
+	//setM(s.label, int(s.connId), d)
 	return
 }
 
@@ -102,10 +101,10 @@ func (s *conn) closeProcess() {
 	}
 	s.sendWindow.CloseWindow()
 	s.receiveWindow.CloseWindow()
-	d := getM(s.label, int(s.connId))
-	d.isClose = true
-	d.logs = append(d.logs, s.label+"close "+time.Now().String())
-	setM(s.label, int(s.connId), d)
+	//d := getM(s.label, int(s.connId))
+	//d.isClose = true
+	//d.logs = append(d.logs, s.label+"close "+time.Now().String())
+	//setM(s.label, int(s.connId), d)
 	return
 }
 
@@ -154,12 +153,12 @@ func (Self *window) CloseWindow() {
 }
 
 type ReceiveWindow struct {
-	bufQueue   FIFOQueue
+	bufQueue   ReceiveWindowQueue
 	element    *ListElement
 	readLength uint32
 	readOp     chan struct{}
 	readWait   bool
-	windowFull bool
+	windowFull uint32
 	count      int8
 	//bw         *bandwidth
 	once sync.Once
@@ -179,7 +178,7 @@ func (Self *ReceiveWindow) New(mux *Mux) {
 
 func (Self *ReceiveWindow) remainingSize() (n uint32) {
 	// receive window remaining
-	return Self.maxSize - Self.bufQueue.Len()
+	return atomic.LoadUint32(&Self.maxSize) - Self.bufQueue.Len()
 }
 
 func (Self *ReceiveWindow) readSize() (n uint32) {
@@ -207,7 +206,7 @@ func (Self *ReceiveWindow) calcSize() {
 		}
 		// set the maximum size
 		//logs.Warn("n", n)
-		Self.maxSize = n
+		atomic.StoreUint32(&Self.maxSize, n)
 		Self.count = -10
 	}
 	Self.count += 1
@@ -229,7 +228,7 @@ func (Self *ReceiveWindow) Write(buf []byte, l uint16, part bool, id int32) (err
 	Self.calcSize()
 	//logs.Warn("read session calc size finish", Self.maxSize)
 	if Self.remainingSize() == 0 {
-		Self.windowFull = true
+		atomic.StoreUint32(&Self.windowFull, 1)
 		//logs.Warn("window full true", Self.windowFull)
 	}
 	Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, Self.maxSize, Self.readSize())
@@ -259,7 +258,7 @@ copyData:
 		}
 		//logs.Warn("pop element", Self.element.l, Self.element.part)
 	}
-	l = copy(p[pOff:], Self.element.buf[Self.off:])
+	l = copy(p[pOff:], Self.element.buf[Self.off:Self.element.l])
 	//Self.bw.SetCopySize(l)
 	pOff += l
 	Self.off += uint32(l)
@@ -281,12 +280,15 @@ copyData:
 }
 
 func (Self *ReceiveWindow) sendStatus(id int32) {
-	if Self.windowFull || Self.bufQueue.Len() == 0 {
+	if Self.bufQueue.Len() == 0 {
 		// window is full before read or empty now
-		Self.windowFull = false
-		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, Self.maxSize, Self.readSize())
+		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, atomic.LoadUint32(&Self.maxSize), Self.readSize())
 		// acknowledge other side, have empty some receive window space
 		//}
+	}
+	if atomic.LoadUint32(&Self.windowFull) > 0 && Self.remainingSize() > 0 {
+		atomic.StoreUint32(&Self.windowFull, 0)
+		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, atomic.LoadUint32(&Self.maxSize), Self.readSize())
 	}
 }
 
@@ -309,8 +311,7 @@ type SendWindow struct {
 	buf         []byte
 	sentLength  uint32
 	setSizeCh   chan struct{}
-	setSizeWait int32
-	unSlide     uint32
+	setSizeWait uint32
 	timeout     time.Time
 	window
 }
@@ -352,10 +353,10 @@ func (Self *SendWindow) SetSize(windowSize, readLength uint32) (closed bool) {
 	if Self.RemainingSize() == 0 {
 		//logs.Warn("waiting for another window size after slide")
 		// keep the wait status
-		atomic.StoreInt32(&Self.setSizeWait, 1)
+		//atomic.StoreUint32(&Self.setSizeWait, 1)
 		return false
 	}
-	if atomic.CompareAndSwapInt32(&Self.setSizeWait, 1, 0) {
+	if atomic.CompareAndSwapUint32(&Self.setSizeWait, 1, 0) {
 		// send window into the wait status, need notice the channel
 		select {
 		case Self.setSizeCh <- struct{}{}:
@@ -372,7 +373,7 @@ func (Self *SendWindow) SetSize(windowSize, readLength uint32) (closed bool) {
 
 func (Self *SendWindow) slide(windowSize, readLength uint32) {
 	atomic.AddUint32(&Self.sentLength, ^readLength-1)
-	atomic.SwapUint32(&Self.maxSize, windowSize)
+	atomic.StoreUint32(&Self.maxSize, windowSize)
 }
 
 func (Self *SendWindow) WriteTo() (p []byte, sendSize uint32, part bool, err error) {
@@ -386,7 +387,7 @@ func (Self *SendWindow) WriteTo() (p []byte, sendSize uint32, part bool, err err
 		// send window buff is drain, return eof and get another one
 	}
 	if Self.RemainingSize() == 0 {
-		atomic.StoreInt32(&Self.setSizeWait, 1)
+		atomic.StoreUint32(&Self.setSizeWait, 1)
 		// into the wait status
 		err = Self.waitReceiveWindow()
 		if err != nil {
@@ -395,20 +396,20 @@ func (Self *SendWindow) WriteTo() (p []byte, sendSize uint32, part bool, err err
 	}
 	if len(Self.buf[Self.off:]) > common.MAXIMUM_SEGMENT_SIZE {
 		sendSize = common.MAXIMUM_SEGMENT_SIZE
-		part = true
 		//logs.Warn("cut buf by mss")
 	} else {
 		sendSize = uint32(len(Self.buf[Self.off:]))
-		part = false
 	}
 	if Self.RemainingSize() < sendSize {
 		// usable window size is small than
 		// window MAXIMUM_SEGMENT_SIZE or send buf left
 		sendSize = Self.RemainingSize()
 		//logs.Warn("cut buf by remainingsize", sendSize, len(Self.buf[Self.off:]))
-		part = true
 	}
 	//logs.Warn("send size", sendSize)
+	if sendSize < uint32(len(Self.buf[Self.off:])) {
+		part = true
+	}
 	p = Self.buf[Self.off : sendSize+Self.off]
 	Self.off += sendSize
 	atomic.AddUint32(&Self.sentLength, sendSize)

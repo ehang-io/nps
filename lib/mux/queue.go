@@ -1,10 +1,12 @@
 package mux
 
 import (
+	"bytes"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"io"
 	"math"
+	"runtime"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -13,7 +15,7 @@ import (
 type QueueOp struct {
 	readOp  chan struct{}
 	cleanOp chan struct{}
-	popWait int32
+	popWait uint32
 }
 
 func (Self *QueueOp) New() {
@@ -22,7 +24,7 @@ func (Self *QueueOp) New() {
 }
 
 func (Self *QueueOp) allowPop() (closed bool) {
-	if atomic.CompareAndSwapInt32(&Self.popWait, 1, 0) {
+	if atomic.CompareAndSwapUint32(&Self.popWait, 1, 0) {
 		select {
 		case Self.readOp <- struct{}{}:
 			return false
@@ -44,7 +46,7 @@ type PriorityQueue struct {
 	highestChain *bufChain
 	middleChain  *bufChain
 	lowestChain  *bufChain
-	hunger       uint8
+	starving     uint8
 }
 
 func (Self *PriorityQueue) New() {
@@ -73,7 +75,7 @@ func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
 	return
 }
 
-const maxHunger uint8 = 10
+const maxStarving uint8 = 8
 
 func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
 startPop:
@@ -82,31 +84,32 @@ startPop:
 		packager = (*common.MuxPackager)(ptr)
 		return
 	}
-	if Self.hunger < maxHunger {
+	if Self.starving < maxStarving {
 		ptr, ok = Self.middleChain.popTail()
 		if ok {
 			packager = (*common.MuxPackager)(ptr)
-			Self.hunger++
+			Self.starving++
 			return
 		}
 	}
 	ptr, ok = Self.lowestChain.popTail()
 	if ok {
 		packager = (*common.MuxPackager)(ptr)
-		if Self.hunger > 0 {
-			Self.hunger = uint8(Self.hunger / 2)
+		if Self.starving > 0 {
+			Self.starving = uint8(Self.starving / 2)
 		}
 		return
 	}
-	if Self.hunger > 0 {
+	if Self.starving > 0 {
 		ptr, ok = Self.middleChain.popTail()
 		if ok {
 			packager = (*common.MuxPackager)(ptr)
+			Self.starving++
 			return
 		}
 	}
 	// PriorityQueue is empty, notice Push method
-	if atomic.CompareAndSwapInt32(&Self.popWait, 0, 1) {
+	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
 		select {
 		case <-Self.readOp:
 			goto startPop
@@ -133,7 +136,7 @@ func (Self *ListElement) New(buf []byte, l uint16, part bool) (err error) {
 	return nil
 }
 
-type FIFOQueue struct {
+type ReceiveWindowQueue struct {
 	QueueOp
 	chain   *bufChain
 	length  uint32
@@ -141,21 +144,21 @@ type FIFOQueue struct {
 	timeout time.Time
 }
 
-func (Self *FIFOQueue) New() {
+func (Self *ReceiveWindowQueue) New() {
 	Self.QueueOp.New()
 	Self.chain = new(bufChain)
 	Self.chain.new(64)
 	Self.stopOp = make(chan struct{}, 1)
 }
 
-func (Self *FIFOQueue) Push(element *ListElement) {
+func (Self *ReceiveWindowQueue) Push(element *ListElement) {
 	Self.chain.pushHead(unsafe.Pointer(element))
 	atomic.AddUint32(&Self.length, uint32(element.l))
 	Self.allowPop()
 	return
 }
 
-func (Self *FIFOQueue) Pop() (element *ListElement, err error) {
+func (Self *ReceiveWindowQueue) Pop() (element *ListElement, err error) {
 startPop:
 	ptr, ok := Self.chain.popTail()
 	if ok {
@@ -163,7 +166,7 @@ startPop:
 		atomic.AddUint32(&Self.length, ^uint32(element.l-1))
 		return
 	}
-	if atomic.CompareAndSwapInt32(&Self.popWait, 0, 1) {
+	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
 		t := Self.timeout.Sub(time.Now())
 		if t <= 0 {
 			t = time.Minute
@@ -186,16 +189,60 @@ startPop:
 	goto startPop
 }
 
-func (Self *FIFOQueue) Len() (n uint32) {
+func (Self *ReceiveWindowQueue) Len() (n uint32) {
 	return atomic.LoadUint32(&Self.length)
 }
 
-func (Self *FIFOQueue) Stop() {
+func (Self *ReceiveWindowQueue) Stop() {
 	Self.stopOp <- struct{}{}
 }
 
-func (Self *FIFOQueue) SetTimeOut(t time.Time) {
+func (Self *ReceiveWindowQueue) SetTimeOut(t time.Time) {
 	Self.timeout = t
+}
+
+type BytesQueue struct {
+	QueueOp
+	chain  *bufChain
+	stopOp chan struct{}
+}
+
+func (Self *BytesQueue) New() {
+	Self.QueueOp.New()
+	Self.chain = new(bufChain)
+	Self.chain.new(8)
+	Self.stopOp = make(chan struct{}, 1)
+}
+
+func (Self *BytesQueue) Push(buf *bytes.Buffer) {
+	Self.chain.pushHead(unsafe.Pointer(buf))
+	Self.allowPop()
+	return
+}
+
+func (Self *BytesQueue) Pop() (buf *bytes.Buffer, err error) {
+startPop:
+	ptr, ok := Self.chain.popTail()
+	if ok {
+		buf = (*bytes.Buffer)(ptr)
+		return
+	}
+	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
+		select {
+		case <-Self.readOp:
+			goto startPop
+		case <-Self.cleanOp:
+			return
+		case <-Self.stopOp:
+			err = io.EOF
+			return
+		}
+	}
+	goto startPop
+}
+
+func (Self *BytesQueue) Stop() {
+	Self.stopOp <- struct{}{}
 }
 
 // https://golang.org/src/sync/poolqueue.go
@@ -224,7 +271,8 @@ type bufDequeue struct {
 	// index has moved beyond it and typ has been set to nil. This
 	// is set to nil atomically by the consumer and read
 	// atomically by the producer.
-	vals []unsafe.Pointer
+	vals     []unsafe.Pointer
+	starving uint32
 }
 
 const dequeueBits = 32
@@ -253,6 +301,10 @@ func (d *bufDequeue) pack(head, tail uint32) uint64 {
 // queue is full.
 func (d *bufDequeue) pushHead(val unsafe.Pointer) bool {
 	var slot *unsafe.Pointer
+	var starve uint8
+	if atomic.LoadUint32(&d.starving) > 0 {
+		runtime.Gosched()
+	}
 	for {
 		ptrs := atomic.LoadUint64(&d.headTail)
 		head, tail := d.unpack(ptrs)
@@ -263,7 +315,14 @@ func (d *bufDequeue) pushHead(val unsafe.Pointer) bool {
 		ptrs2 := d.pack(head+1, tail)
 		if atomic.CompareAndSwapUint64(&d.headTail, ptrs, ptrs2) {
 			slot = &d.vals[head&uint32(len(d.vals)-1)]
+			if starve >= 3 && atomic.LoadUint32(&d.starving) > 0 {
+				atomic.StoreUint32(&d.starving, 0)
+			}
 			break
+		}
+		starve++
+		if starve >= 3 {
+			atomic.StoreUint32(&d.starving, 1)
 		}
 	}
 	// The head slot is free, so we own it.
@@ -321,8 +380,8 @@ type bufChain struct {
 
 	// tail is the bufDequeue to popTail from. This is accessed
 	// by consumers, so reads and writes must be atomic.
-	tail        *bufChainElt
-	chainStatus int32
+	tail     *bufChainElt
+	newChain uint32
 }
 
 type bufChainElt struct {
@@ -359,30 +418,39 @@ func (c *bufChain) new(initSize int) {
 }
 
 func (c *bufChain) pushHead(val unsafe.Pointer) {
+startPush:
 	for {
-		d := loadPoolChainElt(&c.head)
-
-		if d.pushHead(val) {
-			return
-		}
-
-		// The current dequeue is full. Allocate a new one of twice
-		// the size.
-		if atomic.CompareAndSwapInt32(&c.chainStatus, 0, 1) {
-			newSize := len(d.vals) * 2
-			if newSize >= dequeueLimit {
-				// Can't make it any bigger.
-				newSize = dequeueLimit
-			}
-
-			d2 := &bufChainElt{prev: d}
-			d2.vals = make([]unsafe.Pointer, newSize)
-			d2.pushHead(val)
-			storePoolChainElt(&d.next, d2)
-			storePoolChainElt(&c.head, d2)
-			atomic.StoreInt32(&c.chainStatus, 0)
+		if atomic.LoadUint32(&c.newChain) > 0 {
+			runtime.Gosched()
+		} else {
+			break
 		}
 	}
+
+	d := loadPoolChainElt(&c.head)
+
+	if d.pushHead(val) {
+		return
+	}
+
+	// The current dequeue is full. Allocate a new one of twice
+	// the size.
+	if atomic.CompareAndSwapUint32(&c.newChain, 0, 1) {
+		newSize := len(d.vals) * 2
+		if newSize >= dequeueLimit {
+			// Can't make it any bigger.
+			newSize = dequeueLimit
+		}
+
+		d2 := &bufChainElt{prev: d}
+		d2.vals = make([]unsafe.Pointer, newSize)
+		d2.pushHead(val)
+		storePoolChainElt(&c.head, d2)
+		storePoolChainElt(&d.next, d2)
+		atomic.StoreUint32(&c.newChain, 0)
+		return
+	}
+	goto startPush
 }
 
 func (c *bufChain) popTail() (unsafe.Pointer, bool) {

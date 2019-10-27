@@ -1,7 +1,6 @@
 package mux
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"math"
@@ -29,7 +28,7 @@ type Mux struct {
 	pingTimer  *time.Timer
 	connType   string
 	writeQueue PriorityQueue
-	bufCh      chan *bytes.Buffer
+	//bufQueue      BytesQueue
 	sync.Mutex
 }
 
@@ -40,16 +39,16 @@ func NewMux(c net.Conn, connType string) *Mux {
 		conn:      c,
 		connMap:   NewConnMap(),
 		id:        0,
-		closeChan: make(chan struct{}, 3),
+		closeChan: make(chan struct{}, 1),
 		newConnCh: make(chan *conn, 10),
 		bw:        new(bandwidth),
 		IsClose:   false,
 		connType:  connType,
-		bufCh:     make(chan *bytes.Buffer),
 		pingCh:    make(chan []byte),
 		pingTimer: time.NewTimer(15 * time.Second),
 	}
 	m.writeQueue.New()
+	//m.bufQueue.New()
 	//read session by flag
 	m.readSession()
 	//ping
@@ -111,16 +110,18 @@ func (s *Mux) sendInfo(flag uint8, id int32, data ...interface{}) {
 
 func (s *Mux) writeSession() {
 	go s.packBuf()
-	go s.writeBuf()
+	//go s.writeBuf()
 }
 
 func (s *Mux) packBuf() {
+	buffer := common.BuffPool.Get()
 	for {
 		if s.IsClose {
 			break
 		}
+		buffer.Reset()
 		pack := s.writeQueue.Pop()
-		buffer := common.BuffPool.Get()
+		//buffer := common.BuffPool.Get()
 		err := pack.Pack(buffer)
 		common.MuxPack.Put(pack)
 		if err != nil {
@@ -129,34 +130,37 @@ func (s *Mux) packBuf() {
 			break
 		}
 		//logs.Warn(buffer.String())
-		select {
-		case s.bufCh <- buffer:
-		case <-s.closeChan:
+		//s.bufQueue.Push(buffer)
+		l := buffer.Len()
+		n, err := buffer.WriteTo(s.conn)
+		//common.BuffPool.Put(buffer)
+		if err != nil || int(n) != l {
+			logs.Warn("close from write session fail ", err, n, l)
+			s.Close()
 			break
 		}
 	}
 }
 
-func (s *Mux) writeBuf() {
-	for {
-		if s.IsClose {
-			break
-		}
-		select {
-		case buffer := <-s.bufCh:
-			l := buffer.Len()
-			n, err := buffer.WriteTo(s.conn)
-			common.BuffPool.Put(buffer)
-			if err != nil || int(n) != l {
-				logs.Warn("close from write session fail ", err, n, l)
-				s.Close()
-				break
-			}
-		case <-s.closeChan:
-			break
-		}
-	}
-}
+//func (s *Mux) writeBuf() {
+//	for {
+//		if s.IsClose {
+//			break
+//		}
+//		buffer, err := s.bufQueue.Pop()
+//		if err != nil {
+//			break
+//		}
+//		l := buffer.Len()
+//		n, err := buffer.WriteTo(s.conn)
+//		common.BuffPool.Put(buffer)
+//		if err != nil || int(n) != l {
+//			logs.Warn("close from write session fail ", err, n, l)
+//			s.Close()
+//			break
+//		}
+//	}
+//}
 
 func (s *Mux) ping() {
 	go func() {
@@ -310,8 +314,7 @@ func (s *Mux) Close() error {
 	}
 	s.IsClose = true
 	s.connMap.Close()
-	s.closeChan <- struct{}{}
-	s.closeChan <- struct{}{}
+	//s.bufQueue.Stop()
 	s.closeChan <- struct{}{}
 	close(s.newConnCh)
 	return s.conn.Close()
