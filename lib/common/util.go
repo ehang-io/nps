@@ -119,6 +119,8 @@ func ReadAllFromFile(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
+
 	return ioutil.ReadAll(f)
 }
 
