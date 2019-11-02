@@ -156,7 +156,7 @@ type ReceiveWindow struct {
 	bufQueue   ReceiveWindowQueue
 	element    *ListElement
 	readLength uint32
-	readOp     chan struct{}
+	//readOp     chan struct{}
 	readWait   bool
 	windowFull uint32
 	count      int8
@@ -167,7 +167,7 @@ type ReceiveWindow struct {
 
 func (Self *ReceiveWindow) New(mux *Mux) {
 	// initial a window for receive
-	Self.readOp = make(chan struct{})
+	//Self.readOp = make(chan struct{})
 	Self.bufQueue.New()
 	//Self.bw = new(bandwidth)
 	Self.element = new(ListElement)

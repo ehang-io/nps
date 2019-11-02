@@ -2,6 +2,8 @@ package common
 
 import (
 	"bytes"
+	"github.com/panjf2000/ants/v2"
+	"net"
 	"sync"
 )
 
@@ -149,11 +151,62 @@ func (Self *muxPackagerPool) Put(pack *MuxPackager) {
 	Self.pool.Put(pack)
 }
 
+type connGroup struct {
+	src net.Conn
+	dst net.Conn
+	wg  *sync.WaitGroup
+}
+
+func newConnGroup(src net.Conn, dst net.Conn, wg *sync.WaitGroup) connGroup {
+	return connGroup{
+		src: src,
+		dst: dst,
+		wg:  wg,
+	}
+}
+
+func copyConnGroup(group interface{}) {
+	cg, ok := group.(connGroup)
+	if !ok {
+		return
+	}
+	_, err := CopyBuffer(cg.src, cg.dst)
+	if err != nil {
+		cg.src.Close()
+		cg.dst.Close()
+		//logs.Warn("close npc by copy from nps", err, c.connId)
+	}
+	cg.wg.Done()
+}
+
+type Conns struct {
+	conn1 net.Conn
+	conn2 net.Conn
+}
+
+func NewConns(c1 net.Conn, c2 net.Conn) Conns {
+	return Conns{
+		conn1: c1,
+		conn2: c2,
+	}
+}
+
+func copyConns(group interface{}) {
+	conns := group.(Conns)
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+	_ = connCopyPool.Invoke(newConnGroup(conns.conn1, conns.conn2, wg))
+	_ = connCopyPool.Invoke(newConnGroup(conns.conn2, conns.conn1, wg))
+	wg.Wait()
+}
+
 var once = sync.Once{}
 var BuffPool = bufferPool{}
 var CopyBuff = copyBufferPool{}
 var MuxPack = muxPackagerPool{}
 var WindowBuff = windowBufferPool{}
+var connCopyPool, _ = ants.NewPoolWithFunc(200000, copyConnGroup, ants.WithNonblocking(false))
+var CopyConnsPool, _ = ants.NewPoolWithFunc(100000, copyConns, ants.WithNonblocking(false))
 
 func newPool() {
 	BuffPool.New()

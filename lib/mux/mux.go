@@ -5,7 +5,6 @@ import (
 	"io"
 	"math"
 	"net"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -29,7 +28,7 @@ type Mux struct {
 	connType   string
 	writeQueue PriorityQueue
 	//bufQueue      BytesQueue
-	sync.Mutex
+	//sync.Mutex
 }
 
 func NewMux(c net.Conn, connType string) *Mux {
@@ -216,7 +215,7 @@ func (s *Mux) pingReturn() {
 			if latency < 0.5 && latency > 0 {
 				s.latency = latency
 			}
-			//logs.Warn("latency", s.latency)
+			logs.Warn("latency", s.latency)
 			common.WindowBuff.Put(data)
 		}
 	}()
@@ -242,15 +241,19 @@ func (s *Mux) readSession() {
 			case common.MUX_NEW_CONN: //new connection
 				connection := NewConn(pack.Id, s, "npc ")
 				s.connMap.Set(pack.Id, connection) //it has been set before send ok
+				//go func(connection *conn) {
 				s.newConnCh <- connection
 				s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)
+				//}(connection)
 				continue
 			case common.MUX_PING_FLAG: //ping
 				s.sendInfo(common.MUX_PING_RETURN, common.MUX_PING, pack.Content)
 				common.WindowBuff.Put(pack.Content)
 				continue
 			case common.MUX_PING_RETURN:
+				//go func(content []byte) {
 				s.pingCh <- pack.Content
+				//}(pack.Content)
 				continue
 			}
 			if connection, ok := s.connMap.Get(pack.Id); ok && !connection.isClose {
@@ -275,8 +278,10 @@ func (s *Mux) readSession() {
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
 					s.connMap.Delete(pack.Id)
+					//go func(connection *conn) {
 					connection.closeFlag = true
 					connection.receiveWindow.Stop() // close signal to receive window
+					//}(connection)
 					continue
 				}
 			} else if pack.Flag == common.MUX_CONN_CLOSE {

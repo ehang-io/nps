@@ -1,52 +1,24 @@
 package mux
 
 import (
-	"bytes"
 	"errors"
 	"github.com/cnlh/nps/lib/common"
 	"io"
 	"math"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 )
 
-type QueueOp struct {
-	readOp  chan struct{}
-	cleanOp chan struct{}
-	popWait uint32
-}
-
-func (Self *QueueOp) New() {
-	Self.readOp = make(chan struct{})
-	Self.cleanOp = make(chan struct{}, 2)
-}
-
-func (Self *QueueOp) allowPop() (closed bool) {
-	if atomic.CompareAndSwapUint32(&Self.popWait, 1, 0) {
-		select {
-		case Self.readOp <- struct{}{}:
-			return false
-		case <-Self.cleanOp:
-			return true
-		}
-	}
-	return
-}
-
-func (Self *QueueOp) Clean() {
-	Self.cleanOp <- struct{}{}
-	Self.cleanOp <- struct{}{}
-	close(Self.cleanOp)
-}
-
 type PriorityQueue struct {
-	QueueOp
 	highestChain *bufChain
 	middleChain  *bufChain
 	lowestChain  *bufChain
 	starving     uint8
+	stop         bool
+	cond         *sync.Cond
 }
 
 func (Self *PriorityQueue) New() {
@@ -56,7 +28,8 @@ func (Self *PriorityQueue) New() {
 	Self.middleChain.new(32)
 	Self.lowestChain = new(bufChain)
 	Self.lowestChain.new(256)
-	Self.QueueOp.New()
+	locker := new(sync.Mutex)
+	Self.cond = sync.NewCond(locker)
 }
 
 func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
@@ -71,14 +44,44 @@ func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
 	default:
 		Self.lowestChain.pushHead(unsafe.Pointer(packager))
 	}
-	Self.allowPop()
+	//atomic.AddUint32(&Self.count, 1)
+	Self.cond.Signal()
 	return
 }
 
 const maxStarving uint8 = 8
 
 func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
-startPop:
+	// PriorityQueue is empty, notice Push method
+	var iter bool
+	for {
+		packager = Self.pop()
+		if packager != nil {
+			return
+		}
+		if Self.stop {
+			return
+		}
+		if iter {
+			break
+		}
+		iter = true
+		runtime.Gosched()
+	}
+	Self.cond.L.Lock()
+	defer Self.cond.L.Unlock()
+	for packager = Self.pop(); packager == nil; {
+		if Self.stop {
+			return
+		}
+		Self.cond.Wait()
+		packager = Self.pop()
+	}
+	//atomic.AddUint32(&Self.count, ^uint32(0))
+	return
+}
+
+func (Self *PriorityQueue) pop() (packager *common.MuxPackager) {
 	ptr, ok := Self.highestChain.popTail()
 	if ok {
 		packager = (*common.MuxPackager)(ptr)
@@ -108,16 +111,12 @@ startPop:
 			return
 		}
 	}
-	// PriorityQueue is empty, notice Push method
-	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
-		select {
-		case <-Self.readOp:
-			goto startPop
-		case <-Self.cleanOp:
-			return nil
-		}
-	}
-	goto startPop
+	return
+}
+
+func (Self *PriorityQueue) Stop() {
+	Self.stop = true
+	Self.cond.Broadcast()
 }
 
 type ListElement struct {
@@ -137,18 +136,19 @@ func (Self *ListElement) New(buf []byte, l uint16, part bool) (err error) {
 }
 
 type ReceiveWindowQueue struct {
-	QueueOp
 	chain   *bufChain
 	length  uint32
 	stopOp  chan struct{}
+	readOp  chan struct{}
+	popWait uint32
 	timeout time.Time
 }
 
 func (Self *ReceiveWindowQueue) New() {
-	Self.QueueOp.New()
+	Self.readOp = make(chan struct{})
 	Self.chain = new(bufChain)
 	Self.chain.new(64)
-	Self.stopOp = make(chan struct{}, 1)
+	Self.stopOp = make(chan struct{}, 2)
 }
 
 func (Self *ReceiveWindowQueue) Push(element *ListElement) {
@@ -158,15 +158,30 @@ func (Self *ReceiveWindowQueue) Push(element *ListElement) {
 	return
 }
 
-func (Self *ReceiveWindowQueue) Pop() (element *ListElement, err error) {
-startPop:
+func (Self *ReceiveWindowQueue) pop() (element *ListElement) {
 	ptr, ok := Self.chain.popTail()
 	if ok {
 		element = (*ListElement)(ptr)
 		atomic.AddUint32(&Self.length, ^uint32(element.l-1))
 		return
 	}
+	return
+}
+
+func (Self *ReceiveWindowQueue) Pop() (element *ListElement, err error) {
+	var iter bool
+startPop:
+	element = Self.pop()
+	if element != nil {
+		return
+	}
+	if !iter {
+		iter = true
+		runtime.Gosched()
+		goto startPop
+	}
 	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
+		iter = false
 		t := Self.timeout.Sub(time.Now())
 		if t <= 0 {
 			t = time.Minute
@@ -176,8 +191,6 @@ startPop:
 		select {
 		case <-Self.readOp:
 			goto startPop
-		case <-Self.cleanOp:
-			return
 		case <-Self.stopOp:
 			err = io.EOF
 			return
@@ -189,60 +202,29 @@ startPop:
 	goto startPop
 }
 
+func (Self *ReceiveWindowQueue) allowPop() (closed bool) {
+	if atomic.CompareAndSwapUint32(&Self.popWait, 1, 0) {
+		select {
+		case Self.readOp <- struct{}{}:
+			return false
+		case <-Self.stopOp:
+			return true
+		}
+	}
+	return
+}
+
 func (Self *ReceiveWindowQueue) Len() (n uint32) {
 	return atomic.LoadUint32(&Self.length)
 }
 
 func (Self *ReceiveWindowQueue) Stop() {
 	Self.stopOp <- struct{}{}
+	Self.stopOp <- struct{}{}
 }
 
 func (Self *ReceiveWindowQueue) SetTimeOut(t time.Time) {
 	Self.timeout = t
-}
-
-type BytesQueue struct {
-	QueueOp
-	chain  *bufChain
-	stopOp chan struct{}
-}
-
-func (Self *BytesQueue) New() {
-	Self.QueueOp.New()
-	Self.chain = new(bufChain)
-	Self.chain.new(8)
-	Self.stopOp = make(chan struct{}, 1)
-}
-
-func (Self *BytesQueue) Push(buf *bytes.Buffer) {
-	Self.chain.pushHead(unsafe.Pointer(buf))
-	Self.allowPop()
-	return
-}
-
-func (Self *BytesQueue) Pop() (buf *bytes.Buffer, err error) {
-startPop:
-	ptr, ok := Self.chain.popTail()
-	if ok {
-		buf = (*bytes.Buffer)(ptr)
-		return
-	}
-	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
-		select {
-		case <-Self.readOp:
-			goto startPop
-		case <-Self.cleanOp:
-			return
-		case <-Self.stopOp:
-			err = io.EOF
-			return
-		}
-	}
-	goto startPop
-}
-
-func (Self *BytesQueue) Stop() {
-	Self.stopOp <- struct{}{}
 }
 
 // https://golang.org/src/sync/poolqueue.go

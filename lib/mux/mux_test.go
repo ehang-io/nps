@@ -11,7 +11,6 @@ import (
 	"net/http/httputil"
 	_ "net/http/pprof"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -30,6 +29,7 @@ func TestNewMux(t *testing.T) {
 	logs.SetLogFuncCallDepth(3)
 	server()
 	client()
+	//poolConnCopy, _ := ants.NewPoolWithFunc(200000, common.copyConn, ants.WithNonblocking(false))
 	time.Sleep(time.Second * 3)
 	go func() {
 		m2 := NewMux(conn2, "tcp")
@@ -49,31 +49,34 @@ func TestNewMux(t *testing.T) {
 			}
 			//c2.(*net.TCPConn).SetReadBuffer(0)
 			//c2.(*net.TCPConn).SetReadBuffer(0)
-			go func(c2 net.Conn, c *conn) {
-				wg := sync.WaitGroup{}
-				wg.Add(1)
-				go func() {
-					_, err = common.CopyBuffer(c2, c)
-					if err != nil {
-						c2.Close()
-						c.Close()
-						//logs.Warn("close npc by copy from nps", err, c.connId)
-					}
-					wg.Done()
-				}()
-				wg.Add(1)
-				go func() {
-					_, err = common.CopyBuffer(c, c2)
-					if err != nil {
-						c2.Close()
-						c.Close()
-						//logs.Warn("close npc by copy from server", err, c.connId)
-					}
-					wg.Done()
-				}()
-				//logs.Warn("npc wait")
-				wg.Wait()
-			}(c2, c.(*conn))
+			_ = common.CopyConnsPool.Invoke(common.NewConns(c2, c))
+			//go func(c2 net.Conn, c *conn) {
+			//	wg := new(sync.WaitGroup)
+			//	wg.Add(2)
+			//	_ = poolConnCopy.Invoke(common.newConnGroup(c2, c, wg))
+			//	//go func() {
+			//	//	_, err = common.CopyBuffer(c2, c)
+			//	//	if err != nil {
+			//	//		c2.Close()
+			//	//		c.Close()
+			//	//		//logs.Warn("close npc by copy from nps", err, c.connId)
+			//	//	}
+			//	//	wg.Done()
+			//	//}()
+			//	//wg.Add(1)
+			//	_ = poolConnCopy.Invoke(common.newConnGroup(c, c2, wg))
+			//	//go func() {
+			//	//	_, err = common.CopyBuffer(c, c2)
+			//	//	if err != nil {
+			//	//		c2.Close()
+			//	//		c.Close()
+			//	//		//logs.Warn("close npc by copy from server", err, c.connId)
+			//	//	}
+			//	//	wg.Done()
+			//	//}()
+			//	//logs.Warn("npc wait")
+			//	wg.Wait()
+			//}(c2, c.(*conn))
 		}
 	}()
 
@@ -99,23 +102,30 @@ func TestNewMux(t *testing.T) {
 				continue
 			}
 			//logs.Warn("nps new conn success ", tmpCpnn.connId)
-			go func(tmpCpnn *conn, conns net.Conn) {
-				go func() {
-					_, err := common.CopyBuffer(tmpCpnn, conns)
-					if err != nil {
-						conns.Close()
-						tmpCpnn.Close()
-						//logs.Warn("close nps by copy from user", tmpCpnn.connId, err)
-					}
-				}()
-				//time.Sleep(time.Second)
-				_, err = common.CopyBuffer(conns, tmpCpnn)
-				if err != nil {
-					conns.Close()
-					tmpCpnn.Close()
-					//logs.Warn("close nps by copy from npc ", tmpCpnn.connId, err)
-				}
-			}(tmpCpnn, conns)
+			_ = common.CopyConnsPool.Invoke(common.NewConns(tmpCpnn, conns))
+			//go func(tmpCpnn *conn, conns net.Conn) {
+			//	wg := new(sync.WaitGroup)
+			//	wg.Add(2)
+			//	_ = poolConnCopy.Invoke(common.newConnGroup(tmpCpnn, conns, wg))
+			//	//go func() {
+			//	//	_, err := common.CopyBuffer(tmpCpnn, conns)
+			//	//	if err != nil {
+			//	//		conns.Close()
+			//	//		tmpCpnn.Close()
+			//	//		//logs.Warn("close nps by copy from user", tmpCpnn.connId, err)
+			//	//	}
+			//	//}()
+			//	//wg.Add(1)
+			//	_ = poolConnCopy.Invoke(common.newConnGroup(conns, tmpCpnn, wg))
+			//	//time.Sleep(time.Second)
+			//	//_, err = common.CopyBuffer(conns, tmpCpnn)
+			//	//if err != nil {
+			//	//	conns.Close()
+			//	//	tmpCpnn.Close()
+			//	//	//logs.Warn("close nps by copy from npc ", tmpCpnn.connId, err)
+			//	//}
+			//	wg.Wait()
+			//}(tmpCpnn, conns)
 		}
 	}()
 
@@ -180,7 +190,7 @@ Connection: keep-alive
 }
 
 func test_raw(k int) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		ti := time.Now()
 		conn, err := net.Dial("tcp", "127.0.0.1:7777")
 		if err != nil {
@@ -303,7 +313,7 @@ func TestFIFO(t *testing.T) {
 	d.New()
 	go func() {
 		time.Sleep(time.Second)
-		for i := 0; i < 30010; i++ {
+		for i := 0; i < 300100; i++ {
 			data, err := d.Pop()
 			if err == nil {
 				//fmt.Println(i, string(data.buf), err)
@@ -318,17 +328,13 @@ func TestFIFO(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(time.Second * 10)
-		for i := 0; i < 3000; i++ {
-			go func(i int) {
-				for n := 0; n < 10; n++ {
-					data := new(ListElement)
-					by := []byte("test " + strconv.Itoa(i) + " " + strconv.Itoa(n)) //
-					_ = data.New(by, uint16(len(by)), true)
-					//fmt.Println(string((*data).buf), data)
-					//logs.Warn(string((*data).buf), data)
-					d.Push(data)
-				}
-			}(i)
+		for i := 0; i < 300000; i++ {
+			data := new(ListElement)
+			by := []byte("test " + strconv.Itoa(i) + " ") //
+			_ = data.New(by, uint16(len(by)), true)
+			//fmt.Println(string((*data).buf), data)
+			//logs.Warn(string((*data).buf), data)
+			d.Push(data)
 		}
 	}()
 	time.Sleep(time.Second * 100000)
@@ -345,7 +351,7 @@ func TestPriority(t *testing.T) {
 	d.New()
 	go func() {
 		time.Sleep(time.Second)
-		for i := 0; i < 36005; i++ {
+		for i := 0; i < 360050; i++ {
 			data := d.Pop()
 			//fmt.Println(i, string(data.buf), err)
 			logs.Warn(i, string(data.Content), data)
@@ -354,7 +360,7 @@ func TestPriority(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(time.Second * 10)
-		for i := 0; i < 3000; i++ {
+		for i := 0; i < 30000; i++ {
 			go func(i int) {
 				for n := 0; n < 10; n++ {
 					data := new(common.MuxPackager)
