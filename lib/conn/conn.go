@@ -4,12 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/kcp"
-	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/lib/rate"
 	"io"
 	"net"
 	"net/http"
@@ -18,23 +14,27 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-const cryptKey = "1234567812345678"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/mux"
+	"github.com/cnlh/nps/lib/pool"
+	"github.com/cnlh/nps/lib/rate"
+	"github.com/xtaci/kcp-go"
+)
 
 type Conn struct {
 	Conn net.Conn
-	sync.Mutex
+	Rb   []byte
 }
 
 //new conn
 func NewConn(conn net.Conn) *Conn {
-	c := new(Conn)
-	c.Conn = conn
-	return c
+	return &Conn{Conn: conn}
 }
 
-//从tcp报文中解析出host，连接类型等
+//get host 、connection type、method...from connection
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
 	var b [32 * 1024]byte
 	var n int
@@ -52,14 +52,14 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 		err = nil
 		return
 	}
-	if hostPortURL.Opaque == "443" { //https访问
-		if strings.Index(r.Host, ":") == -1 { //host不带端口， 默认80
+	if hostPortURL.Opaque == "443" {
+		if strings.Index(r.Host, ":") == -1 {
 			address = r.Host + ":443"
 		} else {
 			address = r.Host
 		}
-	} else { //http访问
-		if strings.Index(r.Host, ":") == -1 { //host不带端口， 默认80
+	} else {
+		if strings.Index(r.Host, ":") == -1 {
 			address = r.Host + ":80"
 		} else {
 			address = r.Host
@@ -68,204 +68,144 @@ func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.
 	return
 }
 
-//读取指定长度内容
-func (s *Conn) ReadLen(cLen int) ([]byte, error) {
-	if cLen > pool.PoolSize {
-		return nil, errors.New("长度错误" + strconv.Itoa(cLen))
+func (s *Conn) GetShortLenContent() (b []byte, err error) {
+	var l int
+	if l, err = s.GetLen(); err != nil {
+		return
 	}
-	var buf []byte
-	if cLen <= pool.PoolSizeSmall {
-		buf = pool.BufPoolSmall.Get().([]byte)[:cLen]
-		defer pool.BufPoolSmall.Put(buf)
-	} else {
-		buf = pool.BufPoolMax.Get().([]byte)[:cLen]
-		defer pool.BufPoolMax.Put(buf)
+	if l < 0 || l > 32<<10 {
+		err = errors.New("read length error")
+		return
 	}
-	if n, err := io.ReadFull(s, buf); err != nil || n != cLen {
-		return buf, errors.New("读取指定长度错误" + err.Error())
-	}
-	return buf, nil
+	return s.GetShortContent(l)
 }
 
-//read length or id (content length=4)
-func (s *Conn) GetLen() (int, error) {
-	val, err := s.ReadLen(4)
-	if err != nil {
-		return 0, err
+func (s *Conn) GetShortContent(l int) (b []byte, err error) {
+	buf := make([]byte, l)
+	return buf, binary.Read(s, binary.LittleEndian, &buf)
+}
+
+//读取指定长度内容
+func (s *Conn) ReadLen(cLen int, buf []byte) (int, error) {
+	if cLen > len(buf) {
+		return 0, errors.New("长度错误" + strconv.Itoa(cLen))
 	}
-	return GetLenByBytes(val)
+	if n, err := io.ReadFull(s, buf[:cLen]); err != nil || n != cLen {
+		return n, errors.New("Error reading specified length " + err.Error())
+	}
+	return cLen, nil
+}
+
+func (s *Conn) GetLen() (int, error) {
+	var l int32
+	err := binary.Read(s, binary.LittleEndian, &l)
+	return int(l), err
+}
+
+func (s *Conn) WriteLenContent(buf []byte) (err error) {
+	var b []byte
+	if b, err = GetLenBytes(buf); err != nil {
+		return
+	}
+	return binary.Write(s.Conn, binary.LittleEndian, b)
 }
 
 //read flag
 func (s *Conn) ReadFlag() (string, error) {
-	val, err := s.ReadLen(4)
-	if err != nil {
-		return "", err
-	}
-	return string(val), err
+	buf := make([]byte, 4)
+	return string(buf), binary.Read(s, binary.LittleEndian, &buf)
 }
 
-//read connect status
-func (s *Conn) GetConnStatus() (id int, status bool, err error) {
-	id, err = s.GetLen()
-	if err != nil {
-		return
-	}
-	var b []byte
-	if b, err = s.ReadLen(1); err != nil {
-		return
-	} else {
-		status = common.GetBoolByStr(string(b[0]))
-	}
-	return
-}
-
-//设置连接为长连接
+//set alive
 func (s *Conn) SetAlive(tp string) {
-	if tp == "kcp" {
-		s.setKcpAlive()
-	} else {
-		s.setTcpAlive()
+	switch s.Conn.(type) {
+	case *kcp.UDPSession:
+		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Time{})
+	case *net.TCPConn:
+		conn := s.Conn.(*net.TCPConn)
+		conn.SetReadDeadline(time.Time{})
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
+	case *mux.PortConn:
+		s.Conn.(*mux.PortConn).SetReadDeadline(time.Time{})
 	}
 }
 
-//设置连接为长连接
-func (s *Conn) setTcpAlive() {
-	conn := s.Conn.(*net.TCPConn)
-	conn.SetReadDeadline(time.Time{})
-	conn.SetKeepAlive(true)
-	conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
-}
-
-//设置连接为长连接
-func (s *Conn) setKcpAlive() {
-	conn := s.Conn.(*kcp.UDPSession)
-	conn.SetReadDeadline(time.Time{})
-}
-
-//设置连接为长连接
-func (s *Conn) SetReadDeadline(t time.Duration, tp string) {
-	if tp == "kcp" {
-		s.SetKcpReadDeadline(t)
-	} else {
-		s.SetTcpReadDeadline(t)
+//set read deadline
+func (s *Conn) SetReadDeadlineBySecond(t time.Duration) {
+	switch s.Conn.(type) {
+	case *kcp.UDPSession:
+		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+	case *net.TCPConn:
+		s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+	case *mux.PortConn:
+		s.Conn.(*mux.PortConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 	}
 }
 
-//set read dead time
-func (s *Conn) SetTcpReadDeadline(t time.Duration) {
-	s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
-}
-
-//set read dead time
-func (s *Conn) SetKcpReadDeadline(t time.Duration) {
-	s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
-}
-
-//单独读（加密|压缩）
-func (s *Conn) ReadFrom(b []byte, compress int, crypt bool, rate *rate.Rate) (int, error) {
-	if common.COMPRESS_SNAPY_DECODE == compress {
-		return NewSnappyConn(s.Conn, crypt, rate).Read(b)
-	}
-	return NewCryptConn(s.Conn, crypt, rate).Read(b)
-}
-
-//单独写（加密|压缩）
-func (s *Conn) WriteTo(b []byte, compress int, crypt bool, rate *rate.Rate) (n int, err error) {
-	if common.COMPRESS_SNAPY_ENCODE == compress {
-		return NewSnappyConn(s.Conn, crypt, rate).Write(b)
-	}
-	return NewCryptConn(s.Conn, crypt, rate).Write(b)
-}
-
-//send msg
-func (s *Conn) SendMsg(content []byte, link *Link) (n int, err error) {
-	/*
-		The msg info is formed as follows:
-		+----+--------+
-		|id | content |
-		+----+--------+
-		| 4  |  ...   |
-		+----+--------+
-*/
-	s.Lock()
-	defer s.Unlock()
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, int32(link.Id))
-	if n, err = s.Write(raw.Bytes()); err != nil {
-		return
-	}
-	raw.Reset()
-	binary.Write(raw, binary.LittleEndian, content)
-	n, err = s.WriteTo(raw.Bytes(), link.En, link.Crypt, link.Rate)
-	return
-}
-
-//get msg content from conn
-func (s *Conn) GetMsgContent(link *Link) (content []byte, err error) {
-	s.Lock()
-	defer s.Unlock()
-	buf := pool.BufPoolCopy.Get().([]byte)
-	if n, err := s.ReadFrom(buf, link.De, link.Crypt, link.Rate); err == nil && n > 4 {
-		content = buf[:n]
-	}
+//get link info from conn
+func (s *Conn) GetLinkInfo() (lk *Link, err error) {
+	err = s.getInfo(&lk)
 	return
 }
 
 //send info for link
-func (s *Conn) SendLinkInfo(link *Link) (int, error) {
-	/*
-		The  link info is formed as follows:
-		+----------+------+----------+------+----------+-----+
-		| id | len | type |  hostlen | host | en | de |crypt |
-		+----------+------+----------+------+---------+------+
-		| 4  |  4  |  3   |     4    | host | 1  | 1  |   1  |
-		+----------+------+----------+------+----+----+------+
-	*/
+func (s *Conn) SendHealthInfo(info, status string) (int, error) {
 	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, []byte(common.NEW_CONN))
-	binary.Write(raw, binary.LittleEndian, int32(14+len(link.Host)))
-	binary.Write(raw, binary.LittleEndian, int32(link.Id))
-	binary.Write(raw, binary.LittleEndian, []byte(link.ConnType))
-	binary.Write(raw, binary.LittleEndian, int32(len(link.Host)))
-	binary.Write(raw, binary.LittleEndian, []byte(link.Host))
-	binary.Write(raw, binary.LittleEndian, []byte(strconv.Itoa(link.En)))
-	binary.Write(raw, binary.LittleEndian, []byte(strconv.Itoa(link.De)))
-	binary.Write(raw, binary.LittleEndian, []byte(common.GetStrByBool(link.Crypt)))
-	s.Lock()
-	defer s.Unlock()
+	common.BinaryWrite(raw, info, status)
 	return s.Write(raw.Bytes())
 }
 
-func (s *Conn) GetLinkInfo() (lk *Link, err error) {
-	s.Lock()
-	defer s.Unlock()
-	var hostLen, n int
-	var buf []byte
-	if n, err = s.GetLen(); err != nil {
+//get health info from conn
+func (s *Conn) GetHealthInfo() (info string, status bool, err error) {
+	var l int
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
+	if l, err = s.GetLen(); err != nil {
 		return
-	}
-	lk = new(Link)
-	if buf, err = s.ReadLen(n); err != nil {
-		return
-	}
-	if lk.Id, err = GetLenByBytes(buf[:4]); err != nil {
-		return
-	}
-	lk.ConnType = string(buf[4:7])
-	if hostLen, err = GetLenByBytes(buf[7:11]); err != nil {
+	} else if _, err = s.ReadLen(l, buf); err != nil {
 		return
 	} else {
-		lk.Host = string(buf[11 : 11+hostLen])
-		lk.En = common.GetIntNoErrByStr(string(buf[11+hostLen]))
-		lk.De = common.GetIntNoErrByStr(string(buf[12+hostLen]))
-		lk.Crypt = common.GetBoolByStr(string(buf[13+hostLen]))
+		arr := strings.Split(string(buf[:l]), common.CONN_DATA_SEQ)
+		if len(arr) >= 2 {
+			return arr[0], common.GetBoolByStr(arr[1]), nil
+		}
 	}
+	return "", false, errors.New("receive health info error")
+}
+
+//get task info
+func (s *Conn) GetHostInfo() (h *file.Host, err error) {
+	err = s.getInfo(&h)
+	h.Id = int(file.GetDb().JsonDb.GetHostId())
+	h.Flow = new(file.Flow)
+	h.NoStore = true
 	return
 }
 
-//send task info
-func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
+//get task info
+func (s *Conn) GetConfigInfo() (c *file.Client, err error) {
+	err = s.getInfo(&c)
+	c.NoStore = true
+	c.Status = true
+	if c.Flow == nil {
+		c.Flow = new(file.Flow)
+	}
+	c.NoDisplay = false
+	return
+}
+
+//get task info
+func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
+	err = s.getInfo(&t)
+	t.Id = int(file.GetDb().JsonDb.GetTaskId())
+	t.NoStore = true
+	t.Flow = new(file.Flow)
+	return
+}
+
+//send  info
+func (s *Conn) SendInfo(t interface{}, flag string) (int, error) {
 	/*
 		The task info is formed as follows:
 		+----+-----+---------+
@@ -273,63 +213,36 @@ func (s *Conn) SendTaskInfo(t *file.Tunnel) (int, error) {
 		+----+---------------+
 		| 4  |  4  |   ...   |
 		+----+---------------+
-*/
+	*/
 	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, common.NEW_TASK)
-	common.BinaryWrite(raw, t.Mode, string(t.TcpPort), string(t.Target), string(t.Config.U), string(t.Config.P), common.GetStrByBool(t.Config.Crypt), t.Config.Compress, t.Remark)
-	s.Lock()
-	defer s.Unlock()
+	if flag != "" {
+		binary.Write(raw, binary.LittleEndian, []byte(flag))
+	}
+	b, err := json.Marshal(t)
+	if err != nil {
+		return 0, err
+	}
+	lenBytes, err := GetLenBytes(b)
+	if err != nil {
+		return 0, err
+	}
+	binary.Write(raw, binary.LittleEndian, lenBytes)
 	return s.Write(raw.Bytes())
 }
 
 //get task info
-func (s *Conn) GetTaskInfo() (t *file.Tunnel, err error) {
+func (s *Conn) getInfo(t interface{}) (err error) {
 	var l int
-	var b []byte
+	buf := pool.BufPoolMax.Get().([]byte)
+	defer pool.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
-	} else if b, err = s.ReadLen(l); err != nil {
+	} else if _, err = s.ReadLen(l, buf); err != nil {
 		return
 	} else {
-		arr := strings.Split(string(b), "#")
-		t.Mode = arr[0]
-		t.TcpPort, _ = strconv.Atoi(arr[1])
-		t.Target = arr[2]
-		t.Config = new(file.Config)
-		t.Config.U = arr[3]
-		t.Config.P = arr[4]
-		t.Config.Compress = arr[5]
-		t.Config.CompressDecode, t.Config.CompressDecode = common.GetCompressType(arr[5])
-		t.Id = file.GetCsvDb().GetTaskId()
-		t.Status = true
-		if t.Client, err = file.GetCsvDb().GetClient(0); err != nil {
-			return
-		}
-		t.Flow = new(file.Flow)
-		t.Remark = arr[6]
-		t.UseClientCnf = false
+		json.Unmarshal(buf[:l], &t)
 	}
 	return
-}
-
-//write connect success
-func (s *Conn) WriteSuccess(id int) (int, error) {
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, int32(id))
-	binary.Write(raw, binary.LittleEndian, []byte("1"))
-	s.Lock()
-	defer s.Unlock()
-	return s.Write(raw.Bytes())
-}
-
-//write connect fail
-func (s *Conn) WriteFail(id int) (int, error) {
-	raw := bytes.NewBuffer([]byte{})
-	binary.Write(raw, binary.LittleEndian, int32(id))
-	binary.Write(raw, binary.LittleEndian, []byte("0"))
-	s.Lock()
-	defer s.Unlock()
-	return s.Write(raw.Bytes())
 }
 
 //close
@@ -343,18 +256,17 @@ func (s *Conn) Write(b []byte) (int, error) {
 }
 
 //read
-func (s *Conn) Read(b []byte) (int, error) {
+func (s *Conn) Read(b []byte) (n int, err error) {
+	if s.Rb != nil {
+		//if the rb is not nil ,read rb first
+		if len(s.Rb) > 0 {
+			n = copy(b, s.Rb)
+			s.Rb = s.Rb[n:]
+			return
+		}
+		s.Rb = nil
+	}
 	return s.Conn.Read(b)
-}
-
-//write error
-func (s *Conn) WriteError() (int, error) {
-	return s.Write([]byte(common.RES_MSG))
-}
-
-//write sign flag
-func (s *Conn) WriteSign() (int, error) {
-	return s.Write([]byte(common.RES_SIGN))
 }
 
 //write sign flag
@@ -364,19 +276,55 @@ func (s *Conn) WriteClose() (int, error) {
 
 //write main
 func (s *Conn) WriteMain() (int, error) {
-	s.Lock()
-	defer s.Unlock()
 	return s.Write([]byte(common.WORK_MAIN))
+}
+
+//write main
+func (s *Conn) WriteConfig() (int, error) {
+	return s.Write([]byte(common.WORK_CONFIG))
 }
 
 //write chan
 func (s *Conn) WriteChan() (int, error) {
-	s.Lock()
-	defer s.Unlock()
 	return s.Write([]byte(common.WORK_CHAN))
 }
 
-//获取长度+内容
+//get task or host result of add
+func (s *Conn) GetAddStatus() (b bool) {
+	binary.Read(s.Conn, binary.LittleEndian, &b)
+	return
+}
+
+func (s *Conn) WriteAddOk() error {
+	return binary.Write(s.Conn, binary.LittleEndian, true)
+}
+
+func (s *Conn) WriteAddFail() error {
+	defer s.Close()
+	return binary.Write(s.Conn, binary.LittleEndian, false)
+}
+
+func (s *Conn) LocalAddr() net.Addr {
+	return s.Conn.LocalAddr()
+}
+
+func (s *Conn) RemoteAddr() net.Addr {
+	return s.Conn.RemoteAddr()
+}
+
+func (s *Conn) SetDeadline(t time.Time) error {
+	return s.Conn.SetDeadline(t)
+}
+
+func (s *Conn) SetWriteDeadline(t time.Time) error {
+	return s.Conn.SetWriteDeadline(t)
+}
+
+func (s *Conn) SetReadDeadline(t time.Time) error {
+	return s.Conn.SetReadDeadline(t)
+}
+
+//get the assembled amount data(len 4 and content)
 func GetLenBytes(buf []byte) (b []byte, err error) {
 	raw := bytes.NewBuffer([]byte{})
 	if err = binary.Write(raw, binary.LittleEndian, int32(len(buf))); err != nil {
@@ -389,15 +337,7 @@ func GetLenBytes(buf []byte) (b []byte, err error) {
 	return
 }
 
-//解析出长度
-func GetLenByBytes(buf []byte) (int, error) {
-	nlen := binary.LittleEndian.Uint32(buf)
-	if nlen <= 0 {
-		return 0, errors.New("数据长度错误")
-	}
-	return int(nlen), nil
-}
-
+//udp connection setting
 func SetUdpSession(sess *kcp.UDPSession) {
 	sess.SetStreamMode(true)
 	sess.SetWindowSize(1024, 1024)
@@ -406,4 +346,56 @@ func SetUdpSession(sess *kcp.UDPSession) {
 	sess.SetNoDelay(1, 10, 2, 1)
 	sess.SetMtu(1600)
 	sess.SetACKNoDelay(true)
+	sess.SetWriteDelay(false)
+}
+
+//conn1 mux conn
+func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool, rb []byte) {
+	var in, out int64
+	var wg sync.WaitGroup
+	connHandle := GetConn(conn1, crypt, snappy, rate, isServer)
+	if rb != nil {
+		connHandle.Write(rb)
+	}
+	go func(in *int64) {
+		wg.Add(1)
+		*in, _ = common.CopyBuffer(connHandle, conn2)
+		connHandle.Close()
+		conn2.Close()
+		wg.Done()
+	}(&in)
+	out, _ = common.CopyBuffer(conn2, connHandle)
+	connHandle.Close()
+	conn2.Close()
+	wg.Wait()
+	if flow != nil {
+		flow.Add(in, out)
+	}
+}
+
+//get crypt or snappy conn
+func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) io.ReadWriteCloser {
+	if cpt {
+		if isServer {
+			return rate.NewRateConn(crypt.NewTlsServerConn(conn), rt)
+		}
+		return rate.NewRateConn(crypt.NewTlsClientConn(conn), rt)
+	} else if snappy {
+		return rate.NewRateConn(NewSnappyConn(conn), rt)
+	}
+	return rate.NewRateConn(conn, rt)
+}
+
+type LenConn struct {
+	conn io.Writer
+	Len  int
+}
+
+func NewLenConn(conn io.Writer) *LenConn {
+	return &LenConn{conn: conn}
+}
+func (c *LenConn) Write(p []byte) (n int, err error) {
+	n, err = c.conn.Write(p)
+	c.Len += n
+	return
 }

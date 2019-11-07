@@ -1,4 +1,0 @@
-53,udpServer,114.114.114.114:53,,,,1,0,0,0,2,1,true,udp
-9005,httpProxyServer,,,,,1,0,0,0,4,1,true,
-9002,socks5Server,,,,,1,0,0,0,3,1,true,socks5
-9001,tunnelServer,127.0.0.1:8082,,,,1,0,0,0,1,1,true,测试tcp

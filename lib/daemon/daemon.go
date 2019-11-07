@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"github.com/cnlh/nps/lib/common"
 	"io/ioutil"
 	"log"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 func InitDaemon(f string, runPath string, pidPath string) {
@@ -39,6 +40,29 @@ func InitDaemon(f string, runPath string, pidPath string) {
 			log.Printf("%s is not running", f)
 		}
 		os.Exit(0)
+	case "reload":
+		reload(f, pidPath)
+		os.Exit(0)
+	}
+}
+
+func reload(f string, pidPath string) {
+	if f == "nps" && !common.IsWindows() && !status(f, pidPath) {
+		log.Println("reload fail")
+		return
+	}
+	var c *exec.Cmd
+	var err error
+	b, err := ioutil.ReadFile(filepath.Join(pidPath, f+".pid"))
+	if err == nil {
+		c = exec.Command("/bin/bash", "-c", `kill -30 `+string(b))
+	} else {
+		log.Fatalln("reload error,pid file does not exist")
+	}
+	if c.Run() == nil {
+		log.Println("reload success")
+	} else {
+		log.Println("reload fail")
 	}
 }
 
@@ -49,7 +73,7 @@ func status(f string, pidPath string) bool {
 		if !common.IsWindows() {
 			cmd = exec.Command("/bin/sh", "-c", "ps -ax | awk '{ print $1 }' | grep "+string(b))
 		} else {
-			cmd = exec.Command("tasklist", )
+			cmd = exec.Command("tasklist")
 		}
 		out, _ := cmd.Output()
 		if strings.Index(string(out), string(b)) > -1 {

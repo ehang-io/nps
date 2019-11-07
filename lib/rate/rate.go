@@ -6,10 +6,11 @@ import (
 )
 
 type Rate struct {
-	bucketSize        int64     //木桶容量
-	bucketSurplusSize int64     //当前桶中体积
-	bucketAddSize     int64     //每次加水大小
-	stopChan          chan bool //停止
+	bucketSize        int64
+	bucketSurplusSize int64
+	bucketAddSize     int64
+	stopChan          chan bool
+	NowRate           int64
 }
 
 func NewRate(addSize int64) *Rate {
@@ -26,7 +27,8 @@ func (s *Rate) Start() {
 }
 
 func (s *Rate) add(size int64) {
-	if (s.bucketSize - s.bucketSurplusSize) < s.bucketAddSize {
+	if res := s.bucketSize - s.bucketSurplusSize; res < s.bucketAddSize {
+		atomic.AddInt64(&s.bucketSurplusSize, res)
 		return
 	}
 	atomic.AddInt64(&s.bucketSurplusSize, size)
@@ -65,6 +67,11 @@ func (s *Rate) session() {
 	for {
 		select {
 		case <-ticker.C:
+			if rs := s.bucketAddSize - s.bucketSurplusSize; rs > 0 {
+				s.NowRate = rs
+			} else {
+				s.NowRate = s.bucketSize - s.bucketSurplusSize
+			}
 			s.add(s.bucketAddSize)
 		case <-s.stopChan:
 			ticker.Stop()

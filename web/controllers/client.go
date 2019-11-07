@@ -1,7 +1,8 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib/crypt"
+	"github.com/astaxie/beego"
+	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/cnlh/nps/server"
@@ -14,12 +15,19 @@ type ClientController struct {
 func (s *ClientController) List() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		s.SetInfo("客户端管理")
+		s.SetInfo("client")
 		s.display("client/list")
 		return
 	}
 	start, length := s.GetAjaxParams()
-	list, cnt := server.GetClientList(start, length)
+	clientIdSession := s.GetSession("clientId")
+	var clientId int
+	if clientIdSession == nil {
+		clientId = 0
+	} else {
+		clientId = clientIdSession.(int)
+	}
+	list, cnt := server.GetClientList(start, length, s.getEscapeString("search"), s.getEscapeString("sort"), s.getEscapeString("order"), clientId)
 	s.AjaxTable(list, cnt, cnt)
 }
 
@@ -27,21 +35,26 @@ func (s *ClientController) List() {
 func (s *ClientController) Add() {
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		s.SetInfo("新增")
+		s.SetInfo("add client")
 		s.display()
 	} else {
 		t := &file.Client{
-			VerifyKey: crypt.GetRandomString(16),
-			Id:        file.GetCsvDb().GetClientId(),
+			VerifyKey: s.getEscapeString("vkey"),
+			Id:        int(file.GetDb().JsonDb.GetClientId()),
 			Status:    true,
-			Remark:    s.GetString("remark"),
+			Remark:    s.getEscapeString("remark"),
 			Cnf: &file.Config{
-				U:        s.GetString("u"),
-				P:        s.GetString("p"),
-				Compress: s.GetString("compress"),
+				U:        s.getEscapeString("u"),
+				P:        s.getEscapeString("p"),
+				Compress: common.GetBoolByStr(s.getEscapeString("compress")),
 				Crypt:    s.GetBoolNoErr("crypt"),
 			},
-			RateLimit: s.GetIntNoErr("rate_limit"),
+			ConfigConnAllow: s.GetBoolNoErr("config_conn_allow"),
+			RateLimit:       s.GetIntNoErr("rate_limit"),
+			MaxConn:         s.GetIntNoErr("max_conn"),
+			WebUserName:     s.getEscapeString("web_username"),
+			WebPassword:     s.getEscapeString("web_password"),
+			MaxTunnelNum:    s.GetIntNoErr("max_tunnel"),
 			Flow: &file.Flow{
 				ExportFlow: 0,
 				InletFlow:  0,
@@ -52,15 +65,17 @@ func (s *ClientController) Add() {
 			t.Rate = rate.NewRate(int64(t.RateLimit * 1024))
 			t.Rate.Start()
 		}
-		file.GetCsvDb().NewClient(t)
-		s.AjaxOk("添加成功")
+		if err := file.GetDb().NewClient(t); err != nil {
+			s.AjaxErr(err.Error())
+		}
+		s.AjaxOk("add success")
 	}
 }
 func (s *ClientController) GetClient() {
 	if s.Ctx.Request.Method == "POST" {
 		id := s.GetIntNoErr("id")
 		data := make(map[string]interface{})
-		if c, err := file.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetDb().GetClient(id); err != nil {
 			data["code"] = 0
 		} else {
 			data["code"] = 1
@@ -76,24 +91,45 @@ func (s *ClientController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "client"
-		if c, err := file.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetDb().GetClient(id); err != nil {
 			s.error()
 		} else {
 			s.Data["c"] = c
 		}
-		s.SetInfo("修改")
+		s.SetInfo("edit client")
 		s.display()
 	} else {
-		if c, err := file.GetCsvDb().GetClient(id); err != nil {
+		if c, err := file.GetDb().GetClient(id); err != nil {
 			s.error()
 		} else {
-			c.Remark = s.GetString("remark")
-			c.Cnf.U = s.GetString("u")
-			c.Cnf.P = s.GetString("p")
-			c.Cnf.Compress = s.GetString("compress")
+			if s.getEscapeString("web_username") != "" {
+				if s.getEscapeString("web_username") == beego.AppConfig.String("web_username") || !file.GetDb().VerifyUserName(s.getEscapeString("web_username"), c.Id) {
+					s.AjaxErr("web login username duplicate, please reset")
+					return
+				}
+			}
+			if s.GetSession("isAdmin").(bool) {
+				if !file.GetDb().VerifyVkey(s.getEscapeString("vkey"), c.Id) {
+					s.AjaxErr("Vkey duplicate, please reset")
+					return
+				}
+				c.VerifyKey = s.getEscapeString("vkey")
+				c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
+				c.RateLimit = s.GetIntNoErr("rate_limit")
+				c.MaxConn = s.GetIntNoErr("max_conn")
+				c.MaxTunnelNum = s.GetIntNoErr("max_tunnel")
+			}
+			c.Remark = s.getEscapeString("remark")
+			c.Cnf.U = s.getEscapeString("u")
+			c.Cnf.P = s.getEscapeString("p")
+			c.Cnf.Compress = common.GetBoolByStr(s.getEscapeString("compress"))
 			c.Cnf.Crypt = s.GetBoolNoErr("crypt")
-			c.Flow.FlowLimit = int64(s.GetIntNoErr("flow_limit"))
-			c.RateLimit = s.GetIntNoErr("rate_limit")
+			b, err := beego.AppConfig.Bool("allow_user_change_username")
+			if s.GetSession("isAdmin").(bool) || (err == nil && b) {
+				c.WebUserName = s.getEscapeString("web_username")
+			}
+			c.WebPassword = s.getEscapeString("web_password")
+			c.ConfigConnAllow = s.GetBoolNoErr("config_conn_allow")
 			if c.Rate != nil {
 				c.Rate.Stop()
 			}
@@ -101,34 +137,35 @@ func (s *ClientController) Edit() {
 				c.Rate = rate.NewRate(int64(c.RateLimit * 1024))
 				c.Rate.Start()
 			} else {
-				c.Rate = nil
+				c.Rate = rate.NewRate(int64(2 << 23))
+				c.Rate.Start()
 			}
-			file.GetCsvDb().UpdateClient(c)
+			file.GetDb().JsonDb.StoreClientsToJsonFile()
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("save success")
 	}
 }
 
 //更改状态
 func (s *ClientController) ChangeStatus() {
 	id := s.GetIntNoErr("id")
-	if client, err := file.GetCsvDb().GetClient(id); err == nil {
+	if client, err := file.GetDb().GetClient(id); err == nil {
 		client.Status = s.GetBoolNoErr("status")
 		if client.Status == false {
 			server.DelClientConnect(client.Id)
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("modified success")
 	}
-	s.AjaxErr("修改失败")
+	s.AjaxErr("modified fail")
 }
 
 //删除客户端
 func (s *ClientController) Del() {
 	id := s.GetIntNoErr("id")
-	if err := file.GetCsvDb().DelClient(id); err != nil {
-		s.AjaxErr("删除失败")
+	if err := file.GetDb().DelClient(id); err != nil {
+		s.AjaxErr("delete error")
 	}
-	server.DelTunnelAndHostByClientId(id)
+	server.DelTunnelAndHostByClientId(id, false)
 	server.DelClientConnect(id)
-	s.AjaxOk("删除成功")
+	s.AjaxOk("delete success")
 }

@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
+	"github.com/cnlh/nps/server/tool"
 )
 
 type IndexController struct {
@@ -15,95 +16,116 @@ func (s *IndexController) Index() {
 	s.display("index/index")
 }
 func (s *IndexController) Help() {
-	s.SetInfo("使用说明")
+	s.SetInfo("about")
 	s.display("index/help")
 }
 
 func (s *IndexController) Tcp() {
-	s.SetInfo("tcp隧道管理")
-	s.SetType("tunnelServer")
+	s.SetInfo("tcp")
+	s.SetType("tcp")
 	s.display("index/list")
 }
 
 func (s *IndexController) Udp() {
-	s.SetInfo("udp隧道管理")
-	s.SetType("udpServer")
+	s.SetInfo("udp")
+	s.SetType("udp")
 	s.display("index/list")
 }
 
 func (s *IndexController) Socks5() {
-	s.SetInfo("socks5管理")
-	s.SetType("socks5Server")
+	s.SetInfo("socks5")
+	s.SetType("socks5")
 	s.display("index/list")
 }
 
 func (s *IndexController) Http() {
-	s.SetInfo("http代理管理")
-	s.SetType("httpProxyServer")
+	s.SetInfo("http proxy")
+	s.SetType("httpProxy")
+	s.display("index/list")
+}
+func (s *IndexController) File() {
+	s.SetInfo("file server")
+	s.SetType("file")
+	s.display("index/list")
+}
+
+func (s *IndexController) Secret() {
+	s.SetInfo("secret")
+	s.SetType("secret")
+	s.display("index/list")
+}
+func (s *IndexController) P2p() {
+	s.SetInfo("p2p")
+	s.SetType("p2p")
 	s.display("index/list")
 }
 
 func (s *IndexController) Host() {
-	s.SetInfo("host模式管理")
+	s.SetInfo("host")
 	s.SetType("hostServer")
 	s.display("index/list")
 }
 
 func (s *IndexController) All() {
 	s.Data["menu"] = "client"
-	clientId := s.GetString("client_id")
+	clientId := s.getEscapeString("client_id")
 	s.Data["client_id"] = clientId
-	s.SetInfo("客户端" + clientId + "的所有隧道")
+	s.SetInfo("client id:" + clientId)
 	s.display("index/list")
 }
 
 func (s *IndexController) GetTunnel() {
 	start, length := s.GetAjaxParams()
-	taskType := s.GetString("type")
+	taskType := s.getEscapeString("type")
 	clientId := s.GetIntNoErr("client_id")
-	list, cnt := server.GetTunnel(start, length, taskType, clientId)
+	list, cnt := server.GetTunnel(start, length, taskType, clientId, s.getEscapeString("search"))
 	s.AjaxTable(list, cnt, cnt)
 }
 
 func (s *IndexController) Add() {
 	if s.Ctx.Request.Method == "GET" {
-		s.Data["type"] = s.GetString("type")
-		s.Data["client_id"] = s.GetString("client_id")
-		s.SetInfo("新增")
+		s.Data["type"] = s.getEscapeString("type")
+		s.Data["client_id"] = s.getEscapeString("client_id")
+		s.SetInfo("add tunnel")
 		s.display()
 	} else {
 		t := &file.Tunnel{
-			TcpPort: s.GetIntNoErr("port"),
-			Mode:    s.GetString("type"),
-			Target:  s.GetString("target"),
-			Config: &file.Config{
-				U:        s.GetString("u"),
-				P:        s.GetString("p"),
-				Compress: s.GetString("compress"),
-				Crypt:    s.GetBoolNoErr("crypt"),
-			},
-			Id:           file.GetCsvDb().GetTaskId(),
-			UseClientCnf: s.GetBoolNoErr("use_client"),
-			Status:       true,
-			Remark:       s.GetString("remark"),
-			Flow:         &file.Flow{},
+			Port:      s.GetIntNoErr("port"),
+			ServerIp:  s.getEscapeString("server_ip"),
+			Mode:      s.getEscapeString("type"),
+			Target:    &file.Target{TargetStr: s.getEscapeString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
+			Id:        int(file.GetDb().JsonDb.GetTaskId()),
+			Status:    true,
+			Remark:    s.getEscapeString("remark"),
+			Password:  s.getEscapeString("password"),
+			LocalPath: s.getEscapeString("local_path"),
+			StripPre:  s.getEscapeString("strip_pre"),
+			Flow:      &file.Flow{},
+		}
+		if !tool.TestServerPort(t.Port, t.Mode) {
+			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
 		}
 		var err error
-		if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+		if t.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
 		}
-		file.GetCsvDb().NewTask(t)
+		if t.Client.MaxTunnelNum != 0 && t.Client.GetTunnelNum() >= t.Client.MaxTunnelNum {
+			s.AjaxErr("The number of tunnels exceeds the limit")
+		}
+		if err := file.GetDb().NewTask(t); err != nil {
+			s.AjaxErr(err.Error())
+		}
 		if err := server.AddTask(t); err != nil {
 			s.AjaxErr(err.Error())
 		} else {
-			s.AjaxOk("添加成功")
+			s.AjaxOk("add success")
 		}
 	}
 }
 func (s *IndexController) GetOneTunnel() {
 	id := s.GetIntNoErr("id")
 	data := make(map[string]interface{})
-	if t, err := file.GetCsvDb().GetTask(id); err != nil {
+	if t, err := file.GetDb().GetTask(id); err != nil {
 		data["code"] = 0
 	} else {
 		data["code"] = 1
@@ -115,71 +137,81 @@ func (s *IndexController) GetOneTunnel() {
 func (s *IndexController) Edit() {
 	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
 			s.Data["t"] = t
 		}
-		s.SetInfo("修改")
+		s.SetInfo("edit tunnel")
 		s.display()
 	} else {
-		if t, err := file.GetCsvDb().GetTask(id); err != nil {
+		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
-			t.TcpPort = s.GetIntNoErr("port")
-			t.Mode = s.GetString("type")
-			t.Target = s.GetString("target")
-			t.Id = id
-			t.Client.Id = s.GetIntNoErr("client_id")
-			t.Config.U = s.GetString("u")
-			t.Config.P = s.GetString("p")
-			t.Config.Compress = s.GetString("compress")
-			t.Config.Crypt = s.GetBoolNoErr("crypt")
-			t.UseClientCnf = s.GetBoolNoErr("use_client")
-			t.Remark = s.GetString("remark")
-			if t.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("修改失败")
+			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("modified error,the client is not exist")
+				return
+			} else {
+				t.Client = client
 			}
-			file.GetCsvDb().UpdateTask(t)
+			if s.GetIntNoErr("port") != t.Port {
+				if !tool.TestServerPort(s.GetIntNoErr("port"), t.Mode) {
+					s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
+					return
+				}
+				t.Port = s.GetIntNoErr("port")
+			}
+			t.ServerIp = s.getEscapeString("server_ip")
+			t.Mode = s.getEscapeString("type")
+			t.Target = &file.Target{TargetStr: s.getEscapeString("target")}
+			t.Password = s.getEscapeString("password")
+			t.Id = id
+			t.LocalPath = s.getEscapeString("local_path")
+			t.StripPre = s.getEscapeString("strip_pre")
+			t.Remark = s.getEscapeString("remark")
+			t.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
+			file.GetDb().UpdateTask(t)
+			server.StopServer(t.Id)
+			server.StartTask(t.Id)
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("modified success")
 	}
 }
 
 func (s *IndexController) Stop() {
 	id := s.GetIntNoErr("id")
 	if err := server.StopServer(id); err != nil {
-		s.AjaxErr("停止失败")
+		s.AjaxErr("stop error")
 	}
-	s.AjaxOk("停止成功")
+	s.AjaxOk("stop success")
 }
 
 func (s *IndexController) Del() {
 	id := s.GetIntNoErr("id")
 	if err := server.DelTask(id); err != nil {
-		s.AjaxErr("删除失败")
+		s.AjaxErr("delete error")
 	}
-	s.AjaxOk("删除成功")
+	s.AjaxOk("delete success")
 }
 
 func (s *IndexController) Start() {
 	id := s.GetIntNoErr("id")
 	if err := server.StartTask(id); err != nil {
-		s.AjaxErr("开启失败")
+		s.AjaxErr("start error")
 	}
-	s.AjaxOk("开启成功")
+	s.AjaxOk("start success")
 }
 
 func (s *IndexController) HostList() {
 	if s.Ctx.Request.Method == "GET" {
-		s.Data["client_id"] = s.GetString("client_id")
+		s.Data["client_id"] = s.getEscapeString("client_id")
 		s.Data["menu"] = "host"
-		s.SetInfo("域名列表")
+		s.SetInfo("host list")
 		s.display("index/hlist")
 	} else {
 		start, length := s.GetAjaxParams()
 		clientId := s.GetIntNoErr("client_id")
-		list, cnt := file.GetCsvDb().GetHost(start, length, clientId)
+		list, cnt := file.GetDb().GetHost(start, length, clientId, s.getEscapeString("search"))
 		s.AjaxTable(list, cnt, cnt)
 	}
 }
@@ -187,7 +219,7 @@ func (s *IndexController) HostList() {
 func (s *IndexController) GetHost() {
 	if s.Ctx.Request.Method == "POST" {
 		data := make(map[string]interface{})
-		if h, err := server.GetInfoByHost(s.GetString("host")); err != nil {
+		if h, err := file.GetDb().GetHostById(s.GetIntNoErr("id")); err != nil {
 			data["code"] = 0
 		} else {
 			data["data"] = h
@@ -199,64 +231,86 @@ func (s *IndexController) GetHost() {
 }
 
 func (s *IndexController) DelHost() {
-	host := s.GetString("host")
-	if err := file.GetCsvDb().DelHost(host); err != nil {
-		s.AjaxErr("删除失败")
+	id := s.GetIntNoErr("id")
+	if err := file.GetDb().DelHost(id); err != nil {
+		s.AjaxErr("delete error")
 	}
-	s.AjaxOk("删除成功")
+	s.AjaxOk("delete success")
 }
 
 func (s *IndexController) AddHost() {
 	if s.Ctx.Request.Method == "GET" {
-		s.Data["client_id"] = s.GetString("client_id")
+		s.Data["client_id"] = s.getEscapeString("client_id")
 		s.Data["menu"] = "host"
-		s.SetInfo("新增")
+		s.SetInfo("add host")
 		s.display("index/hadd")
 	} else {
 		h := &file.Host{
-			Host:         s.GetString("host"),
-			Target:       s.GetString("target"),
-			HeaderChange: s.GetString("header"),
-			HostChange:   s.GetString("hostchange"),
-			Remark:       s.GetString("remark"),
+			Id:           int(file.GetDb().JsonDb.GetHostId()),
+			Host:         s.getEscapeString("host"),
+			Target:       &file.Target{TargetStr: s.getEscapeString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
+			HeaderChange: s.getEscapeString("header"),
+			HostChange:   s.getEscapeString("hostchange"),
+			Remark:       s.getEscapeString("remark"),
+			Location:     s.getEscapeString("location"),
 			Flow:         &file.Flow{},
+			Scheme:       s.getEscapeString("scheme"),
+			KeyFilePath:  s.getEscapeString("key_file_path"),
+			CertFilePath: s.getEscapeString("cert_file_path"),
 		}
 		var err error
-		if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-			s.AjaxErr("添加失败")
+		if h.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+			s.AjaxErr("add error the client can not be found")
 		}
-		file.GetCsvDb().NewHost(h)
-		s.AjaxOk("添加成功")
+		if err := file.GetDb().NewHost(h); err != nil {
+			s.AjaxErr("add fail" + err.Error())
+		}
+		s.AjaxOk("add success")
 	}
 }
 
 func (s *IndexController) EditHost() {
-	host := s.GetString("host")
+	id := s.GetIntNoErr("id")
 	if s.Ctx.Request.Method == "GET" {
 		s.Data["menu"] = "host"
-		if h, err := server.GetInfoByHost(host); err != nil {
+		if h, err := file.GetDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
 			s.Data["h"] = h
 		}
-		s.SetInfo("修改")
+		s.SetInfo("edit")
 		s.display("index/hedit")
 	} else {
-		if h, err := server.GetInfoByHost(host); err != nil {
+		if h, err := file.GetDb().GetHostById(id); err != nil {
 			s.error()
 		} else {
-			h.Host = s.GetString("nhost")
-			h.Target = s.GetString("target")
-			h.HeaderChange = s.GetString("header")
-			h.HostChange = s.GetString("hostchange")
-			h.Remark = s.GetString("remark")
-			h.TargetArr = nil
-			file.GetCsvDb().UpdateHost(h)
-			var err error
-			if h.Client, err = file.GetCsvDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
-				s.AjaxErr("修改失败")
+			if h.Host != s.getEscapeString("host") {
+				tmpHost := new(file.Host)
+				tmpHost.Host = s.getEscapeString("host")
+				tmpHost.Location = s.getEscapeString("location")
+				tmpHost.Scheme = s.getEscapeString("scheme")
+				if file.GetDb().IsHostExist(tmpHost) {
+					s.AjaxErr("host has exist")
+					return
+				}
 			}
+			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
+				s.AjaxErr("modified error,the client is not exist")
+			} else {
+				h.Client = client
+			}
+			h.Host = s.getEscapeString("host")
+			h.Target = &file.Target{TargetStr: s.getEscapeString("target")}
+			h.HeaderChange = s.getEscapeString("header")
+			h.HostChange = s.getEscapeString("hostchange")
+			h.Remark = s.getEscapeString("remark")
+			h.Location = s.getEscapeString("location")
+			h.Scheme = s.getEscapeString("scheme")
+			h.KeyFilePath = s.getEscapeString("key_file_path")
+			h.CertFilePath = s.getEscapeString("cert_file_path")
+			h.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
+			file.GetDb().JsonDb.StoreHostToJsonFile()
 		}
-		s.AjaxOk("修改成功")
+		s.AjaxOk("modified success")
 	}
 }

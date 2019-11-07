@@ -3,16 +3,20 @@ package install
 import (
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 func InstallNps() {
 	path := common.GetInstallPath()
+	if common.FileExists(path) {
+		log.Fatalf("the path %s has exist, does not support install", path)
+	}
 	MkidrDirAll(path, "conf", "web/static", "web/views")
 	//复制文件到对应目录
 	if err := CopyDir(filepath.Join(common.GetAppPath(), "web", "views"), filepath.Join(path, "web", "views")); err != nil {
@@ -30,11 +34,11 @@ func InstallNps() {
 			if _, err := copyFile(filepath.Join(common.GetAppPath(), "nps"), "/usr/local/bin/nps"); err != nil {
 				log.Fatalln(err)
 			} else {
-				os.Chmod("/usr/local/bin/nps", 0777)
+				os.Chmod("/usr/local/bin/nps", 0755)
 				log.Println("Executable files have been copied to", "/usr/local/bin/nps")
 			}
 		} else {
-			os.Chmod("/usr/bin/nps", 0777)
+			os.Chmod("/usr/bin/nps", 0755)
 			log.Println("Executable files have been copied to", "/usr/bin/nps")
 		}
 
@@ -48,7 +52,7 @@ func InstallNps() {
 		log.Println("You can copy executable files to any directory and start working with nps.exe test|start|stop|restart|status")
 	}
 }
-func MkidrDirAll(path string, v ... string) {
+func MkidrDirAll(path string, v ...string) {
 	for _, item := range v {
 		if err := os.MkdirAll(filepath.Join(path, item), 0755); err != nil {
 			log.Fatalf("Failed to create directory %s error:%s", path, err.Error())

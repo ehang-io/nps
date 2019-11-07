@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/lg"
+	"html/template"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -13,20 +13,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-)
+	"sync"
 
-//Judging Compression Mode
-func GetCompressType(compress string) (int, int) {
-	switch compress {
-	case "":
-		return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
-	case "snappy":
-		return COMPRESS_SNAPY_DECODE, COMPRESS_SNAPY_ENCODE
-	default:
-		lg.Fatalln("数据压缩格式错误")
-	}
-	return COMPRESS_NONE_DECODE, COMPRESS_NONE_ENCODE
-}
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/pool"
+)
 
 //Get the corresponding IP address through domain name
 func GetHostByName(hostname string) string {
@@ -94,7 +85,7 @@ func GetStrByBool(b bool) string {
 
 //int
 func GetIntNoErrByStr(str string) int {
-	i, _ := strconv.Atoi(str)
+	i, _ := strconv.Atoi(strings.TrimSpace(str))
 	return i
 }
 
@@ -144,7 +135,11 @@ func FileExists(name string) bool {
 //Judge whether the TCP port can open normally
 func TestTcpPort(port int) bool {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), port, ""})
-	defer l.Close()
+	defer func() {
+		if l != nil {
+			l.Close()
+		}
+	}()
 	if err != nil {
 		return false
 	}
@@ -154,7 +149,11 @@ func TestTcpPort(port int) bool {
 //Judge whether the UDP port can open normally
 func TestUdpPort(port int) bool {
 	l, err := net.ListenUDP("udp", &net.UDPAddr{net.ParseIP("0.0.0.0"), port, ""})
-	defer l.Close()
+	defer func() {
+		if l != nil {
+			l.Close()
+		}
+	}()
 	if err != nil {
 		return false
 	}
@@ -165,12 +164,231 @@ func TestUdpPort(port int) bool {
 //Length prevents sticking
 //# Characters are used to separate data
 func BinaryWrite(raw *bytes.Buffer, v ...string) {
+	b := GetWriteStr(v...)
+	binary.Write(raw, binary.LittleEndian, int32(len(b)))
+	binary.Write(raw, binary.LittleEndian, b)
+}
+
+// get seq str
+func GetWriteStr(v ...string) []byte {
 	buffer := new(bytes.Buffer)
 	var l int32
 	for _, v := range v {
-		l += int32(len([]byte(v))) + int32(len([]byte("#")))
+		l += int32(len([]byte(v))) + int32(len([]byte(CONN_DATA_SEQ)))
 		binary.Write(buffer, binary.LittleEndian, []byte(v))
-		binary.Write(buffer, binary.LittleEndian, []byte("#"))
+		binary.Write(buffer, binary.LittleEndian, []byte(CONN_DATA_SEQ))
 	}
-	binary.Write(raw, binary.LittleEndian, buffer.Bytes())
+	return buffer.Bytes()
+}
+
+//inArray str interface
+func InStrArr(arr []string, val string) bool {
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+//inArray int interface
+func InIntArr(arr []int, val int) bool {
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+//format ports str to a int array
+func GetPorts(p string) []int {
+	var ps []int
+	arr := strings.Split(p, ",")
+	for _, v := range arr {
+		fw := strings.Split(v, "-")
+		if len(fw) == 2 {
+			if IsPort(fw[0]) && IsPort(fw[1]) {
+				start, _ := strconv.Atoi(fw[0])
+				end, _ := strconv.Atoi(fw[1])
+				for i := start; i <= end; i++ {
+					ps = append(ps, i)
+				}
+			} else {
+				continue
+			}
+		} else if IsPort(v) {
+			p, _ := strconv.Atoi(v)
+			ps = append(ps, p)
+		}
+	}
+	return ps
+}
+
+//is the string a port
+func IsPort(p string) bool {
+	pi, err := strconv.Atoi(p)
+	if err != nil {
+		return false
+	}
+	if pi > 65536 || pi < 1 {
+		return false
+	}
+	return true
+}
+
+//if the s is just a port,return 127.0.0.1:s
+func FormatAddress(s string) string {
+	if strings.Contains(s, ":") {
+		return s
+	}
+	return "127.0.0.1:" + s
+}
+
+//get address from the complete address
+func GetIpByAddr(addr string) string {
+	arr := strings.Split(addr, ":")
+	return arr[0]
+}
+
+//get port from the complete address
+func GetPortByAddr(addr string) int {
+	arr := strings.Split(addr, ":")
+	if len(arr) < 2 {
+		return 0
+	}
+	p, err := strconv.Atoi(arr[1])
+	if err != nil {
+		return 0
+	}
+	return p
+}
+
+func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := pool.GetBufPoolCopy()
+	defer pool.PutBufPoolCopy(buf)
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw > 0 {
+				written += int64(nw)
+			}
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+	}
+	return written, err
+}
+
+//send this ip forget to get a local udp port
+func GetLocalUdpAddr() (net.Conn, error) {
+	tmpConn, err := net.Dial("udp", "114.114.114.114:53")
+	if err != nil {
+		return nil, err
+	}
+	return tmpConn, tmpConn.Close()
+}
+
+//parse template
+func ParseStr(str string) (string, error) {
+	tmp := template.New("npc")
+	var err error
+	w := new(bytes.Buffer)
+	if tmp, err = tmp.Parse(str); err != nil {
+		return "", err
+	}
+	if err = tmp.Execute(w, GetEnvMap()); err != nil {
+		return "", err
+	}
+	return w.String(), nil
+}
+
+//get env
+func GetEnvMap() map[string]string {
+	m := make(map[string]string)
+	environ := os.Environ()
+	for i := range environ {
+		tmp := strings.Split(environ[i], "=")
+		if len(tmp) == 2 {
+			m[tmp[0]] = tmp[1]
+		}
+	}
+	return m
+}
+
+//throw the empty element of the string array
+func TrimArr(arr []string) []string {
+	newArr := make([]string, 0)
+	for _, v := range arr {
+		if v != "" {
+			newArr = append(newArr, v)
+		}
+	}
+	return newArr
+}
+
+//
+func IsArrContains(arr []string, val string) bool {
+	if arr == nil {
+		return false
+	}
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+//remove value from string array
+func RemoveArrVal(arr []string, val string) []string {
+	for k, v := range arr {
+		if v == val {
+			arr = append(arr[:k], arr[k+1:]...)
+			return arr
+		}
+	}
+	return arr
+}
+
+//convert bytes to num
+func BytesToNum(b []byte) int {
+	var str string
+	for i := 0; i < len(b); i++ {
+		str += strconv.Itoa(int(b[i]))
+	}
+	x, _ := strconv.Atoi(str)
+	return int(x)
+}
+
+//get the length of the sync map
+func GeSynctMapLen(m sync.Map) int {
+	var c int
+	m.Range(func(key, value interface{}) bool {
+		c++
+		return true
+	})
+	return c
+}
+
+func GetExtFromPath(path string) string {
+	s := strings.Split(path, ".")
+	re, err := regexp.Compile(`(\w+)`)
+	if err != nil {
+		return ""
+	}
+	return string(re.Find([]byte(s[0])))
 }

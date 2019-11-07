@@ -1,38 +1,194 @@
-<div class="row">
-    <div class="col-md-12">
-        <div class="tile">
-            <div class="tile-body">
-                <table class="table table-hover table-bordered" id="sampleTable">
-                    <thead>
-                    <tr>
-                        <th>Id</th>
-                        <th>备注</th>
-                        <th>客户端Id</th>
-                        <th>监听端口</th>
-                        <th>内网目标</th>
-                        <th>压缩方式</th>
-                        <th>加密传输</th>
-                        <th>用户名</th>
-                        <th>密码</th>
-                        <th>客户端状态</th>
-                        <th>状态</th>
-                        <th>出口流量</th>
-                        <th>入口流量</th>
-                        <th>操作</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
+<div class="wrapper wrapper-content animated fadeInRight">
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>{{.name}}</h5>
+
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="content">
+                    <div class="table-responsive">
+                        <div id="toolbar">
+                            <a href="/index/add?type={{.type}}&client_id={{.client_id}}" class="btn btn-primary dim"
+                               type="button" langtag="info-new">新增</a>
+                        </div>
+                        <table id="taskList_table" class="table-striped table-hover"
+                               data-mobile-responsive="true"></table>
+                    </div>
+                </div>
+                <div class="ibox-content">
+
+                    <table id="table"></table>
+
+                </div>
             </div>
         </div>
     </div>
 </div>
-</main>
+
+<script>
+    /*bootstrap table*/
+    $('#table').bootstrapTable({
+        toolbar: "#toolbar",
+        method: 'post', // 服务器数据的请求方式 get or post
+        url: "/index/gettunnel", // 服务器数据的加载地址
+        queryParams: function (params) {
+            return {
+                "offset": params.offset,
+                "limit": params.limit,
+                "type":{{.type}},
+                "client_id":{{.client_id}},
+                "search": params.search
+            }
+        },
+        search: true,
+        contentType: "application/x-www-form-urlencoded",
+        striped: true, // 设置为true会有隔行变色效果
+        showHeader: true,
+        showColumns: true,
+        showRefresh: true,
+        pagination: true,//分页
+        sidePagination: 'server',//服务器端分页
+        pageNumber: 1,
+        pageList: [5, 10, 20, 50],//分页步进值
+        detailView: true,
+        smartDisplay: true, // 智能显示 pagination 和 cardview 等
+        detailFormatter: function (index, row, element) {
+            tmp = '<b langtag="info-export-flow">出口流量</b>：' + change(row.Flow.ExportFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-inlet-flow">入口流量</b>：' + change(row.Flow.InletFlow) + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-crypt">加密</b>：' + row.Client.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-compress">压缩</b>：' + row.Client.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-username">basic权限认证用户名</b>：' + row.Client.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+                    + '<b langtag="info-web-auth-password">basic权限认证密码</b>：' + row.Client.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
+            if (row.Mode == "p2p") {
+                return tmp + "<br/><br>"
+                        + '<b langtag="info-command">访问端命令(tcp)</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -target=" + row.Target.TargetStr + "</code>" + "<br/><br>"
+                        + '<b langtag="info-command">访问端命令(socks5)</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=p2ps" + "</code>" + "<br/><br>"
+                        + '<b langtag="info-command">访问端命令(透明代理)</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=p2pt" + "</code>"
+
+            }
+            if (row.Mode = "secret") {
+                return tmp + "<br/><br>" + '<b langtag="info-command">访问端命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.Client.VerifyKey + " -type=" +{{.bridgeType}} +" -password=" + row.Password + " -local_type=secret" + "</code>"
+            }
+            return tmp
+        },
+        //表格的列
+        columns: [
+            {
+                field: 'Id',//域值
+                title: 'id',//标题
+                visible: true,//false表示不显示
+            },
+            {
+                field: 'Id',//域值
+                title: 'client id',//标题
+                visible: true,//false表示不显示
+                formatter: function (value, row, index) {
+                    return row.Client.Id
+                }
+            },
+            {
+                field: 'Remark',//域值
+                title: 'remark',//标题
+                visible: true,//false表示不显示
+            },
+            {
+                field: 'Mode',//域值
+                title: 'mode',//标题
+                visible: true,//false表示不显示
+            },
+            {
+                field: 'Port',//域值
+                title: 'port',//标题
+                visible: true,//false表示不显示
+            },
+            {
+                field: 'Target',//域值
+                title: 'target',//标题
+                visible: true,//false表示不显示
+                formatter: function (value, row, index) {
+                    return row.Target.TargetStr
+                }
+            },
+            {
+                field: 'Password',//域值
+                title: 'secret',//标题
+                visible: true,//false表示不显示
+
+            },
+            {
+                field: 'Status',//域值
+                title: 'setting',//内容
+                visible: true,//false表示不显示
+
+                formatter: function (value, row, index) {
+                    if (value) {
+                        return '<span class="badge badge-primary">open</span>'
+                    } else {
+                        return '<span class="badge badge-badge">close</span>'
+                    }
+                }
+            },
+            {
+                field: 'RunStatus',//域值
+                title: 'run',//内容
+                visible: true,//false表示不显示
+
+                formatter: function (value, row, index) {
+                    if (value) {
+                        return '<span class="badge badge-primary">open</span>'
+                    } else {
+                        return '<span class="badge badge-badge">close</span>'
+                    }
+                }
+            },
+            {
+                field: '',//域值
+                title: 'client',//内容
+                visible: true,//false表示不显示
+
+                formatter: function (value, row, index) {
+                    if (row.Client.IsConnect) {
+                        return '<span class="badge badge-primary">online</span>'
+                    } else {
+                        return '<span class="badge badge-badge">offline</span>'
+                    }
+                }
+            },
+            {
+                field: 'option',//域值
+                title: 'option',//内容
+                visible: true,//false表示不显示
+
+                formatter: function (value, row, index) {
+                    btn_group = '<div class="btn-group">'
+                    btn = `<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button><button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
+                    if (row.Status) {
+                        return btn_group + `<button onclick="stop(` + row.Id + `)" class="btn-dark"><i class="fa fa-close"></i></button>` + btn
+                    } else {
+                        return btn_group + `<button onclick="start(` + row.Id + `)" class="btn-outline-primary"><i class="fa fa-check"></i></button>` + btn
+                    }
+                }
+            }
+        ]
+    });
+
+
+</script>
+
 
 <script type="text/javascript">
     function del(id) {
-        if (confirm("确定要删除数据吗？")) {
+        if (confirm("Are you sure you want to delete it？？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/del",
@@ -48,7 +204,7 @@
     }
 
     function start(id) {
-        if (confirm("确定要开始任务吗？")) {
+        if (confirm("Are you sure you want to start it？？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/start",
@@ -64,7 +220,7 @@
     }
 
     function stop(id) {
-        if (confirm("确定要暂停吗？")) {
+        if (confirm("Are you sure you want to stop it？？")) {
             $.ajax({
                 type: "POST",
                 url: "/index/stop",
@@ -82,145 +238,5 @@
     function edit(id) {
         window.location.href = "/index/edit?id=" + id
     }
-
-    function add() {
-        window.location.href = "/index/add?type={{.type}}" + "&client_id={{.client_id}}"
-    }
-
-
-    $(document).ready(function () {
-        var table = $('#sampleTable').DataTable({
-            responsive: {
-                details: {
-                    display: $.fn.dataTable.Responsive.display.childRowImmediate
-                }
-            },
-            dom: 'Bfrtip',
-            processing: true,
-            serverSide: true,
-            autoWidth: false,
-            ordering: false,
-            ajax: {
-                url: '/index/gettunnel?type={{.type}}' + "&client_id=" +{{.client_id}},
-                type: 'POST'
-            },
-            dom: '<"top"fl><"toolbar">rt<"bottom"ip><"clear">',
-            columns: [　//这个是显示到界面上的个数据　格式为 {data:'显示的字段名'}
-                {data: 'Id'},
-                {data: 'Remark'},
-                {data: 'ClientId'},
-                {data: 'TcpPort'},
-                {data: 'Target'},
-                {data: 'Compress'},
-                {data: 'Crypt'},
-                {data: 'U'},
-                {data: 'P'},
-                {data: 'ClientStatus'},
-                {data: 'Status'},
-                {data: 'ExportFlow'},
-                {data: 'InletFlow'},
-                {data: "Id"}
-            ],
-            bFilter: false,
-            columnDefs: [{
-                targets: -1,
-                render: function (data, type, row, meta) {
-                    if (row.Status == 1) {
-                        btn = "<button onclick=\"stop('" + row.Id + "')\" class=\"btn btn-secondary btn-sm\" type=\"button\">关闭</button>"
-                    } else {
-                        btn = "<button onclick=\"start('" + row.Id + "')\" class=\"btn btn-success btn-sm\" type=\"button\">打开</button>"
-                    }
-                    btn_edit = '<button onclick="edit(\'' + row.Id + '\')" type="button"   class="btn btn-primary btn-sm">查看编辑</button> '
-                    return '<div class="btn-group" role="group" aria-label="..."> ' +
-                            '<button onclick="del(\'' + row.Id + '\')" type="button"   class="btn btn-danger btn-sm">删除</button>' +
-                            btn_edit + btn + ' </div>'
-                }
-            }, {
-                targets: 2,
-                render: function (data, type, row, meta) {
-                    return row.Client.Id
-                }
-            }, {
-                targets: 5,
-                render: function (data, type, row, meta) {
-                    if (row.UseClientCnf == true) {
-                        return row.Client.Cnf.Compress
-                    } else {
-                        return row.Config.Compress
-                    }
-                }
-            }, {
-                targets: 7,
-                render: function (data, type, row, meta) {
-                    if (row.UseClientCnf == true) {
-                        return row.Client.Cnf.U
-                    } else {
-                        return row.Config.U
-                    }
-                }
-            }, {
-                targets: 8,
-                render: function (data, type, row, meta) {
-                    if (row.UseClientCnf == true) {
-                        return row.Client.Cnf.P
-                    } else {
-                        return row.Config.P
-                    }
-                }
-            },
-                {
-                    targets: -4,
-                    render: function (data, type, row, meta) {
-                        if (data == false) {
-                            return "<span class=\"badge badge-pill badge-secondary\">暂停</span>"
-                        } else {
-                            return "<span class=\"badge badge-pill badge-success\">正常</span>"
-                        }
-                    }
-                },
-                {
-                    targets: -8,
-                    render: function (data, type, row, meta) {
-                        if (row.UseClientCnf == true) {
-                            crypt = row.Client.Cnf.Crypt
-                        } else {
-                            crypt = row.Config.Crypt
-                        }
-                        if (crypt == "0") {
-                            return "不加密"
-                        } else {
-                            return "加密"
-                        }
-                    }
-                },
-                {
-                    targets: -5,
-                    render: function (data, type, row, meta) {
-                        if (row.Client.IsConnect == false) {
-                            return "<span class=\"badge badge-pill badge-secondary\">离线</span>"
-                        } else {
-                            return "<span class=\"badge badge-pill badge-success\">在线</span>"
-                        }
-                    }
-                },
-                {
-                    targets: -2,
-                    render: function (data, type, row, meta) {
-                        return change(row.Flow.InletFlow)
-                    }
-                },
-                {
-                    targets: -3,
-                    render: function (data, type, row, meta) {
-                        return change(row.Flow.ExportFlow)
-                    }
-                }
-            ],
-            buttons: []
-        });
-        $("#sampleTable_length").html('<button class="btn btn-primary" onclick="add()" type="button">新增</button>')
-    })
-    ;
-
 
 </script>
