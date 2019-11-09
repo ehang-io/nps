@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"log"
 	"net"
@@ -49,7 +50,7 @@ func TestNewMux(t *testing.T) {
 			}
 			//c2.(*net.TCPConn).SetReadBuffer(0)
 			//c2.(*net.TCPConn).SetReadBuffer(0)
-			_ = common.CopyConnsPool.Invoke(common.NewConns(c2, c))
+			_ = goroutine.CopyConnsPool.Invoke(goroutine.NewConns(c, c2, nil))
 			//go func(c2 net.Conn, c *conn) {
 			//	wg := new(sync.WaitGroup)
 			//	wg.Add(2)
@@ -102,7 +103,7 @@ func TestNewMux(t *testing.T) {
 				continue
 			}
 			//logs.Warn("nps new conn success ", tmpCpnn.connId)
-			_ = common.CopyConnsPool.Invoke(common.NewConns(tmpCpnn, conns))
+			_ = goroutine.CopyConnsPool.Invoke(goroutine.NewConns(tmpCpnn, conns, nil))
 			//go func(tmpCpnn *conn, conns net.Conn) {
 			//	wg := new(sync.WaitGroup)
 			//	wg.Add(2)
@@ -131,9 +132,9 @@ func TestNewMux(t *testing.T) {
 
 	//go NewLogServer()
 	time.Sleep(time.Second * 5)
-	for i := 0; i < 1000; i++ {
-		go test_raw(i)
-	}
+	//for i := 0; i < 1; i++ {
+	//	go test_raw(i)
+	//}
 	//test_request()
 
 	for {
@@ -166,7 +167,7 @@ func client() {
 
 func test_request() {
 	conn, _ := net.Dial("tcp", "127.0.0.1:7777")
-	for {
+	for i := 0; i < 1000; i++ {
 		conn.Write([]byte(`GET / HTTP/1.1
 Host: 127.0.0.1:7777
 Connection: keep-alive
@@ -185,19 +186,20 @@ Connection: keep-alive
 			break
 		}
 		fmt.Println(string(b[:20]), err)
-		time.Sleep(time.Second)
+		//time.Sleep(time.Second)
 	}
+	logs.Warn("finish")
 }
 
 func test_raw(k int) {
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 1000; i++ {
 		ti := time.Now()
 		conn, err := net.Dial("tcp", "127.0.0.1:7777")
 		if err != nil {
 			logs.Warn("conn dial err", err)
 		}
 		tid := time.Now()
-		conn.Write([]byte(`GET / HTTP/1.1
+		conn.Write([]byte(`GET /videojs5/video.js HTTP/1.1
 Host: 127.0.0.1:7777
 
 
@@ -227,6 +229,7 @@ Host: 127.0.0.1:7777
 			logs.Warn("n loss", n, string(buf))
 		}
 	}
+	logs.Warn("finish")
 }
 
 func TestNewConn(t *testing.T) {
@@ -313,11 +316,12 @@ func TestFIFO(t *testing.T) {
 	d.New()
 	go func() {
 		time.Sleep(time.Second)
-		for i := 0; i < 300100; i++ {
+		for i := 0; i < 1001; i++ {
 			data, err := d.Pop()
 			if err == nil {
 				//fmt.Println(i, string(data.buf), err)
-				logs.Warn(i, string(data.buf), err)
+				logs.Warn(i, string(data.Buf), err)
+				common.ListElementPool.Put(data)
 			} else {
 				//fmt.Println("err", err)
 				logs.Warn("err", err)
@@ -328,10 +332,9 @@ func TestFIFO(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(time.Second * 10)
-		for i := 0; i < 300000; i++ {
-			data := new(ListElement)
+		for i := 0; i < 1000; i++ {
 			by := []byte("test " + strconv.Itoa(i) + " ") //
-			_ = data.New(by, uint16(len(by)), true)
+			data, _ := NewListElement(by, uint16(len(by)), true)
 			//fmt.Println(string((*data).buf), data)
 			//logs.Warn(string((*data).buf), data)
 			d.Push(data)

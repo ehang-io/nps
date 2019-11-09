@@ -6,13 +6,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cnlh/nps/lib/common"
@@ -350,25 +351,29 @@ func SetUdpSession(sess *kcp.UDPSession) {
 
 //conn1 mux conn
 func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool, rb []byte) {
-	var in, out int64
-	var wg sync.WaitGroup
+	//var in, out int64
+	//var wg sync.WaitGroup
 	connHandle := GetConn(conn1, crypt, snappy, rate, isServer)
 	if rb != nil {
 		connHandle.Write(rb)
 	}
-	go func(in *int64) {
-		wg.Add(1)
-		*in, _ = common.CopyBuffer(connHandle, conn2)
-		connHandle.Close()
-		conn2.Close()
-		wg.Done()
-	}(&in)
-	out, _ = common.CopyBuffer(conn2, connHandle)
-	connHandle.Close()
-	conn2.Close()
-	wg.Wait()
-	if flow != nil {
-		flow.Add(in, out)
+	//go func(in *int64) {
+	//	wg.Add(1)
+	//	*in, _ = common.CopyBuffer(connHandle, conn2)
+	//	connHandle.Close()
+	//	conn2.Close()
+	//	wg.Done()
+	//}(&in)
+	//out, _ = common.CopyBuffer(conn2, connHandle)
+	//connHandle.Close()
+	//conn2.Close()
+	//wg.Wait()
+	//if flow != nil {
+	//	flow.Add(in, out)
+	//}
+	err := goroutine.CopyConnsPool.Invoke(goroutine.NewConns(connHandle, conn2, flow))
+	if err != nil {
+		logs.Error(err)
 	}
 }
 

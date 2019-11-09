@@ -215,7 +215,7 @@ func (s *Mux) pingReturn() {
 			if latency < 0.5 && latency > 0 {
 				s.latency = latency
 			}
-			logs.Warn("latency", s.latency)
+			//logs.Warn("latency", s.latency)
 			common.WindowBuff.Put(data)
 		}
 	}()

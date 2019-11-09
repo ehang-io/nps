@@ -44,7 +44,6 @@ func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
 	default:
 		Self.lowestChain.pushHead(unsafe.Pointer(packager))
 	}
-	//atomic.AddUint32(&Self.count, 1)
 	Self.cond.Signal()
 	return
 }
@@ -52,7 +51,6 @@ func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
 const maxStarving uint8 = 8
 
 func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
-	// PriorityQueue is empty, notice Push method
 	var iter bool
 	for {
 		packager = Self.pop()
@@ -64,6 +62,7 @@ func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
 		}
 		if iter {
 			break
+			// trying to pop twice
 		}
 		iter = true
 		runtime.Gosched()
@@ -74,10 +73,12 @@ func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
 		if Self.stop {
 			return
 		}
+		//logs.Warn("queue into wait")
 		Self.cond.Wait()
+		// wait for it with no more iter
 		packager = Self.pop()
+		//logs.Warn("queue wait finish", packager)
 	}
-	//atomic.AddUint32(&Self.count, ^uint32(0))
 	return
 }
 
@@ -88,6 +89,7 @@ func (Self *PriorityQueue) pop() (packager *common.MuxPackager) {
 		return
 	}
 	if Self.starving < maxStarving {
+		// not pop too much, lowestChain will wait too long
 		ptr, ok = Self.middleChain.popTail()
 		if ok {
 			packager = (*common.MuxPackager)(ptr)
@@ -119,29 +121,27 @@ func (Self *PriorityQueue) Stop() {
 	Self.cond.Broadcast()
 }
 
-type ListElement struct {
-	buf  []byte
-	l    uint16
-	part bool
-}
-
-func (Self *ListElement) New(buf []byte, l uint16, part bool) (err error) {
+func NewListElement(buf []byte, l uint16, part bool) (element *common.ListElement, err error) {
 	if uint16(len(buf)) != l {
-		return errors.New("ListElement: buf length not match")
+		err = errors.New("ListElement: buf length not match")
+		return
 	}
-	Self.buf = buf
-	Self.l = l
-	Self.part = part
-	return nil
+	//if l == 0 {
+	//	logs.Warn("push zero")
+	//}
+	element = common.ListElementPool.Get()
+	element.Buf = buf
+	element.L = l
+	element.Part = part
+	return
 }
 
 type ReceiveWindowQueue struct {
-	chain   *bufChain
-	length  uint32
-	stopOp  chan struct{}
-	readOp  chan struct{}
-	popWait uint32
-	timeout time.Time
+	chain      *bufChain
+	stopOp     chan struct{}
+	readOp     chan struct{}
+	lengthWait uint64
+	timeout    time.Time
 }
 
 func (Self *ReceiveWindowQueue) New() {
@@ -151,45 +151,45 @@ func (Self *ReceiveWindowQueue) New() {
 	Self.stopOp = make(chan struct{}, 2)
 }
 
-func (Self *ReceiveWindowQueue) Push(element *ListElement) {
+func (Self *ReceiveWindowQueue) Push(element *common.ListElement) {
+	var length, wait uint32
+	for {
+		ptrs := atomic.LoadUint64(&Self.lengthWait)
+		length, wait = Self.chain.head.unpack(ptrs)
+		length += uint32(element.L)
+		if atomic.CompareAndSwapUint64(&Self.lengthWait, ptrs, Self.chain.head.pack(length, 0)) {
+			break
+		}
+		// another goroutine change the length or into wait, make sure
+	}
+	//logs.Warn("window push before", Self.Len(), uint32(element.l), len(element.buf))
 	Self.chain.pushHead(unsafe.Pointer(element))
-	atomic.AddUint32(&Self.length, uint32(element.l))
-	Self.allowPop()
-	return
-}
-
-func (Self *ReceiveWindowQueue) pop() (element *ListElement) {
-	ptr, ok := Self.chain.popTail()
-	if ok {
-		element = (*ListElement)(ptr)
-		atomic.AddUint32(&Self.length, ^uint32(element.l-1))
-		return
+	//logs.Warn("window push", Self.Len())
+	if wait == 1 {
+		Self.allowPop()
 	}
 	return
 }
 
-func (Self *ReceiveWindowQueue) Pop() (element *ListElement, err error) {
-	var iter bool
+func (Self *ReceiveWindowQueue) Pop() (element *common.ListElement, err error) {
+	var length uint32
 startPop:
-	element = Self.pop()
-	if element != nil {
-		return
-	}
-	if !iter {
-		iter = true
-		runtime.Gosched()
-		goto startPop
-	}
-	if atomic.CompareAndSwapUint32(&Self.popWait, 0, 1) {
-		iter = false
+	ptrs := atomic.LoadUint64(&Self.lengthWait)
+	length, _ = Self.chain.head.unpack(ptrs)
+	if length == 0 {
+		if !atomic.CompareAndSwapUint64(&Self.lengthWait, ptrs, Self.chain.head.pack(0, 1)) {
+			goto startPop // another goroutine is pushing
+		}
 		t := Self.timeout.Sub(time.Now())
 		if t <= 0 {
 			t = time.Minute
 		}
 		timer := time.NewTimer(t)
 		defer timer.Stop()
+		//logs.Warn("queue into wait")
 		select {
 		case <-Self.readOp:
+			//logs.Warn("queue wait finish")
 			goto startPop
 		case <-Self.stopOp:
 			err = io.EOF
@@ -199,23 +199,34 @@ startPop:
 			return
 		}
 	}
-	goto startPop
+	// length is not zero, so try to pop
+	for {
+		ptr, ok := Self.chain.popTail()
+		if ok {
+			//logs.Warn("window pop before", Self.Len())
+			element = (*common.ListElement)(ptr)
+			atomic.AddUint64(&Self.lengthWait, ^(uint64(element.L)<<dequeueBits - 1))
+			//logs.Warn("window pop", Self.Len(), uint32(element.l))
+			return
+		}
+		runtime.Gosched() // another goroutine is still pushing
+	}
 }
 
 func (Self *ReceiveWindowQueue) allowPop() (closed bool) {
-	if atomic.CompareAndSwapUint32(&Self.popWait, 1, 0) {
-		select {
-		case Self.readOp <- struct{}{}:
-			return false
-		case <-Self.stopOp:
-			return true
-		}
+	//logs.Warn("allow pop", Self.Len())
+	select {
+	case Self.readOp <- struct{}{}:
+		return false
+	case <-Self.stopOp:
+		return true
 	}
-	return
 }
 
 func (Self *ReceiveWindowQueue) Len() (n uint32) {
-	return atomic.LoadUint32(&Self.length)
+	ptrs := atomic.LoadUint64(&Self.lengthWait)
+	n, _ = Self.chain.head.unpack(ptrs)
+	return
 }
 
 func (Self *ReceiveWindowQueue) Stop() {
