@@ -111,6 +111,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
    * [获取用户真实ip](#获取用户真实ip)
    * [客户端地址显示](#客户端地址显示)
    * [客户端与服务端版本对比](#客户端与服务端版本对比)
+   * [Linux系统限制](#Linux系统限制)
 * [webAPI](#webAPI)
 * [贡献](#贡献)
 * [支持nps发展](#捐赠)
@@ -144,6 +145,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 ```shell
 ./npc -server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
+**注意：运行服务端后，请确保能从客户端设备上正常访问配置文件中所配置的`bridge_port`端口，telnet，netcat这类的来检查**
 
 ### 域名解析
 
@@ -440,6 +442,27 @@ server_ip=xxx
 此模式使用nps的公钥或者客户端私钥验证，各种配置在客户端完成，同时服务端web也可以进行管理
 ```
  ./npc -config=npc配置文件路径
+```
+可自行添加systemd service，例如：`npc.service`
+```
+[Unit]
+Description=npc - convenient proxy server client
+Documentation=https://github.com/cnlh/nps/
+After=network-online.target remote-fs.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+KillMode=process
+Restart=always
+RestartSec=15s
+StandardOutput=append:/var/log/nps/npc.log
+ExecStartPre=/bin/echo 'Starting npc'
+ExecStopPost=/bin/echo 'Stopping npc'
+ExecStart=/absolutely path to/npc -server=ip:port -vkey=web界面中显示的密钥
+
+[Install]
+WantedBy=multi-user.target
 ```
 #### 配置文件说明
 [示例配置文件](https://github.com/cnlh/nps/tree/master/conf/npc.conf)
@@ -908,6 +931,11 @@ LevelInformational->6 LevelDebug->7
 
 ### 客户端与服务端版本对比
 为了程序正常运行，客户端与服务端的核心版本必须一致，否则将导致客户端无法成功连接致服务端。
+
+### Linux系统限制
+默认情况下linux对连接数量有限制，对于性能好的机器完全可以调整内核参数以处理更多的连接。
+`tcp_max_syn_backlog` `somaxconn`
+酌情调整参数，增强网络性能
 
 ## webAPI
 

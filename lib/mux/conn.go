@@ -144,11 +144,11 @@ func (s *conn) SetWriteDeadline(t time.Time) error {
 }
 
 type window struct {
+	remainingWait uint64 // 64bit alignment
 	off           uint32
 	maxSize       uint32
 	closeOp       bool
 	closeOpCh     chan struct{}
-	remainingWait uint64
 	mux           *Mux
 }
 
@@ -178,11 +178,11 @@ func (Self *window) CloseWindow() {
 }
 
 type ReceiveWindow struct {
+	window
 	bufQueue ReceiveWindowQueue
 	element  *common.ListElement
 	count    int8
 	once     sync.Once
-	window
 }
 
 func (Self *ReceiveWindow) New(mux *Mux) {
@@ -344,10 +344,10 @@ func (Self *ReceiveWindow) CloseWindow() {
 }
 
 type SendWindow struct {
+	window
 	buf       []byte
 	setSizeCh chan struct{}
 	timeout   time.Time
-	window
 }
 
 func (Self *SendWindow) New(mux *Mux) {
