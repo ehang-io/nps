@@ -33,6 +33,14 @@ func (Self *PriorityQueue) New() {
 }
 
 func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
+	//logs.Warn("push start")
+	Self.push(packager)
+	Self.cond.Broadcast()
+	//logs.Warn("push finish")
+	return
+}
+
+func (Self *PriorityQueue) push(packager *common.MuxPackager) {
 	switch packager.Flag {
 	case common.MUX_PING_FLAG, common.MUX_PING_RETURN:
 		Self.highestChain.pushHead(unsafe.Pointer(packager))
@@ -44,8 +52,6 @@ func (Self *PriorityQueue) Push(packager *common.MuxPackager) {
 	default:
 		Self.lowestChain.pushHead(unsafe.Pointer(packager))
 	}
-	Self.cond.Signal()
-	return
 }
 
 const maxStarving uint8 = 8
@@ -121,6 +127,72 @@ func (Self *PriorityQueue) Stop() {
 	Self.cond.Broadcast()
 }
 
+type ConnQueue struct {
+	chain    *bufChain
+	starving uint8
+	stop     bool
+	cond     *sync.Cond
+}
+
+func (Self *ConnQueue) New() {
+	Self.chain = new(bufChain)
+	Self.chain.new(32)
+	locker := new(sync.Mutex)
+	Self.cond = sync.NewCond(locker)
+}
+
+func (Self *ConnQueue) Push(connection *conn) {
+	Self.chain.pushHead(unsafe.Pointer(connection))
+	Self.cond.Broadcast()
+	return
+}
+
+func (Self *ConnQueue) Pop() (connection *conn) {
+	var iter bool
+	for {
+		connection = Self.pop()
+		if connection != nil {
+			return
+		}
+		if Self.stop {
+			return
+		}
+		if iter {
+			break
+			// trying to pop twice
+		}
+		iter = true
+		runtime.Gosched()
+	}
+	Self.cond.L.Lock()
+	defer Self.cond.L.Unlock()
+	for connection = Self.pop(); connection == nil; {
+		if Self.stop {
+			return
+		}
+		//logs.Warn("queue into wait")
+		Self.cond.Wait()
+		// wait for it with no more iter
+		connection = Self.pop()
+		//logs.Warn("queue wait finish", packager)
+	}
+	return
+}
+
+func (Self *ConnQueue) pop() (connection *conn) {
+	ptr, ok := Self.chain.popTail()
+	if ok {
+		connection = (*conn)(ptr)
+		return
+	}
+	return
+}
+
+func (Self *ConnQueue) Stop() {
+	Self.stop = true
+	Self.cond.Broadcast()
+}
+
 func NewListElement(buf []byte, l uint16, part bool) (element *common.ListElement, err error) {
 	if uint16(len(buf)) != l {
 		err = errors.New("ListElement: buf length not match")
@@ -180,24 +252,12 @@ startPop:
 		if !atomic.CompareAndSwapUint64(&Self.lengthWait, ptrs, Self.chain.head.pack(0, 1)) {
 			goto startPop // another goroutine is pushing
 		}
-		t := Self.timeout.Sub(time.Now())
-		if t <= 0 {
-			t = time.Minute
-		}
-		timer := time.NewTimer(t)
-		defer timer.Stop()
-		//logs.Warn("queue into wait")
-		select {
-		case <-Self.readOp:
-			//logs.Warn("queue wait finish")
-			goto startPop
-		case <-Self.stopOp:
-			err = io.EOF
-			return
-		case <-timer.C:
-			err = errors.New("mux.queue: read time out")
+		err = Self.waitPush()
+		// there is no more data in queue, wait for it
+		if err != nil {
 			return
 		}
+		goto startPop // wait finish, trying to get the new status
 	}
 	// length is not zero, so try to pop
 	for {
@@ -220,6 +280,29 @@ func (Self *ReceiveWindowQueue) allowPop() (closed bool) {
 		return false
 	case <-Self.stopOp:
 		return true
+	}
+}
+
+func (Self *ReceiveWindowQueue) waitPush() (err error) {
+	//logs.Warn("wait push")
+	//defer logs.Warn("wait push finish")
+	t := Self.timeout.Sub(time.Now())
+	if t <= 0 {
+		t = time.Second * 10
+	}
+	timer := time.NewTimer(t)
+	defer timer.Stop()
+	//logs.Warn("queue into wait")
+	select {
+	case <-Self.readOp:
+		//logs.Warn("queue wait finish")
+		return nil
+	case <-Self.stopOp:
+		err = io.EOF
+		return
+	case <-timer.C:
+		err = errors.New("mux.queue: read time out")
+		return
 	}
 }
 

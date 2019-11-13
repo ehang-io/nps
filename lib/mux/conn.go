@@ -23,7 +23,7 @@ type conn struct {
 	receiveWindow    *ReceiveWindow
 	sendWindow       *SendWindow
 	once             sync.Once
-	label            string
+	//label            string
 }
 
 func NewConn(connId int32, mux *Mux, label ...string) *conn {
@@ -36,9 +36,9 @@ func NewConn(connId int32, mux *Mux, label ...string) *conn {
 		sendWindow:       new(SendWindow),
 		once:             sync.Once{},
 	}
-	if len(label) > 0 {
-		c.label = label[0]
-	}
+	//if len(label) > 0 {
+	//	c.label = label[0]
+	//}
 	c.receiveWindow.New(mux)
 	c.sendWindow.New(mux)
 	//logm := &connLog{
