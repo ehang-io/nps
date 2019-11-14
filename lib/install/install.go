@@ -3,12 +3,13 @@ package install
 import (
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 func InstallNps() {
@@ -33,11 +34,11 @@ func InstallNps() {
 			if _, err := copyFile(filepath.Join(common.GetAppPath(), "nps"), "/usr/local/bin/nps"); err != nil {
 				log.Fatalln(err)
 			} else {
-				os.Chmod("/usr/local/bin/nps", 0777)
+				os.Chmod("/usr/local/bin/nps", 0755)
 				log.Println("Executable files have been copied to", "/usr/local/bin/nps")
 			}
 		} else {
-			os.Chmod("/usr/bin/nps", 0777)
+			os.Chmod("/usr/bin/nps", 0755)
 			log.Println("Executable files have been copied to", "/usr/bin/nps")
 		}
 

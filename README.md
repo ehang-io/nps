@@ -183,7 +183,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 
 **使用步骤**
 - 在刚才创建的客户端的隧道管理中添加一条udp隧道，填写监听的端口（53）、内网目标ip和目标端口（10.1.50.102:53），保存。
-- 修改需要使用的内网dns为127.0.0.1，则相当于使用10.1.50.202作为dns服务器
+- 修改需要使用的dns地址为1.1.1.1，则相当于使用10.1.50.102作为dns服务器
 
 ### socks5代理
 
@@ -538,11 +538,13 @@ vkey=123
 [socks5]
 mode=socks5
 server_port=9004
+multi_account=multi_account.conf
 ```
 项 | 含义
 ---|---
 mode | socks5
 server_port | 在服务端的代理端口
+multi_account | socks5多账号配置文件（可选),配置后使用basic_username和basic_password无法通过认证
 ##### 私密代理模式
 
 ```ini
@@ -610,7 +612,7 @@ auto_reconnection=true
 ```
  ./npc nat
 ```
-如果p2p双方都是Symmetic Nat，肯定不能成功，其他组合都有较大成功率。
+如果p2p双方都是Symmetric Nat，肯定不能成功，其他组合都有较大成功率。
 #### 状态检查
 ```
  ./npc status -config=npc配置文件路径

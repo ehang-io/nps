@@ -4,6 +4,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
@@ -12,14 +21,6 @@ import (
 	"github.com/cnlh/nps/lib/version"
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/tool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"net"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 type Client struct {
@@ -146,7 +147,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 			})
 		}
 	}
-	s.DelClient(id, )
+	s.DelClient(id)
 }
 
 //验证失败，返回错误验证flag，并且关闭连接
@@ -295,7 +296,7 @@ func (s *Bridge) register(c *conn.Conn) {
 func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
 	//if the proxy type is local
 	if link.LocalProxy {
-		target, err = net.Dial(link.ConnType, link.Host)
+		target, err = net.Dial("tcp", link.Host)
 		return
 	}
 	if v, ok := s.Client.Load(clientId); ok {
@@ -472,6 +473,7 @@ loop:
 						tl.Remark = t.Remark
 					} else {
 						tl.Remark = t.Remark + "_" + strconv.Itoa(tl.Port)
+						tl.Target = new(file.Target)
 						if t.TargetAddr != "" {
 							tl.Target.TargetStr = t.TargetAddr + ":" + strconv.Itoa(targets[i])
 						} else {
@@ -486,6 +488,7 @@ loop:
 					tl.Password = t.Password
 					tl.LocalPath = t.LocalPath
 					tl.StripPre = t.StripPre
+					tl.MultiAccount = t.MultiAccount
 					if !client.HasTunnel(tl) {
 						if err := file.GetDb().NewTask(tl); err != nil {
 							logs.Notice("Add task error ", err.Error())
