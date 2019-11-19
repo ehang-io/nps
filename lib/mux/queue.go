@@ -288,7 +288,7 @@ func (Self *ReceiveWindowQueue) waitPush() (err error) {
 	//defer logs.Warn("wait push finish")
 	t := Self.timeout.Sub(time.Now())
 	if t <= 0 {
-		t = time.Second * 10
+		t = time.Minute * 5
 	}
 	timer := time.NewTimer(t)
 	defer timer.Stop()

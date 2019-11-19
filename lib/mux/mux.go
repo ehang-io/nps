@@ -13,21 +13,22 @@ import (
 )
 
 type Mux struct {
+	latency uint64 // we store latency in bits, but it's float64
 	net.Listener
-	conn         net.Conn
-	connMap      *connMap
-	newConnCh    chan *conn
-	id           int32
-	closeChan    chan struct{}
-	IsClose      bool
-	pingOk       int
-	latency      float64
-	bw           *bandwidth
-	pingCh       chan []byte
-	pingCheck    bool
-	connType     string
-	writeQueue   PriorityQueue
-	newConnQueue ConnQueue
+	conn          net.Conn
+	connMap       *connMap
+	newConnCh     chan *conn
+	id            int32
+	closeChan     chan struct{}
+	IsClose       bool
+	pingOk        int
+	counter       *latencyCounter
+	bw            *bandwidth
+	pingCh        chan []byte
+	pingCheckTime uint32
+	connType      string
+	writeQueue    PriorityQueue
+	newConnQueue  ConnQueue
 }
 
 func NewMux(c net.Conn, connType string) *Mux {
@@ -43,6 +44,7 @@ func NewMux(c net.Conn, connType string) *Mux {
 		IsClose:   false,
 		connType:  connType,
 		pingCh:    make(chan []byte),
+		counter:   newLatencyCounter(),
 	}
 	m.writeQueue.New()
 	m.newConnQueue.New()
@@ -175,16 +177,16 @@ func (s *Mux) ping() {
 			select {
 			case <-ticker.C:
 			}
-			if s.pingCheck {
+			if atomic.LoadUint32(&s.pingCheckTime) >= 60 {
 				logs.Error("mux: ping time out")
 				s.Close()
-				// more than 5 seconds not receive the ping return package,
+				// more than 5 minutes not receive the ping return package,
 				// mux conn is damaged, maybe a packet drop, close it
 				break
 			}
 			now, _ := time.Now().UTC().MarshalText()
 			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
-			s.pingCheck = true
+			atomic.AddUint32(&s.pingCheckTime, 1)
 			if s.pingOk > 10 && s.connType == "kcp" {
 				logs.Error("mux: kcp ping err")
 				s.Close()
@@ -205,16 +207,17 @@ func (s *Mux) pingReturn() {
 			}
 			select {
 			case data = <-s.pingCh:
-				s.pingCheck = false
+				atomic.StoreUint32(&s.pingCheckTime, 0)
 			case <-s.closeChan:
 				break
 			}
 			_ = now.UnmarshalText(data)
 			latency := time.Now().UTC().Sub(now).Seconds() / 2
-			if latency < 0.5 && latency > 0 {
-				s.latency = latency
+			if latency > 0 {
+				atomic.StoreUint64(&s.latency, math.Float64bits(s.counter.Latency(latency)))
+				// convert float64 to bits, store it atomic
 			}
-			//logs.Warn("latency", s.latency)
+			//logs.Warn("latency", math.Float64frombits(atomic.LoadUint64(&s.latency)))
 			common.WindowBuff.Put(data)
 		}
 	}()
@@ -378,4 +381,89 @@ func (Self *bandwidth) Get() (bw float64) {
 		Self.readBandwidth = 100
 	}
 	return Self.readBandwidth
+}
+
+const counterBits = 4
+const counterMask = 1<<counterBits - 1
+
+func newLatencyCounter() *latencyCounter {
+	return &latencyCounter{
+		buf:     make([]float64, 1<<counterBits, 1<<counterBits),
+		headMin: 0,
+	}
+}
+
+type latencyCounter struct {
+	buf []float64 //buf is a fixed length ring buffer,
+	// if buffer is full, new value will replace the oldest one.
+	headMin uint8 //head indicate the head in ring buffer,
+	// in meaning, slot in list will be replaced;
+	// min indicate this slot value is minimal in list.
+}
+
+func (Self *latencyCounter) unpack(idxs uint8) (head, min uint8) {
+	head = uint8((idxs >> counterBits) & counterMask)
+	// we set head is 4 bits
+	min = uint8(idxs & counterMask)
+	return
+}
+
+func (Self *latencyCounter) pack(head, min uint8) uint8 {
+	return uint8(head<<counterBits) |
+		uint8(min&counterMask)
+}
+
+func (Self *latencyCounter) add(value float64) {
+	head, min := Self.unpack(Self.headMin)
+	Self.buf[head] = value
+	if head == min {
+		min = Self.minimal()
+		//if head equals min, means the min slot already be replaced,
+		// so we need to find another minimal value in the list,
+		// and change the min indicator
+	}
+	if Self.buf[min] > value {
+		min = head
+	}
+	head++
+	Self.headMin = Self.pack(head, min)
+}
+
+func (Self *latencyCounter) minimal() (min uint8) {
+	var val float64
+	var i uint8
+	for i = 0; i < counterMask; i++ {
+		if Self.buf[i] > 0 {
+			if val > Self.buf[i] {
+				val = Self.buf[i]
+				min = i
+			}
+		}
+	}
+	return
+}
+
+func (Self *latencyCounter) Latency(value float64) (latency float64) {
+	Self.add(value)
+	_, min := Self.unpack(Self.headMin)
+	latency = Self.buf[min] * Self.countSuccess()
+	return
+}
+
+const lossRatio = 1.6
+
+func (Self *latencyCounter) countSuccess() (successRate float64) {
+	var success, loss, i uint8
+	_, min := Self.unpack(Self.headMin)
+	for i = 0; i < counterMask; i++ {
+		if Self.buf[i] > lossRatio*Self.buf[min] && Self.buf[i] > 0 {
+			loss++
+		}
+		if Self.buf[i] <= lossRatio*Self.buf[min] && Self.buf[i] > 0 {
+			success++
+		}
+	}
+	// counting all the data in the ring buf, except zero
+	successRate = float64(success) / float64(loss+success)
+	return
 }

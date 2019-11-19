@@ -3,6 +3,7 @@ package mux
 import (
 	"errors"
 	"io"
+	"math"
 	"net"
 	"runtime"
 	"sync"
@@ -208,7 +209,8 @@ func (Self *ReceiveWindow) calcSize() {
 	// calculating maximum receive window size
 	if Self.count == 0 {
 		//logs.Warn("ping, bw", Self.mux.latency, Self.bw.Get())
-		n := uint32(2 * Self.mux.latency * Self.mux.bw.Get() * 1.5 / float64(Self.mux.connMap.Size()))
+		n := uint32(2 * math.Float64frombits(atomic.LoadUint64(&Self.mux.latency)) *
+			Self.mux.bw.Get() * 1.5 / float64(Self.mux.connMap.Size()))
 		if n < 8192 {
 			n = 8192
 		}
@@ -471,7 +473,7 @@ start:
 func (Self *SendWindow) waitReceiveWindow() (err error) {
 	t := Self.timeout.Sub(time.Now())
 	if t < 0 {
-		t = time.Minute
+		t = time.Minute * 5
 	}
 	timer := time.NewTimer(t)
 	defer timer.Stop()
