@@ -110,6 +110,7 @@ func (s *Mux) sendInfo(flag int32, id int32, content []byte) error {
 func (s *Mux) ping() {
 	go func() {
 		ticker := time.NewTicker(time.Second * 1)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
