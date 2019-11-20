@@ -108,6 +108,9 @@ func ChangeHostAndHeader(r *http.Request, host string, header string, addr strin
 		}
 	}
 	addr = strings.Split(addr, ":")[0]
+	if prior, ok := r.Header["X-Forwarded-For"]; ok {
+    		addr = strings.Join(prior, ", ") + ", " + addr
+    	}
 	r.Header.Set("X-Forwarded-For", addr)
 	r.Header.Set("X-Real-IP", addr)
 }
