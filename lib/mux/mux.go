@@ -122,6 +122,9 @@ func (s *Mux) packBuf() {
 		}
 		buffer.Reset()
 		pack := s.writeQueue.Pop()
+		if s.IsClose {
+			break
+		}
 		//buffer := common.BuffPool.Get()
 		err := pack.Pack(buffer)
 		common.MuxPack.Put(pack)
@@ -218,7 +221,9 @@ func (s *Mux) pingReturn() {
 				// convert float64 to bits, store it atomic
 			}
 			//logs.Warn("latency", math.Float64frombits(atomic.LoadUint64(&s.latency)))
-			common.WindowBuff.Put(data)
+			if cap(data) > 0 {
+				common.WindowBuff.Put(data)
+			}
 		}
 	}()
 }
@@ -227,7 +232,13 @@ func (s *Mux) readSession() {
 	go func() {
 		var connection *conn
 		for {
+			if s.IsClose {
+				break
+			}
 			connection = s.newConnQueue.Pop()
+			if s.IsClose {
+				break // make sure that is closed
+			}
 			s.connMap.Set(connection.connId, connection) //it has been set before send ok
 			s.newConnCh <- connection
 			s.sendInfo(common.MUX_NEW_CONN_OK, connection.connId, nil)
@@ -287,9 +298,9 @@ func (s *Mux) readSession() {
 					connection.sendWindow.SetSize(pack.Window, pack.ReadLength)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
-					s.connMap.Delete(pack.Id)
-					//go func(connection *conn) {
 					connection.closeFlag = true
+					//s.connMap.Delete(pack.Id)
+					//go func(connection *conn) {
 					connection.receiveWindow.Stop() // close signal to receive window
 					//}(connection)
 					continue
@@ -322,17 +333,42 @@ func (s *Mux) newMsg(connection *conn, pack *common.MuxPackager) (err error) {
 	return
 }
 
-func (s *Mux) Close() error {
+func (s *Mux) Close() (err error) {
 	logs.Warn("close mux")
 	if s.IsClose {
 		return errors.New("the mux has closed")
 	}
 	s.IsClose = true
 	s.connMap.Close()
+	s.connMap = nil
 	//s.bufQueue.Stop()
 	s.closeChan <- struct{}{}
 	close(s.newConnCh)
-	return s.conn.Close()
+	err = s.conn.Close()
+	s.release()
+	return
+}
+
+func (s *Mux) release() {
+	for {
+		pack := s.writeQueue.TryPop()
+		if pack == nil {
+			break
+		}
+		if pack.BasePackager.Content != nil {
+			common.WindowBuff.Put(pack.BasePackager.Content)
+		}
+		common.MuxPack.Put(pack)
+	}
+	for {
+		connection := s.newConnQueue.TryPop()
+		if connection == nil {
+			break
+		}
+		connection = nil
+	}
+	s.writeQueue.Stop()
+	s.newConnQueue.Stop()
 }
 
 //get new connId as unique flag
@@ -352,7 +388,7 @@ type bandwidth struct {
 	readStart     time.Time
 	lastReadStart time.Time
 	bufLength     uint16
-	readBandwidth float64
+	readBandwidth uint64 // store in bits, but it's float64
 }
 
 func (Self *bandwidth) StartRead() {
@@ -371,16 +407,17 @@ func (Self *bandwidth) SetCopySize(n uint16) {
 
 func (Self *bandwidth) calcBandWidth() {
 	t := Self.readStart.Sub(Self.lastReadStart)
-	Self.readBandwidth = float64(Self.bufLength) / t.Seconds()
+	atomic.StoreUint64(&Self.readBandwidth, math.Float64bits(float64(Self.bufLength)/t.Seconds()))
 	Self.bufLength = 0
 }
 
 func (Self *bandwidth) Get() (bw float64) {
 	// The zero value, 0 for numeric types
-	if Self.readBandwidth <= 0 {
-		Self.readBandwidth = 100
+	bw = math.Float64frombits(atomic.LoadUint64(&Self.readBandwidth))
+	if bw <= 0 {
+		bw = 100
 	}
-	return Self.readBandwidth
+	return
 }
 
 const counterBits = 4

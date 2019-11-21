@@ -59,7 +59,7 @@ const maxStarving uint8 = 8
 func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
 	var iter bool
 	for {
-		packager = Self.pop()
+		packager = Self.TryPop()
 		if packager != nil {
 			return
 		}
@@ -75,20 +75,20 @@ func (Self *PriorityQueue) Pop() (packager *common.MuxPackager) {
 	}
 	Self.cond.L.Lock()
 	defer Self.cond.L.Unlock()
-	for packager = Self.pop(); packager == nil; {
+	for packager = Self.TryPop(); packager == nil; {
 		if Self.stop {
 			return
 		}
 		//logs.Warn("queue into wait")
 		Self.cond.Wait()
 		// wait for it with no more iter
-		packager = Self.pop()
+		packager = Self.TryPop()
 		//logs.Warn("queue wait finish", packager)
 	}
 	return
 }
 
-func (Self *PriorityQueue) pop() (packager *common.MuxPackager) {
+func (Self *PriorityQueue) TryPop() (packager *common.MuxPackager) {
 	ptr, ok := Self.highestChain.popTail()
 	if ok {
 		packager = (*common.MuxPackager)(ptr)
@@ -150,7 +150,7 @@ func (Self *ConnQueue) Push(connection *conn) {
 func (Self *ConnQueue) Pop() (connection *conn) {
 	var iter bool
 	for {
-		connection = Self.pop()
+		connection = Self.TryPop()
 		if connection != nil {
 			return
 		}
@@ -166,20 +166,20 @@ func (Self *ConnQueue) Pop() (connection *conn) {
 	}
 	Self.cond.L.Lock()
 	defer Self.cond.L.Unlock()
-	for connection = Self.pop(); connection == nil; {
+	for connection = Self.TryPop(); connection == nil; {
 		if Self.stop {
 			return
 		}
 		//logs.Warn("queue into wait")
 		Self.cond.Wait()
 		// wait for it with no more iter
-		connection = Self.pop()
+		connection = Self.TryPop()
 		//logs.Warn("queue wait finish", packager)
 	}
 	return
 }
 
-func (Self *ConnQueue) pop() (connection *conn) {
+func (Self *ConnQueue) TryPop() (connection *conn) {
 	ptr, ok := Self.chain.popTail()
 	if ok {
 		connection = (*conn)(ptr)
@@ -261,16 +261,24 @@ startPop:
 	}
 	// length is not zero, so try to pop
 	for {
-		ptr, ok := Self.chain.popTail()
-		if ok {
-			//logs.Warn("window pop before", Self.Len())
-			element = (*common.ListElement)(ptr)
-			atomic.AddUint64(&Self.lengthWait, ^(uint64(element.L)<<dequeueBits - 1))
-			//logs.Warn("window pop", Self.Len(), uint32(element.l))
+		element = Self.TryPop()
+		if element != nil {
 			return
 		}
 		runtime.Gosched() // another goroutine is still pushing
 	}
+}
+
+func (Self *ReceiveWindowQueue) TryPop() (element *common.ListElement) {
+	ptr, ok := Self.chain.popTail()
+	if ok {
+		//logs.Warn("window pop before", Self.Len())
+		element = (*common.ListElement)(ptr)
+		atomic.AddUint64(&Self.lengthWait, ^(uint64(element.L)<<dequeueBits - 1))
+		//logs.Warn("window pop", Self.Len(), uint32(element.l))
+		return
+	}
+	return nil
 }
 
 func (Self *ReceiveWindowQueue) allowPop() (closed bool) {
@@ -539,7 +547,7 @@ func (c *bufChain) popTail() (unsafe.Pointer, bool) {
 		// It's important that we load the next pointer
 		// *before* popping the tail. In general, d may be
 		// transiently empty, but if next is non-nil before
-		// the pop and the pop fails, then d is permanently
+		// the TryPop and the TryPop fails, then d is permanently
 		// empty, which is the only condition under which it's
 		// safe to drop d from the chain.
 		d2 := loadPoolChainElt(&d.next)
@@ -556,7 +564,7 @@ func (c *bufChain) popTail() (unsafe.Pointer, bool) {
 
 		// The tail of the chain has been drained, so move on
 		// to the next dequeue. Try to drop it from the chain
-		// so the next pop doesn't have to look at the empty
+		// so the next TryPop doesn't have to look at the empty
 		// dequeue again.
 		if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c.tail)), unsafe.Pointer(d), unsafe.Pointer(d2)) {
 			// We won the race. Clear the prev pointer so

@@ -210,7 +210,7 @@ func (Self *ReceiveWindow) calcSize() {
 	if Self.count == 0 {
 		//logs.Warn("ping, bw", Self.mux.latency, Self.bw.Get())
 		n := uint32(2 * math.Float64frombits(atomic.LoadUint64(&Self.mux.latency)) *
-			Self.mux.bw.Get() * 1.5 / float64(Self.mux.connMap.Size()))
+			Self.mux.bw.Get() / float64(Self.mux.connMap.Size()))
 		if n < 8192 {
 			n = 8192
 		}
@@ -279,6 +279,9 @@ copyData:
 		// on the first Read method invoked, Self.off and Self.element.l
 		// both zero value
 		common.ListElementPool.Put(Self.element)
+		if Self.closeOp {
+			return 0, io.EOF
+		}
 		Self.element, err = Self.bufQueue.Pop()
 		// if the queue is empty, Pop method will wait until one element push
 		// into the queue successful, or timeout.
@@ -343,6 +346,26 @@ func (Self *ReceiveWindow) Stop() {
 func (Self *ReceiveWindow) CloseWindow() {
 	Self.window.CloseWindow()
 	Self.Stop()
+	Self.release()
+}
+
+func (Self *ReceiveWindow) release() {
+	//if Self.element != nil {
+	//	if Self.element.Buf != nil {
+	//		common.WindowBuff.Put(Self.element.Buf)
+	//	}
+	//	common.ListElementPool.Put(Self.element)
+	//}
+	for {
+		Self.element = Self.bufQueue.TryPop()
+		if Self.element == nil {
+			return
+		}
+		if Self.element.Buf != nil {
+			common.WindowBuff.Put(Self.element.Buf)
+		}
+		common.ListElementPool.Put(Self.element)
+	} // release resource
 }
 
 type SendWindow struct {
