@@ -10,7 +10,7 @@ const PoolSizeSmall = 100
 const PoolSizeUdp = 1472
 const PoolSizeCopy = 32 << 10
 const PoolSizeBuffer = 4096
-const PoolSizeWindow = PoolSizeBuffer - 16 - 32 - 32 - 8
+const PoolSizeWindow = PoolSizeBuffer - 2 - 4 - 4 - 1
 
 var BufPool = sync.Pool{
 	New: func() interface{} {

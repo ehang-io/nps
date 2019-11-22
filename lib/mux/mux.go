@@ -115,34 +115,35 @@ func (s *Mux) writeSession() {
 }
 
 func (s *Mux) packBuf() {
-	buffer := common.BuffPool.Get()
+	//buffer := common.BuffPool.Get()
 	for {
 		if s.IsClose {
 			break
 		}
-		buffer.Reset()
+		//buffer.Reset()
 		pack := s.writeQueue.Pop()
 		if s.IsClose {
 			break
 		}
 		//buffer := common.BuffPool.Get()
-		err := pack.Pack(buffer)
+		err := pack.Pack(s.conn)
 		common.MuxPack.Put(pack)
 		if err != nil {
 			logs.Error("mux: pack err", err)
-			common.BuffPool.Put(buffer)
+			//common.BuffPool.Put(buffer)
+			s.Close()
 			break
 		}
 		//logs.Warn(buffer.String())
 		//s.bufQueue.Push(buffer)
-		l := buffer.Len()
-		n, err := buffer.WriteTo(s.conn)
+		//l := buffer.Len()
+		//n, err := buffer.WriteTo(s.conn)
 		//common.BuffPool.Put(buffer)
-		if err != nil || int(n) != l {
-			logs.Error("mux: close from write session fail ", err, n, l)
-			s.Close()
-			break
-		}
+		//if err != nil || int(n) != l {
+		//	logs.Error("mux: close from write session fail ", err, n, l)
+		//	s.Close()
+		//	break
+		//}
 	}
 }
 
@@ -385,24 +386,24 @@ func (s *Mux) getId() (id int32) {
 }
 
 type bandwidth struct {
+	readBandwidth uint64 // store in bits, but it's float64
 	readStart     time.Time
 	lastReadStart time.Time
-	bufLength     uint16
-	readBandwidth uint64 // store in bits, but it's float64
+	bufLength     uint32
 }
 
 func (Self *bandwidth) StartRead() {
 	if Self.readStart.IsZero() {
 		Self.readStart = time.Now()
 	}
-	if Self.bufLength >= 16384 {
+	if Self.bufLength >= 3072000 {
 		Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
 		Self.calcBandWidth()
 	}
 }
 
 func (Self *bandwidth) SetCopySize(n uint16) {
-	Self.bufLength += n
+	Self.bufLength += uint32(n)
 }
 
 func (Self *bandwidth) calcBandWidth() {
@@ -417,6 +418,7 @@ func (Self *bandwidth) Get() (bw float64) {
 	if bw <= 0 {
 		bw = 100
 	}
+	//logs.Warn(bw)
 	return
 }
 
