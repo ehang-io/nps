@@ -396,7 +396,7 @@ func (Self *bandwidth) StartRead() {
 	if Self.readStart.IsZero() {
 		Self.readStart = time.Now()
 	}
-	if Self.bufLength >= 3072000 {
+	if Self.bufLength >= common.MAXIMUM_SEGMENT_SIZE*300 {
 		Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
 		Self.calcBandWidth()
 	}

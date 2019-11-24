@@ -190,7 +190,7 @@ func (Self *ReceiveWindow) New(mux *Mux) {
 	// initial a window for receive
 	Self.bufQueue.New()
 	Self.element = common.ListElementPool.Get()
-	Self.maxSize = common.MAXIMUM_SEGMENT_SIZE
+	Self.maxSize = common.MAXIMUM_SEGMENT_SIZE * 10
 	Self.mux = mux
 	Self.window.New()
 }
@@ -212,8 +212,8 @@ func (Self *ReceiveWindow) calcSize() {
 		conns := Self.mux.connMap.Size()
 		n := uint32(math.Float64frombits(atomic.LoadUint64(&Self.mux.latency)) *
 			Self.mux.bw.Get() / float64(conns))
-		if n < common.MAXIMUM_SEGMENT_SIZE*2 {
-			n = common.MAXIMUM_SEGMENT_SIZE * 2
+		if n < common.MAXIMUM_SEGMENT_SIZE*10 {
+			n = common.MAXIMUM_SEGMENT_SIZE * 10
 		}
 		bufLen := Self.bufQueue.Len()
 		if n < bufLen {
@@ -381,8 +381,8 @@ type SendWindow struct {
 
 func (Self *SendWindow) New(mux *Mux) {
 	Self.setSizeCh = make(chan struct{})
-	Self.maxSize = common.MAXIMUM_SEGMENT_SIZE
-	atomic.AddUint64(&Self.remainingWait, uint64(common.MAXIMUM_SEGMENT_SIZE)<<dequeueBits)
+	Self.maxSize = common.MAXIMUM_SEGMENT_SIZE * 10
+	atomic.AddUint64(&Self.remainingWait, uint64(common.MAXIMUM_SEGMENT_SIZE*10)<<dequeueBits)
 	Self.mux = mux
 	Self.window.New()
 }
