@@ -209,10 +209,10 @@ func NewListElement(buf []byte, l uint16, part bool) (element *common.ListElemen
 }
 
 type ReceiveWindowQueue struct {
+	lengthWait uint64
 	chain      *bufChain
 	stopOp     chan struct{}
 	readOp     chan struct{}
-	lengthWait uint64
 	timeout    time.Time
 }
 

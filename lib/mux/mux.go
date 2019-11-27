@@ -21,7 +21,7 @@ type Mux struct {
 	id            int32
 	closeChan     chan struct{}
 	IsClose       bool
-	pingOk        int
+	pingOk        uint32
 	counter       *latencyCounter
 	bw            *bandwidth
 	pingCh        chan []byte
@@ -101,7 +101,7 @@ func (s *Mux) sendInfo(flag uint8, id int32, data ...interface{}) {
 	err = pack.NewPac(flag, id, data...)
 	if err != nil {
 		common.MuxPack.Put(pack)
-		logs.Error("mux: new pack err")
+		logs.Error("mux: new pack err", err)
 		s.Close()
 		return
 	}
@@ -191,12 +191,12 @@ func (s *Mux) ping() {
 			now, _ := time.Now().UTC().MarshalText()
 			s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 			atomic.AddUint32(&s.pingCheckTime, 1)
-			if s.pingOk > 10 && s.connType == "kcp" {
+			if atomic.LoadUint32(&s.pingOk) > 10 && s.connType == "kcp" {
 				logs.Error("mux: kcp ping err")
 				s.Close()
 				break
 			}
-			s.pingOk++
+			atomic.AddUint32(&s.pingOk, 1)
 		}
 	}()
 }
@@ -256,12 +256,12 @@ func (s *Mux) readSession() {
 			pack = common.MuxPack.Get()
 			s.bw.StartRead()
 			if l, err = pack.UnPack(s.conn); err != nil {
-				logs.Error("mux: read session unpack from connection err")
+				logs.Error("mux: read session unpack from connection err", err)
 				s.Close()
 				break
 			}
 			s.bw.SetCopySize(l)
-			s.pingOk = 0
+			atomic.StoreUint32(&s.pingOk, 0)
 			switch pack.Flag {
 			case common.MUX_NEW_CONN: //new connection
 				connection := NewConn(pack.Id, s)
@@ -282,7 +282,7 @@ func (s *Mux) readSession() {
 				case common.MUX_NEW_MSG, common.MUX_NEW_MSG_PART: //new msg from remote connection
 					err = s.newMsg(connection, pack)
 					if err != nil {
-						logs.Error("mux: read session connection new msg err")
+						logs.Error("mux: read session connection new msg err", err)
 						connection.Close()
 					}
 					continue
