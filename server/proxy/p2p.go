@@ -7,7 +7,6 @@ import (
 
 	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/pool"
 )
 
 type P2PServer struct {
@@ -37,7 +36,7 @@ func (s *P2PServer) Start() error {
 		return err
 	}
 	for {
-		buf := pool.BufPoolUdp.Get().([]byte)
+		buf := common.BufPoolUdp.Get().([]byte)
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {

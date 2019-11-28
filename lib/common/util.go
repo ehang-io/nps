@@ -16,7 +16,6 @@ import (
 	"sync"
 
 	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/pool"
 )
 
 //Get the corresponding IP address through domain name
@@ -109,6 +108,9 @@ func ChangeHostAndHeader(r *http.Request, host string, header string, addr strin
 		}
 	}
 	addr = strings.Split(addr, ":")[0]
+	if prior, ok := r.Header["X-Forwarded-For"]; ok {
+    		addr = strings.Join(prior, ", ") + ", " + addr
+    	}
 	r.Header.Set("X-Forwarded-For", addr)
 	r.Header.Set("X-Real-IP", addr)
 }
@@ -264,11 +266,14 @@ func GetPortByAddr(addr string) int {
 	return p
 }
 
-func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := pool.GetBufPoolCopy()
-	defer pool.PutBufPoolCopy(buf)
+func CopyBuffer(dst io.Writer, src io.Reader, label ...string) (written int64, err error) {
+	buf := CopyBuff.Get()
+	defer CopyBuff.Put(buf)
 	for {
 		nr, er := src.Read(buf)
+		//if len(pr)>0 && pr[0] && nr > 50 {
+		//	logs.Warn(string(buf[:50]))
+		//}
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {
@@ -284,9 +289,7 @@ func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 			}
 		}
 		if er != nil {
-			if er != io.EOF {
-				err = er
-			}
+			err = er
 			break
 		}
 	}

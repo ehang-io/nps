@@ -20,7 +20,7 @@ func WriteLenBytes(buf []byte, w io.Writer) (int, error) {
 
 //read bytes by length
 func ReadLenBytes(buf []byte, r io.Reader) (int, error) {
-	var l int32
+	var l uint32
 	var err error
 	if binary.Read(r, binary.LittleEndian, &l) != nil {
 		return 0, err

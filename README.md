@@ -26,6 +26,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 * [安装](#安装)
     * [编译安装](#源码安装)
     * [release安装](#release安装)
+    * [docker安装](#docker安装)
 * [使用示例（以web主控模式为主）](#使用示例)
     * [统一准备工作](#统一准备工作(必做))
     * [http|https域名解析](#域名解析)
@@ -111,6 +112,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
    * [获取用户真实ip](#获取用户真实ip)
    * [客户端地址显示](#客户端地址显示)
    * [客户端与服务端版本对比](#客户端与服务端版本对比)
+   * [Linux系统限制](#Linux系统限制)
 * [webAPI](#webAPI)
 * [贡献](#贡献)
 * [支持nps发展](#捐赠)
@@ -120,7 +122,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 
 ## 安装
 
-### releases安装
+### release安装
 > [releases](https://github.com/cnlh/nps/releases)
 
 下载对应的系统版本即可，服务端和客户端是单独的
@@ -133,6 +135,10 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 
 > go build cmd/npc/npc.go
 
+### docker安装
+> [server](https://hub.docker.com/r/ffdfgdfg/nps)
+> [client](https://hub.docker.com/r/ffdfgdfg/npc)
+
 ## 使用示例
 
 ### 统一准备工作（必做）
@@ -144,6 +150,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 ```shell
 ./npc -server=1.1.1.1:8284 -vkey=客户端的密钥
 ```
+**注意：运行服务端后，请确保能从客户端设备上正常访问配置文件中所配置的`bridge_port`端口，telnet，netcat这类的来检查**
 
 ### 域名解析
 
@@ -196,6 +203,9 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 **使用步骤**
 - 在刚才创建的客户端隧道管理中添加一条socks5代理，填写监听的端口（8003），保存。
 - 在外网环境的本机配置socks5代理(例如使用proxifier进行全局代理)，ip为公网服务器ip（1.1.1.1），端口为填写的监听端口(8003)，即可畅享内网了
+
+**注意**
+经过socks5代理，当收到socks5数据包时socket已经是accept状态。表现是扫描端口全open，建立连接后短时间关闭。若想同内网表现一致，建议远程连接一台设备。
 
 ### http正向代理
 
@@ -375,7 +385,13 @@ server {
 ```
 (./nps|nps.exe) install
 ```
-安装成功后，对于linux，darwin，将会把配置文件和静态文件放置于/etc/nps/，并将可执行文件nps复制到/usr/bin/nps或者/usr/local/bin/nps，安装成功后可在任何位置执行
+安装成功后，对于linux，darwin，将会把配置文件和静态文件放置于/etc/nps/，并将可执行文件nps复制到/usr/bin/nps或者/usr/local/bin/nps，安装成功后可在任何位置执行，同时也会添加systemd配置。
+
+```
+sudo systemctl enable|disable|start|stop|restart|status nps
+```
+systemd，带有开机自启，自动重启配置，当进程结束后15秒会启动，日志输出至/var/log/nps/nps.log。
+建议采用此方式启动，能够捕获panic信息，便于排查问题。
 
 ```
 nps test|start|stop|restart|status
@@ -431,6 +447,27 @@ server_ip=xxx
 此模式使用nps的公钥或者客户端私钥验证，各种配置在客户端完成，同时服务端web也可以进行管理
 ```
  ./npc -config=npc配置文件路径
+```
+可自行添加systemd service，例如：`npc.service`
+```
+[Unit]
+Description=npc - convenient proxy server client
+Documentation=https://github.com/cnlh/nps/
+After=network-online.target remote-fs.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+KillMode=process
+Restart=always
+RestartSec=15s
+StandardOutput=append:/var/log/nps/npc.log
+ExecStartPre=/bin/echo 'Starting npc'
+ExecStopPost=/bin/echo 'Stopping npc'
+ExecStart=/absolutely path to/npc -server=ip:port -vkey=web界面中显示的密钥
+
+[Install]
+WantedBy=multi-user.target
 ```
 #### 配置文件说明
 [示例配置文件](https://github.com/cnlh/nps/tree/master/conf/npc.conf)
@@ -794,6 +831,19 @@ nps支持对客户端的隧道数量进行限制，该功能默认是关闭的�
 
 nps主要通信默认基于多路复用，无需开启。
 
+多路复用基于TCP滑动窗口原理设计，动态计算延迟以及带宽来算出应该往网络管道中打入的流量。
+由于主要通信大多采用TCP协议，并无法探测其实时丢包情况，对于产生丢包重传的情况，采用较大的宽容度，
+5分钟的等待时间，超时将会关闭当前隧道连接并重新建立，这将会抛弃当前所有的连接。
+在Linux上，可以通过调节内核参数来适应不同应用场景。
+
+对于需求大带宽又有一定的丢包的场景，可以保持默认参数不变，尽可能少抛弃连接
+高并发下可根据[Linux系统限制](#Linux系统限制) 调整
+
+对于延迟敏感而又有一定丢包的场景，可以适当调整TCP重传次数
+`tcp_syn_retries`, `tcp_retries1`, `tcp_retries2`
+高并发同上
+nps会在系统主动关闭连接的时候拿到报错，进而重新建立隧道连接
+
 ### 环境变量渲染
 npc支持环境变量渲染以适应在某些特殊场景下的要求。
 
@@ -901,6 +951,11 @@ LevelInformational->6 LevelDebug->7
 
 ### 客户端与服务端版本对比
 为了程序正常运行，客户端与服务端的核心版本必须一致，否则将导致客户端无法成功连接致服务端。
+
+### Linux系统限制
+默认情况下linux对连接数量有限制，对于性能好的机器完全可以调整内核参数以处理更多的连接。
+`tcp_max_syn_backlog` `somaxconn`
+酌情调整参数，增强网络性能
 
 ## webAPI
 
