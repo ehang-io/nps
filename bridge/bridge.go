@@ -296,7 +296,7 @@ func (s *Bridge) register(c *conn.Conn) {
 func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
 	//if the proxy type is local
 	if link.LocalProxy {
-		target, err = net.Dial(link.ConnType, link.Host)
+		target, err = net.Dial("tcp", link.Host)
 		return
 	}
 	if v, ok := s.Client.Load(clientId); ok {
@@ -488,6 +488,7 @@ loop:
 					tl.Password = t.Password
 					tl.LocalPath = t.LocalPath
 					tl.StripPre = t.StripPre
+					tl.MultiAccount = t.MultiAccount
 					if !client.HasTunnel(tl) {
 						if err := file.GetDb().NewTask(tl); err != nil {
 							logs.Notice("Add task error ", err.Error())
