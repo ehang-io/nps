@@ -49,6 +49,11 @@ retry:
 		time.Sleep(time.Second * 5)
 		goto retry
 	}
+	if c == nil {
+		logs.Error("Error data from server, and will be reconnected in five seconds")
+		time.Sleep(time.Second * 5)
+		goto retry
+	}
 	logs.Info("Successful connection with server %s", s.svrAddr)
 	//monitor the connection
 	go s.ping()
