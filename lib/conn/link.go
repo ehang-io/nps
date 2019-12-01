@@ -1,5 +1,7 @@
 package conn
 
+import "time"
+
 type Secret struct {
 	Password string
 	Conn     *Conn
@@ -19,9 +21,20 @@ type Link struct {
 	Compress   bool
 	LocalProxy bool
 	RemoteAddr string
+	Option     Options
 }
 
-func NewLink(connType string, host string, crypt bool, compress bool, remoteAddr string, localProxy bool) *Link {
+type Option func(*Options)
+
+type Options struct {
+	Timeout time.Duration
+}
+
+var defaultTimeOut = time.Second * 5
+
+func NewLink(connType string, host string, crypt bool, compress bool, remoteAddr string, localProxy bool, opts ...Option) *Link {
+	options := newOptions(opts...)
+
 	return &Link{
 		RemoteAddr: remoteAddr,
 		ConnType:   connType,
@@ -29,5 +42,22 @@ func NewLink(connType string, host string, crypt bool, compress bool, remoteAddr
 		Crypt:      crypt,
 		Compress:   compress,
 		LocalProxy: localProxy,
+		Option:     options,
+	}
+}
+
+func newOptions(opts ...Option) Options {
+	opt := Options{
+		Timeout: defaultTimeOut,
+	}
+	for _, o := range opts {
+		o(&opt)
+	}
+	return opt
+}
+
+func LinkTimeout(t time.Duration) Option {
+	return func(opt *Options) {
+		opt.Timeout = t
 	}
 }
