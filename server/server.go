@@ -109,6 +109,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 
 func dealClientFlow() {
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -430,6 +431,7 @@ func GetDashboardData() map[string]interface{} {
 
 func flowSession(m time.Duration) {
 	ticker := time.NewTicker(m)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
