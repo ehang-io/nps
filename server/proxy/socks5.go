@@ -174,7 +174,12 @@ func (s *Sock5ModeServer) sendUdpReply(writeConn net.Conn, c net.Conn, rep uint8
 
 }
 
+var serveExternalIp string
+
 func (s *Sock5ModeServer) handleUDP(c net.Conn) {
+	if serveExternalIp == "" {
+		serveExternalIp = common.GetExternalIp()
+	}
 	defer c.Close()
 	addrType := make([]byte, 1)
 	c.Read(addrType)
@@ -213,9 +218,8 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 		logs.Error("listen local reply udp port error")
 		return
 	}
-
 	// reply the local addr
-	s.sendUdpReply(c, reply, succeeded, "106.12.146.199")
+	s.sendUdpReply(c, reply, succeeded, serveExternalIp)
 	defer reply.Close()
 
 	// new a tunnel to client
