@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"net"
 	"net/http"
 	"strconv"
@@ -189,6 +190,10 @@ func (s *TRPClient) handleChan(src net.Conn) {
 		}
 		return
 	}
+	if lk.ConnType == "udp" {
+		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
+		s.handleUdp(src)
+	}
 	//connect to target if conn type is tcp or udp
 	if targetConn, err := net.DialTimeout(lk.ConnType, lk.Host, lk.Option.Timeout); err != nil {
 		logs.Warn("connect to %s error %s", lk.Host, err.Error())
@@ -196,6 +201,61 @@ func (s *TRPClient) handleChan(src net.Conn) {
 	} else {
 		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
 		conn.CopyWaitGroup(src, targetConn, lk.Crypt, lk.Compress, nil, nil, false, nil)
+	}
+}
+
+func (s *TRPClient) handleUdp(serverConn net.Conn) {
+	// bind a local udp port
+	local, err := net.ListenUDP("udp", nil)
+	defer local.Close()
+	defer serverConn.Close()
+	if err != nil {
+		logs.Error("bind local udp port error ", err.Error())
+		return
+	}
+	go func() {
+		defer serverConn.Close()
+		b := common.BufPoolUdp.Get().([]byte)
+		defer common.BufPoolUdp.Put(b)
+		for {
+			n, raddr, err := local.ReadFrom(b)
+			if err != nil {
+				logs.Error("read data from remote server error", err.Error())
+			}
+			buf := bytes.Buffer{}
+			dgram := common.NewUDPDatagram(common.NewUDPHeader(0, 0, common.ToSocksAddr(raddr)), b[:n])
+			dgram.Write(&buf)
+			if _, err := serverConn.Write(buf.Bytes()); err != nil {
+				logs.Error("write data to remote  error", err.Error())
+				return
+			}
+		}
+	}()
+	b := common.BufPoolUdp.Get().([]byte)
+	defer common.BufPoolUdp.Put(b)
+	for {
+		n, err := serverConn.Read(b)
+		if err != nil {
+			logs.Error("read udp data from server error ", err.Error())
+			return
+		}
+
+		udpData, err := common.ReadUDPDatagram(bytes.NewReader(b[:n]))
+		if err != nil {
+			logs.Error("unpack data error", err.Error())
+			return
+		}
+
+		raddr, err := net.ResolveUDPAddr("udp", udpData.Header.Addr.String())
+		if err != nil {
+			logs.Error("build remote addr err", err.Error())
+			continue // drop silently
+		}
+		_, err = local.WriteTo(udpData.Data, raddr)
+		if err != nil {
+			logs.Error("write data to remote ", raddr.String(), "error", err.Error())
+			return
+		}
 	}
 }
 
