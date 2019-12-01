@@ -18,7 +18,8 @@ import (
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/test"
 	"github.com/cnlh/nps/server/tool"
-	_ "github.com/cnlh/nps/web/routers"
+
+	"github.com/cnlh/nps/web/routers"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 func main() {
 	flag.Parse()
 	beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf"))
+	routers.Init()
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "test":

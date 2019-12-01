@@ -160,7 +160,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/index/edit",
+                url: "{{.web_base_url}}/index/edit",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

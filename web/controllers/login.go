@@ -14,6 +14,7 @@ type LoginController struct {
 }
 
 func (self *LoginController) Index() {
+	self.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	self.Data["register_allow"], _ = beego.AppConfig.Bool("allow_user_register")
 	self.TplName = "login/index.html"
 }
@@ -60,6 +61,7 @@ func (self *LoginController) Verify() {
 }
 func (self *LoginController) Register() {
 	if self.Ctx.Request.Method == "GET" {
+		self.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 		self.TplName = "login/register.html"
 	} else {
 		if b, err := beego.AppConfig.Bool("allow_user_register"); err != nil || !b {
@@ -91,5 +93,5 @@ func (self *LoginController) Register() {
 
 func (self *LoginController) Out() {
 	self.SetSession("auth", false)
-	self.Redirect("/login/index", 302)
+	self.Redirect(beego.AppConfig.String("web_base_url")+"/login/index", 302)
 }
