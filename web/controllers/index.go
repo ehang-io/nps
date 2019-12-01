@@ -4,7 +4,8 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
 	"github.com/cnlh/nps/server/tool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
+	
+	"github.com/astaxie/beego"
 )
 
 type IndexController struct {
