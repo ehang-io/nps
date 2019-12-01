@@ -369,6 +369,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 		}
 		logs.Trace("try send test packet to target %s", addr)
 		ticker := time.NewTicker(time.Millisecond * 500)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
@@ -394,6 +395,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 						return
 					}
 					ticker := time.NewTicker(time.Second * 2)
+					defer ticker.Stop()
 					for {
 						select {
 						case <-ticker.C:

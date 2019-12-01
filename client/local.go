@@ -117,6 +117,7 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 
 func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
 	ticker := time.NewTicker(time.Second * 1)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:

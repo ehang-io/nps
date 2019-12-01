@@ -173,9 +173,9 @@ func (s *Mux) ping() {
 		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 		// send the ping flag and get the latency first
 		ticker := time.NewTicker(time.Second * 5)
+    defer ticker.Stop()
 		for {
 			if s.IsClose {
-				ticker.Stop()
 				break
 			}
 			select {
@@ -198,6 +198,7 @@ func (s *Mux) ping() {
 			}
 			atomic.AddUint32(&s.pingOk, 1)
 		}
+    return
 	}()
 }
 
