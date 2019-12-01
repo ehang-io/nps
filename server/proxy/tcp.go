@@ -2,17 +2,18 @@ package proxy
 
 import (
 	"errors"
+	"net"
+	"net/http"
+	"path/filepath"
+	"strconv"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"net"
-	"net/http"
-	"path/filepath"
-	"strconv"
 )
 
 type TunnelModeServer struct {

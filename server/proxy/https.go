@@ -1,18 +1,19 @@
 package proxy
 
 import (
+	"net"
+	"net/http"
+	"net/url"
+	"sync"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/cache"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"github.com/pkg/errors"
-	"net"
-	"net/http"
-	"net/url"
-	"sync"
 )
 
 type HttpsServer struct {

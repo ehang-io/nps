@@ -3,13 +3,6 @@ package proxy
 import (
 	"bufio"
 	"crypto/tls"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/cache"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/cache"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server/connection"
 )
 
 type httpServer struct {
@@ -108,12 +109,11 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
-	s.httpHandle(conn.NewConn(c), r)
+	s.handleHttp(conn.NewConn(c), r)
 }
 
-func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
+func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 	var (
-		isConn     = false
 		host       *file.Host
 		target     net.Conn
 		lastHost   *file.Host
@@ -122,89 +122,80 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 		scheme     = r.URL.Scheme
 		lk         *conn.Link
 		targetAddr string
-		readReq    bool
-		reqCh      = make(chan *http.Request)
+		lenConn    *conn.LenConn
+		isReset    bool
+		wg         sync.WaitGroup
 	)
+	defer func() {
+		if connClient != nil {
+			s.writeConnFail(c.Conn)
+			connClient.Close()
+		}
+		c.Close()
+	}()
 	if host, err = file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
-		goto end
+		return
 	}
 	if err := s.CheckFlowAndConnNum(host.Client); err != nil {
 		logs.Warn("client id %d, host id %d, error %s, when https connection", host.Client.Id, host.Id, err.Error())
-		c.Close()
 		return
 	}
 	defer host.Client.AddConn()
+	if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
+		logs.Warn("auth error", err, r.RemoteAddr)
+		return
+	}
+reset:
+	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
+		logs.Warn(err.Error())
+		return
+	}
+	lk = conn.NewLink("http", targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr, host.Target.LocalProxy)
+	if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, nil); err != nil {
+		logs.Notice("connect to target %s error %s", lk.Host, err)
+		return
+	}
+	connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
 	lastHost = host
-	for {
-	start:
-		if isConn {
-			if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
-				logs.Warn("auth error", err, r.RemoteAddr)
-				break
+
+	//read from inc-client
+	go func() {
+		wg.Add(1)
+		isReset = false
+		defer connClient.Close()
+		defer func() {
+			wg.Done()
+			if !isReset {
+				c.Close()
 			}
-			if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
-				logs.Warn(err.Error())
-				break
-			}
-			lk = conn.NewLink("http", targetAddr, host.Client.Cnf.Crypt, host.Client.Cnf.Compress, r.RemoteAddr, host.Target.LocalProxy)
-			if target, err = s.bridge.SendLinkInfo(host.Client.Id, lk, nil); err != nil {
-				logs.Notice("connect to target %s error %s", lk.Host, err)
-				break
-			}
-			connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
-			isConn = false
-			go func() {
-				defer connClient.Close()
-				defer c.Close()
-				for {
-					if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
+		}()
+		for {
+			if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
+				return
+			} else {
+				//if the cache is start and the response is in the extension,store the response to the cache list
+				if s.useCache && strings.Contains(r.URL.Path, ".") {
+					b, err := httputil.DumpResponse(resp, true)
+					if err != nil {
 						return
-					} else {
-						r := <-reqCh
-						//if the cache is start and the response is in the extension,store the response to the cache list
-						if s.useCache && strings.Contains(r.URL.Path, ".") {
-							b, err := httputil.DumpResponse(resp, true)
-							if err != nil {
-								return
-							}
-							c.Write(b)
-							host.Flow.Add(0, int64(len(b)))
-							s.cache.Add(filepath.Join(host.Host, r.URL.Path), b)
-						} else {
-							lenConn := conn.NewLenConn(c)
-							if err := resp.Write(lenConn); err != nil {
-								logs.Error(err)
-								return
-							}
-							host.Flow.Add(0, int64(lenConn.Len))
-						}
 					}
+					c.Write(b)
+					host.Flow.Add(0, int64(len(b)))
+					s.cache.Add(filepath.Join(host.Host, r.URL.Path), b)
+				} else {
+					lenConn := conn.NewLenConn(c)
+					if err := resp.Write(lenConn); err != nil {
+						logs.Error(err)
+						return
+					}
+					host.Flow.Add(0, int64(lenConn.Len))
 				}
-			}()
-		} else if readReq {
-			r, err = http.ReadRequest(bufio.NewReader(c))
-			if err != nil {
-				break
-			}
-			r.URL.Scheme = scheme
-			//What happened ，Why one character less???
-			if r.Method == "ET" {
-				r.Method = "GET"
-			}
-			if r.Method == "OST" {
-				r.Method = "POST"
-			}
-			if hostTmp, err := file.GetDb().GetInfoByHost(r.Host, r); err != nil {
-				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
-				break
-			} else if host != lastHost {
-				host = hostTmp
-				lastHost = host
-				isConn = true
-				goto start
 			}
 		}
+	}()
+
+	for {
 		//if the cache start and the request is in the cache list, return the cache
 		if s.useCache {
 			if v, ok := s.cache.Get(filepath.Join(host.Host, r.URL.Path)); ok {
@@ -215,39 +206,54 @@ func (s *httpServer) httpHandle(c *conn.Conn, r *http.Request) {
 				logs.Trace("%s request, method %s, host %s, url %s, remote address %s, return cache", r.URL.Scheme, r.Method, r.Host, r.URL.Path, c.RemoteAddr().String())
 				host.Flow.Add(0, int64(n))
 				//if return cache and does not create a new conn with client and Connection is not set or close, close the connection.
-				if connClient == nil && (strings.ToLower(r.Header.Get("Connection")) == "close" || strings.ToLower(r.Header.Get("Connection")) == "") {
-					c.Close()
+				if strings.ToLower(r.Header.Get("Connection")) == "close" || strings.ToLower(r.Header.Get("Connection")) == "" {
 					break
 				}
-				readReq = true
-				goto start
+				goto readReq
 			}
 		}
-		if connClient == nil {
-			isConn = true
-			goto start
-		}
-		readReq = true
+
 		//change the host and header and set proxy setting
 		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
 		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.URL.Path, c.RemoteAddr().String(), lk.Host)
 		//write
-		lenConn := conn.NewLenConn(connClient)
+		lenConn = conn.NewLenConn(connClient)
 		if err := r.Write(lenConn); err != nil {
 			logs.Error(err)
 			break
 		}
 		host.Flow.Add(int64(lenConn.Len), 0)
-		reqCh <- r
+
+	readReq:
+		//read req from connection
+		if r, err = http.ReadRequest(bufio.NewReader(c)); err != nil {
+			break
+		}
+		r.URL.Scheme = scheme
+		//What happened ，Why one character less???
+		r.Method = resetReqMethod(r.Method)
+		if hostTmp, err := file.GetDb().GetInfoByHost(r.Host, r); err != nil {
+			logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
+			break
+		} else if host != lastHost {
+			host = hostTmp
+			lastHost = host
+			isReset = true
+			connClient.Close()
+			goto reset
+		}
 	}
-end:
-	if !readReq {
-		s.writeConnFail(c.Conn)
+	wg.Wait()
+}
+
+func resetReqMethod(method string) string {
+	if method == "ET" {
+		return "GET"
 	}
-	c.Close()
-	if target != nil {
-		target.Close()
+	if method == "OST" {
+		return "POST"
 	}
+	return method
 }
 
 func (s *httpServer) NewServer(port int, scheme string) *http.Server {

@@ -2,6 +2,12 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/daemon"
@@ -12,12 +18,8 @@ import (
 	"github.com/cnlh/nps/server/connection"
 	"github.com/cnlh/nps/server/test"
 	"github.com/cnlh/nps/server/tool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
+
 	"github.com/cnlh/nps/web/routers"
-	"log"
-	"os"
-	"path/filepath"
 )
 
 var (
@@ -61,7 +63,7 @@ func main() {
 		logs.Error("Getting bridge_port error", err)
 		os.Exit(0)
 	}
-	logs.Info("the version of server is %s ,allow client version to be %s", version.VERSION, version.GetVersion())
+	logs.Info("the version of server is %s ,allow client core version to be %s", version.VERSION, version.GetVersion())
 	connection.InitConnectionService()
 	crypt.InitTls(filepath.Join(common.GetRunPath(), "conf", "server.pem"), filepath.Join(common.GetRunPath(), "conf", "server.key"))
 	tool.InitAllowPort()

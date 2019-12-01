@@ -2,22 +2,23 @@ package server
 
 import (
 	"errors"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/proxy"
-	"github.com/cnlh/nps/server/tool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/load"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/net"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/bridge"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/server/proxy"
+	"github.com/cnlh/nps/server/tool"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/load"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/net"
 )
 
 var (
@@ -359,7 +360,7 @@ func GetDashboardData() map[string]interface{} {
 		case "tcp":
 			tcp += 1
 		case "socks5":
-			udp += 1
+			socks5 += 1
 		case "httpProxy":
 			http += 1
 		case "udp":

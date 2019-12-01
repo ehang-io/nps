@@ -5,14 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/version"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
-	"github.com/cnlh/nps/vender/golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
 	"math"
@@ -26,6 +18,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/config"
+	"github.com/cnlh/nps/lib/conn"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/version"
+	"github.com/xtaci/kcp-go"
+	"golang.org/x/net/proxy"
 )
 
 func GetTaskStatus(path string) {
@@ -222,8 +223,13 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
 		return nil, err
 	}
-	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
-		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
+	b, err := c.GetShortContent(32)
+	if err != nil {
+		logs.Error(err)
+		return nil, err
+	}
+	if crypt.Md5(version.GetVersion()) != string(b) {
+		logs.Error("The client does not match the server version. The current core version of the client is", version.GetVersion())
 		return nil, err
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
@@ -379,7 +385,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 		ip := common.GetIpByAddr(remoteAddr2)
 		go func() {
 			ports := getRandomPortArr(common.GetPortByAddr(remoteAddr3), common.GetPortByAddr(remoteAddr3)+interval*50)
-			for i := 0; i <= 50; i ++ {
+			for i := 0; i <= 50; i++ {
 				go func(port int) {
 					trueAddress := ip + ":" + strconv.Itoa(port)
 					logs.Trace("try send test packet to target %s", trueAddress)

@@ -6,21 +6,22 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/lib/rate"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/mux"
+	"github.com/cnlh/nps/lib/rate"
+	"github.com/xtaci/kcp-go"
 )
 
 type Conn struct {
@@ -158,8 +159,8 @@ func (s *Conn) SendHealthInfo(info, status string) (int, error) {
 //get health info from conn
 func (s *Conn) GetHealthInfo() (info string, status bool, err error) {
 	var l int
-	buf := pool.BufPoolMax.Get().([]byte)
-	defer pool.PutBufPoolMax(buf)
+	buf := common.BufPoolMax.Get().([]byte)
+	defer common.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
 	} else if _, err = s.ReadLen(l, buf); err != nil {
@@ -232,8 +233,8 @@ func (s *Conn) SendInfo(t interface{}, flag string) (int, error) {
 //get task info
 func (s *Conn) getInfo(t interface{}) (err error) {
 	var l int
-	buf := pool.BufPoolMax.Get().([]byte)
-	defer pool.PutBufPoolMax(buf)
+	buf := common.BufPoolMax.Get().([]byte)
+	defer common.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
 	} else if _, err = s.ReadLen(l, buf); err != nil {
@@ -350,30 +351,34 @@ func SetUdpSession(sess *kcp.UDPSession) {
 
 //conn1 mux conn
 func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool, rb []byte) {
-	var in, out int64
-	var wg sync.WaitGroup
+	//var in, out int64
+	//var wg sync.WaitGroup
 	connHandle := GetConn(conn1, crypt, snappy, rate, isServer)
 	if rb != nil {
 		connHandle.Write(rb)
 	}
-	go func(in *int64) {
-		wg.Add(1)
-		*in, _ = common.CopyBuffer(connHandle, conn2)
-		connHandle.Close()
-		conn2.Close()
-		wg.Done()
-	}(&in)
-	out, _ = common.CopyBuffer(conn2, connHandle)
-	connHandle.Close()
-	conn2.Close()
-	wg.Wait()
-	if flow != nil {
-		flow.Add(in, out)
+	//go func(in *int64) {
+	//	wg.Add(1)
+	//	*in, _ = common.CopyBuffer(connHandle, conn2)
+	//	connHandle.Close()
+	//	conn2.Close()
+	//	wg.Done()
+	//}(&in)
+	//out, _ = common.CopyBuffer(conn2, connHandle)
+	//connHandle.Close()
+	//conn2.Close()
+	//wg.Wait()
+	//if flow != nil {
+	//	flow.Add(in, out)
+	//}
+	err := goroutine.CopyConnsPool.Invoke(goroutine.NewConns(connHandle, conn2, flow))
+	if err != nil {
+		logs.Error(err)
 	}
 }
 
 //get crypt or snappy conn
-func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) (io.ReadWriteCloser) {
+func GetConn(conn net.Conn, cpt, snappy bool, rt *rate.Rate, isServer bool) io.ReadWriteCloser {
 	if cpt {
 		if isServer {
 			return rate.NewRateConn(crypt.NewTlsServerConn(conn), rt)

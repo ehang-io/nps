@@ -1,9 +1,10 @@
 package conn
 
 import (
-	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/vender/github.com/golang/snappy"
 	"io"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/golang/snappy"
 )
 
 type SnappyConn struct {
@@ -31,8 +32,8 @@ func (s *SnappyConn) Write(b []byte) (n int, err error) {
 
 //snappy压缩读
 func (s *SnappyConn) Read(b []byte) (n int, err error) {
-	buf := pool.BufPool.Get().([]byte)
-	defer pool.BufPool.Put(buf)
+	buf := common.BufPool.Get().([]byte)
+	defer common.BufPool.Put(buf)
 	if n, err = s.r.Read(buf); err != nil {
 		return
 	}

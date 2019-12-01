@@ -1,11 +1,12 @@
 package controllers
 
 import (
+	"time"
+
+	"github.com/astaxie/beego"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego"
-	"time"
 )
 
 type LoginController struct {
@@ -22,7 +23,7 @@ func (self *LoginController) Verify() {
 	if self.GetString("password") == beego.AppConfig.String("web_password") && self.GetString("username") == beego.AppConfig.String("web_username") {
 		self.SetSession("isAdmin", true)
 		auth = true
-		server.Bridge.Register.Store(common.GetIpByAddr(self.Ctx.Request.RemoteAddr), time.Now().Add(time.Hour*time.Duration(2)))
+		server.Bridge.Register.Store(common.GetIpByAddr(self.Ctx.Input.IP()), time.Now().Add(time.Hour*time.Duration(2)))
 	}
 	b, err := beego.AppConfig.Bool("allow_user_login")
 	if err == nil && b && !auth {

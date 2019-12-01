@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"github.com/cnlh/nps/lib/common"
 	"io/ioutil"
 	"log"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/cnlh/nps/lib/common"
 )
 
 func InitDaemon(f string, runPath string, pidPath string) {

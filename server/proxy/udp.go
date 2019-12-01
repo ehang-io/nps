@@ -1,14 +1,14 @@
 package proxy
 
 import (
+	"net"
+	"strings"
+
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/pool"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"net"
-	"strings"
 )
 
 type UdpModeServer struct {
@@ -33,7 +33,7 @@ func (s *UdpModeServer) Start() error {
 	if err != nil {
 		return err
 	}
-	buf := pool.BufPoolUdp.Get().([]byte)
+	buf := common.BufPoolUdp.Get().([]byte)
 	for {
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
@@ -59,8 +59,8 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		return
 	} else {
 		s.task.Flow.Add(int64(len(data)), 0)
-		buf := pool.BufPoolUdp.Get().([]byte)
-		defer pool.BufPoolUdp.Put(buf)
+		buf := common.BufPoolUdp.Get().([]byte)
+		defer common.BufPoolUdp.Put(buf)
 		target.Write(data)
 		s.task.Flow.Add(int64(len(data)), 0)
 		if n, err := target.Read(buf); err != nil {

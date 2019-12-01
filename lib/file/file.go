@@ -3,13 +3,14 @@ package file
 import (
 	"encoding/json"
 	"errors"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/rate"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/rate"
 )
 
 func NewJsonDb(runPath string) *JsonDb {

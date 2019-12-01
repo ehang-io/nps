@@ -1,12 +1,13 @@
 package file
 
 import (
-	"github.com/cnlh/nps/lib/rate"
-	"github.com/pkg/errors"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/cnlh/nps/lib/rate"
+	"github.com/pkg/errors"
 )
 
 type Flow struct {
@@ -123,22 +124,23 @@ func (s *Client) HasHost(h *Host) bool {
 }
 
 type Tunnel struct {
-	Id         int
-	Port       int
-	ServerIp   string
-	Mode       string
-	Status     bool
-	RunStatus  bool
-	Client     *Client
-	Ports      string
-	Flow       *Flow
-	Password   string
-	Remark     string
-	TargetAddr string
-	NoStore    bool
-	LocalPath  string
-	StripPre   string
-	Target     *Target
+	Id           int
+	Port         int
+	ServerIp     string
+	Mode         string
+	Status       bool
+	RunStatus    bool
+	Client       *Client
+	Ports        string
+	Flow         *Flow
+	Password     string
+	Remark       string
+	TargetAddr   string
+	NoStore      bool
+	LocalPath    string
+	StripPre     string
+	Target       *Target
+	MultiAccount *MultiAccount
 	Health
 	sync.RWMutex
 }
@@ -181,6 +183,10 @@ type Target struct {
 	TargetArr  []string
 	LocalProxy bool
 	sync.RWMutex
+}
+
+type MultiAccount struct {
+	AccountMap map[string]string // multi account and pwd
 }
 
 func (s *Target) GetRandomTarget() (string, error) {
