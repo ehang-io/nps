@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/astaxie/beego/logs"
-  "github.com/xtaci/kcp-go"
+        "github.com/xtaci/kcp-go"
   
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
