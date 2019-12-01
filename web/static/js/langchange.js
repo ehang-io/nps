@@ -12,7 +12,7 @@
 
         $.ajax({
             type: "GET",
-            url: defaults.file,
+            url: window.nps.web_base_url + defaults.file,
             dataType: "xml",
             success: function (xml) {
                 $(xml).find('text').each(function () {

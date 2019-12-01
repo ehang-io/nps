@@ -134,7 +134,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/client/add",
+                url: "{{.web_base_url}}/client/add",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

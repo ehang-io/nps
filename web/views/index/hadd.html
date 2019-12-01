@@ -112,7 +112,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/index/addhost",
+                url: "{{.web_base_url}}/index/addhost",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

@@ -116,7 +116,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/index/edithost",
+                url: "{{.web_base_url}}/index/edithost",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

@@ -1,10 +1,11 @@
 package conn
 
 import (
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 	"net"
 	"strings"
+
+	"github.com/astaxie/beego/logs"
+	"github.com/xtaci/kcp-go"
 )
 
 func NewTcpListenerAndProcess(addr string, f func(c net.Conn), listener *net.Listener) error {
@@ -42,8 +43,15 @@ func Accept(l net.Listener, f func(c net.Conn)) {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
+			if strings.Contains(err.Error(), "the mux has closed") {
+				break
+			}
 			logs.Warn(err)
 			continue
+		}
+		if c == nil {
+			logs.Warn("nil connection")
+			break
 		}
 		go f(c)
 	}

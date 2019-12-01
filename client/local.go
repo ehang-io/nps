@@ -1,6 +1,12 @@
 package client
 
 import (
+	"net"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
@@ -8,12 +14,7 @@ import (
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
 	"github.com/cnlh/nps/server/proxy"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
-	"net"
-	"net/http"
-	"sync"
-	"time"
+	"github.com/xtaci/kcp-go"
 )
 
 var (
@@ -116,7 +117,7 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 
 func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
 	ticker := time.NewTicker(time.Second * 1)
-	for{
+	for {
 		select {
 		case <-ticker.C:
 			if !udpConnStatus {

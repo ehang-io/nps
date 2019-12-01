@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/astaxie/beego/logs"
+  "github.com/xtaci/kcp-go"
+  
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/vender/github.com/xtaci/kcp"
 )
 
 type TRPClient struct {
@@ -46,6 +47,11 @@ retry:
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
 		logs.Error("The connection server failed and will be reconnected in five seconds")
+		time.Sleep(time.Second * 5)
+		goto retry
+	}
+	if c == nil {
+		logs.Error("Error data from server, and will be reconnected in five seconds")
 		time.Sleep(time.Second * 5)
 		goto retry
 	}

@@ -2,14 +2,15 @@ package proxy
 
 import (
 	"errors"
+	"net"
+	"net/http"
+	"sync"
+
+	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/bridge"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/vender/github.com/astaxie/beego/logs"
-	"net"
-	"net/http"
-	"sync"
 )
 
 type Service interface {

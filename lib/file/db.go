@@ -3,14 +3,15 @@ package file
 import (
 	"errors"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/rate"
 	"net/http"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/crypt"
+	"github.com/cnlh/nps/lib/rate"
 )
 
 type DbUtils struct {
