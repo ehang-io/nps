@@ -3,8 +3,7 @@ language: go
 go:
   - "1.13"
   - master
-os:
-  - osx
+
 script:
   -  go test -v ./cmd/nps/
 before_deploy:
