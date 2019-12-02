@@ -1,11 +1,23 @@
-language:
-  - go
+language: go
 
 go:
   - "1.13"
   - dev
 
 script:
-  - go get -v
-  - go test -v ./...
-  - go build cmd/nps/nps.go
+
+before_install:
+
+before_deploy:
+  - GOARCH=amd64 GOOS=linux  go build cmd/nps/nps.go
+  - zip -r server_linux_amd64.zip nps conf web
+
+deploy:
+  provider: releases
+  skip_cleanup: true
+  file:
+    - server_linux_amd64.zip
+on:
+  tags: true
+  all_branches: true
+  go: 1.13
