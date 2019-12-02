@@ -24,5 +24,3 @@ deploy:
     - server_linux_amd64.zip
 on:
   tags: true
-  all_branches: true
-  go: 1.13
