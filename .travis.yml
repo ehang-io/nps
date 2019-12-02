@@ -1,0 +1,11 @@
+language:
+  - go
+
+go:
+  - "1.13"
+  - dev
+
+script:
+  - go get -v
+  - go test -v ./...
+  - go build cmd/nps/nps.go
