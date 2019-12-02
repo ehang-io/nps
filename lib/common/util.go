@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -397,13 +398,61 @@ func GetExtFromPath(path string) string {
 	return string(re.Find([]byte(s[0])))
 }
 
+var externalIp string
 
 func GetExternalIp() string {
+	if externalIp != "" {
+		return externalIp
+	}
 	resp, err := http.Get("http://myexternalip.com/raw")
 	if err != nil {
 		return ""
 	}
 	defer resp.Body.Close()
 	content, _ := ioutil.ReadAll(resp.Body)
-	return string(content)
+	externalIp = string(content)
+	return externalIp
+}
+
+func GetIntranetIp() (error, string) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, ""
+	}
+	for _, address := range addrs {
+		// 检查ip地址判断是否回环地址
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return nil, ipnet.IP.To4().String()
+			}
+		}
+	}
+	return errors.New("get intranet ip error"), ""
+}
+
+func IsPublicIP(IP net.IP) bool {
+	if IP.IsLoopback() || IP.IsLinkLocalMulticast() || IP.IsLinkLocalUnicast() {
+		return false
+	}
+	if ip4 := IP.To4(); ip4 != nil {
+		switch true {
+		case ip4[0] == 10:
+			return false
+		case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
+			return false
+		case ip4[0] == 192 && ip4[1] == 168:
+			return false
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+func GetServerIpByClientIp(clientIp net.IP) string {
+	if IsPublicIP(clientIp) {
+		return GetExternalIp()
+	}
+	_, ip := GetIntranetIp()
+	return ip
 }

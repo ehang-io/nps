@@ -124,8 +124,8 @@ func (s *Conn) SetAlive(tp string) {
 	case *net.TCPConn:
 		conn := s.Conn.(*net.TCPConn)
 		conn.SetReadDeadline(time.Time{})
-		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
+		//conn.SetKeepAlive(false)
+		//conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 	case *mux.PortConn:
 		s.Conn.(*mux.PortConn).SetReadDeadline(time.Time{})
 	}

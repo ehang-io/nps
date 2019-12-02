@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/astaxie/beego/logs"
-        "github.com/xtaci/kcp-go"
-  
+	"github.com/xtaci/kcp-go"
+
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
@@ -158,7 +158,7 @@ func (s *TRPClient) newChan() {
 
 func (s *TRPClient) handleChan(src net.Conn) {
 	lk, err := conn.NewConn(src).GetLinkInfo()
-	if err != nil {
+	if err != nil || lk == nil {
 		src.Close()
 		logs.Error("get connection info from server error ", err)
 		return
@@ -245,7 +245,6 @@ func (s *TRPClient) handleUdp(serverConn net.Conn) {
 			logs.Error("unpack data error", err.Error())
 			return
 		}
-
 		raddr, err := net.ResolveUDPAddr("udp", udpData.Header.Addr.String())
 		if err != nil {
 			logs.Error("build remote addr err", err.Error())
