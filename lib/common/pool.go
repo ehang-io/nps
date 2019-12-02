@@ -7,7 +7,7 @@ import (
 
 const PoolSize = 64 * 1024
 const PoolSizeSmall = 100
-const PoolSizeUdp = 1472
+const PoolSizeUdp = 1472 + 200
 const PoolSizeCopy = 32 << 10
 const PoolSizeBuffer = 4096
 const PoolSizeWindow = PoolSizeBuffer - 2 - 4 - 4 - 1

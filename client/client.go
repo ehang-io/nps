@@ -225,7 +225,12 @@ func (s *TRPClient) handleUdp(serverConn net.Conn) {
 			buf := bytes.Buffer{}
 			dgram := common.NewUDPDatagram(common.NewUDPHeader(0, 0, common.ToSocksAddr(raddr)), b[:n])
 			dgram.Write(&buf)
-			if _, err := serverConn.Write(buf.Bytes()); err != nil {
+			b, err := conn.GetLenBytes(buf.Bytes())
+			if err != nil {
+				logs.Warn("get len bytes error", err.Error())
+				continue
+			}
+			if _, err := serverConn.Write(b); err != nil {
 				logs.Error("write data to remote  error", err.Error())
 				return
 			}

@@ -247,16 +247,21 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	}()
 
 	go func() {
+		var l int32
 		b := common.BufPoolUdp.Get().([]byte)
 		defer common.BufPoolUdp.Put(b)
 		defer c.Close()
 		for {
-			n, err := target.Read(b)
+			if err := binary.Read(target, binary.LittleEndian, &l); err != nil || l >= common.PoolSizeUdp || l <= 0 {
+				logs.Warn("read len bytes error", err.Error())
+				return
+			}
+			binary.Read(target, binary.LittleEndian, b[:l])
 			if err != nil {
 				logs.Warn("read data form client error", err.Error())
 				return
 			}
-			if _, err := reply.WriteTo(b[:n], clientAddr); err != nil {
+			if _, err := reply.WriteTo(b[:l], clientAddr); err != nil {
 				logs.Warn("write data to user ", err.Error())
 				return
 			}
