@@ -22,5 +22,6 @@ deploy:
   skip_cleanup: true
   file:
     - server_linux_amd64.zip
-on:
-  tags: true
+  on:
+    tags: true
+    all_branches: true
