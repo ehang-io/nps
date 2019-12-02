@@ -17,7 +17,7 @@ before_deploy:
 
 deploy:
   provider: releases
-  api_key: $GH_TOKEN
+  api_key: ${TOKEN}
   skip_cleanup: true
   file:
     - server_linux_amd64.zip
