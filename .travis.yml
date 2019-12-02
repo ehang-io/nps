@@ -9,6 +9,9 @@ script:
 before_deploy:
   - GOARCH=amd64 GOOS=linux  go build cmd/nps/nps.go
   - zip -r server_linux_amd64.zip nps conf web
+  - GOARCH=amd64 GOOS=darwin  go build cmd/nps/nps.go
+  - zip -r server_macos_amd64.zip nps conf web
+
 
 deploy:
   provider: releases
