@@ -2,7 +2,7 @@ language: go
 
 go:
   - "1.13"
-  - dev
+  - master
 
 script:
   -  go test -v ./...
