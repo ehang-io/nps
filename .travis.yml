@@ -9,13 +9,8 @@ script:
   - go test -v ./cmd/nps/
 os:
   - linux
-  - windows
-jobs:
-  allow_failures:
-  - os: windows
 before_deploy:
-  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then chmod +x ./build.sh && ./build.sh; fi
-  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then go build -buildmode=c-shared -o npc_sdk.dll cmd\npc\sdk.go; fi
+  - chmod +x ./build.sh && ./build.sh
 
 deploy:
   provider: releases
@@ -56,8 +51,6 @@ deploy:
   - win_amd64_client.tar.gz
   - win_amd64_server.tar.gz
   - npc_$VERSION.spk
-  - npc_sdk.dll
-  - npc_sdk.h
   on:
     tags: true
     all_branches: true
