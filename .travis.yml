@@ -14,7 +14,8 @@ jobs:
   allow_failures:
   - os: windows
 before_deploy:
-  - chmod +x ./build.sh && ./build.sh
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then chmod +x ./build.sh && ./build.sh; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; go build -buildmode=c-shared -o npc_sdk.dll cmd\npc\sdk.go && tar -czvf npc_sdk.tar.gz npc_sdk.dll npc_sdk.h fi
 
 deploy:
   provider: releases
