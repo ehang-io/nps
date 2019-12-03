@@ -7,7 +7,9 @@ services:
   - docker
 script:
   - go test -v ./cmd/nps/
-
+os:
+  - linux
+  - windows
 before_deploy:
   - wget https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
   - tar -xvf upx-3.95-amd64_linux.tar.xz
@@ -162,7 +164,7 @@ before_deploy:
 
   - tar -czvf win_386_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps.exe
 
-  - export VERSION=0.24.2
+  - export VERSION=0.24.3
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
   - sudo apt-get update
@@ -173,6 +175,9 @@ before_deploy:
   - docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
   - docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
   - cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_$VERSION.spk
+
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then go build -buildmode=c-shared -o npc_sdk.dll cmd\npc\sdk.go    ; fi
+  - tar -czvf npc_sdk.tar.gz npc_sdk.dll npc_sdk.h
 
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - export DOCKER_CLI_EXPERIMENTAL=enabled
@@ -220,6 +225,7 @@ deploy:
   - win_amd64_client.tar.gz
   - win_amd64_server.tar.gz
   - npc_$VERSION.spk
+  - nnpc_sdk.tar.gz
   on:
     tags: true
     all_branches: true
