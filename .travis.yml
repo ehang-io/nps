@@ -3,9 +3,17 @@ language: go
 go:
   - "1.13"
   - master
-
+services:
+  - docker
 script:
-  -  go test -v ./cmd/nps/
+  - go test -v ./cmd/nps/
+  - git clone https://github.com/cnlh/spksrc.git ./spksrc
+  - docker run -it -v ./spksrc:/spksrc synocommunity/spksrc /bin/bash
+  - cd /spksrc
+  - make setup
+  - cd spksrc/spk/npc
+  - make
+  - exit
 before_deploy:
   - wget https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
   - tar -xvf upx-3.95-amd64_linux.tar.xz
@@ -33,15 +41,15 @@ before_deploy:
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-  - tar -czvf linux_arm7_client.tar.gz npc conf/npc.conf
+  - tar -czvf linux_arm_v7_client.tar.gz npc conf/npc.conf
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-  - tar -czvf linux_arm6_client.tar.gz npc conf/npc.conf
+  - tar -czvf linux_arm_v6_client.tar.gz npc conf/npc.conf
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-  - tar -czvf linux_arm5_client.tar.gz npc conf/npc.conf
+  - tar -czvf linux_arm_v5_client.tar.gz npc conf/npc.conf
 
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
@@ -93,15 +101,15 @@ before_deploy:
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-  - tar -czvf linux_arm5_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
+  - tar -czvf linux_arm_v5_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-  - tar -czvf linux_arm6_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
+  - tar -czvf linux_arm_v6_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-  - tar -czvf linux_arm7_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
+  - tar -czvf linux_arm_v7_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
 
   - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
@@ -179,12 +187,12 @@ deploy:
   - linux_amd64_server.tar.gz
   - linux_arm64_client.tar.gz
   - linux_arm64_server.tar.gz
-  - linux_arm5_client.tar.gz
-  - linux_arm6_client.tar.gz
-  - linux_arm7_client.tar.gz
-  - linux_arm5_server.tar.gz
-  - linux_arm6_server.tar.gz
-  - linux_arm7_server.tar.gz
+  - linux_arm_v5_client.tar.gz
+  - linux_arm_v6_client.tar.gz
+  - linux_arm_v7_client.tar.gz
+  - linux_arm_v5_server.tar.gz
+  - linux_arm_v6_server.tar.gz
+  - linux_arm_v7_server.tar.gz
   - linux_mips64le_client.tar.gz
   - linux_mips64le_server.tar.gz
   - linux_mips64_client.tar.gz
