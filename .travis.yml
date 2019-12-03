@@ -7,17 +7,7 @@ services:
   - docker
 script:
   - go test -v ./cmd/nps/
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-  - sudo apt-get update
-  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
-  - docker --version
-  - export VERSION=0.24.1
-  - git clone https://github.com/cnlh/spksrc.git ~/spksrc
-  - mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
-  - docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
-  - docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
-  - cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_$VERSION.spk
+
 before_deploy:
   - wget https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
   - tar -xvf upx-3.95-amd64_linux.tar.xz
@@ -171,6 +161,18 @@ before_deploy:
   - CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
   - tar -czvf win_386_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps.exe
+
+  - export VERSION=0.24.2
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  - sudo apt-get update
+  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+  - docker --version
+  - git clone https://github.com/cnlh/spksrc.git ~/spksrc
+  - mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
+  - docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
+  - docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
+  - cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_$VERSION.spk
 
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - export DOCKER_CLI_EXPERIMENTAL=enabled
