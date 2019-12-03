@@ -50,6 +50,7 @@ type Client struct {
 	WebPassword     string     //the password of web login
 	ConfigConnAllow bool       //is allow connected by config file
 	MaxTunnelNum    int
+	Version         string
 	sync.RWMutex
 }
 

@@ -190,7 +190,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 		}
 		return
 	}
-	if lk.ConnType == "udp" {
+	if lk.ConnType == "udp5" {
 		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
 		s.handleUdp(src)
 	}

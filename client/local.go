@@ -158,6 +158,7 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 	if udpConn == nil {
 		logs.Notice("new conn, P2P can not penetrate successfully, traffic will be transferred through the server")
 		handleSecret(localTcpConn, config, l)
+		return
 	}
 	logs.Trace("start trying to connect with the server")
 	//TODO just support compress now because there is not tls file in client packages

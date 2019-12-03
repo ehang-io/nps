@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cnlh/nps/lib/version"
 	"math"
 	"os"
 	"strconv"
@@ -271,8 +272,9 @@ func GetClientList(start, length int, search, sort, order string, clientId int) 
 func dealClientData() {
 	file.GetDb().JsonDb.Clients.Range(func(key, value interface{}) bool {
 		v := value.(*file.Client)
-		if _, ok := Bridge.Client.Load(v.Id); ok {
+		if vv, ok := Bridge.Client.Load(v.Id); ok {
 			v.IsConnect = true
+			v.Version = vv.(*bridge.Client).Version
 		} else {
 			v.IsConnect = false
 		}
@@ -338,6 +340,7 @@ func DelClientConnect(clientId int) {
 
 func GetDashboardData() map[string]interface{} {
 	data := make(map[string]interface{})
+	data["version"] = version.VERSION
 	data["hostCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Hosts)
 	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients) - 1 //Remove the public key client
 	dealClientData()
