@@ -99,7 +99,7 @@ before_deploy:
 
   - tar -czvf linux_arm6_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
-  - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=57 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
+  - CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
   - tar -czvf linux_arm7_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
