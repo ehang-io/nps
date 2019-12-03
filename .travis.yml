@@ -12,11 +12,13 @@ script:
   - sudo apt-get update
   - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
   - docker --version
-  - git clone https://github.com/cnlh/spksrc.git ~/spksrc
-  - docker run -itd --name spksrc -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
-  - docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
-  - export DOCKER_CLI_EXPERIMENTAL=enabled
   - export VERSION=0.24.1
+  - git clone https://github.com/cnlh/spksrc.git ~/spksrc
+  - docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
+  - docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
+  - cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_$VERSION.spk
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - export DOCKER_CLI_EXPERIMENTAL=enabled
   - docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
   - docker buildx create --use --name mybuilder
   - docker buildx build --tag ffdfgdfg/nps:$VERSION --output type=image,push=true --file Dockerfile.nps --platform=linux/amd64,linux/arm64,linux/386,linux/arm .
@@ -214,6 +216,7 @@ deploy:
   - win_386_server.tar.gz
   - win_amd64_client.tar.gz
   - win_amd64_server.tar.gz
+  - npc_$VERSION.spk
   on:
     tags: true
     all_branches: true
