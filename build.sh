@@ -167,7 +167,7 @@ git clone https://github.com/cnlh/spksrc.git ~/spksrc
 mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
 docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
 docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
-cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_$VERSION.spk
+cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_syno.spk
 
 
 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
