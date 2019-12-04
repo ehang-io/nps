@@ -11,12 +11,12 @@ var closeBefore bool
 var cl *client.TRPClient
 
 //export StartClientByVerifyKey
-func StartClientByVerifyKey(serverAddr, verifyKey, connType, proxyUrl string) bool {
+func StartClientByVerifyKey(serverAddr, verifyKey, connType, proxyUrl *C.char) bool {
 	if cl != nil {
 		closeBefore = true
 		cl.Close()
 	}
-	cl = client.NewRPClient(serverAddr, verifyKey, connType, proxyUrl, nil)
+	cl = client.NewRPClient(C.GoString(serverAddr), C.GoString(verifyKey), C.GoString(connType), C.GoString(proxyUrl), nil)
 	closeBefore = false
 	go func() {
 		for {
