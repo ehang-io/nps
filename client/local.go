@@ -1,8 +1,10 @@
 package client
 
 import (
+	"errors"
 	"net"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -31,6 +33,14 @@ type p2pBridge struct {
 }
 
 func (p2pBridge *p2pBridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
+	for i := 0; muxSession == nil; i++ {
+		if i >= 20 {
+			err = errors.New("p2pBridge:too many times to get muxSession")
+			logs.Error(err)
+			return
+		}
+		runtime.Gosched() // waiting for another goroutine establish the mux connection
+	}
 	nowConn, err := muxSession.NewConn()
 	if err != nil {
 		udpConn = nil
