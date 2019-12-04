@@ -51,6 +51,7 @@ deploy:
   - win_amd64_client.tar.gz
   - win_amd64_server.tar.gz
   - npc_$VERSION.spk
+  - npc_sdk.tar.gz
   on:
     tags: true
     all_branches: true
