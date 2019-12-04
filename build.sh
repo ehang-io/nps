@@ -1,8 +1,8 @@
 #/bash/sh
 
 sudo apt-get install gcc-mingw-w64-i686
-env GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -buildmode=c-shared -o npc_sdk.dll cmd/npc/sdk.go
-tar -czvf npc_sdk.tar.gz -xvf npc_sdk.dll npc_sdk.h
+env GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -ldflags "-s -w -extldflags -static -extldflags -static" -buildmode=c-shared -o npc_sdk.dll cmd/npc/sdk.go
+tar -czvf npc_sdk.tar.gz npc_sdk.dll npc_sdk.h
 
 wget https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
 tar -xvf upx-3.95-amd64_linux.tar.xz
