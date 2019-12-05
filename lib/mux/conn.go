@@ -499,8 +499,16 @@ start:
 
 func (Self *SendWindow) waitReceiveWindow() (err error) {
 	t := Self.timeout.Sub(time.Now())
-	if t < 0 {
-		t = time.Minute * 5
+	if t < 0 { // not set the timeout, wait for it as long as connection close
+		select {
+		case _, ok := <-Self.setSizeCh:
+			if !ok {
+				return errors.New("conn.writeWindow: window closed")
+			}
+			return nil
+		case <-Self.closeOpCh:
+			return errors.New("conn.writeWindow: window closed")
+		}
 	}
 	timer := time.NewTimer(t)
 	defer timer.Stop()

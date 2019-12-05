@@ -220,7 +220,10 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
 		return nil, err
 	}
-	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
+	if err := c.WriteLenContent([]byte(version.GetVersion())); err != nil {
+		return nil, err
+	}
+	if err := c.WriteLenContent([]byte(version.VERSION)); err != nil {
 		return nil, err
 	}
 	b, err := c.GetShortContent(32)

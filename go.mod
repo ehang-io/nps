@@ -15,7 +15,7 @@ require (
 	github.com/panjf2000/ants/v2 v2.2.2
 	github.com/pkg/errors v0.8.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect
-	github.com/shirou/gopsutil v2.18.12+incompatible
+	github.com/shirou/gopsutil v2.19.11+incompatible
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect

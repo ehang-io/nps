@@ -2,6 +2,7 @@
 # nps
 ![](https://img.shields.io/github/stars/cnlh/nps.svg)   ![](https://img.shields.io/github/forks/cnlh/nps.svg)
 [![Gitter](https://badges.gitter.im/cnlh-nps/community.svg)](https://gitter.im/cnlh-nps/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Build Status](https://travis-ci.org/cnlh/nps.svg?branch=master)](https://travis-ci.org/cnlh/nps)
 
 nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何**tcp、udp**上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**、**p2p等**，并带有功能强大的web管理端。
 
@@ -47,6 +48,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
     * [配置文件说明](#服务端配置文件)
     * [使用https](#使用https)
     * [与nginx配合](#与nginx配合)
+    * [web使用Caddy代理](#web使用Caddy代理)
     * [关闭http|https代理](#关闭代理)
     * [将nps安装到系统](#将nps安装到系统)
     * [流量数据持久化](#流量数据持久化)
@@ -317,6 +319,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 web_port | web管理端口
 web_password | web界面管理密码
 web_username | web界面管理账号
+web_base_url | web管理主路径,用于将web管理置于代理子路径后面
 bridge_port  | 服务端客户端通信端口
 https_proxy_port | 域名代理https代理监听端口
 http_proxy_port | 域名代理http代理监听端口
@@ -375,6 +378,29 @@ server {
     }
 }
 ```
+
+### web使用Caddy代理
+
+如果将web配置到Caddy代理,实现子路径访问nps,可以这样配置.
+
+假设我们想通过 `http://caddy_ip:caddy_port/nps` 来访问后台, Caddyfile 这样配置:
+
+```Caddyfile
+caddy_ip:caddy_port/nps {
+  #server_ip 为 nps 服务器IP
+  #web_port 为 nps 后台端口
+  proxy / http://server_ip:web_port/nps {
+	transparent
+  }
+}
+```
+
+nps.conf 修改 `web_base_url` 为 `/nps` 即可
+```
+web_base_url=/nps
+```
+
+
 ### 关闭代理
 
 如需关闭http代理可在配置文件中将http_proxy_port设置为空，如需关闭https代理可在配置文件中将https_proxy_port设置为空。

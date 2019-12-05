@@ -87,7 +87,7 @@ func (s *Conn) GetShortContent(l int) (b []byte, err error) {
 
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int, buf []byte) (int, error) {
-	if cLen > len(buf) {
+	if cLen > len(buf) || cLen <= 0 {
 		return 0, errors.New("长度错误" + strconv.Itoa(cLen))
 	}
 	if n, err := io.ReadFull(s, buf[:cLen]); err != nil || n != cLen {
@@ -124,8 +124,8 @@ func (s *Conn) SetAlive(tp string) {
 	case *net.TCPConn:
 		conn := s.Conn.(*net.TCPConn)
 		conn.SetReadDeadline(time.Time{})
-		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
+		//conn.SetKeepAlive(false)
+		//conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 	case *mux.PortConn:
 		s.Conn.(*mux.PortConn).SetReadDeadline(time.Time{})
 	}
