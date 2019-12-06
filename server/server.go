@@ -342,7 +342,10 @@ func GetDashboardData() map[string]interface{} {
 	data := make(map[string]interface{})
 	data["version"] = version.VERSION
 	data["hostCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Hosts)
-	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients) - 1 //Remove the public key client
+	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients)
+	if beego.AppConfig.String("public_vkey") != "" { //remove public vkey
+		data["clientCount"] = data["clientCount"].(int) - 1
+	}
 	dealClientData()
 	c := 0
 	var in, out int64
