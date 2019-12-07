@@ -1041,7 +1041,12 @@ POST /auth/getauthkey
 如果您觉得nps对你有帮助，欢迎给予我们一定捐助，也是帮助nps更好的发展。
 ## 致谢
 Thanks [jetbrains](https://www.jetbrains.com/?from=nps) for providing development tools for nps
-![https://www.jetbrains.com/?from=nps](https://ftp.bmp.ovh/imgs/2019/12/6435398b0c7402b1.png)
+
+<html>
+<img src="https://ftp.bmp.ovh/imgs/2019/12/6435398b0c7402b1.png" width="300"  align=center />
+</html>
+
+
 ### 支付宝
 ![image](https://github.com/cnlh/nps/blob/master/image/donation_zfb.png?raw=true)
 ### 微信

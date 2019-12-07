@@ -1,15 +1,13 @@
 package main
 
-import "C"
 import (
+	"C"
 	"github.com/astaxie/beego/logs"
 	"github.com/cnlh/nps/client"
+	"github.com/cnlh/nps/lib/common"
+	"github.com/cnlh/nps/lib/version"
 	"time"
 )
-
-func init() {
-	logs.SetLogger(logs.AdapterFile, `{"filename":"npc.log","daily":false,"maxlines":100000,"color":true}`)
-}
 
 var status int
 var closeBefore int
@@ -48,6 +46,16 @@ func CloseClient() {
 	cl.Close()
 }
 
+//export Version
+func Version() *C.char {
+	return C.CString(version.VERSION)
+}
+
+func Logs() *C.char {
+	return C.CString(common.GetLogMsg())
+}
+
 func main() {
 	// Need a main function to make CGO compile package as C shared library
+	logs.SetLogger("store")
 }
