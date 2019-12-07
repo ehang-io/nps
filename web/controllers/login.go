@@ -22,6 +22,8 @@ func (self *LoginController) Verify() {
 	var auth bool
 	if self.GetString("password") == beego.AppConfig.String("web_password") && self.GetString("username") == beego.AppConfig.String("web_username") {
 		self.SetSession("isAdmin", true)
+		self.DelSession("clientId")
+		self.DelSession("username")
 		auth = true
 		server.Bridge.Register.Store(common.GetIpByAddr(self.Ctx.Input.IP()), time.Now().Add(time.Hour*time.Duration(2)))
 	}
