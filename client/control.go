@@ -198,7 +198,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 					return nil, er
 				}
 				connection, err = n.Dial("tcp", server)
-			case "http":
+			default:
 				connection, err = NewHttpProxyConn(u, server)
 			}
 		} else {
@@ -262,7 +262,7 @@ func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 		Proto:  "HTTP/1.1",
 	}
 	password, _ := url.User.Password()
-	req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(url.User.Username(), password))
+	req.Header.Set("Authorization", "Basic "+basicAuth(strings.Trim(url.User.Username(), " "), password))
 	b, err := httputil.DumpRequest(req, false)
 	if err != nil {
 		return nil, err
