@@ -288,6 +288,7 @@ loop:
 
 func (s *TRPClient) Close() {
 	CloseClient = true
+	NowStatus = 0
 	if s.tunnel != nil {
 		s.tunnel.Close()
 	}
