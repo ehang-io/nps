@@ -46,12 +46,12 @@ var NowStatus int
 var CloseClient bool
 //start
 func (s *TRPClient) Start() {
+	CloseClient = false
 retry:
-	NowStatus = 0
 	if CloseClient {
-		CloseClient = false
 		return
 	}
+	NowStatus = 0
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
 		logs.Error("The connection server failed and will be reconnected in five seconds, error", err.Error())
