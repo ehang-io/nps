@@ -15,6 +15,7 @@ var cl *client.TRPClient
 
 //export StartClientByVerifyKey
 func StartClientByVerifyKey(serverAddr, verifyKey, connType, proxyUrl *C.char) int {
+	logs.SetLogger("store")
 	if cl != nil {
 		closeBefore = 1
 		cl.Close()
@@ -50,12 +51,11 @@ func CloseClient() {
 func Version() *C.char {
 	return C.CString(version.VERSION)
 }
-
+//export Logs
 func Logs() *C.char {
 	return C.CString(common.GetLogMsg())
 }
 
 func main() {
 	// Need a main function to make CGO compile package as C shared library
-	logs.SetLogger("store")
 }
