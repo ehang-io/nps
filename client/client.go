@@ -42,9 +42,16 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 	}
 }
 
+var NowStatus int
+var CloseClient bool
 //start
 func (s *TRPClient) Start() {
 retry:
+	NowStatus = 0
+	if CloseClient {
+		CloseClient = false
+		return
+	}
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
 		logs.Error("The connection server failed and will be reconnected in five seconds, error", err.Error())
@@ -66,6 +73,7 @@ retry:
 	if s.cnf != nil && len(s.cnf.Healths) > 0 {
 		go heathCheck(s.cnf.Healths, s.signal)
 	}
+	NowStatus = 1
 	//msg connection, eg udp
 	s.handleMain()
 }
@@ -279,6 +287,7 @@ loop:
 }
 
 func (s *TRPClient) Close() {
+	CloseClient = true
 	if s.tunnel != nil {
 		s.tunnel.Close()
 	}
