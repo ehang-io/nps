@@ -241,8 +241,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if s, err := c.ReadFlag(); err != nil {
 		return nil, err
 	} else if s == common.VERIFY_EER {
-		logs.Error("Validation key %s incorrect", vkey)
-		os.Exit(0)
+		return nil, errors.New(fmt.Sprintf("Validation key %s incorrect", vkey))
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
 		return nil, err

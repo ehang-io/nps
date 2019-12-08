@@ -47,7 +47,7 @@ func (s *TRPClient) Start() {
 retry:
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
-		logs.Error("The connection server failed and will be reconnected in five seconds")
+		logs.Error("The connection server failed and will be reconnected in five seconds, error", err.Error())
 		time.Sleep(time.Second * 5)
 		goto retry
 	}
