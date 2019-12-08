@@ -31,7 +31,9 @@ func GetClientStatus() int {
 
 //export CloseClient
 func CloseClient() {
-	cl.Close()
+	if cl != nil {
+		cl.Close()
+	}
 }
 
 //export Version
