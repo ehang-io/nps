@@ -62,11 +62,22 @@ WantedBy=multi-user.target`
 			log.Println("Executable files have been copied to", "/usr/bin/nps")
 		}
 		systemd := unit + "\n\n" + service + "\n\n" + install
-		_ = os.Remove("/usr/lib/systemd/system/nps.service")
-		err := ioutil.WriteFile("/usr/lib/systemd/system/nps.service", []byte(systemd), 0644)
-		if err != nil {
-			log.Println("Write systemd service err ", err)
+		if _, err := os.Stat("/usr/lib/systemd/system"); os.IsExist(err) {
+			_ = os.Remove("/usr/lib/systemd/system/nps.service")
+			err := ioutil.WriteFile("/usr/lib/systemd/system/nps.service", []byte(systemd), 0644)
+			if err != nil {
+				log.Println("Write systemd service err ", err)
+			}
+		} else if _, err := os.Stat("/lib/systemd/system"); os.IsExist(err) {
+			_ = os.Remove("/lib/systemd/system/nps.service")
+			err := ioutil.WriteFile("/lib/systemd/system/nps.service", []byte(systemd), 0644)
+			if err != nil {
+				log.Println("Write systemd service err ", err)
+			}
+		} else {
+			log.Println("Write systemd service fail, not found the systemd system path ")
 		}
+
 		_ = os.Mkdir("/var/log/nps", 644)
 	}
 	log.Println("install ok!")

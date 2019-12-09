@@ -1,0 +1,189 @@
+<content>
+    <text id="menu-dashboard">
+        <zh>仪表盘</zh>
+        <en>dashboard</en>
+    </text>
+    <text id="menu-client">
+        <zh>客户端</zh>
+        <en>client</en>
+    </text>
+    <text id="menu-host">
+        <zh>域名解析</zh>
+        <en>host</en>
+    </text>
+    <text id="menu-tcp">
+        <zh>tcp隧道</zh>
+        <en>tcp</en>
+    </text>
+    <text id="menu-udp">
+        <zh>udp隧道</zh>
+        <en>udp</en>
+    </text>
+    <text id="menu-http">
+        <zh>http代理</zh>
+        <en>http</en>
+    </text>
+    <text id="menu-socks5">
+        <zh>socks5代理</zh>
+        <en>socks5</en>
+    </text>
+    <text id="menu-secret">
+        <zh>私密代理</zh>
+        <en>secret</en>
+    </text>
+    <text id="menu-p2p">
+        <zh>p2p代理</zh>
+        <en>p2p</en>
+    </text>
+    <text id="menu-file">
+        <zh>文件代理</zh>
+        <en>file</en>
+    </text>
+    <text id="info-remark">
+        <zh>备注</zh>
+        <en>remark</en>
+    </text>
+    <text id="info-flow-limit">
+        <zh>流量限制</zh>
+        <en>flow limit</en>
+    </text>
+    <text id="info-bandwidth">
+        <zh>带宽限制</zh>
+        <en>bandwidth</en>
+    </text>
+    <text id="info-max-conn-num">
+        <zh>最大连接数限制</zh>
+        <en>maximum number of client connections
+        </en>
+    </text>
+    <text id="info-web-auth-username">
+        <zh>basic权限验证用户名</zh>
+        <en>web authentication username</en>
+    </text>
+    <text id="info-web-auth-password">
+        <zh>basic权限验证密码</zh>
+        <en>web authentication password</en>
+    </text>
+    <text id="info-client-vkey">
+        <zh>客户端连接密钥</zh>
+        <en>client connection key</en>
+    </text>
+    <text id="info-compress">
+        <zh>压缩</zh>
+        <en>compress</en>
+    </text>
+    <text id="info-crypt">
+        <zh>加密</zh>
+        <en>crypt</en>
+    </text>
+
+
+    <text id="info-host">
+        <zh>域名</zh>
+        <en>host</en>
+    </text>
+    <text id="info-scheme">
+        <zh>协议类型</zh>
+        <en>scheme</en>
+    </text>
+    <text id="info-url-router">
+        <zh>url路由</zh>
+        <en>url router</en>
+    </text>
+    <text id="info-client-id">
+        <zh>客户端id</zh>
+        <en>client id</en>
+    </text>
+    <text id="info-target">
+        <zh>内网目标（ip:端口）</zh>
+        <en>target of Intranet(ip:port)</en>
+    </text>
+    <text id="info-header-modify">
+        <zh>request header修改</zh>
+        <en>header modify</en>
+    </text>
+    <text id="info-host-change">
+        <zh>request host修改</zh>
+        <en>host modify</en>
+    </text>
+
+
+    <text id="info-mode">
+        <zh>隧道类型</zh>
+        <en>mode</en>
+    </text>
+    <text id="info-server-port">
+        <zh>服务端端口</zh>
+        <en>server port</en>
+    </text>
+    <text id="info-server-ip">
+        <zh>服务端端口</zh>
+        <en>server ip</en>
+    </text>
+    <text id="info-crypt">
+        <zh>加密</zh>
+        <en>crypt</en>
+    </text>
+    <text id="info-local-path">
+        <zh>本地路径</zh>
+        <en>local path</en>
+    </text>
+    <text id="info-strip-pre">
+        <zh>访问前缀</zh>
+        <en>strip pre</en>
+    </text>
+    <text id="info-unique-vkey">
+        <zh>唯一识别密钥</zh>
+        <en>unique vkey</en>
+    </text>
+
+
+    <text id="info-new">
+        <zh>新增</zh>
+        <en>add</en>
+    </text>
+
+    <text id="info-now-conn-num">
+        <zh>当前连接数</zh>
+        <en>now conn num</en>
+    </text>
+    <text id="info-export-flow">
+        <en>export flow</en>
+    </text>
+    <text id="info-inlet-flow">
+        <en>inlet flow</en>
+    </text>
+    <text id="info-command">
+        <en>command</en>
+    </text>
+    <text id="info-config-conn-allow">
+        <en>allow client connect by config file</en>
+    </text>
+    <text id="info-client-web-username">
+        <en>username of web login</en>
+    </text>
+    <text id="info-client-web-password">
+        <en>password of web login</en>
+    </text>
+    <text id="info-https-cert">
+        <en>https cert file path</en>
+    </text>
+    <text id="info-https-key">
+        <en>https key file path</en>
+    </text>
+
+    <text id="info-max-tunnel-num">
+        <en>max tunnel num</en>
+    </text>
+
+    <text id="info-local-proxy">
+        <en>Is the proxy local to the server?</en>
+    </text>
+
+
+    <text id="info-save">
+        <en>save</en>
+    </text>
+
+
+</content>

@@ -31,6 +31,9 @@ func InitAllowPort() {
 }
 
 func TestServerPort(p int, m string) (b bool) {
+	if m == "p2p" || m == "secret" {
+		return true
+	}
 	if p > 65535 || p < 0 {
 		return false
 	}
