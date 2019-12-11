@@ -293,6 +293,7 @@ copyData:
 		// reset to 60s if timeout and data still available
 		Self.off = 0
 		if err != nil {
+		    Self.CloseWindow() // also close the window, to avoid read twice
 			return // queue receive stop or time out, break the loop and return
 		}
 		//logs.Warn("pop element", Self.element.l, Self.element.part)
