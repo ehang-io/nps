@@ -11,4 +11,4 @@
 
 
 [GitHub](https://github.com/cnlh/nps/)
-[开始使用](#install)
+[开始使用](#nps)
