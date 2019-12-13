@@ -1,5 +1,5 @@
-
-# webAPI验证说明
+# web api
+## webAPI验证说明
 - 采用auth_key的验证方式
 - 在提交的每个请求后面附带两个参数，`auth_key` 和`timestamp`
 
@@ -17,14 +17,14 @@ curl --request POST \
 ```
 **注意：** 为保证安全，时间戳的有效范围为20秒内，所以每次提交请求必须重新生成。
 
-# 获取服务端时间
+## 获取服务端时间
 由于服务端与api请求的客户端时间差异不能太大，所以提供了一个可以获取服务端时间的接口
 
 ```
 POST /auth/gettime
 ```
 
-# 获取服务端authKey
+## 获取服务端authKey
 
 如果想获取authKey，服务端提供获取authKey的接口
 
@@ -39,7 +39,7 @@ POST /auth/getauthkey
 - 补码方式pkcs5padding
 - 解密串编码方式 十六进制
 
-# 详细文档
+## 详细文档
 - **此文档近期可能更新较慢，建议自行抓包**
 
 为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见

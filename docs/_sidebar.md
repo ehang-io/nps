@@ -1,9 +1,10 @@
 * 入门
   * [安装](install.md)
+  * [启动](run.md)
   * [使用示例](example.md)
 * 服务端
   * [介绍](introduction.md)
-  * [启动](start.md)
+  * [使用](nps_use.md)
   * [配置文件](server_config.md)
   * [增强功能](nps_extend.md)
 

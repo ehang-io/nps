@@ -1,9 +1,10 @@
-# 无配置文件模式
+# 基本使用
+## 无配置文件模式
 此模式的各种配置在服务端web管理中完成,客户端除运行一条命令外无需任何其他设置
 ```
  ./npc -server=ip:port -vkey=web界面中显示的密钥
 ```
-# 配置文件模式
+## 配置文件模式
 此模式使用nps的公钥或者客户端私钥验证，各种配置在客户端完成，同时服务端web也可以进行管理
 ```
  ./npc -config=npc配置文件路径
@@ -29,9 +30,9 @@ ExecStart=/absolutely path to/npc -server=ip:port -vkey=web界面中显示的密
 [Install]
 WantedBy=multi-user.target
 ```
-# 配置文件说明
+## 配置文件说明
 [示例配置文件](https://github.com/cnlh/nps/tree/master/conf/npc.conf)
-## 全局配置
+#### 全局配置
 ```ini
 [common]
 server_addr=1.1.1.1:8284
@@ -59,7 +60,7 @@ rate_limit|速度限制，可忽略
 flow_limit|流量限制，可忽略
 remark|客户端备注，可忽略
 max_conn|最大连接数，可忽略
-## 域名代理
+#### 域名代理
 
 ```ini
 [common]
@@ -79,7 +80,7 @@ target_addr|内网目标，负载均衡时多个目标，逗号隔开
 host_change|请求host修改
 header_xxx|请求header修改或添加，header_proxy表示添加header proxy:nps
 
-## tcp隧道模式
+#### tcp隧道模式
 
 ```ini
 [common]
@@ -96,7 +97,7 @@ mode | tcp
 server_port | 在服务端的代理端口
 tartget_addr|内网目标
 
-## udp隧道模式
+#### udp隧道模式
 
 ```ini
 [common]
@@ -112,7 +113,7 @@ server_port=9002
 mode | udp
 server_port | 在服务端的代理端口
 target_addr|内网目标
-## http代理模式
+#### http代理模式
 
 ```ini
 [common]
@@ -126,7 +127,7 @@ server_port=9003
 ---|---
 mode | httpProxy
 server_port | 在服务端的代理端口
-## socks5代理模式
+#### socks5代理模式
 
 ```ini
 [common]
@@ -142,7 +143,7 @@ multi_account=multi_account.conf
 mode | socks5
 server_port | 在服务端的代理端口
 multi_account | socks5多账号配置文件（可选),配置后使用basic_username和basic_password无法通过认证
-## 私密代理模式
+#### 私密代理模式
 
 ```ini
 [common]
@@ -159,7 +160,7 @@ mode | secret
 password | 唯一密钥
 target_addr|内网目标
 
-## p2p代理模式
+#### p2p代理模式
 
 ```ini
 [common]
@@ -177,7 +178,7 @@ password | 唯一密钥
 target_addr|内网目标
 
 
-## 文件访问模式
+#### 文件访问模式
 利用nps提供一个公网可访问的本地文件服务，此模式仅客户端使用配置文件模式方可启动
 
 ```ini
@@ -200,7 +201,7 @@ strip_pre|前缀
 
 对于`strip_pre`，访问公网`ip:9100/web/`相当于访问`/tmp/`目录
 
-## 断线重连
+#### 断线重连
 ```ini
 [common]
 auto_reconnection=true

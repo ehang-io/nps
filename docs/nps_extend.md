@@ -1,5 +1,5 @@
-
-# 使用https
+# 增强功能
+## 使用https
 
 **方式一：** 类似于nginx实现https的处理
 
@@ -12,7 +12,7 @@
 
 在`nps.conf`中将`https_just_proxy`设置为true，并且打开`https_proxy_port`端口，然后nps将直接转发https请求到内网服务器上，由内网服务器进行https处理
 
-# 与nginx配合
+## 与nginx配合
 
 有时候我们还需要在云服务器上运行nginx来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例如httpProxyPort为8024时
 ```
@@ -45,7 +45,7 @@ server {
 }
 ```
 
-# web使用Caddy代理
+## web使用Caddy代理
 
 如果将web配置到Caddy代理,实现子路径访问nps,可以这样配置.
 
@@ -53,8 +53,8 @@ server {
 
 ```Caddyfile
 caddy_ip:caddy_port/nps {
-  #server_ip 为 nps 服务器IP
-  #web_port 为 nps 后台端口
+  ##server_ip 为 nps 服务器IP
+  ##web_port 为 nps 后台端口
   proxy / http://server_ip:web_port/nps {
 	transparent
   }
@@ -67,61 +67,38 @@ web_base_url=/nps
 ```
 
 
-# 关闭代理
+## 关闭代理
 
 如需关闭http代理可在配置文件中将http_proxy_port设置为空，如需关闭https代理可在配置文件中将https_proxy_port设置为空。
 
-# 将nps安装到系统
-如果需要长期并且方便的运行nps服务端，可将nps安装到操作系统中，可执行命令
-
-```
-(./nps|nps.exe) install
-```
-安装成功后，对于linux，darwin，将会把配置文件和静态文件放置于/etc/nps/，并将可执行文件nps复制到/usr/bin/nps或者/usr/local/bin/nps，安装成功后可在任何位置执行，同时也会添加systemd配置。
-
-```
-sudo systemctl enable|disable|start|stop|restart|status nps
-```
-systemd，带有开机自启，自动重启配置，当进程结束后15秒会启动，日志输出至/var/log/nps/nps.log。
-建议采用此方式启动，能够捕获panic信息，便于排查问题。
-
-```
-nps test|start|stop|restart|status
-```
-对于windows系统，将会把配置文件和静态文件放置于C:\Program Files\nps，安装成功后可将可执行文件nps.exe复制到任何位置执行
-
-```
-nps.exe test|start|stop|restart|status
-```
-
-# 流量数据持久化
+## 流量数据持久化
 服务端支持将流量数据持久化，默认情况下是关闭的，如果有需求可以设置`nps.conf`中的`flow_store_interval`参数，单位为分钟
 
 **注意：** nps不会持久化通过公钥连接的客户端
-# 系统信息显示
+## 系统信息显示
 nps服务端支持在web上显示和统计服务器的相关信息，但默认一些统计图表是关闭的，如需开启请在`nps.conf`中设置`system_info_display=true`
 
-# 自定义客户端连接密钥
+## 自定义客户端连接密钥
 web上可以自定义客户端连接的密钥，但是必须具有唯一性
-# 关闭公钥访问
+## 关闭公钥访问
 可以将`nps.conf`中的`public_vkey`设置为空或者删除
 
-# 关闭web管理
+## 关闭web管理
 可以将`nps.conf`中的`web_port`设置为空或者删除
 
-# 服务端多用户登陆
+## 服务端多用户登陆
 如果将`nps.conf`中的`allow_user_login`设置为true,服务端web将支持多用户登陆，登陆用户名为user，默认密码为每个客户端的验证密钥，登陆后可以进入客户端编辑修改web登陆的用户名和密码，默认该功能是关闭的。
 
-# 用户注册功能
+## 用户注册功能
 nps服务端支持用户注册功能，可将`nps.conf`中的`allow_user_register`设置为true，开启后登陆页将会有有注册功能，
 
-# 监听指定ip
+## 监听指定ip
 
 nps支持每个隧道监听不同的服务端端口,在`nps.conf`中设置`allow_multi_ip=true`后，可在web中控制，或者npc配置文件中(可忽略，默认为0.0.0.0)
 ```ini
 server_ip=xxx
 ```
-# 代理到服务端本地
+## 代理到服务端本地
 在使用nps监听80或者443端口时，默认是将所有的请求都会转发到内网上，但有时候我们的nps服务器的上一些服务也需要使用这两个端口，nps提供类似于`nginx` `proxy_pass` 的功能，支持将代理到服务器本地，该功能支持域名解析，tcp、udp隧道，默认关闭。
 
 **即：** 假设在nps的vps服务器上有一个服务使用5000端口，这时候nps占用了80端口和443，我们想能使用一个域名通过http(s)访问到5000的服务。
