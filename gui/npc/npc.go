@@ -139,8 +139,8 @@ func saveConfig(host, vkey, connType string) {
 		logs.Warn("not found config dir")
 		return
 	}
-	_ = os.Remove(ph + "npc.conf")
-	f, err := os.OpenFile(ph+"npc.conf", os.O_CREATE|os.O_WRONLY, 0644)
+	_ = os.Remove(path.Join(ph, "npc.conf"))
+	f, err := os.OpenFile(path.Join(ph, "npc.conf"), os.O_CREATE|os.O_WRONLY, 0644)
 	defer f.Close()
 	if err != nil {
 		logs.Error(err)
@@ -159,7 +159,7 @@ func loadConfig() (host, vkey, connType string) {
 		logs.Warn("not found config dir")
 		return
 	}
-	f, err := os.OpenFile(ph+"npc.conf", os.O_RDONLY, 0644)
+	f, err := os.OpenFile(path.Join(ph, "npc.conf"), os.O_RDONLY, 0644)
 	defer f.Close()
 	if err != nil {
 		logs.Error(err)
