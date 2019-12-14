@@ -44,7 +44,8 @@ server {
     }
 }
 ```
-
+## web管理使用https
+如果web管理需要使用https，可以在配置文件`nps.conf`中设置`web_open_ssl=true`，并配置`web_cert_file`和`web_key_file`
 ## web使用Caddy代理
 
 如果将web配置到Caddy代理,实现子路径访问nps,可以这样配置.
