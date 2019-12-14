@@ -198,7 +198,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 					return nil, er
 				}
 				connection, err = n.Dial("tcp", server)
-			case "http":
+			default:
 				connection, err = NewHttpProxyConn(u, server)
 			}
 		} else {
@@ -220,11 +220,19 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
 		return nil, err
 	}
-	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
+	if err := c.WriteLenContent([]byte(version.GetVersion())); err != nil {
 		return nil, err
 	}
-	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
-		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
+	if err := c.WriteLenContent([]byte(version.VERSION)); err != nil {
+		return nil, err
+	}
+	b, err := c.GetShortContent(32)
+	if err != nil {
+		logs.Error(err)
+		return nil, err
+	}
+	if crypt.Md5(version.GetVersion()) != string(b) {
+		logs.Error("The client does not match the server version. The current core version of the client is", version.GetVersion())
 		return nil, err
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
@@ -233,8 +241,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if s, err := c.ReadFlag(); err != nil {
 		return nil, err
 	} else if s == common.VERIFY_EER {
-		logs.Error("Validation key %s incorrect", vkey)
-		os.Exit(0)
+		return nil, errors.New(fmt.Sprintf("Validation key %s incorrect", vkey))
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
 		return nil, err
@@ -254,7 +261,7 @@ func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 		Proto:  "HTTP/1.1",
 	}
 	password, _ := url.User.Password()
-	req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(url.User.Username(), password))
+	req.Header.Set("Authorization", "Basic "+basicAuth(strings.Trim(url.User.Username(), " "), password))
 	b, err := httputil.DumpRequest(req, false)
 	if err != nil {
 		return nil, err
@@ -364,6 +371,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 		}
 		logs.Trace("try send test packet to target %s", addr)
 		ticker := time.NewTicker(time.Millisecond * 500)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
@@ -389,6 +397,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 						return
 					}
 					ticker := time.NewTicker(time.Second * 2)
+					defer ticker.Stop()
 					for {
 						select {
 						case <-ticker.C:

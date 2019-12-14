@@ -27,14 +27,16 @@ type Client struct {
 	tunnel    *mux.Mux
 	signal    *conn.Conn
 	file      *mux.Mux
+	Version   string
 	retryTime int // it will be add 1 when ping not ok until to 3 will close the client
 }
 
-func NewClient(t, f *mux.Mux, s *conn.Conn) *Client {
+func NewClient(t, f *mux.Mux, s *conn.Conn, vs string) *Client {
 	return &Client{
-		signal: s,
-		tunnel: t,
-		file:   f,
+		signal:  s,
+		tunnel:  t,
+		file:    f,
+		Version: vs,
 	}
 }
 
@@ -166,8 +168,16 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 		return
 	}
 	//version check
-	if b, err := c.GetShortContent(32); err != nil || string(b) != crypt.Md5(version.GetVersion()) {
+	if b, err := c.GetShortLenContent(); err != nil || string(b) != version.GetVersion() {
 		logs.Info("The client %s version does not match", c.Conn.RemoteAddr())
+		c.Close()
+		return
+	}
+	//version get
+	var vs []byte
+	var err error
+	if vs, err = c.GetShortLenContent(); err != nil {
+		logs.Info("get client %s version error", err.Error())
 		c.Close()
 		return
 	}
@@ -175,7 +185,6 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 	c.Write([]byte(crypt.Md5(version.GetVersion())))
 	c.SetReadDeadlineBySecond(5)
 	var buf []byte
-	var err error
 	//get vKey from client
 	if buf, err = c.GetShortContent(32); err != nil {
 		c.Close()
@@ -191,7 +200,7 @@ func (s *Bridge) cliProcess(c *conn.Conn) {
 		s.verifySuccess(c)
 	}
 	if flag, err := c.ReadFlag(); err == nil {
-		s.typeDeal(flag, c, id)
+		s.typeDeal(flag, c, id, string(vs))
 	} else {
 		logs.Warn(err, flag)
 	}
@@ -214,7 +223,7 @@ func (s *Bridge) DelClient(id int) {
 }
 
 //use different
-func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
+func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 	isPub := file.GetDb().IsPubClient(id)
 	switch typeVal {
 	case common.WORK_MAIN:
@@ -223,17 +232,18 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 			return
 		}
 		//the vKey connect by another ,close the client of before
-		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, nil, c)); ok {
+		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, nil, c, vs)); ok {
 			if v.(*Client).signal != nil {
 				v.(*Client).signal.WriteClose()
 			}
 			v.(*Client).signal = c
+			v.(*Client).Version = vs
 		}
 		go s.GetHealthFromClient(id, c)
 		logs.Info("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
 	case common.WORK_CHAN:
 		muxConn := mux.NewMux(c.Conn, s.tunnelType)
-		if v, ok := s.Client.LoadOrStore(id, NewClient(muxConn, nil, nil)); ok {
+		if v, ok := s.Client.LoadOrStore(id, NewClient(muxConn, nil, nil, vs)); ok {
 			v.(*Client).tunnel = muxConn
 		}
 	case common.WORK_CONFIG:
@@ -254,7 +264,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int) {
 		}
 	case common.WORK_FILE:
 		muxConn := mux.NewMux(c.Conn, s.tunnelType)
-		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, muxConn, nil)); ok {
+		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, muxConn, nil, vs)); ok {
 			v.(*Client).file = muxConn
 		}
 	case common.WORK_P2P:
@@ -342,6 +352,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (ta
 
 func (s *Bridge) ping() {
 	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -418,7 +429,7 @@ loop:
 				}
 				c.WriteAddOk()
 				c.Write([]byte(client.VerifyKey))
-				s.Client.Store(client.Id, NewClient(nil, nil, nil))
+				s.Client.Store(client.Id, NewClient(nil, nil, nil, ""))
 			}
 		case common.NEW_HOST:
 			h, err := c.GetHostInfo()

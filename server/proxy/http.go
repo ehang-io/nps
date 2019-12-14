@@ -171,11 +171,11 @@ reset:
 			}
 		}()
 		for {
-			if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil {
+			if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil || resp == nil {
 				return
 			} else {
 				//if the cache is start and the response is in the extension,store the response to the cache list
-				if s.useCache && strings.Contains(r.URL.Path, ".") {
+				if s.useCache && r.URL != nil && strings.Contains(r.URL.Path, ".") {
 					b, err := httputil.DumpResponse(resp, true)
 					if err != nil {
 						return

@@ -6,20 +6,20 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/astaxie/beego/logs"
+	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/pool"
 	"github.com/cnlh/nps/lib/rate"
 	"github.com/xtaci/kcp-go"
 )
@@ -87,7 +87,7 @@ func (s *Conn) GetShortContent(l int) (b []byte, err error) {
 
 //读取指定长度内容
 func (s *Conn) ReadLen(cLen int, buf []byte) (int, error) {
-	if cLen > len(buf) {
+	if cLen > len(buf) || cLen <= 0 {
 		return 0, errors.New("长度错误" + strconv.Itoa(cLen))
 	}
 	if n, err := io.ReadFull(s, buf[:cLen]); err != nil || n != cLen {
@@ -124,8 +124,8 @@ func (s *Conn) SetAlive(tp string) {
 	case *net.TCPConn:
 		conn := s.Conn.(*net.TCPConn)
 		conn.SetReadDeadline(time.Time{})
-		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
+		//conn.SetKeepAlive(false)
+		//conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
 	case *mux.PortConn:
 		s.Conn.(*mux.PortConn).SetReadDeadline(time.Time{})
 	}
@@ -159,8 +159,8 @@ func (s *Conn) SendHealthInfo(info, status string) (int, error) {
 //get health info from conn
 func (s *Conn) GetHealthInfo() (info string, status bool, err error) {
 	var l int
-	buf := pool.BufPoolMax.Get().([]byte)
-	defer pool.PutBufPoolMax(buf)
+	buf := common.BufPoolMax.Get().([]byte)
+	defer common.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
 	} else if _, err = s.ReadLen(l, buf); err != nil {
@@ -233,8 +233,8 @@ func (s *Conn) SendInfo(t interface{}, flag string) (int, error) {
 //get task info
 func (s *Conn) getInfo(t interface{}) (err error) {
 	var l int
-	buf := pool.BufPoolMax.Get().([]byte)
-	defer pool.PutBufPoolMax(buf)
+	buf := common.BufPoolMax.Get().([]byte)
+	defer common.PutBufPoolMax(buf)
 	if l, err = s.GetLen(); err != nil {
 		return
 	} else if _, err = s.ReadLen(l, buf); err != nil {
@@ -351,25 +351,29 @@ func SetUdpSession(sess *kcp.UDPSession) {
 
 //conn1 mux conn
 func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Rate, flow *file.Flow, isServer bool, rb []byte) {
-	var in, out int64
-	var wg sync.WaitGroup
+	//var in, out int64
+	//var wg sync.WaitGroup
 	connHandle := GetConn(conn1, crypt, snappy, rate, isServer)
 	if rb != nil {
 		connHandle.Write(rb)
 	}
-	go func(in *int64) {
-		wg.Add(1)
-		*in, _ = common.CopyBuffer(connHandle, conn2)
-		connHandle.Close()
-		conn2.Close()
-		wg.Done()
-	}(&in)
-	out, _ = common.CopyBuffer(conn2, connHandle)
-	connHandle.Close()
-	conn2.Close()
-	wg.Wait()
-	if flow != nil {
-		flow.Add(in, out)
+	//go func(in *int64) {
+	//	wg.Add(1)
+	//	*in, _ = common.CopyBuffer(connHandle, conn2)
+	//	connHandle.Close()
+	//	conn2.Close()
+	//	wg.Done()
+	//}(&in)
+	//out, _ = common.CopyBuffer(conn2, connHandle)
+	//connHandle.Close()
+	//conn2.Close()
+	//wg.Wait()
+	//if flow != nil {
+	//	flow.Add(in, out)
+	//}
+	err := goroutine.CopyConnsPool.Invoke(goroutine.NewConns(connHandle, conn2, flow))
+	if err != nil {
+		logs.Error(err)
 	}
 }
 

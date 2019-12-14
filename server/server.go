@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cnlh/nps/lib/version"
 	"math"
 	"os"
 	"strconv"
@@ -109,6 +110,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 
 func dealClientFlow() {
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -270,8 +272,9 @@ func GetClientList(start, length int, search, sort, order string, clientId int) 
 func dealClientData() {
 	file.GetDb().JsonDb.Clients.Range(func(key, value interface{}) bool {
 		v := value.(*file.Client)
-		if _, ok := Bridge.Client.Load(v.Id); ok {
+		if vv, ok := Bridge.Client.Load(v.Id); ok {
 			v.IsConnect = true
+			v.Version = vv.(*bridge.Client).Version
 		} else {
 			v.IsConnect = false
 		}
@@ -337,8 +340,12 @@ func DelClientConnect(clientId int) {
 
 func GetDashboardData() map[string]interface{} {
 	data := make(map[string]interface{})
+	data["version"] = version.VERSION
 	data["hostCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Hosts)
-	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients) - 1 //Remove the public key client
+	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients)
+	if beego.AppConfig.String("public_vkey") != "" { //remove public vkey
+		data["clientCount"] = data["clientCount"].(int) - 1
+	}
 	dealClientData()
 	c := 0
 	var in, out int64
@@ -430,6 +437,7 @@ func GetDashboardData() map[string]interface{} {
 
 func flowSession(m time.Duration) {
 	ticker := time.NewTicker(m)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:

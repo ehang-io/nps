@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +14,23 @@ import (
 )
 
 func InstallNps() {
+	unit := `[Unit]
+Description=nps - convenient proxy server
+Documentation=https://github.com/cnlh/nps/
+After=network-online.target remote-fs.target nss-lookup.target
+Wants=network-online.target`
+	service := `[Service]
+Type=simple
+KillMode=process
+Restart=always
+RestartSec=15s
+StandardOutput=append:/var/log/nps/nps.log
+ExecStartPre=/bin/echo 'Starting nps'
+ExecStopPost=/bin/echo 'Stopping nps'
+ExecStart=`
+	install := `[Install]
+WantedBy=multi-user.target`
+
 	path := common.GetInstallPath()
 	if common.FileExists(path) {
 		log.Fatalf("the path %s has exist, does not support install", path)
@@ -35,21 +53,46 @@ func InstallNps() {
 				log.Fatalln(err)
 			} else {
 				os.Chmod("/usr/local/bin/nps", 0755)
+				service += "/usr/local/bin/nps"
 				log.Println("Executable files have been copied to", "/usr/local/bin/nps")
 			}
 		} else {
 			os.Chmod("/usr/bin/nps", 0755)
+			service += "/usr/bin/nps"
 			log.Println("Executable files have been copied to", "/usr/bin/nps")
 		}
+		systemd := unit + "\n\n" + service + "\n\n" + install
+		if _, err := os.Stat("/usr/lib/systemd/system"); os.IsExist(err) {
+			_ = os.Remove("/usr/lib/systemd/system/nps.service")
+			err := ioutil.WriteFile("/usr/lib/systemd/system/nps.service", []byte(systemd), 0644)
+			if err != nil {
+				log.Println("Write systemd service err ", err)
+			}
+		} else if _, err := os.Stat("/lib/systemd/system"); os.IsExist(err) {
+			_ = os.Remove("/lib/systemd/system/nps.service")
+			err := ioutil.WriteFile("/lib/systemd/system/nps.service", []byte(systemd), 0644)
+			if err != nil {
+				log.Println("Write systemd service err ", err)
+			}
+		} else {
+			log.Println("Write systemd service fail, not found the systemd system path ")
+		}
 
+		_ = os.Mkdir("/var/log/nps", 644)
 	}
 	log.Println("install ok!")
 	log.Println("Static files and configuration files in the current directory will be useless")
 	log.Println("The new configuration file is located in", path, "you can edit them")
 	if !common.IsWindows() {
-		log.Println("You can start with nps test|start|stop|restart|status anywhere")
+		log.Println(`You can start with:
+sudo systemctl enable|disable|start|stop|restart|status nps
+or:
+nps test|start|stop|restart|status 
+anywhere!`)
 	} else {
-		log.Println("You can copy executable files to any directory and start working with nps.exe test|start|stop|restart|status")
+		log.Println(`You can copy executable files to any directory and start working with:
+nps.exe test|start|stop|restart|status
+now!`)
 	}
 }
 func MkidrDirAll(path string, v ...string) {

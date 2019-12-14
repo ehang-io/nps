@@ -22,6 +22,7 @@ type BaseController struct {
 
 //初始化参数
 func (s *BaseController) Prepare() {
+	s.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	controllerName, actionName := s.GetControllerAndAction()
 	s.controllerName = strings.ToLower(controllerName[0 : len(controllerName)-10])
 	s.actionName = strings.ToLower(actionName)
@@ -34,7 +35,7 @@ func (s *BaseController) Prepare() {
 	timeNowUnix := time.Now().Unix()
 	if !((math.Abs(float64(timeNowUnix-int64(timestamp))) <= 20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
 		if s.GetSession("auth") != true {
-			s.Redirect("/login/index", 302)
+			s.Redirect(beego.AppConfig.String("web_base_url")+"/login/index", 302)
 		}
 	}
 	if s.GetSession("isAdmin") != nil && !s.GetSession("isAdmin").(bool) {
@@ -60,6 +61,7 @@ func (s *BaseController) Prepare() {
 
 //加载模板
 func (s *BaseController) display(tpl ...string) {
+	s.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	var tplname string
 	if s.Data["menu"] == nil {
 		s.Data["menu"] = s.actionName
@@ -83,6 +85,7 @@ func (s *BaseController) display(tpl ...string) {
 
 //错误
 func (s *BaseController) error() {
+	s.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	s.Layout = "public/layout.html"
 	s.TplName = "public/error.html"
 }

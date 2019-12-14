@@ -2,18 +2,20 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/astaxie/beego/logs"
+	"github.com/xtaci/kcp-go"
+
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/conn"
 	"github.com/cnlh/nps/lib/crypt"
 	"github.com/cnlh/nps/lib/mux"
-	"github.com/xtaci/kcp-go"
 )
 
 type TRPClient struct {
@@ -40,12 +42,24 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 	}
 }
 
+var NowStatus int
+var CloseClient bool
 //start
 func (s *TRPClient) Start() {
+	CloseClient = false
 retry:
+	if CloseClient {
+		return
+	}
+	NowStatus = 0
 	c, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_MAIN, s.proxyUrl)
 	if err != nil {
-		logs.Error("The connection server failed and will be reconnected in five seconds")
+		logs.Error("The connection server failed and will be reconnected in five seconds, error", err.Error())
+		time.Sleep(time.Second * 5)
+		goto retry
+	}
+	if c == nil {
+		logs.Error("Error data from server, and will be reconnected in five seconds")
 		time.Sleep(time.Second * 5)
 		goto retry
 	}
@@ -59,6 +73,7 @@ retry:
 	if s.cnf != nil && len(s.cnf.Healths) > 0 {
 		go heathCheck(s.cnf.Healths, s.signal)
 	}
+	NowStatus = 1
 	//msg connection, eg udp
 	s.handleMain()
 }
@@ -151,7 +166,7 @@ func (s *TRPClient) newChan() {
 
 func (s *TRPClient) handleChan(src net.Conn) {
 	lk, err := conn.NewConn(src).GetLinkInfo()
-	if err != nil {
+	if err != nil || lk == nil {
 		src.Close()
 		logs.Error("get connection info from server error ", err)
 		return
@@ -160,7 +175,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 	lk.Host = common.FormatAddress(lk.Host)
 	//if Conn type is http, read the request and log
 	if lk.ConnType == "http" {
-		if targetConn, err := net.Dial(common.CONN_TCP, lk.Host); err != nil {
+		if targetConn, err := net.DialTimeout(common.CONN_TCP, lk.Host, lk.Option.Timeout); err != nil {
 			logs.Warn("connect to %s error %s", lk.Host, err.Error())
 			src.Close()
 		} else {
@@ -183,13 +198,76 @@ func (s *TRPClient) handleChan(src net.Conn) {
 		}
 		return
 	}
+	if lk.ConnType == "udp5" {
+		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
+		s.handleUdp(src)
+	}
 	//connect to target if conn type is tcp or udp
-	if targetConn, err := net.Dial(lk.ConnType, lk.Host); err != nil {
+	if targetConn, err := net.DialTimeout(lk.ConnType, lk.Host, lk.Option.Timeout); err != nil {
 		logs.Warn("connect to %s error %s", lk.Host, err.Error())
 		src.Close()
 	} else {
 		logs.Trace("new %s connection with the goal of %s, remote address:%s", lk.ConnType, lk.Host, lk.RemoteAddr)
 		conn.CopyWaitGroup(src, targetConn, lk.Crypt, lk.Compress, nil, nil, false, nil)
+	}
+}
+
+func (s *TRPClient) handleUdp(serverConn net.Conn) {
+	// bind a local udp port
+	local, err := net.ListenUDP("udp", nil)
+	defer local.Close()
+	defer serverConn.Close()
+	if err != nil {
+		logs.Error("bind local udp port error ", err.Error())
+		return
+	}
+	go func() {
+		defer serverConn.Close()
+		b := common.BufPoolUdp.Get().([]byte)
+		defer common.BufPoolUdp.Put(b)
+		for {
+			n, raddr, err := local.ReadFrom(b)
+			if err != nil {
+				logs.Error("read data from remote server error", err.Error())
+			}
+			buf := bytes.Buffer{}
+			dgram := common.NewUDPDatagram(common.NewUDPHeader(0, 0, common.ToSocksAddr(raddr)), b[:n])
+			dgram.Write(&buf)
+			b, err := conn.GetLenBytes(buf.Bytes())
+			if err != nil {
+				logs.Warn("get len bytes error", err.Error())
+				continue
+			}
+			if _, err := serverConn.Write(b); err != nil {
+				logs.Error("write data to remote  error", err.Error())
+				return
+			}
+		}
+	}()
+	b := common.BufPoolUdp.Get().([]byte)
+	defer common.BufPoolUdp.Put(b)
+	for {
+		n, err := serverConn.Read(b)
+		if err != nil {
+			logs.Error("read udp data from server error ", err.Error())
+			return
+		}
+
+		udpData, err := common.ReadUDPDatagram(bytes.NewReader(b[:n]))
+		if err != nil {
+			logs.Error("unpack data error", err.Error())
+			return
+		}
+		raddr, err := net.ResolveUDPAddr("udp", udpData.Header.Addr.String())
+		if err != nil {
+			logs.Error("build remote addr err", err.Error())
+			continue // drop silently
+		}
+		_, err = local.WriteTo(udpData.Data, raddr)
+		if err != nil {
+			logs.Error("write data to remote ", raddr.String(), "error", err.Error())
+			return
+		}
 	}
 }
 
@@ -209,6 +287,8 @@ loop:
 }
 
 func (s *TRPClient) Close() {
+	CloseClient = true
+	NowStatus = 0
 	if s.tunnel != nil {
 		s.tunnel.Close()
 	}

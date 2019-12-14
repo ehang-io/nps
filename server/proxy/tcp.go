@@ -63,7 +63,7 @@ func (s *WebServer) Start() error {
 		<-stop
 	}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
+	beego.SetStaticPath(beego.AppConfig.String("web_base_url")+"/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
 	if l, err := connection.GetWebManagerListener(); err == nil {
 		beego.InitBeforeHTTPRun()
