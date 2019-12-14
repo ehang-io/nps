@@ -6,10 +6,14 @@ require (
 	fyne.io/fyne v1.2.0
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/astaxie/beego v1.12.0
+	github.com/c4milo/unpackit v0.0.0-20170704181138-4ed373e9ef1c
 	github.com/ccding/go-stun v0.0.0-20180726100737-be486d185f3d
+	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
+	github.com/kardianos/service v1.0.0 // indirect
 	github.com/klauspost/cpuid v1.2.1 // indirect
+	github.com/klauspost/pgzip v1.2.1 // indirect
 	github.com/klauspost/reedsolomon v1.9.2 // indirect
 	github.com/panjf2000/ants/v2 v2.2.2
 	github.com/pkg/errors v0.8.1
