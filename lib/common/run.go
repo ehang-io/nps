@@ -48,9 +48,9 @@ func IsWindows() bool {
 func GetLogPath() string {
 	var path string
 	if IsWindows() {
-		path = GetAppPath()
+		path = filepath.Join(GetAppPath(), "nps.log")
 	} else {
-		path = "/tmp"
+		path = "/var/log/nps.log"
 	}
 	return path
 }
