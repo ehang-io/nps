@@ -1,5 +1,5 @@
-fyne.io/fyne v1.2.0-beta2 h1:MEZlRmQc+lyYOoD9Yy9E7JLHxEY6JvwDvO/c/S+gP8M=
-fyne.io/fyne v1.2.0-beta2/go.mod h1:Ab+3DIB/FVteW0y4DXfmZv4N3JdnCBh2lHkINI02BOU=
+fyne.io/fyne v1.2.0 h1:mdp7Cs7QmSJTeazYxEDa9wWeJNig7paBcjm0dooFtLE=
+fyne.io/fyne v1.2.0/go.mod h1:Ab+3DIB/FVteW0y4DXfmZv4N3JdnCBh2lHkINI02BOU=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Kodeworks/golang-image-ico v0.0.0-20141118225523-73f0f4cfade9/go.mod h1:7uhhqiBaR4CpN0k9rMjOtjpcfGd6DG2m04zQxKnWQ0I=
 github.com/OwnLocal/goes v1.0.0/go.mod h1:8rIFjBGTue3lCU0wplczcUgt9Gxgrkkrw7etMIcn8TM=

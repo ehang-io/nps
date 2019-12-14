@@ -1,9 +1,9 @@
 module github.com/cnlh/nps
 
-go 1.12
+go 1.13
 
 require (
-	fyne.io/fyne v1.2.0-beta2
+	fyne.io/fyne v1.2.0
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/astaxie/beego v1.12.0
 	github.com/ccding/go-stun v0.0.0-20180726100737-be486d185f3d
