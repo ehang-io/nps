@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/astaxie/beego"
@@ -64,6 +65,7 @@ func main() {
 			"After=network-online.target syslog.target"}
 	}
 	prg := &nps{}
+	prg.exit = make(chan struct{})
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		logs.Error(err)
@@ -123,6 +125,14 @@ func (p *nps) Stop(s service.Service) error {
 }
 
 func (p *nps) run() error {
+	defer func() {
+		if err := recover(); err != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			logs.Warning("nps: panic serving %v: %v\n%s", err, string(buf))
+		}
+	}()
 	routers.Init()
 	task := &file.Tunnel{
 		Mode: "webServer",
