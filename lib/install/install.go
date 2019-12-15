@@ -57,9 +57,6 @@ func downloadLatest() {
 	//复制文件到对应目录
 	copyStaticFile(destPath)
 	fmt.Println("Update completed, please restart")
-	if common.IsWindows() {
-		fmt.Println("windows 请将nps_new.exe替换成nps.exe")
-	}
 }
 
 func copyStaticFile(srcPath string) string {
@@ -68,26 +65,29 @@ func copyStaticFile(srcPath string) string {
 	if err := CopyDir(filepath.Join(srcPath, "web", "views"), filepath.Join(path, "web", "views")); err != nil {
 		log.Fatalln(err)
 	}
-	os.Chmod(filepath.Join(path, "web", "views"), 0766)
+	chMod(filepath.Join(path, "web", "views"), 0766)
 	if err := CopyDir(filepath.Join(srcPath, "web", "static"), filepath.Join(path, "web", "static")); err != nil {
 		log.Fatalln(err)
 	}
-	os.Chmod(filepath.Join(path, "web", "static"), 0766)
+	chMod(filepath.Join(path, "web", "static"), 0766)
 	binPath, _ := filepath.Abs(os.Args[0])
 	if !common.IsWindows() {
 		if _, err := copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/nps"); err != nil {
 			if _, err := copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/nps"); err != nil {
 				log.Fatalln(err)
 			} else {
+				copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/nps-update")
 				binPath = "/usr/local/bin/nps"
 			}
 		} else {
+			copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/nps-update")
 			binPath = "/usr/bin/nps"
 		}
 	} else {
-		copyFile(filepath.Join(srcPath, "nps.exe"), filepath.Join(common.GetAppPath(), "nps_new.exe"))
+		copyFile(filepath.Join(srcPath, "nps.exe"), filepath.Join(common.GetAppPath(), "nps-update.exe"))
+		copyFile(filepath.Join(srcPath, "nps.exe"), filepath.Join(common.GetAppPath(), "nps.exe"))
 	}
-	os.Chmod(binPath, 0755)
+	chMod(binPath, 0755)
 	return binPath
 }
 
@@ -101,7 +101,7 @@ func InstallNps() string {
 		if err := CopyDir(filepath.Join(common.GetAppPath(), "conf"), filepath.Join(path, "conf")); err != nil {
 			log.Fatalln(err)
 		}
-		os.Chmod(filepath.Join(path, "conf"), 0766)
+		chMod(filepath.Join(path, "conf"), 0766)
 	}
 	binPath := copyStaticFile(common.GetAppPath())
 	log.Println("install ok!")
@@ -109,14 +109,14 @@ func InstallNps() string {
 	log.Println("The new configuration file is located in", path, "you can edit them")
 	if !common.IsWindows() {
 		log.Println(`You can start with:
-nps start|stop|restart|uninstall|update
+nps start|stop|restart|uninstall|update or nps-update update
 anywhere!`)
 	} else {
 		log.Println(`You can copy executable files to any directory and start working with:
-nps.exe start|stop|restart|uninstall|update
+nps.exe start|stop|restart|uninstall|update or nps-update.exe update
 now!`)
 	}
-	os.Chmod(common.GetLogPath(), 0777)
+	chMod(common.GetLogPath(), 0777)
 	return binPath
 }
 func MkidrDirAll(path string, v ...string) {
@@ -154,7 +154,9 @@ func CopyDir(srcPath string, destPath string) error {
 			destNewPath := strings.Replace(path, srcPath, destPath, -1)
 			log.Println("copy file ::" + path + " to " + destNewPath)
 			copyFile(path, destNewPath)
-			os.Chmod(destNewPath, 0766)
+			if !common.IsWindows(){
+				chMod(destNewPath, 0766)
+			}
 		}
 		return nil
 	})
@@ -206,4 +208,10 @@ func pathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func chMod(name string, mode os.FileMode)  {
+	if !common.IsWindows(){
+		os.Chmod(name, mode)
+	}
 }
