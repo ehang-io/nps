@@ -16,7 +16,7 @@
 
 停止和重启可用，stop和restart
 
-**如果发现没有启动成功，可以查看日志(Windows日志文件位于当前运行目录下，linux和darwin位于/var/log/nps.log)**
+**如果发现没有启动成功，可以使用`nps(.exe) debug`运行调试，或查看日志**(Windows日志文件位于当前运行目录下，linux和darwin位于/var/log/nps.log)
 - 访问服务端ip:web服务端口（默认为8080）
 - 使用用户名和密码登陆（默认admin/123，正式使用一定要更改）
 - 创建客户端
