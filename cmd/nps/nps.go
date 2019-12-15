@@ -121,6 +121,9 @@ func (p *nps) Start(s service.Service) error {
 }
 func (p *nps) Stop(s service.Service) error {
 	close(p.exit)
+	if service.Interactive() {
+		os.Exit(0)
+	}
 	return nil
 }
 
