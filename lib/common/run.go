@@ -55,6 +55,17 @@ func GetLogPath() string {
 	return path
 }
 
+//interface npc log file path
+func GetNpcLogPath() string {
+	var path string
+	if IsWindows() {
+		path = filepath.Join(GetAppPath(), "npc.log")
+	} else {
+		path = "/var/log/npc.log"
+	}
+	return path
+}
+
 //interface pid file path
 func GetTmpPath() string {
 	var path string

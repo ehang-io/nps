@@ -3,18 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/astaxie/beego/logs"
 	"github.com/ccding/go-stun/stun"
 	"github.com/cnlh/nps/client"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/daemon"
 	"github.com/cnlh/nps/lib/file"
 	"github.com/cnlh/nps/lib/version"
+	"github.com/kardianos/service"
+	"os"
+	"runtime"
+	"strings"
+	"time"
 )
 
 var (
@@ -30,11 +30,56 @@ var (
 	password     = flag.String("password", "", "p2p password flag")
 	target       = flag.String("target", "", "p2p target")
 	localType    = flag.String("local_type", "p2p", "p2p target")
-	logPath      = flag.String("log_path", "npc.log", "npc log path")
+	logPath      = flag.String("log_path", "", "npc log path")
+	debug        = flag.Bool("debug", false, "npc debug")
+	srv          = flag.String("service", "", "npc debug")
 )
 
 func main() {
 	flag.Parse()
+	logs.Reset()
+	logs.EnableFuncCallDepth(true)
+	logs.SetLogFuncCallDepth(3)
+	if *logPath == "" {
+		*logPath = common.GetNpcLogPath()
+	}
+	if common.IsWindows() {
+		*logPath = strings.Replace(*logPath, "\\", "\\\\", -1)
+	}
+	if *debug {
+		logs.SetLogger(logs.AdapterConsole, `{"level":`+*logLevel+`,"color":true}`)
+	} else {
+		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"`+*logPath+`","daily":false,"maxlines":100000,"color":true}`)
+	}
+
+	// init service
+	options := make(service.KeyValue)
+	options["Restart"] = "on-success"
+	options["SuccessExitStatus"] = "1 2 8 SIGKILL"
+	svcConfig := &service.Config{
+		Name:        "Npc",
+		DisplayName: "nps内网穿透客户端",
+		Description: "一款轻量级、功能强大的内网穿透代理服务器。支持tcp、udp流量转发，支持内网http代理、内网socks5代理，同时支持snappy压缩、站点保护、加密传输、多路复用、header修改等。支持web图形化管理，集成多用户模式。",
+		Option:      options,
+	}
+	if !common.IsWindows() {
+		svcConfig.Dependencies = []string{
+			"Requires=network.target",
+			"After=network-online.target syslog.target"}
+	}
+	for _, v := range os.Args[1:] {
+		if !strings.Contains(v, "-service=") {
+			svcConfig.Arguments = append(svcConfig.Arguments, v)
+		}
+	}
+	prg := &npc{
+		exit: make(chan struct{}),
+	}
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		logs.Error(err)
+		return
+	}
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
 		case "status":
@@ -55,14 +100,42 @@ func main() {
 			os.Exit(0)
 		}
 	}
-	daemon.InitDaemon("npc", common.GetRunPath(), common.GetTmpPath())
-	logs.EnableFuncCallDepth(true)
-	logs.SetLogFuncCallDepth(3)
-	if *logType == "stdout" {
-		logs.SetLogger(logs.AdapterConsole, `{"level":`+*logLevel+`,"color":true}`)
-	} else {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+*logLevel+`,"filename":"`+*logPath+`","daily":false,"maxlines":100000,"color":true}`)
+
+	if *srv != "" {
+		err := service.Control(s, *srv)
+		if err != nil {
+			logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())
+		}
+		return
 	}
+	s.Run()
+}
+
+type npc struct {
+	exit chan struct{}
+}
+
+func (p *npc) Start(s service.Service) error {
+	p.run()
+	return nil
+}
+func (p *npc) Stop(s service.Service) error {
+	close(p.exit)
+	if service.Interactive() {
+		os.Exit(0)
+	}
+	return nil
+}
+
+func (p *npc) run() error {
+	defer func() {
+		if err := recover(); err != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			logs.Warning("npc: panic serving %v: %v\n%s", err, string(buf))
+		}
+	}()
 	//p2p or secret command
 	if *password != "" {
 		commonConfig := new(config.CommonConfig)
@@ -76,8 +149,8 @@ func main() {
 		localServer.Port = *localPort
 		commonConfig.Client = new(file.Client)
 		commonConfig.Client.Cnf = new(file.Config)
-		client.StartLocalServer(localServer, commonConfig)
-		return
+		go client.StartLocalServer(localServer, commonConfig)
+		return nil
 	}
 	env := common.GetEnvMap()
 	if *serverAddr == "" {
@@ -88,15 +161,22 @@ func main() {
 	}
 	logs.Info("the version of client is %s, the core version of client is %s", version.VERSION, version.GetVersion())
 	if *verifyKey != "" && *serverAddr != "" && *configPath == "" {
-		for {
-			client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl, nil).Start()
-			logs.Info("It will be reconnected in five seconds")
-			time.Sleep(time.Second * 5)
-		}
+		go func() {
+			for {
+				client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl, nil).Start()
+				logs.Info("It will be reconnected in five seconds")
+				time.Sleep(time.Second * 5)
+			}
+		}()
 	} else {
 		if *configPath == "" {
-			*configPath = "npc.conf"
+			*configPath = "conf/npc.conf"
 		}
-		client.StartFromFile(*configPath)
+		go client.StartFromFile(*configPath)
 	}
+	select {
+	case <-p.exit:
+		logs.Warning("stop...")
+	}
+	return nil
 }
