@@ -14,7 +14,7 @@
 
 对于windows，管理员身份运行cmd，进入程序目录 ```nps.exe start```
 
-停止和重启可用，start和restart
+停止和重启可用，stop和restart
 
 **如果发现没有启动成功，可以查看日志(Windows日志文件位于当前运行目录下，linux和darwin位于/var/log/nps.log)**
 - 访问服务端ip:web服务端口（默认为8080）
