@@ -8,14 +8,36 @@
 进入web管理界面，有详细的说明
 
 ## 服务端配置文件重载
+对于linux、darwin
 ```shell
  sudo nps reload
+```
+对于windows
+```shell
+ nps.exe reload
 ```
 **说明：** 仅支持部分配置重载，例如`allow_user_login` `auth_crypt_key` `auth_key` `web_username` `web_password` 等，未来将支持更多
 
 
 ## 服务端停止或重启
-如果是daemon启动
+对于linux、darwin
 ```shell
- ./nps stop|restart
+ sudo nps stop|restart
 ```
+对于windows
+```shell
+ nps.exe stop|restart
+```
+## 服务端更新
+请首先执行`sudo nps stop`或者`nps.exe stop`停止运行，然后
+
+对于linux
+```shell
+ sudo nps-update update
+```
+对于windows
+```shell
+ nps-update.exe update
+```
+
+更新完成后，执行执行`sudo nps start`或者`nps.exe start`重新运行即可完成升级
