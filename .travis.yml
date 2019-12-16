@@ -52,6 +52,7 @@ deploy:
   - windows_amd64_server.tar.gz
   - npc_syno.spk
   - npc_sdk.tar.gz
+  - android_client.apk
   on:
     tags: true
     all_branches: true
