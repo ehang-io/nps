@@ -12,14 +12,14 @@
 
   * [基本使用](use.md)
   * [增强功能](npc_extend.md)
-  * [sdk](npc_sdk.md)
 
 * 扩展
 
   * [功能](feature.md)
   * [说明](description.md)
   * [web api](api.md)
-
+  * [sdk](npc_sdk.md)
+git
 * 其他
 
   * [贡献](contribute.md)
