@@ -18,6 +18,8 @@
 - 停止：`npc.exe stop`
 - 如果需要更换命令内容需要先卸载`npc.exe -service=uninstall`，再重新注册
 
+注册到服务后，日志文件windows位于当前目录下，linux和darwin位于/var/log/npc.log
+
 ## 客户端更新
 首先进入到对于的客户端二进制文件目录
 
