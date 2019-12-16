@@ -154,7 +154,7 @@ func CopyDir(srcPath string, destPath string) error {
 			destNewPath := strings.Replace(path, srcPath, destPath, -1)
 			log.Println("copy file ::" + path + " to " + destNewPath)
 			copyFile(path, destNewPath)
-			if !common.IsWindows(){
+			if !common.IsWindows() {
 				chMod(destNewPath, 0766)
 			}
 		}
@@ -210,8 +210,8 @@ func pathExists(path string) (bool, error) {
 	return false, err
 }
 
-func chMod(name string, mode os.FileMode)  {
-	if !common.IsWindows(){
+func chMod(name string, mode os.FileMode) {
+	if !common.IsWindows() {
 		os.Chmod(name, mode)
 	}
 }

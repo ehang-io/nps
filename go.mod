@@ -15,6 +15,7 @@ require (
 	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/klauspost/pgzip v1.2.1 // indirect
 	github.com/klauspost/reedsolomon v1.9.2 // indirect
+	github.com/luisiturrios/gowin v0.0.0-20150312095849-89dcf1aa3c14 // indirect
 	github.com/panjf2000/ants/v2 v2.2.2
 	github.com/pkg/errors v0.8.1
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect

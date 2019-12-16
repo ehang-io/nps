@@ -32,7 +32,7 @@ var (
 	localType    = flag.String("local_type", "p2p", "p2p target")
 	logPath      = flag.String("log_path", "", "npc log path")
 	debug        = flag.Bool("debug", false, "npc debug")
-	srv          = flag.String("service", "", "npc debug")
+	srv          = flag.String("service", "", "service option")
 )
 
 func main() {
