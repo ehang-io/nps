@@ -12,6 +12,7 @@
 
   * [基本使用](use.md)
   * [增强功能](npc_extend.md)
+  * [sdk](npc_sdk.md)
 
 * 扩展
 
