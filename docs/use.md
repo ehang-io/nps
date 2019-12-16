@@ -2,33 +2,42 @@
 ## 无配置文件模式
 此模式的各种配置在服务端web管理中完成,客户端除运行一条命令外无需任何其他设置
 ```
- ./npc -server=ip:port -vkey=web界面中显示的密钥
+ ./npc -debug=true -server=ip:port -vkey=web界面中显示的密钥
 ```
+## 注册到系统服务
+对于linux、darwin
+- 注册：`sudo ./npc install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
+- 启动：`sudo ./npc start`
+- 停止：`sudo ./npc stop`
+- 如果需要更换命令内容需要先卸载`./npc -service=uninstall`，再重新注册
+
+对于windows，使用管理员身份运行cmd
+
+- 注册：`npc.exe install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
+- 启动：`npc.exe start`
+- 停止：`npc.exe stop`
+- 如果需要更换命令内容需要先卸载`npc.exe -service=uninstall`，再重新注册
+
+## 客户端更新
+首先进入到对于的客户端二进制文件目录
+
+请首先执行`sudo ./npc stop`或者`nps.exe stop`停止运行，然后
+
+对于linux
+```shell
+ sudo ./npc-update update
+```
+对于windows
+```shell
+npc-update.exe update
+```
+
+更新完成后，执行执行`sudo nps start`或者`nps.exe start`重新运行即可完成升级
+
 ## 配置文件模式
 此模式使用nps的公钥或者客户端私钥验证，各种配置在客户端完成，同时服务端web也可以进行管理
 ```
  ./npc -config=npc配置文件路径
-```
-可自行添加systemd service，例如：`npc.service`
-```
-[Unit]
-Description=npc - convenient proxy server client
-Documentation=https://github.com/cnlh/nps/
-After=network-online.target remote-fs.target nss-lookup.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-KillMode=process
-Restart=always
-RestartSec=15s
-StandardOutput=append:/var/log/nps/npc.log
-ExecStartPre=/bin/echo 'Starting npc'
-ExecStopPost=/bin/echo 'Stopping npc'
-ExecStart=/absolutely path to/npc -server=ip:port -vkey=web界面中显示的密钥
-
-[Install]
-WantedBy=multi-user.target
 ```
 ## 配置文件说明
 [示例配置文件](https://github.com/cnlh/nps/tree/master/conf/npc.conf)

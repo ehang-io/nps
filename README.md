@@ -53,6 +53,8 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 点击web管理中客户端前的+号，复制启动命令
 - 执行启动命令，linux直接执行即可，windows将./npc换成npc.exe用cmd执行
 
+如果需要注册到系统服务可查看[注册到系统服务](https://cnlh.github.io/nps/#/use?id=注册到系统服务)
+
 ### 配置
 - 客户端连接后，在web中配置对应穿透服务即可
 - 更多高级用法见[完整文档](https://cnlh.github.io/nps/)

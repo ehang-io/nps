@@ -32,8 +32,7 @@ var (
 	target       = flag.String("target", "", "p2p target")
 	localType    = flag.String("local_type", "p2p", "p2p target")
 	logPath      = flag.String("log_path", "", "npc log path")
-	debug        = flag.Bool("debug", false, "npc debug")
-	srv          = flag.String("service", "", "service option")
+	debug        = flag.Bool("debug", true, "npc debug")
 )
 
 func main() {
@@ -69,10 +68,15 @@ func main() {
 			"After=network-online.target syslog.target"}
 	}
 	for _, v := range os.Args[1:] {
-		if !strings.Contains(v, "-service=") {
+		switch v {
+		case "install", "start", "stop", "uninstall", "restart":
+			continue
+		}
+		if !strings.Contains(v, "-service=") && !strings.Contains(v, "-debug=") {
 			svcConfig.Arguments = append(svcConfig.Arguments, v)
 		}
 	}
+	svcConfig.Arguments = append(svcConfig.Arguments, "-debug=false")
 	prg := &npc{
 		exit: make(chan struct{}),
 	}
@@ -102,18 +106,16 @@ func main() {
 			}
 			fmt.Printf("nat type: %s \npublic address: %s\n", nat.String(), host.String())
 			os.Exit(0)
+		case "install", "start", "stop", "uninstall", "restart":
+			if os.Args[1] == "install" {
+				install.InstallNpc()
+			}
+			err := service.Control(s, os.Args[1])
+			if err != nil {
+				logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())
+			}
+			return
 		}
-	}
-
-	if *srv != "" {
-		if *srv == "install" {
-			install.InstallNpc()
-		}
-		err := service.Control(s, *srv)
-		if err != nil {
-			logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())
-		}
-		return
 	}
 	s.Run()
 }
