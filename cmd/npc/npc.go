@@ -9,6 +9,7 @@ import (
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/config"
 	"github.com/cnlh/nps/lib/file"
+	"github.com/cnlh/nps/lib/install"
 	"github.com/cnlh/nps/lib/version"
 	"github.com/kardianos/service"
 	"os"
@@ -90,6 +91,9 @@ func main() {
 		case "register":
 			flag.CommandLine.Parse(os.Args[2:])
 			client.RegisterLocalIp(*serverAddr, *verifyKey, *connType, *proxyUrl, *registerTime)
+		case "update":
+			install.UpdateNpc()
+			return
 		case "nat":
 			nat, host, err := stun.NewClient().Discover()
 			if err != nil || host == nil {
@@ -102,6 +106,9 @@ func main() {
 	}
 
 	if *srv != "" {
+		if *srv == "install" {
+			install.InstallNpc()
+		}
 		err := service.Control(s, *srv)
 		if err != nil {
 			logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())
@@ -116,7 +123,7 @@ type npc struct {
 }
 
 func (p *npc) Start(s service.Service) error {
-	p.run()
+	go p.run()
 	return nil
 }
 func (p *npc) Stop(s service.Service) error {

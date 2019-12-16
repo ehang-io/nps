@@ -16,15 +16,25 @@ import (
 	"strings"
 )
 
-func Update() {
-	downloadLatest()
+func UpdateNps() {
+	destPath := downloadLatest("server")
+	//复制文件到对应目录
+	copyStaticFile(destPath, "nps")
+	fmt.Println("Update completed, please restart")
+}
+
+func UpdateNpc() {
+	destPath := downloadLatest("client")
+	//复制文件到对应目录
+	copyStaticFile(destPath, "npc")
+	fmt.Println("Update completed, please restart")
 }
 
 type release struct {
 	TagName string `json:"tag_name"`
 }
 
-func downloadLatest() {
+func downloadLatest(bin string) string {
 	// get version
 	data, err := http.Get("https://api.github.com/repos/cnlh/nps/releases/latest")
 	if err != nil {
@@ -38,7 +48,7 @@ func downloadLatest() {
 	json.Unmarshal(b, &rl)
 	version := rl.TagName
 	fmt.Println("the latest version is", version)
-	filename := runtime.GOOS + "_" + runtime.GOARCH + "_server" + ".tar.gz"
+	filename := runtime.GOOS + "_" + runtime.GOARCH + "_" + bin + ".tar.gz"
 	// download latest package
 	downloadUrl := fmt.Sprintf("https://github.com/cnlh/nps/releases/download/%s/%s", version, filename)
 	fmt.Println("download package from ", downloadUrl)
@@ -50,45 +60,61 @@ func downloadLatest() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	destPath = strings.Replace(destPath, "/web", "", -1)
-	destPath = strings.Replace(destPath, `\web`, "", -1)
-	destPath = strings.Replace(destPath, "/views", "", -1)
-	destPath = strings.Replace(destPath, `\views`, "", -1)
-	//复制文件到对应目录
-	copyStaticFile(destPath)
-	fmt.Println("Update completed, please restart")
+	if bin == "server" {
+		destPath = strings.Replace(destPath, "/web", "", -1)
+		destPath = strings.Replace(destPath, `\web`, "", -1)
+		destPath = strings.Replace(destPath, "/views", "", -1)
+		destPath = strings.Replace(destPath, `\views`, "", -1)
+	} else {
+		destPath = strings.Replace(destPath, `\conf`, "", -1)
+		destPath = strings.Replace(destPath, "/conf", "", -1)
+	}
+	return destPath
 }
 
-func copyStaticFile(srcPath string) string {
+func copyStaticFile(srcPath, bin string) string {
 	path := common.GetInstallPath()
-	//复制文件到对应目录
-	if err := CopyDir(filepath.Join(srcPath, "web", "views"), filepath.Join(path, "web", "views")); err != nil {
-		log.Fatalln(err)
+	if bin == "nps" {
+		//复制文件到对应目录
+		if err := CopyDir(filepath.Join(srcPath, "web", "views"), filepath.Join(path, "web", "views")); err != nil {
+			log.Fatalln(err)
+		}
+		chMod(filepath.Join(path, "web", "views"), 0766)
+		if err := CopyDir(filepath.Join(srcPath, "web", "static"), filepath.Join(path, "web", "static")); err != nil {
+			log.Fatalln(err)
+		}
+		chMod(filepath.Join(path, "web", "static"), 0766)
 	}
-	chMod(filepath.Join(path, "web", "views"), 0766)
-	if err := CopyDir(filepath.Join(srcPath, "web", "static"), filepath.Join(path, "web", "static")); err != nil {
-		log.Fatalln(err)
-	}
-	chMod(filepath.Join(path, "web", "static"), 0766)
 	binPath, _ := filepath.Abs(os.Args[0])
 	if !common.IsWindows() {
-		if _, err := copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/nps"); err != nil {
-			if _, err := copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/nps"); err != nil {
+		if _, err := copyFile(filepath.Join(srcPath, bin), "/usr/bin/"+bin); err != nil {
+			if _, err := copyFile(filepath.Join(srcPath, bin), "/usr/local/bin/"+bin); err != nil {
 				log.Fatalln(err)
 			} else {
-				copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/nps-update")
-				binPath = "/usr/local/bin/nps"
+				copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/"+bin+"-update")
+				binPath = "/usr/local/bin/" + bin
 			}
 		} else {
-			copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/nps-update")
-			binPath = "/usr/bin/nps"
+			copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/"+bin+"-update")
+			binPath = "/usr/bin/" + bin
 		}
 	} else {
-		copyFile(filepath.Join(srcPath, "nps.exe"), filepath.Join(common.GetAppPath(), "nps-update.exe"))
-		copyFile(filepath.Join(srcPath, "nps.exe"), filepath.Join(common.GetAppPath(), "nps.exe"))
+		copyFile(filepath.Join(srcPath, bin+".exe"), filepath.Join(common.GetAppPath(), bin+"-update.exe"))
+		copyFile(filepath.Join(srcPath, bin+".exe"), filepath.Join(common.GetAppPath(), bin+".exe"))
 	}
 	chMod(binPath, 0755)
 	return binPath
+}
+
+func InstallNpc() {
+	path := common.GetInstallPath()
+	if !common.FileExists(path) {
+		err := os.Mkdir(path, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	copyStaticFile(common.GetAppPath(), "npc")
 }
 
 func InstallNps() string {
@@ -103,7 +129,7 @@ func InstallNps() string {
 		}
 		chMod(filepath.Join(path, "conf"), 0766)
 	}
-	binPath := copyStaticFile(common.GetAppPath())
+	binPath := copyStaticFile(common.GetAppPath(), "nps")
 	log.Println("install ok!")
 	log.Println("Static files and configuration files in the current directory will be useless")
 	log.Println("The new configuration file is located in", path, "you can edit them")

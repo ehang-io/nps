@@ -101,7 +101,7 @@ func main() {
 			}
 			return
 		case "update":
-			install.Update()
+			install.UpdateNps()
 			return
 		default:
 			logs.Error("command is not support")
