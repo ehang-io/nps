@@ -122,12 +122,7 @@ func getDir() (dir string, err error) {
 			return
 		}
 	} else {
-		dir, err = os.UserHomeDir()
-		if err != nil {
-			return
-		}
-		dir = path.Dir(dir)
-		dir = path.Join(dir, "files")
+		dir = "/data/data/org.nps.client/files"
 	}
 	return
 }
