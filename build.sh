@@ -1,4 +1,4 @@
-#!/bash/sh
+#/bash/sh
 export VERSION=0.25.2
 
 sudo apt-get install gcc-mingw-w64-i686

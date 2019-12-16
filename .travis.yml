@@ -10,7 +10,7 @@ script:
 os:
   - linux
 before_deploy:
-  - chmod +x ./build.sh && ./build.sh
+  - chmod +x ./build.sh && chmod +x ./build.android.sh && ./build.sh
 
 deploy:
   provider: releases
