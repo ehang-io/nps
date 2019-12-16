@@ -265,7 +265,7 @@ start:
 	Self.bufQueue.Push(element)
 	// status check finish, now we can push the element into the queue
 	if wait == 0 {
-		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, Self.maxSize, newRemaining)
+		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, newRemaining)
 		// send the remaining window size, not including zero size
 	}
 	return nil
@@ -333,7 +333,7 @@ func (Self *ReceiveWindow) sendStatus(id int32, l uint16) {
 	// now we get the current window status success
 	if wait == 1 {
 		//logs.Warn("send the wait status", remaining)
-		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, atomic.LoadUint32(&Self.maxSize), remaining)
+		Self.mux.sendInfo(common.MUX_MSG_SEND_OK, id, remaining)
 	}
 	return
 }
@@ -394,7 +394,7 @@ func (Self *SendWindow) SetSendBuf(buf []byte) {
 	Self.off = 0
 }
 
-func (Self *SendWindow) SetSize(windowSize, newRemaining uint32) (closed bool) {
+func (Self *SendWindow) SetSize(newRemaining uint32) (closed bool) {
 	// set the window size from receive window
 	defer func() {
 		if recover() != nil {

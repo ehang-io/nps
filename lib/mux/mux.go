@@ -92,13 +92,13 @@ func (s *Mux) Addr() net.Addr {
 	return s.conn.LocalAddr()
 }
 
-func (s *Mux) sendInfo(flag uint8, id int32, data ...interface{}) {
+func (s *Mux) sendInfo(flag uint8, id int32, data interface{}) {
 	if s.IsClose {
 		return
 	}
 	var err error
 	pack := common.MuxPack.Get()
-	err = pack.NewPac(flag, id, data...)
+	err = pack.NewPac(flag, id, data)
 	if err != nil {
 		common.MuxPack.Put(pack)
 		logs.Error("mux: new pack err", err)
@@ -173,7 +173,7 @@ func (s *Mux) ping() {
 		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 		// send the ping flag and get the latency first
 		ticker := time.NewTicker(time.Second * 5)
-    defer ticker.Stop()
+		defer ticker.Stop()
 		for {
 			if s.IsClose {
 				break
@@ -198,7 +198,7 @@ func (s *Mux) ping() {
 			}
 			atomic.AddUint32(&s.pingOk, 1)
 		}
-    return
+		return
 	}()
 }
 
@@ -297,7 +297,7 @@ func (s *Mux) readSession() {
 					if connection.isClose {
 						continue
 					}
-					connection.sendWindow.SetSize(pack.Window, pack.ReadLength)
+					connection.sendWindow.SetSize(pack.RemainLength)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
 					connection.closeFlag = true
