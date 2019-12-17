@@ -79,7 +79,7 @@ tar -czvf windows_amd64_client.tar.gz npc.exe conf/npc.conf conf/multi_account.c
 
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-tar -czvf darwin_client.tar.gz npc conf/npc.conf conf/multi_account.conf
+tar -czvf darwin_amd64_client.tar.gz npc conf/npc.conf conf/multi_account.conf
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
@@ -146,7 +146,7 @@ tar -czvf linux_mipsle_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.
 
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-tar -czvf darwin_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
+tar -czvf darwin_amd64_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
 
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
