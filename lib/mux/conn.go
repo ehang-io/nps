@@ -293,7 +293,8 @@ copyData:
 		// reset to 60s if timeout and data still available
 		Self.off = 0
 		if err != nil {
-			return // queue receive stop or time out, break the loop and return
+			Self.CloseWindow() // also close the window, to avoid read twice
+			return             // queue receive stop or time out, break the loop and return
 		}
 		//logs.Warn("pop element", Self.element.l, Self.element.part)
 	}
@@ -361,14 +362,14 @@ func (Self *ReceiveWindow) release() {
 	//	common.ListElementPool.Put(Self.element)
 	//}
 	for {
-		Self.element = Self.bufQueue.TryPop()
-		if Self.element == nil {
+		ele := Self.bufQueue.TryPop()
+		if ele == nil {
 			return
 		}
-		if Self.element.Buf != nil {
-			common.WindowBuff.Put(Self.element.Buf)
+		if ele.Buf != nil {
+			common.WindowBuff.Put(ele.Buf)
 		}
-		common.ListElementPool.Put(Self.element)
+		common.ListElementPool.Put(ele)
 	} // release resource
 }
 

@@ -1,99 +1,149 @@
 package install
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/c4milo/unpackit"
+	"github.com/cnlh/nps/lib/common"
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
-
-	"github.com/cnlh/nps/lib/common"
 )
 
-func InstallNps() {
-	unit := `[Unit]
-Description=nps - convenient proxy server
-Documentation=https://github.com/cnlh/nps/
-After=network-online.target remote-fs.target nss-lookup.target
-Wants=network-online.target`
-	service := `[Service]
-Type=simple
-KillMode=process
-Restart=always
-RestartSec=15s
-StandardOutput=append:/var/log/nps/nps.log
-ExecStartPre=/bin/echo 'Starting nps'
-ExecStopPost=/bin/echo 'Stopping nps'
-ExecStart=`
-	install := `[Install]
-WantedBy=multi-user.target`
-
-	path := common.GetInstallPath()
-	if common.FileExists(path) {
-		log.Fatalf("the path %s has exist, does not support install", path)
-	}
-	MkidrDirAll(path, "conf", "web/static", "web/views")
+func UpdateNps() {
+	destPath := downloadLatest("server")
 	//复制文件到对应目录
-	if err := CopyDir(filepath.Join(common.GetAppPath(), "web", "views"), filepath.Join(path, "web", "views")); err != nil {
-		log.Fatalln(err)
-	}
-	if err := CopyDir(filepath.Join(common.GetAppPath(), "web", "static"), filepath.Join(path, "web", "static")); err != nil {
-		log.Fatalln(err)
-	}
-	if err := CopyDir(filepath.Join(common.GetAppPath(), "conf"), filepath.Join(path, "conf")); err != nil {
-		log.Fatalln(err)
-	}
+	copyStaticFile(destPath, "nps")
+	fmt.Println("Update completed, please restart")
+}
 
+func UpdateNpc() {
+	destPath := downloadLatest("client")
+	//复制文件到对应目录
+	copyStaticFile(destPath, "npc")
+	fmt.Println("Update completed, please restart")
+}
+
+type release struct {
+	TagName string `json:"tag_name"`
+}
+
+func downloadLatest(bin string) string {
+	// get version
+	data, err := http.Get("https://api.github.com/repos/cnlh/nps/releases/latest")
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	b, err := ioutil.ReadAll(data.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rl := new(release)
+	json.Unmarshal(b, &rl)
+	version := rl.TagName
+	fmt.Println("the latest version is", version)
+	filename := runtime.GOOS + "_" + runtime.GOARCH + "_" + bin + ".tar.gz"
+	// download latest package
+	downloadUrl := fmt.Sprintf("https://github.com/cnlh/nps/releases/download/%s/%s", version, filename)
+	fmt.Println("download package from ", downloadUrl)
+	resp, err := http.Get(downloadUrl)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	destPath, err := unpackit.Unpack(resp.Body, "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if bin == "server" {
+		destPath = strings.Replace(destPath, "/web", "", -1)
+		destPath = strings.Replace(destPath, `\web`, "", -1)
+		destPath = strings.Replace(destPath, "/views", "", -1)
+		destPath = strings.Replace(destPath, `\views`, "", -1)
+	} else {
+		destPath = strings.Replace(destPath, `\conf`, "", -1)
+		destPath = strings.Replace(destPath, "/conf", "", -1)
+	}
+	return destPath
+}
+
+func copyStaticFile(srcPath, bin string) string {
+	path := common.GetInstallPath()
+	if bin == "nps" {
+		//复制文件到对应目录
+		if err := CopyDir(filepath.Join(srcPath, "web", "views"), filepath.Join(path, "web", "views")); err != nil {
+			log.Fatalln(err)
+		}
+		chMod(filepath.Join(path, "web", "views"), 0766)
+		if err := CopyDir(filepath.Join(srcPath, "web", "static"), filepath.Join(path, "web", "static")); err != nil {
+			log.Fatalln(err)
+		}
+		chMod(filepath.Join(path, "web", "static"), 0766)
+	}
+	binPath, _ := filepath.Abs(os.Args[0])
 	if !common.IsWindows() {
-		if _, err := copyFile(filepath.Join(common.GetAppPath(), "nps"), "/usr/bin/nps"); err != nil {
-			if _, err := copyFile(filepath.Join(common.GetAppPath(), "nps"), "/usr/local/bin/nps"); err != nil {
+		if _, err := copyFile(filepath.Join(srcPath, bin), "/usr/bin/"+bin); err != nil {
+			if _, err := copyFile(filepath.Join(srcPath, bin), "/usr/local/bin/"+bin); err != nil {
 				log.Fatalln(err)
 			} else {
-				os.Chmod("/usr/local/bin/nps", 0755)
-				service += "/usr/local/bin/nps"
-				log.Println("Executable files have been copied to", "/usr/local/bin/nps")
+				copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/"+bin+"-update")
+				binPath = "/usr/local/bin/" + bin
 			}
 		} else {
-			os.Chmod("/usr/bin/nps", 0755)
-			service += "/usr/bin/nps"
-			log.Println("Executable files have been copied to", "/usr/bin/nps")
+			copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/"+bin+"-update")
+			binPath = "/usr/bin/" + bin
 		}
-		systemd := unit + "\n\n" + service + "\n\n" + install
-		if _, err := os.Stat("/usr/lib/systemd/system"); os.IsExist(err) {
-			_ = os.Remove("/usr/lib/systemd/system/nps.service")
-			err := ioutil.WriteFile("/usr/lib/systemd/system/nps.service", []byte(systemd), 0644)
-			if err != nil {
-				log.Println("Write systemd service err ", err)
-			}
-		} else if _, err := os.Stat("/lib/systemd/system"); os.IsExist(err) {
-			_ = os.Remove("/lib/systemd/system/nps.service")
-			err := ioutil.WriteFile("/lib/systemd/system/nps.service", []byte(systemd), 0644)
-			if err != nil {
-				log.Println("Write systemd service err ", err)
-			}
-		} else {
-			log.Println("Write systemd service fail, not found the systemd system path ")
-		}
-
-		_ = os.Mkdir("/var/log/nps", 644)
+	} else {
+		copyFile(filepath.Join(srcPath, bin+".exe"), filepath.Join(common.GetAppPath(), bin+"-update.exe"))
+		copyFile(filepath.Join(srcPath, bin+".exe"), filepath.Join(common.GetAppPath(), bin+".exe"))
 	}
+	chMod(binPath, 0755)
+	return binPath
+}
+
+func InstallNpc() {
+	path := common.GetInstallPath()
+	if !common.FileExists(path) {
+		err := os.Mkdir(path, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	copyStaticFile(common.GetAppPath(), "npc")
+}
+
+func InstallNps() string {
+	path := common.GetInstallPath()
+	if common.FileExists(path) {
+		MkidrDirAll(path, "web/static", "web/views")
+	} else {
+		MkidrDirAll(path, "conf", "web/static", "web/views")
+		// not copy config if the config file is exist
+		if err := CopyDir(filepath.Join(common.GetAppPath(), "conf"), filepath.Join(path, "conf")); err != nil {
+			log.Fatalln(err)
+		}
+		chMod(filepath.Join(path, "conf"), 0766)
+	}
+	binPath := copyStaticFile(common.GetAppPath(), "nps")
 	log.Println("install ok!")
 	log.Println("Static files and configuration files in the current directory will be useless")
 	log.Println("The new configuration file is located in", path, "you can edit them")
 	if !common.IsWindows() {
 		log.Println(`You can start with:
-sudo systemctl enable|disable|start|stop|restart|status nps
-or:
-nps test|start|stop|restart|status 
+nps start|stop|restart|uninstall|update or nps-update update
 anywhere!`)
 	} else {
 		log.Println(`You can copy executable files to any directory and start working with:
-nps.exe test|start|stop|restart|status
+nps.exe start|stop|restart|uninstall|update or nps-update.exe update
 now!`)
 	}
+	chMod(common.GetLogPath(), 0777)
+	return binPath
 }
 func MkidrDirAll(path string, v ...string) {
 	for _, item := range v {
@@ -130,6 +180,9 @@ func CopyDir(srcPath string, destPath string) error {
 			destNewPath := strings.Replace(path, srcPath, destPath, -1)
 			log.Println("copy file ::" + path + " to " + destNewPath)
 			copyFile(path, destNewPath)
+			if !common.IsWindows() {
+				chMod(destNewPath, 0766)
+			}
 		}
 		return nil
 	})
@@ -181,4 +234,10 @@ func pathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func chMod(name string, mode os.FileMode) {
+	if !common.IsWindows() {
+		os.Chmod(name, mode)
+	}
 }

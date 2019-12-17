@@ -41,6 +41,9 @@ func (Self *BasePackager) NewPac(contents ...interface{}) (err error) {
 		}
 	}
 	Self.setLength()
+	if Self.Length > MAXIMUM_SEGMENT_SIZE {
+		err = errors.New("mux:packer: newpack content segment too large")
+	}
 	return
 }
 
@@ -77,6 +80,11 @@ func (Self *BasePackager) UnPack(reader io.Reader) (n uint16, err error) {
 	}
 	if int(Self.Length) > cap(Self.Content) {
 		err = errors.New("unpack err, content length too large")
+		return
+	}
+	if Self.Length > MAXIMUM_SEGMENT_SIZE {
+		err = errors.New("mux:packer: unpack content segment too large")
+		return
 	}
 	Self.Content = Self.Content[:int(Self.Length)]
 	//n, err := io.ReadFull(reader, Self.Content)
@@ -273,10 +281,10 @@ func (addr *Addr) Decode(b []byte) error {
 	pos := 1
 	switch addr.Type {
 	case ipV4:
-		addr.Host = net.IP(b[pos:pos+net.IPv4len]).String()
+		addr.Host = net.IP(b[pos : pos+net.IPv4len]).String()
 		pos += net.IPv4len
 	case ipV6:
-		addr.Host = net.IP(b[pos:pos+net.IPv6len]).String()
+		addr.Host = net.IP(b[pos : pos+net.IPv6len]).String()
 		pos += net.IPv6len
 	case domainName:
 		addrlen := int(b[pos])

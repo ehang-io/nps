@@ -51,7 +51,10 @@ func DomainCheck(domain string) bool {
 func CheckAuth(r *http.Request, user, passwd string) bool {
 	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
 	if len(s) != 2 {
-		return false
+		s = strings.SplitN(r.Header.Get("Proxy-Authorization"), " ", 2)
+		if len(s) != 2 {
+			return false
+		}
 	}
 
 	b, err := base64.StdEncoding.DecodeString(s[1])

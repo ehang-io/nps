@@ -10,7 +10,7 @@ script:
 os:
   - linux
 before_deploy:
-  - chmod +x ./build.sh && ./build.sh
+  - chmod +x ./build.sh && chmod +x ./build.android.sh && ./build.sh
 
 deploy:
   provider: releases
@@ -44,14 +44,15 @@ deploy:
   - linux_mipsle_server.tar.gz
   - linux_mips_client.tar.gz
   - linux_mips_server.tar.gz
-  - macos_client.tar.gz
-  - macos_server.tar.gz
-  - win_386_client.tar.gz
-  - win_386_server.tar.gz
-  - win_amd64_client.tar.gz
-  - win_amd64_server.tar.gz
+  - darwin_amd64_client.tar.gz
+  - darwin_amd64_server.tar.gz
+  - windows_386_client.tar.gz
+  - windows_386_server.tar.gz
+  - windows_amd64_client.tar.gz
+  - windows_amd64_server.tar.gz
   - npc_syno.spk
   - npc_sdk.tar.gz
+  - android_client.apk
   on:
     tags: true
     all_branches: true

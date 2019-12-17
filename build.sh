@@ -1,5 +1,5 @@
 #/bash/sh
-export VERSION=0.25.1
+export VERSION=0.25.2
 
 sudo apt-get install gcc-mingw-w64-i686
 env GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -ldflags "-s -w -extldflags -static -extldflags -static" -buildmode=c-shared -o npc_sdk.dll cmd/npc/sdk.go
@@ -69,17 +69,17 @@ tar -czvf linux_mips_client.tar.gz npc conf/npc.conf conf/multi_account.conf
 
 CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-tar -czvf win_386_client.tar.gz npc.exe conf/npc.conf conf/multi_account.conf
+tar -czvf windows_386_client.tar.gz npc.exe conf/npc.conf conf/multi_account.conf
 
 
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-tar -czvf win_amd64_client.tar.gz npc.exe conf/npc.conf conf/multi_account.conf
+tar -czvf windows_amd64_client.tar.gz npc.exe conf/npc.conf conf/multi_account.conf
 
 
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/npc/npc.go
 
-tar -czvf macos_client.tar.gz npc conf/npc.conf conf/multi_account.conf
+tar -czvf darwin_amd64_client.tar.gz npc conf/npc.conf conf/multi_account.conf
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
@@ -146,23 +146,24 @@ tar -czvf linux_mipsle_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.
 
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-tar -czvf macos_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
+tar -czvf darwin_amd64_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps
 
 
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-tar -czvf win_amd64_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps.exe
+tar -czvf windows_amd64_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps.exe
 
 
 CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -ldflags "-s -w -extldflags -static -extldflags -static" ./cmd/nps/nps.go
 
-tar -czvf win_386_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps.exe
+tar -czvf windows_386_server.tar.gz conf/nps.conf conf/tasks.json conf/clients.json conf/hosts.json conf/server.key  conf/server.pem web/views web/static nps.exe
 
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 sudo apt-get update
 sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
 docker --version
+docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk ffdfgdfg/fyne-cross:android /app/build.android.sh
 git clone https://github.com/cnlh/spksrc.git ~/spksrc
 mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
 docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash

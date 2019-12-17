@@ -11,7 +11,10 @@
 </head>
 <body>
 <div id="app"></div>
+<script src="//unpkg.com/docsify-edit-on-github/index.js"></script>
+
 <script>
+
     window.$docsify = {
         name: '',
         repo: '',
@@ -24,13 +27,16 @@
             paths: 'auto',
             placeholder: "搜索",
             hideOtherSidebarContent: true, // whether or not to hide other sidebar content
-        }
+        },
+        plugins: [
+            EditOnGithubPlugin.create("https://github.com/cnlh/nps/tree/master/docs/", "", "在github上编辑"),
+        ]
+
     }
 </script>
 <script src="//unpkg.com/docsify/lib/docsify.min.js"></script>
 <script src="//unpkg.com/docsify/lib/plugins/search.min.js"></script>
 <script src="//unpkg.com/docsify-copy-code"></script>
-
 
 </body>
 </html>
