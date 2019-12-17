@@ -9,14 +9,14 @@
 - 注册：`sudo ./npc install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
 - 启动：`sudo npc start`
 - 停止：`sudo npc stop`
-- 如果需要更换命令内容需要先卸载`./npc -service=uninstall`，再重新注册
+- 如果需要更换命令内容需要先卸载`./npc uninstall`，再重新注册
 
 对于windows，使用管理员身份运行cmd
 
 - 注册：`npc.exe install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
 - 启动：`npc.exe start`
 - 停止：`npc.exe stop`
-- 如果需要更换命令内容需要先卸载`npc.exe -service=uninstall`，再重新注册
+- 如果需要更换命令内容需要先卸载`npc.exe uninstall`，再重新注册
 
 注册到服务后，日志文件windows位于当前目录下，linux和darwin位于/var/log/npc.log
 
