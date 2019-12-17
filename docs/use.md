@@ -7,8 +7,8 @@
 ## 注册到系统服务
 对于linux、darwin
 - 注册：`sudo ./npc install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
-- 启动：`sudo ./npc start`
-- 停止：`sudo ./npc stop`
+- 启动：`sudo npc start`
+- 停止：`sudo npc stop`
 - 如果需要更换命令内容需要先卸载`./npc -service=uninstall`，再重新注册
 
 对于windows，使用管理员身份运行cmd
@@ -23,11 +23,11 @@
 ## 客户端更新
 首先进入到对于的客户端二进制文件目录
 
-请首先执行`sudo ./npc stop`或者`nps.exe stop`停止运行，然后
+请首先执行`sudo npc stop`或者`nps.exe stop`停止运行，然后
 
 对于linux
 ```shell
- sudo ./npc-update update
+ sudo npc-update update
 ```
 对于windows
 ```shell
