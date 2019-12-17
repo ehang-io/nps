@@ -23,7 +23,7 @@
 ## 客户端更新
 首先进入到对于的客户端二进制文件目录
 
-请首先执行`sudo npc stop`或者`nps.exe stop`停止运行，然后
+请首先执行`sudo npc stop`或者`npc.exe stop`停止运行，然后
 
 对于linux
 ```shell
@@ -34,7 +34,7 @@
 npc-update.exe update
 ```
 
-更新完成后，执行执行`sudo nps start`或者`nps.exe start`重新运行即可完成升级
+更新完成后，执行执行`sudo npc start`或者`npc.exe start`重新运行即可完成升级
 
 ## 配置文件模式
 此模式使用nps的公钥或者客户端私钥验证，各种配置在客户端完成，同时服务端web也可以进行管理
