@@ -19,7 +19,7 @@
   * [说明](description.md)
   * [web api](api.md)
   * [sdk](npc_sdk.md)
-git
+
 * 其他
 
   * [贡献](contribute.md)
