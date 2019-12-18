@@ -26,7 +26,6 @@ import (
 
 var (
 	level   string
-	logType = flag.String("log", "stdout", "Log output mode（stdout|file）")
 )
 
 func main() {
@@ -48,7 +47,6 @@ func main() {
 	if common.IsWindows() {
 		logPath = strings.Replace(logPath, "\\", "\\\\", -1)
 	}
-	logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+logPath+`","daily":false,"maxlines":100000,"color":true}`)
 	// init service
 	options := make(service.KeyValue)
 	options["Restart"] = "on-success"
@@ -71,15 +69,15 @@ func main() {
 		logs.Error(err)
 		return
 	}
+	logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "debug":
-			logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 		case "reload":
 			daemon.InitDaemon("nps", common.GetRunPath(), common.GetTmpPath())
 			return
 		case "install":
 			// uninstall before
+			service.Control(s, "stop")
 			service.Control(s, "uninstall")
 
 			binPath := install.InstallNps()
@@ -95,6 +93,7 @@ func main() {
 			}
 			return
 		case "start", "restart", "stop", "uninstall":
+			logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+logPath+`","daily":false,"maxlines":100000,"color":true}`)
 			err := service.Control(s, os.Args[1])
 			if err != nil {
 				logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())

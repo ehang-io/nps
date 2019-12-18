@@ -108,6 +108,8 @@ func main() {
 			os.Exit(0)
 		case "install", "start", "stop", "uninstall", "restart":
 			if os.Args[1] == "install" {
+				service.Control(s, "stop")
+				service.Control(s, "uninstall")
 				install.InstallNpc()
 			}
 			err := service.Control(s, os.Args[1])
