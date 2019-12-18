@@ -7,34 +7,34 @@
 ## 注册到系统服务
 对于linux、darwin
 - 注册：`sudo ./npc install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
-- 启动：`sudo ./npc start`
-- 停止：`sudo ./npc stop`
-- 如果需要更换命令内容需要先卸载`./npc -service=uninstall`，再重新注册
+- 启动：`sudo npc start`
+- 停止：`sudo npc stop`
+- 如果需要更换命令内容需要先卸载`./npc uninstall`，再重新注册
 
 对于windows，使用管理员身份运行cmd
 
 - 注册：`npc.exe install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
 - 启动：`npc.exe start`
 - 停止：`npc.exe stop`
-- 如果需要更换命令内容需要先卸载`npc.exe -service=uninstall`，再重新注册
+- 如果需要更换命令内容需要先卸载`npc.exe uninstall`，再重新注册
 
 注册到服务后，日志文件windows位于当前目录下，linux和darwin位于/var/log/npc.log
 
 ## 客户端更新
 首先进入到对于的客户端二进制文件目录
 
-请首先执行`sudo ./npc stop`或者`nps.exe stop`停止运行，然后
+请首先执行`sudo npc stop`或者`npc.exe stop`停止运行，然后
 
 对于linux
 ```shell
- sudo ./npc-update update
+ sudo npc-update update
 ```
 对于windows
 ```shell
 npc-update.exe update
 ```
 
-更新完成后，执行执行`sudo nps start`或者`nps.exe start`重新运行即可完成升级
+更新完成后，执行执行`sudo npc start`或者`npc.exe start`重新运行即可完成升级
 
 ## 配置文件模式
 此模式使用nps的公钥或者客户端私钥验证，各种配置在客户端完成，同时服务端web也可以进行管理

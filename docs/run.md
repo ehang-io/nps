@@ -14,6 +14,8 @@
 
 对于windows，管理员身份运行cmd，进入程序目录 ```nps.exe start```
 
+```安装后windows配置文件位于 C:\Program Files\nps，linux和darwin位于/etc/nps```
+
 停止和重启可用，stop和restart
 
 **如果发现没有启动成功，可以使用`nps(.exe) debug`运行调试，或查看日志**(Windows日志文件位于当前运行目录下，linux和darwin位于/var/log/nps.log)
