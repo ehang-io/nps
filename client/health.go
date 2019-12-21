@@ -71,7 +71,11 @@ func check(t *file.Health) {
 	var rs *http.Response
 	for _, v := range arr {
 		if t.HealthCheckType == "tcp" {
-			_, err = net.DialTimeout("tcp", v, time.Duration(t.HealthCheckTimeout)*time.Second)
+			var c net.Conn
+			c, err = net.DialTimeout("tcp", v, time.Duration(t.HealthCheckTimeout)*time.Second)
+			if err == nil {
+				c.Close()
+			}
 		} else {
 			client := &http.Client{}
 			client.Timeout = time.Duration(t.HealthCheckTimeout) * time.Second

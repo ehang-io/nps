@@ -42,9 +42,13 @@ const (
 	MUX_NEW_CONN_OK
 	MUX_NEW_CONN_Fail
 	MUX_NEW_MSG
+	MUX_NEW_MSG_PART
 	MUX_MSG_SEND_OK
 	MUX_NEW_CONN
 	MUX_CONN_CLOSE
 	MUX_PING_RETURN
-	MUX_PING int32 = -1
+	MUX_PING             int32 = -1
+	MAXIMUM_SEGMENT_SIZE       = PoolSizeWindow
+	MAXIMUM_WINDOW_SIZE        = 1 << 25 // 1<<31-1 TCP slide window size is very large,
+	// we use 32M, reduce memory usage
 )

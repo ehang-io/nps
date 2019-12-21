@@ -15,7 +15,7 @@ type NetPackager interface {
 }
 
 type BasePackager struct {
-	Length  uint32
+	Length  uint16
 	Content []byte
 }
 
@@ -65,8 +65,9 @@ func (Self *BasePackager) Pack(writer io.Writer) (err error) {
 
 //Unpack 会导致传入的数字类型转化成float64！！
 //主要原因是json unmarshal并未传入正确的数据类型
-func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
+func (Self *BasePackager) UnPack(reader io.Reader) (n uint16, err error) {
 	Self.clean()
+	n += 2 // uint16
 	err = binary.Read(reader, binary.LittleEndian, &Self.Length)
 	if err != nil {
 		return
@@ -80,6 +81,7 @@ func (Self *BasePackager) UnPack(reader io.Reader) (err error) {
 	//	err = io.ErrUnexpectedEOF
 	//}
 	err = binary.Read(reader, binary.LittleEndian, Self.Content)
+	n += Self.Length
 	return
 }
 
@@ -101,7 +103,7 @@ func (Self *BasePackager) Unmarshal(content interface{}) (err error) {
 }
 
 func (Self *BasePackager) setLength() {
-	Self.Length = uint32(len(Self.Content))
+	Self.Length = uint16(len(Self.Content))
 	return
 }
 
@@ -137,35 +139,45 @@ func (Self *ConnPackager) Pack(writer io.Writer) (err error) {
 	return
 }
 
-func (Self *ConnPackager) UnPack(reader io.Reader) (err error) {
+func (Self *ConnPackager) UnPack(reader io.Reader) (n uint16, err error) {
 	err = binary.Read(reader, binary.LittleEndian, &Self.ConnType)
 	if err != nil && err != io.EOF {
 		return
 	}
-	err = Self.BasePackager.UnPack(reader)
+	n, err = Self.BasePackager.UnPack(reader)
+	n += 2
 	return
 }
 
 type MuxPackager struct {
-	Flag   uint8
-	Id     int32
-	Window uint16
+	Flag       uint8
+	Id         int32
+	Window     uint32
+	ReadLength uint32
 	BasePackager
 }
 
 func (Self *MuxPackager) NewPac(flag uint8, id int32, content ...interface{}) (err error) {
 	Self.Flag = flag
 	Self.Id = id
-	if flag == MUX_NEW_MSG {
+	switch flag {
+	case MUX_PING_FLAG, MUX_PING_RETURN, MUX_NEW_MSG, MUX_NEW_MSG_PART:
+		Self.Content = WindowBuff.Get()
 		err = Self.BasePackager.NewPac(content...)
-	}
-	if flag == MUX_MSG_SEND_OK {
-		// MUX_MSG_SEND_OK only allows one data
+		//logs.Warn(Self.Length, string(Self.Content))
+	case MUX_MSG_SEND_OK:
+		// MUX_MSG_SEND_OK contains two data
 		switch content[0].(type) {
 		case int:
-			Self.Window = uint16(content[0].(int))
-		case uint16:
-			Self.Window = content[0].(uint16)
+			Self.Window = uint32(content[0].(int))
+		case uint32:
+			Self.Window = content[0].(uint32)
+		}
+		switch content[1].(type) {
+		case int:
+			Self.ReadLength = uint32(content[1].(int))
+		case uint32:
+			Self.ReadLength = content[1].(uint32)
 		}
 	}
 	return
@@ -180,17 +192,21 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 	if err != nil {
 		return
 	}
-	if Self.Flag == MUX_NEW_MSG {
+	switch Self.Flag {
+	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
 		err = Self.BasePackager.Pack(writer)
-	}
-	if Self.Flag == MUX_MSG_SEND_OK {
+		WindowBuff.Put(Self.Content)
+	case MUX_MSG_SEND_OK:
 		err = binary.Write(writer, binary.LittleEndian, Self.Window)
+		if err != nil {
+			return
+		}
+		err = binary.Write(writer, binary.LittleEndian, Self.ReadLength)
 	}
 	return
 }
 
-func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
-	Self.BasePackager.clean() // also clean the content
+func (Self *MuxPackager) UnPack(reader io.Reader) (n uint16, err error) {
 	err = binary.Read(reader, binary.LittleEndian, &Self.Flag)
 	if err != nil {
 		return
@@ -199,11 +215,21 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	if Self.Flag == MUX_NEW_MSG {
-		err = Self.BasePackager.UnPack(reader)
-	}
-	if Self.Flag == MUX_MSG_SEND_OK {
+	switch Self.Flag {
+	case MUX_NEW_MSG, MUX_NEW_MSG_PART, MUX_PING_FLAG, MUX_PING_RETURN:
+		Self.Content = WindowBuff.Get() // need get a window buf from pool
+		Self.BasePackager.clean()       // also clean the content
+		n, err = Self.BasePackager.UnPack(reader)
+		//logs.Warn("unpack", Self.Length, string(Self.Content))
+	case MUX_MSG_SEND_OK:
 		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
+		if err != nil {
+			return
+		}
+		n += 4 // uint32
+		err = binary.Read(reader, binary.LittleEndian, &Self.ReadLength)
+		n += 4 // uint32
 	}
+	n += 5 //uint8 int32
 	return
 }

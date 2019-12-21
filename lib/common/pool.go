@@ -9,7 +9,8 @@ const PoolSize = 64 * 1024
 const PoolSizeSmall = 100
 const PoolSizeUdp = 1472
 const PoolSizeCopy = 32 << 10
-const PoolSizeWindow = 1<<16 - 1
+const PoolSizeBuffer = 4096
+const PoolSizeWindow = PoolSizeBuffer - 2 - 4 - 4 - 1
 
 var BufPool = sync.Pool{
 	New: func() interface{} {
@@ -92,22 +93,18 @@ type windowBufferPool struct {
 func (Self *windowBufferPool) New() {
 	Self.pool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 0, PoolSizeWindow)
+			return make([]byte, PoolSizeWindow, PoolSizeWindow)
 		},
 	}
 }
 
 func (Self *windowBufferPool) Get() (buf []byte) {
 	buf = Self.pool.Get().([]byte)
-	return buf[:0]
+	return buf[:PoolSizeWindow]
 }
 
 func (Self *windowBufferPool) Put(x []byte) {
-	if cap(x) == PoolSizeWindow {
-		Self.pool.Put(x[:PoolSizeWindow]) // make buf to full
-	} else {
-		x = nil
-	}
+	Self.pool.Put(x[:PoolSizeWindow]) // make buf to full
 }
 
 type bufferPool struct {
@@ -117,7 +114,7 @@ type bufferPool struct {
 func (Self *bufferPool) New() {
 	Self.pool = sync.Pool{
 		New: func() interface{} {
-			return new(bytes.Buffer)
+			return bytes.NewBuffer(make([]byte, 0, PoolSizeBuffer))
 		},
 	}
 }
@@ -145,15 +142,41 @@ func (Self *muxPackagerPool) New() {
 }
 
 func (Self *muxPackagerPool) Get() *MuxPackager {
-	pack := Self.pool.Get().(*MuxPackager)
-	buf := CopyBuff.Get()
-	pack.Content = buf
-	return pack
+	return Self.pool.Get().(*MuxPackager)
 }
 
 func (Self *muxPackagerPool) Put(pack *MuxPackager) {
-	CopyBuff.Put(pack.Content)
 	Self.pool.Put(pack)
+}
+
+type ListElement struct {
+	Buf  []byte
+	L    uint16
+	Part bool
+}
+
+type listElementPool struct {
+	pool sync.Pool
+}
+
+func (Self *listElementPool) New() {
+	Self.pool = sync.Pool{
+		New: func() interface{} {
+			element := ListElement{}
+			return &element
+		},
+	}
+}
+
+func (Self *listElementPool) Get() *ListElement {
+	return Self.pool.Get().(*ListElement)
+}
+
+func (Self *listElementPool) Put(element *ListElement) {
+	element.L = 0
+	element.Buf = nil
+	element.Part = false
+	Self.pool.Put(element)
 }
 
 var once = sync.Once{}
@@ -161,12 +184,14 @@ var BuffPool = bufferPool{}
 var CopyBuff = copyBufferPool{}
 var MuxPack = muxPackagerPool{}
 var WindowBuff = windowBufferPool{}
+var ListElementPool = listElementPool{}
 
 func newPool() {
 	BuffPool.New()
 	CopyBuff.New()
 	MuxPack.New()
 	WindowBuff.New()
+	ListElementPool.New()
 }
 
 func init() {
