@@ -5,6 +5,17 @@
 
 cd /go
 go get -u fyne.io/fyne fyne.io/fyne/cmd/fyne
+
+# temporary solution here to add android internet permission
+rm -rf /go/bin/fyne
+mkdir -p /go/src/github.com/ffdfgdfg
+cd /go/src/github.com/ffdfgdfg
+git clone https://github.com/ffdfgdfg/fyne.git
+cd fyne
+git checkout android-permission
+go install ./cmd/fyne
+cd /go
+
 mkdir -p /go/src/github.com/cnlh/nps
 cp -R /app/* /go/src/github.com/cnlh/nps
 cd /go/src/github.com/cnlh/nps
