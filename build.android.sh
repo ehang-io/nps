@@ -5,6 +5,7 @@
 
 cd /go
 go get -u fyne.io/fyne fyne.io/fyne/cmd/fyne
+
 mkdir -p /go/src/github.com/cnlh/nps
 cp -R /app/* /go/src/github.com/cnlh/nps
 cd /go/src/github.com/cnlh/nps

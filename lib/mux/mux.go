@@ -34,6 +34,7 @@ type Mux struct {
 func NewMux(c net.Conn, connType string) *Mux {
 	//c.(*net.TCPConn).SetReadBuffer(0)
 	//c.(*net.TCPConn).SetWriteBuffer(0)
+	_ = c.SetDeadline(time.Time{})
 	m := &Mux{
 		conn:      c,
 		connMap:   NewConnMap(),
@@ -173,7 +174,7 @@ func (s *Mux) ping() {
 		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 		// send the ping flag and get the latency first
 		ticker := time.NewTicker(time.Second * 5)
-    defer ticker.Stop()
+		defer ticker.Stop()
 		for {
 			if s.IsClose {
 				break
@@ -198,7 +199,7 @@ func (s *Mux) ping() {
 			}
 			atomic.AddUint32(&s.pingOk, 1)
 		}
-    return
+		return
 	}()
 }
 

@@ -1,5 +1,5 @@
 #/bash/sh
-export VERSION=0.25.2
+export VERSION=0.25.3
 
 sudo apt-get install gcc-mingw-w64-i686
 env GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -ldflags "-s -w -extldflags -static -extldflags -static" -buildmode=c-shared -o npc_sdk.dll cmd/npc/sdk.go

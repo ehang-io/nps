@@ -2,9 +2,9 @@
 ## 无配置文件模式
 此模式的各种配置在服务端web管理中完成,客户端除运行一条命令外无需任何其他设置
 ```
- ./npc -debug=true -server=ip:port -vkey=web界面中显示的密钥
+ ./npc -server=ip:port -vkey=web界面中显示的密钥
 ```
-## 注册到系统服务
+## 注册到系统服务(开机启动、守护进程)
 对于linux、darwin
 - 注册：`sudo ./npc install 其他参数（例如-server=xx -vkey=xx或者-config=xxx）`
 - 启动：`sudo npc start`

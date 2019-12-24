@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	level   string
+	level string
 )
 
 func main() {
@@ -57,6 +57,12 @@ func main() {
 		Description: "一款轻量级、功能强大的内网穿透代理服务器。支持tcp、udp流量转发，支持内网http代理、内网socks5代理，同时支持snappy压缩、站点保护、加密传输、多路复用、header修改等。支持web图形化管理，集成多用户模式。",
 		Option:      options,
 	}
+	svcConfig.Arguments = append(svcConfig.Arguments, "service")
+	if len(os.Args) > 1 && os.Args[1] == "service" {
+		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+logPath+`","daily":false,"maxlines":100000,"color":true}`)
+	} else {
+		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
+	}
 	if !common.IsWindows() {
 		svcConfig.Dependencies = []string{
 			"Requires=network.target",
@@ -69,8 +75,7 @@ func main() {
 		logs.Error(err)
 		return
 	}
-	logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
-	if len(os.Args) > 1 {
+	if len(os.Args) > 1 && os.Args[1] != "service" {
 		switch os.Args[1] {
 		case "reload":
 			daemon.InitDaemon("nps", common.GetRunPath(), common.GetTmpPath())
@@ -93,7 +98,6 @@ func main() {
 			}
 			return
 		case "start", "restart", "stop", "uninstall":
-			logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+logPath+`","daily":false,"maxlines":100000,"color":true}`)
 			err := service.Control(s, os.Args[1])
 			if err != nil {
 				logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())
