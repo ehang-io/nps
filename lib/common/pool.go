@@ -93,18 +93,20 @@ type windowBufferPool struct {
 func (Self *windowBufferPool) New() {
 	Self.pool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, PoolSizeWindow, PoolSizeWindow)
+			return make([]byte, PoolSizeWindow)
 		},
 	}
 }
 
 func (Self *windowBufferPool) Get() (buf []byte) {
 	buf = Self.pool.Get().([]byte)
-	return buf[:PoolSizeWindow]
+	buf = buf[:PoolSizeWindow]
+	return buf
 }
 
 func (Self *windowBufferPool) Put(x []byte) {
-	Self.pool.Put(x[:PoolSizeWindow]) // make buf to full
+	x = x[:0] // clean buf
+	Self.pool.Put(x)
 }
 
 type bufferPool struct {
@@ -146,6 +148,7 @@ func (Self *muxPackagerPool) Get() *MuxPackager {
 }
 
 func (Self *muxPackagerPool) Put(pack *MuxPackager) {
+	pack.reset()
 	Self.pool.Put(pack)
 }
 

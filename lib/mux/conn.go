@@ -2,6 +2,7 @@ package mux
 
 import (
 	"errors"
+	"github.com/astaxie/beego/logs"
 	"io"
 	"math"
 	"net"
@@ -215,10 +216,10 @@ func (Self *ReceiveWindow) calcSize() {
 		if n < common.MAXIMUM_SEGMENT_SIZE*10 {
 			n = common.MAXIMUM_SEGMENT_SIZE * 10
 		}
-		bufLen := Self.bufQueue.Len()
-		if n < bufLen {
-			n = bufLen
-		}
+		//bufLen := Self.bufQueue.Len()
+		//if n < bufLen {
+		//	n = bufLen
+		//}
 		if n < Self.maxSize/2 {
 			n = Self.maxSize / 2
 		}
@@ -227,6 +228,7 @@ func (Self *ReceiveWindow) calcSize() {
 			n = 2 * Self.maxSize
 		}
 		if n > (common.MAXIMUM_WINDOW_SIZE / uint32(conns)) {
+			logs.Warn("window too large", n)
 			n = common.MAXIMUM_WINDOW_SIZE / uint32(conns)
 		}
 		// set the maximum size

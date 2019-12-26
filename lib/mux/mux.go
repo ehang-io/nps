@@ -5,7 +5,9 @@ import (
 	"io"
 	"math"
 	"net"
+	"os"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/astaxie/beego/logs"
@@ -35,13 +37,17 @@ func NewMux(c net.Conn, connType string) *Mux {
 	//c.(*net.TCPConn).SetReadBuffer(0)
 	//c.(*net.TCPConn).SetWriteBuffer(0)
 	_ = c.SetDeadline(time.Time{})
+	fd, err := getConnFd(c)
+	if err != nil {
+		logs.Warn(err)
+	}
 	m := &Mux{
 		conn:      c,
 		connMap:   NewConnMap(),
 		id:        0,
 		closeChan: make(chan struct{}, 1),
 		newConnCh: make(chan *conn),
-		bw:        new(bandwidth),
+		bw:        NewBandwidth(fd),
 		IsClose:   false,
 		connType:  connType,
 		pingCh:    make(chan []byte),
@@ -56,6 +62,26 @@ func NewMux(c net.Conn, connType string) *Mux {
 	m.pingReturn()
 	m.writeSession()
 	return m
+}
+
+func getConnFd(c net.Conn) (fd *os.File, err error) {
+	switch c.(type) {
+	case *net.TCPConn:
+		fd, err = c.(*net.TCPConn).File()
+		if err != nil {
+			return
+		}
+		return
+	case *net.UDPConn:
+		fd, err = c.(*net.UDPConn).File()
+		if err != nil {
+			return
+		}
+		return
+	default:
+		err = errors.New("mux:unknown conn type, only tcp or kcp")
+		return
+	}
 }
 
 func (s *Mux) NewConn() (*conn, error) {
@@ -392,13 +418,19 @@ type bandwidth struct {
 	readStart     time.Time
 	lastReadStart time.Time
 	bufLength     uint32
+	fd            *os.File
+	calcThreshold uint32
+}
+
+func NewBandwidth(fd *os.File) *bandwidth {
+	return &bandwidth{fd: fd}
 }
 
 func (Self *bandwidth) StartRead() {
 	if Self.readStart.IsZero() {
 		Self.readStart = time.Now()
 	}
-	if Self.bufLength >= common.MAXIMUM_SEGMENT_SIZE*300 {
+	if Self.bufLength >= Self.calcThreshold {
 		Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
 		Self.calcBandWidth()
 	}
@@ -410,7 +442,21 @@ func (Self *bandwidth) SetCopySize(n uint16) {
 
 func (Self *bandwidth) calcBandWidth() {
 	t := Self.readStart.Sub(Self.lastReadStart)
-	atomic.StoreUint64(&Self.readBandwidth, math.Float64bits(float64(Self.bufLength)/t.Seconds()))
+	bufferSize, err := syscall.GetsockoptInt(int(Self.fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	//logs.Warn(bufferSize)
+	if err != nil {
+		logs.Warn(err)
+		Self.bufLength = 0
+		return
+	}
+	if Self.bufLength >= uint32(bufferSize) {
+		atomic.StoreUint64(&Self.readBandwidth, math.Float64bits(float64(Self.bufLength)/t.Seconds()))
+		// calculate the hole socket buffer, the time meaning to fill the buffer
+		//logs.Warn(Self.Get())
+	} else {
+		Self.calcThreshold = uint32(bufferSize)
+	}
+	// socket buffer size is bigger than bufLength, so we don't calculate it
 	Self.bufLength = 0
 }
 

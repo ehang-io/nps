@@ -246,6 +246,15 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (n uint16, err error) {
 	return
 }
 
+func (Self *MuxPackager) reset() {
+	Self.Id = 0
+	Self.Flag = 0
+	Self.Length = 0
+	Self.Content = nil
+	Self.ReadLength = 0
+	Self.Window = 0
+}
+
 const (
 	ipV4       = 1
 	domainName = 3
