@@ -41,3 +41,5 @@
 ```
 
 更新完成后，执行执行`sudo nps start`或者`nps.exe start`重新运行即可完成升级
+
+如果无法更新成功，可以直接自行下载releases压缩包然后覆盖原有的nps二进制文件和web目录
