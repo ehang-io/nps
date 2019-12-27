@@ -2,7 +2,7 @@
 <manifest
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:versionCode="1"
-        android:versionName="0.25.3"
+        android:versionName="0.25.4"
         package="org.nps.client"
         platformBuildVersionCode="15"
         platformBuildVersionName="4.0.4-1406430">
