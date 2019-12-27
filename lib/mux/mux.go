@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/astaxie/beego/logs"
@@ -62,26 +61,6 @@ func NewMux(c net.Conn, connType string) *Mux {
 	m.pingReturn()
 	m.writeSession()
 	return m
-}
-
-func getConnFd(c net.Conn) (fd *os.File, err error) {
-	switch c.(type) {
-	case *net.TCPConn:
-		fd, err = c.(*net.TCPConn).File()
-		if err != nil {
-			return
-		}
-		return
-	case *net.UDPConn:
-		fd, err = c.(*net.UDPConn).File()
-		if err != nil {
-			return
-		}
-		return
-	default:
-		err = errors.New("mux:unknown conn type, only tcp or kcp")
-		return
-	}
 }
 
 func (s *Mux) NewConn() (*conn, error) {
@@ -442,7 +421,7 @@ func (Self *bandwidth) SetCopySize(n uint16) {
 
 func (Self *bandwidth) calcBandWidth() {
 	t := Self.readStart.Sub(Self.lastReadStart)
-	bufferSize, err := syscall.GetsockoptInt(int(Self.fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	bufferSize, err := sysGetSock(Self.fd)
 	//logs.Warn(bufferSize)
 	if err != nil {
 		logs.Warn(err)
@@ -451,7 +430,7 @@ func (Self *bandwidth) calcBandWidth() {
 	}
 	if Self.bufLength >= uint32(bufferSize) {
 		atomic.StoreUint64(&Self.readBandwidth, math.Float64bits(float64(Self.bufLength)/t.Seconds()))
-		// calculate the hole socket buffer, the time meaning to fill the buffer
+		// calculate the whole socket buffer, the time meaning to fill the buffer
 		//logs.Warn(Self.Get())
 	} else {
 		Self.calcThreshold = uint32(bufferSize)
