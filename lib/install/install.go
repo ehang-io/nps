@@ -91,11 +91,13 @@ func copyStaticFile(srcPath, bin string) string {
 			if _, err := copyFile(filepath.Join(srcPath, bin), "/usr/local/bin/"+bin); err != nil {
 				log.Fatalln(err)
 			} else {
-				copyFile(filepath.Join(srcPath, "nps"), "/usr/local/bin/"+bin+"-update")
+				copyFile(filepath.Join(srcPath, bin), "/usr/local/bin/"+bin+"-update")
+				chMod("/usr/local/bin/"+bin+"-update", 0755)
 				binPath = "/usr/local/bin/" + bin
 			}
 		} else {
-			copyFile(filepath.Join(srcPath, "nps"), "/usr/bin/"+bin+"-update")
+			copyFile(filepath.Join(srcPath, bin), "/usr/bin/"+bin+"-update")
+			chMod("/usr/bin/"+bin+"-update", 0755)
 			binPath = "/usr/bin/" + bin
 		}
 	} else {
