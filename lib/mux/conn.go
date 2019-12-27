@@ -446,7 +446,20 @@ func (Self *SendWindow) allow() {
 }
 
 func (Self *SendWindow) sent(sentSize uint32) {
-	atomic.AddUint64(&Self.remainingWait, ^(uint64(sentSize)<<dequeueBits - 1))
+	var remaining, wait uint32
+	for {
+		ptrs := atomic.LoadUint64(&Self.remainingWait)
+		remaining, wait = Self.unpack(ptrs)
+		if remaining >= sentSize {
+			atomic.AddUint64(&Self.remainingWait, ^(uint64(sentSize)<<dequeueBits - 1))
+			break
+		} else {
+			if atomic.CompareAndSwapUint64(&Self.remainingWait, ptrs, Self.pack(0, wait)) {
+				// just keep the wait status, it will be wait in the next loop
+				break
+			}
+		}
+	}
 }
 
 func (Self *SendWindow) WriteTo() (p []byte, sendSize uint32, part bool, err error) {
