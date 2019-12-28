@@ -4,13 +4,18 @@ package mux
 
 import (
 	"errors"
+	"github.com/xtaci/kcp-go"
 	"net"
 	"os"
 	"syscall"
 )
 
 func sysGetSock(fd *os.File) (bufferSize int, err error) {
-	return syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	if fd != nil {
+		return syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	} else {
+		return 1400 * 320, nil
+	}
 }
 
 func getConnFd(c net.Conn) (fd *os.File, err error) {
@@ -26,6 +31,13 @@ func getConnFd(c net.Conn) (fd *os.File, err error) {
 		if err != nil {
 			return
 		}
+		return
+	case *kcp.UDPSession:
+		//fd, err = (*net.UDPConn)(unsafe.Pointer(c.(*kcp.UDPSession))).File()
+		//if err != nil {
+		//	return
+		//}
+		// Todo
 		return
 	default:
 		err = errors.New("mux:unknown conn type, only tcp or kcp")
