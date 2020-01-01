@@ -303,7 +303,7 @@ func (s *Mux) readSession() {
 					if connection.isClose {
 						continue
 					}
-					connection.sendWindow.SetSize(pack.Window, pack.ReadLength)
+					connection.sendWindow.SetSize(pack.Window)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
 					connection.closeFlag = true
