@@ -250,7 +250,7 @@ func (Self *ReceiveWindow) calcSize() {
 				// twice grow
 			}
 			if n > (common.MAXIMUM_WINDOW_SIZE / uint32(conns)) {
-				//logs.Warn("window too large", n)
+				logs.Warn("window too large, calculated:", n, "limit:", common.MAXIMUM_WINDOW_SIZE/uint32(conns))
 				n = common.MAXIMUM_WINDOW_SIZE / uint32(conns)
 			}
 			// set the maximum size
@@ -479,7 +479,7 @@ func (Self *SendWindow) SetSize(currentMaxSizeDone uint64) (closed bool) {
 		ptrs := atomic.LoadUint64(&Self.maxSizeDone)
 		maxsize, send, wait = Self.unpack(ptrs)
 		if read > send {
-			logs.Error("read > send")
+			logs.Error("window read > send: max size:", currentMaxSize, "read:", read, "send", send)
 			return
 		}
 		if read == 0 && currentMaxSize == maxsize {
