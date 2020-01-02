@@ -14,7 +14,7 @@ func sysGetSock(fd *os.File) (bufferSize int, err error) {
 	if fd != nil {
 		return syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 	} else {
-		return 1400 * 320, nil
+		return 5 * 1024 * 1024, nil
 	}
 }
 
