@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.org/cnlh/nps.svg?branch=master)](https://travis-ci.org/cnlh/nps)
 ![GitHub All Releases](https://img.shields.io/github/downloads/cnlh/nps/total)
 
-[README](https://github.com/cnlh/nps/blob/master/README.md)|[中文文档](https://github.com/cnlh/nps/README_zh.md)
+[README](https://github.com/cnlh/nps/blob/master/README.md)|[中文文档](https://github.com/cnlh/nps/blob/master/README_zh.md)
 
 NPS is a lightweight, high-performance, powerful **intranet penetration** proxy server, with a powerful web management terminal.
 
