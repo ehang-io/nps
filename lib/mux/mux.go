@@ -443,7 +443,7 @@ func (Self *bandwidth) Get() (bw float64) {
 	// The zero value, 0 for numeric types
 	bw = math.Float64frombits(atomic.LoadUint64(&Self.readBandwidth))
 	if bw <= 0 {
-		bw = 100
+		bw = 0
 	}
 	//logs.Warn(bw)
 	return
