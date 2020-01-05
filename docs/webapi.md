@@ -1,8 +1,9 @@
 获取客户端列表
 
-url=&#39;http://你的域名或者网址/client/list/&#39;;
+```
+POST /client/list/
+```
 
-post提交的数据
 
 | 参数 | 含义 |
 | --- | --- |
@@ -14,9 +15,10 @@ post提交的数据
 ***
 获取单个客户端
 
-url=&#39;http://你的域名或者网址/client/getclient/&#39;;
+```
+POST /client/getclient/
+```
 
-post提交的数据
 
 | 参数 | 含义 |
 | --- | --- |
@@ -25,9 +27,9 @@ post提交的数据
 ***
 添加客户端
 
-url=&#39;http://你的域名或者网址/client/add/&#39;;
-
-post提交的数据
+```
+POST /client/add/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -47,9 +49,9 @@ post提交的数据
 ***
 修改客户端(25.4版本有问题暂时不能用)
 
-url=&#39;http://你的域名或者网址/client/edit/&#39;;
-
-post提交的数据
+```
+POST /client/edit/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -70,9 +72,9 @@ post提交的数据
 ***
 删除客户端
 
-url=&#39;http://你的域名或者网址/client/del/&#39;;
-
-post提交的数据
+```
+POST /client/del/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -81,9 +83,9 @@ post提交的数据
 ***
 获取域名解析列表
 
-url=&#39;http://你的域名或者网址/index/hostlist/&#39;;
-
-post提交的数据
+```
+POST /index/hostlist/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -94,9 +96,10 @@ post提交的数据
 ***
 添加域名解析
 
-url=&#39;http://你的域名或者网址/index/addhost/&#39;;
+```
+POST /index/addhost/
+```
 
-post提交的数据
 
 | 参数 | 含义 |
 | --- | --- |
@@ -112,9 +115,9 @@ post提交的数据
 ***
 修改域名解析
 
-url=&#39;http://你的域名或者网址/index/edithost/&#39;;
-
-post提交的数据
+```
+POST /index/edithost/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -131,9 +134,9 @@ post提交的数据
 ***
 删除域名解析
 
-url=&#39;http://你的域名或者网址/index/delhost/&#39;;
-
-post提交的数据
+```
+POST /index/delhost/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -142,9 +145,9 @@ post提交的数据
 ***
 获取单条隧道信息
 
-url=&#39;http://你的域名或者网址/index/getonetunnel/&#39;;
-
-post提交的数据
+```
+POST /index/getonetunnel/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -153,9 +156,9 @@ post提交的数据
 ***
 获取隧道列表
 
-url=&#39;http://你的域名或者网址/index/gettunnel/&#39;;
-
-post提交的数据
+```
+POST /index/gettunnel/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -168,9 +171,9 @@ post提交的数据
 ***
 添加隧道
 
-url=&#39;http://你的域名或者网址/index/add/&#39;;
-
-post提交的数据
+```
+POST /index/add/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -183,10 +186,9 @@ post提交的数据
 ***
 修改隧道
 
-url=&#39;http://你的域名或者网址/index/edit/&#39;;
-
-***
-post提交的数据
+```
+POST /index/edit/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -200,9 +202,9 @@ post提交的数据
 ***
 删除隧道
 
-url=&#39;http://你的域名或者网址/index/del/&#39;;
-
-post提交的数据
+```
+POST /index/del/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -211,9 +213,9 @@ post提交的数据
 ***
 隧道停止工作
 
-url=&#39;http://你的域名或者网址/index/stop/&#39;;
-
-post提交的数据
+```
+POST /index/stop/
+```
 
 | 参数 | 含义 |
 | --- | --- |
@@ -222,9 +224,9 @@ post提交的数据
 ***
 隧道开始工作
 
-url=&#39;http://你的域名或者网址/index/start/&#39;;
-
-post提交的数据
+```
+POST /index/start/
+```
 
 | 参数 | 含义 |
 | --- | --- |
