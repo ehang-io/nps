@@ -2,9 +2,11 @@ package mux
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"github.com/cnlh/nps/lib/common"
 	"github.com/cnlh/nps/lib/goroutine"
+	"github.com/cnlh/nps/lib/rate"
 	"io"
 	"log"
 	"net"
@@ -141,7 +143,56 @@ func TestNewMux(t *testing.T) {
 		time.Sleep(time.Second * 5)
 	}
 }
+func TestNewMux2(t *testing.T) {
+	tc, err := NewTrafficControl("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tc.RunNetRangeTest(func() {
+		logs.EnableFuncCallDepth(true)
+		logs.SetLogFuncCallDepth(3)
+		server()
+		client()
+		//poolConnCopy, _ := ants.NewPoolWithFunc(200000, common.copyConn, ants.WithNonblocking(false))
+		time.Sleep(time.Second * 3)
+		rate := rate.NewRate(1024 * 1024 * 3)
+		rate.Start()
+		conn2 = Newconn(rate, conn2)
+		go func() {
+			m2 := NewMux(conn2, "tcp")
+			for {
+				//logs.Warn("npc starting accept")
+				c, err := m2.Accept()
+				if err != nil {
+					logs.Warn(err)
+					continue
+				}
+				//logs.Warn("npc accept success ")
+				//c2, err := net.Dial("tcp", "127.0.0.1:80")
+				c.Write(bytes.Repeat([]byte{0}, 1024*1024*100))
+			}
+		}()
 
+		m1 := NewMux(conn1, "tcp")
+		tmpCpnn, err := m1.NewConn()
+		if err != nil {
+			logs.Warn("nps new conn err ", err)
+			return
+		}
+		buf := make([]byte, 1024*1024)
+		var count float64
+		start := time.Now()
+		defer logs.Warn("now rate", count/time.Now().Sub(start).Seconds())
+		for {
+			n, err := tmpCpnn.Read(buf)
+			count += float64(n)
+			if err != nil {
+				logs.Warn(err)
+				return
+			}
+		}
+	})
+}
 func server() {
 	var err error
 	l, err := net.Listen("tcp", "127.0.0.1:9999")
@@ -445,3 +496,53 @@ func TestPriority(t *testing.T) {
 //	}()
 //	time.Sleep(time.Second * 100000)
 //}
+
+type Conn struct {
+	conn net.Conn
+	rate *rate.Rate
+}
+
+func Newconn(rate *rate.Rate, conn net.Conn) *Conn {
+	return &Conn{
+		conn: conn,
+		rate: rate,
+	}
+}
+
+func (conn *Conn) Read(b []byte) (n int, err error) {
+	defer func() {
+		conn.rate.Get(int64(n))
+	}()
+	return conn.conn.Read(b)
+}
+
+func (conn *Conn) Write(b []byte) (n int, err error) {
+	defer func() {
+		conn.rate.Get(int64(n))
+	}()
+	return conn.conn.Write(b)
+}
+
+func (conn *Conn) LocalAddr() net.Addr {
+	return conn.conn.LocalAddr()
+}
+
+func (conn *Conn) RemoteAddr() net.Addr {
+	return conn.conn.RemoteAddr()
+}
+
+func (conn *Conn) SetDeadline(t time.Time) error {
+	return conn.conn.SetDeadline(t)
+}
+
+func (conn *Conn) SetWriteDeadline(t time.Time) error {
+	return conn.conn.SetWriteDeadline(t)
+}
+
+func (conn *Conn) SetReadDeadline(t time.Time) error {
+	return conn.conn.SetReadDeadline(t)
+}
+
+func (conn *Conn) Close() error {
+	return conn.conn.Close()
+}

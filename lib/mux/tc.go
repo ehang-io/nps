@@ -43,12 +43,14 @@ func Ips() (map[string]string, error) {
 
 // get ip and Eth information by Eth name
 func GetIpAddrByName(EthName string) (Eth *Eth, err error) {
-	interfaces, err := net.Interfaces()
+	var interfaces []net.Interface
+	interfaces, err = net.Interfaces()
 	if err != nil {
 		return
 	}
 	for _, i := range interfaces {
-		byName, err := net.InterfaceByName(i.Name)
+		var byName *net.Interface
+		byName, err = net.InterfaceByName(i.Name)
 		if err != nil {
 			return
 		}
@@ -105,10 +107,10 @@ func (tc *TrafficControl) RunNetRangeTest(f func()) error {
 	funcs := tc.getTestVariable()
 	groups := getArrayExhaustivity(funcs)
 	for _, v := range groups {
-		// execute bandwidth control
-		if err := tc.bandwidth("1mbit"); err != nil {
-			return err
-		}
+		// execute bandwidth control, not good work
+		//if err := tc.bandwidth("1mbit"); err != nil {
+		//	return err
+		//}
 		// execute random strategy
 		for _, vv := range v {
 			err := vv()
