@@ -114,7 +114,7 @@ func main() {
 			}
 			err := service.Control(s, os.Args[1])
 			if err != nil {
-				logs.Error("Valid actions: %q\n", service.ControlAction, err.Error())
+				logs.Error("Valid actions: %q\n%s", service.ControlAction, err.Error())
 			}
 			return
 		}
