@@ -2,9 +2,9 @@ package mux
 
 import (
 	"bufio"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/goroutine"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"log"
 	"net"

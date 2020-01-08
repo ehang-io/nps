@@ -1,16 +1,16 @@
 package main
 
 import (
+	"ehang.io/nps/client"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/daemon"
+	"ehang.io/nps/lib/version"
 	"fmt"
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/client"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/daemon"
-	"github.com/cnlh/nps/lib/version"
 	"io/ioutil"
 	"os"
 	"path"

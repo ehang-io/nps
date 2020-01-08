@@ -11,16 +11,16 @@ import (
 	"sync"
 	"time"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/mux"
+	"ehang.io/nps/lib/version"
+	"ehang.io/nps/server/connection"
+	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/version"
-	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/server/tool"
 )
 
 type Client struct {

@@ -1,26 +1,26 @@
 package main
 
 import (
+	"ehang.io/nps/lib/install"
 	"flag"
-	"github.com/cnlh/nps/lib/install"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/daemon"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/version"
+	"ehang.io/nps/server"
+	"ehang.io/nps/server/connection"
+	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/daemon"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/version"
-	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/server/tool"
 
-	"github.com/cnlh/nps/web/routers"
+	"ehang.io/nps/web/routers"
 	"github.com/kardianos/service"
 )
 

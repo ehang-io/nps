@@ -1,9 +1,9 @@
 package mux
 
 import (
+	"ehang.io/nps/lib/common"
 	"errors"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
 	"io"
 	"math"
 	"net"

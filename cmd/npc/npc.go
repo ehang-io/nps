@@ -1,16 +1,16 @@
 package main
 
 import (
+	"ehang.io/nps/client"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/install"
+	"ehang.io/nps/lib/version"
 	"flag"
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/ccding/go-stun/stun"
-	"github.com/cnlh/nps/client"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/install"
-	"github.com/cnlh/nps/lib/version"
 	"github.com/kardianos/service"
 	"os"
 	"runtime"

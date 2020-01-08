@@ -11,11 +11,11 @@ import (
 	"github.com/astaxie/beego/logs"
 	"github.com/xtaci/kcp-go"
 
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/mux"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/mux"
 )
 
 type TRPClient struct {
@@ -44,6 +44,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 
 var NowStatus int
 var CloseClient bool
+
 //start
 func (s *TRPClient) Start() {
 	CloseClient = false

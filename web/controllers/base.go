@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server"
 )
 
 type BaseController struct {
