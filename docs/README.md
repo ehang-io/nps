@@ -7,7 +7,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 
 
 ## 背景
-![image](https://github.com/cnlh/nps/blob/master/image/web.png?raw=true)
+![image](https://github.com/ehang-io/nps/blob/master/image/web.png?raw=true)
 
 1. 做微信公众号开发、小程序开发等----> 域名代理模式
 

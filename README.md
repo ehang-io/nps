@@ -5,12 +5,12 @@
 [![Build Status](https://travis-ci.org/cnlh/nps.svg?branch=master)](https://travis-ci.org/cnlh/nps)
 ![GitHub All Releases](https://img.shields.io/github/downloads/cnlh/nps/total)
 
-[README](https://github.com/cnlh/nps/blob/master/README.md)|[中文文档](https://github.com/cnlh/nps/blob/master/README_zh.md)
+[README](https://github.com/ehang-io/nps/blob/master/README.md)|[中文文档](https://github.com/ehang-io/nps/blob/master/README_zh.md)
 
 NPS is a lightweight, high-performance, powerful **intranet penetration** proxy server, with a powerful web management terminal.
 
 
-![image](https://github.com/cnlh/nps/blob/master/image/web.png?raw=true)
+![image](https://github.com/ehang-io/nps/blob/master/image/web.png?raw=true)
 
 ## Feature
 
@@ -24,13 +24,13 @@ NPS is a lightweight, high-performance, powerful **intranet penetration** proxy 
 - Domain name resolution has functions such as custom headers, 404 page configuration, host modification, site protection, URL routing, and pan-resolution.
 - Multi-user and user registration support on server.
 
-**Didn't find the feature you want? It doesn't matter, click [Enter the document](https://cnlh.github.io/nps/) to find it!**
+**Didn't find the feature you want? It doesn't matter, click [Enter the document](https://ehang-io.github.io/nps/) to find it!**
 
 ## Quick start
 
 ### Installation
 
-> [releases](https://github.com/cnlh/nps/releases)
+> [releases](https://github.com/ehang-io/nps/releases)
 
 Download the corresponding system version, the server and client are separate.
 
@@ -62,11 +62,11 @@ For windows, run cmd as administrator and enter the program directory ```nps.exe
 - Click the + sign in front of the client in web management and copy the startup command.
 - Execute the startup command, Linux can be executed directly, Windows will replace ./npc with npc.exe and execute it with cmd.
 
-If you need to register to the system service, you can check [Register to the system service](https://cnlh.github.io/nps/#/use?id=注册到系统服务)
+If you need to register to the system service, you can check [Register to the system service](https://ehang-io.github.io/nps/#/use?id=注册到系统服务)
 
 ### Configuration
 - After the client connects, configure the corresponding penetration service in the web.
-- For more advanced usage, see [Complete Documentation](https://cnlh.github.io/nps/)
+- For more advanced usage, see [Complete Documentation](https://ehang-io.github.io/nps/)
 
 ## Contribution
 - If you encounter a bug, you can submit it to the dev branch directly.
