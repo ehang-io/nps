@@ -31,7 +31,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 域名解析具备自定义header、404页面配置、host修改、站点保护、URL路由、泛解析等功能
 - 服务端支持多用户和用户注册功能
 
-**没找到你想要的功能？不要紧，点击[进入文档](https://cnlh.github.io/nps/)查找吧**
+**没找到你想要的功能？不要紧，点击[进入文档](https://ehang-io.github.io/nps)查找吧**
 ## 快速开始
 
 ### 安装
@@ -65,11 +65,11 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 点击web管理中客户端前的+号，复制启动命令
 - 执行启动命令，linux直接执行即可，windows将./npc换成npc.exe用cmd执行
 
-如果需要注册到系统服务可查看[注册到系统服务](https://cnlh.github.io/nps/#/use?id=注册到系统服务)
+如果需要注册到系统服务可查看[注册到系统服务](https://ehang-io.github.io/nps/#/use?id=注册到系统服务)
 
 ### 配置
 - 客户端连接后，在web中配置对应穿透服务即可
-- 更多高级用法见[完整文档](https://cnlh.github.io/nps/)
+- 更多高级用法见[完整文档](https://ehang-io.github.io/nps)
 
 ## 贡献
 - 如果遇到bug可以直接提交至dev分支
