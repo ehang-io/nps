@@ -1,21 +1,21 @@
 package server
 
 import (
+	"ehang.io/nps/lib/version"
 	"errors"
-	"github.com/cnlh/nps/lib/version"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"ehang.io/nps/bridge"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server/proxy"
+	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/proxy"
-	"github.com/cnlh/nps/server/tool"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"

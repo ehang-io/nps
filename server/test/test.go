@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/file"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
 )
 
 func TestServerConfig() {

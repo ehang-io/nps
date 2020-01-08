@@ -1,6 +1,6 @@
 ![logo](logo.svg)
 
-# NPS <small>0.25.4</small>
+# NPS <small>0.26.0</small>
 
 > 一款轻量级、高性能、功能强大的内网穿透代理服务器
 
@@ -12,5 +12,5 @@
 - 全平台兼容，一键注册为服务
 
 
-[GitHub](https://github.com/cnlh/nps/)
+[GitHub](https://github.com/ehang-io/nps/)
 [开始使用](#nps)

@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/server/tool"
-	
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server"
+	"ehang.io/nps/server/tool"
+
 	"github.com/astaxie/beego"
 )
 

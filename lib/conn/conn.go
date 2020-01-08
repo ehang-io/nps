@@ -3,11 +3,11 @@ package conn
 import (
 	"bufio"
 	"bytes"
+	"ehang.io/nps/lib/goroutine"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"net"
 	"net/http"
@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/rate"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/mux"
+	"ehang.io/nps/lib/rate"
 	"github.com/xtaci/kcp-go"
 )
 

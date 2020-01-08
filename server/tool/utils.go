@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"ehang.io/nps/lib/common"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"

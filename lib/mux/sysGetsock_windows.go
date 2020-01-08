@@ -14,7 +14,7 @@ func sysGetSock(fd *os.File) (bufferSize int, err error) {
 	// not support, WTF???
 	// Todo
 	// return syscall.GetsockoptInt((syscall.Handle)(unsafe.Pointer(fd.Fd())), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
-	bufferSize = 10 * 1024 * 1024
+	bufferSize = 5 * 1024 * 1024
 	return
 }
 

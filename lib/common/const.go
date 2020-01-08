@@ -49,6 +49,6 @@ const (
 	MUX_PING_RETURN
 	MUX_PING             int32 = -1
 	MAXIMUM_SEGMENT_SIZE       = PoolSizeWindow
-	MAXIMUM_WINDOW_SIZE        = 1 << 25 // 1<<31-1 TCP slide window size is very large,
-	// we use 32M, reduce memory usage
+	MAXIMUM_WINDOW_SIZE        = 1 << 27 // 1<<31-1 TCP slide window size is very large,
+	// we use 128M, reduce memory usage
 )

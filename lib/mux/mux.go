@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ehang.io/nps/lib/common"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
 )
 
 type Mux struct {
@@ -220,7 +220,7 @@ func (s *Mux) pingReturn() {
 			case data = <-s.pingCh:
 				atomic.StoreUint32(&s.pingCheckTime, 0)
 			case <-s.closeChan:
-				break
+				return
 			}
 			_ = now.UnmarshalText(data)
 			latency := time.Now().UTC().Sub(now).Seconds() / 2
@@ -303,7 +303,7 @@ func (s *Mux) readSession() {
 					if connection.isClose {
 						continue
 					}
-					connection.sendWindow.SetSize(pack.Window, pack.ReadLength)
+					connection.sendWindow.SetSize(pack.Window)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
 					connection.closeFlag = true
@@ -443,7 +443,7 @@ func (Self *bandwidth) Get() (bw float64) {
 	// The zero value, 0 for numeric types
 	bw = math.Float64frombits(atomic.LoadUint64(&Self.readBandwidth))
 	if bw <= 0 {
-		bw = 100
+		bw = 0
 	}
 	//logs.Warn(bw)
 	return

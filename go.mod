@@ -1,4 +1,4 @@
-module github.com/cnlh/nps
+module ehang.io/nps
 
 go 1.13
 

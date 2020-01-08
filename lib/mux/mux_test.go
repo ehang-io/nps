@@ -2,10 +2,9 @@ package mux
 
 import (
 	"bufio"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/goroutine"
 	"fmt"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/goroutine"
-	"github.com/xtaci/kcp-go"
 	"io"
 	"log"
 	"net"
@@ -34,8 +33,8 @@ func TestNewMux(t *testing.T) {
 	//poolConnCopy, _ := ants.NewPoolWithFunc(200000, common.copyConn, ants.WithNonblocking(false))
 	time.Sleep(time.Second * 3)
 	go func() {
-		//m2 := NewMux(conn2, "tcp")
-		m2 := NewMux(conn2, "kcp")
+		m2 := NewMux(conn2, "tcp")
+		//m2 := NewMux(conn2, "kcp")
 		for {
 			//logs.Warn("npc starting accept")
 			c, err := m2.Accept()
@@ -84,8 +83,8 @@ func TestNewMux(t *testing.T) {
 	}()
 
 	go func() {
-		//m1 := NewMux(conn1, "tcp")
-		m1 := NewMux(conn1, "kcp")
+		m1 := NewMux(conn1, "tcp")
+		//m1 := NewMux(conn1, "kcp")
 		l, err := net.Listen("tcp", "127.0.0.1:7777")
 		if err != nil {
 			logs.Warn(err)
@@ -147,14 +146,14 @@ func TestNewMux(t *testing.T) {
 
 func server() {
 	var err error
-	//l, err := net.Listen("tcp", "127.0.0.1:9999")
-	l, err := kcp.Listen("127.0.0.1:9999")
+	l, err := net.Listen("tcp", "127.0.0.1:9999")
+	//l, err := kcp.Listen("127.0.0.1:9999")
 	if err != nil {
 		logs.Warn(err)
 	}
 	go func() {
 		conn1, err = l.Accept()
-		logs.Info("accept", conn1)
+		//logs.Info("accept", conn1)
 		if err != nil {
 			logs.Warn(err)
 		}
@@ -164,9 +163,9 @@ func server() {
 
 func client() {
 	var err error
-	//conn2, err = net.Dial("tcp", "127.0.0.1:9999")
-	logs.Warn("dial")
-	conn2, err = kcp.Dial("127.0.0.1:9999")
+	conn2, err = net.Dial("tcp", "127.0.0.1:9999")
+	//logs.Warn("dial")
+	//conn2, err = kcp.Dial("127.0.0.1:9999")
 	if err != nil {
 		logs.Warn(err)
 	}

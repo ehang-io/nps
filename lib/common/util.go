@@ -16,7 +16,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cnlh/nps/lib/crypt"
+	"ehang.io/nps/lib/crypt"
 )
 
 //Get the corresponding IP address through domain name
