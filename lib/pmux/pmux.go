@@ -1,6 +1,6 @@
 // This module is used for port reuse
 // Distinguish client, web manager , HTTP and HTTPS according to the difference of protocol
-package mux
+package pmux
 
 import (
 	"bufio"
@@ -139,7 +139,7 @@ func (pMux *PortMux) process(conn net.Conn) {
 
 func (pMux *PortMux) Close() error {
 	if pMux.isClose {
-		return errors.New("the port mux has closed")
+		return errors.New("the port pmux has closed")
 	}
 	pMux.isClose = true
 	close(pMux.clientConn)
