@@ -209,10 +209,10 @@ func NewListElement(buf []byte, l uint16, part bool) (element *common.ListElemen
 }
 
 type ReceiveWindowQueue struct {
+	lengthWait uint64
 	chain      *bufChain
 	stopOp     chan struct{}
 	readOp     chan struct{}
-	lengthWait uint64 // really strange ???? need put here
 	// https://golang.org/pkg/sync/atomic/#pkg-note-BUG
 	// On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
 	// On ARM, x86-32, and 32-bit MIPS, it is the caller's responsibility
@@ -221,11 +221,14 @@ type ReceiveWindowQueue struct {
 	timeout time.Time
 }
 
-func (Self *ReceiveWindowQueue) New() {
-	Self.readOp = make(chan struct{})
-	Self.chain = new(bufChain)
-	Self.chain.new(64)
-	Self.stopOp = make(chan struct{}, 2)
+func NewReceiveWindowQueue() *ReceiveWindowQueue {
+	queue := ReceiveWindowQueue{
+		chain:  new(bufChain),
+		stopOp: make(chan struct{}, 2),
+		readOp: make(chan struct{}),
+	}
+	queue.chain.new(64)
+	return &queue
 }
 
 func (Self *ReceiveWindowQueue) Push(element *common.ListElement) {

@@ -199,7 +199,7 @@ func (Self *window) CloseWindow() {
 
 type ReceiveWindow struct {
 	window
-	bufQueue ReceiveWindowQueue
+	bufQueue *ReceiveWindowQueue
 	element  *common.ListElement
 	count    int8
 	bw       *writeBandwidth
@@ -210,7 +210,7 @@ type ReceiveWindow struct {
 
 func (Self *ReceiveWindow) New(mux *Mux) {
 	// initial a window for receive
-	Self.bufQueue.New()
+	Self.bufQueue = NewReceiveWindowQueue()
 	Self.element = common.ListElementPool.Get()
 	Self.maxSizeDone = Self.pack(common.MAXIMUM_SEGMENT_SIZE*30, 0, false)
 	Self.mux = mux
