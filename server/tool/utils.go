@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"ehang.io/nps/lib/common"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
@@ -31,6 +31,9 @@ func InitAllowPort() {
 }
 
 func TestServerPort(p int, m string) (b bool) {
+	if m == "p2p" || m == "secret" {
+		return true
+	}
 	if p > 65535 || p < 0 {
 		return false
 	}

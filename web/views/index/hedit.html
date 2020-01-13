@@ -100,7 +100,7 @@
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
-                            &nbsp;<button class="btn btn-success" href="#" id="add"><i
+                            &nbsp;<button class="btn btn-success" type="button" id="add"><i
                                 class="fa fa-fw fa-lg fa-eye"></i><span langtag="info-save">保存</span>
                         </button>
                         </div>
@@ -116,7 +116,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/index/edithost",
+                url: "{{.web_base_url}}/index/edithost",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

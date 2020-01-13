@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/cnlh/nps/lib/common"
+	"ehang.io/nps/lib/common"
 )
 
 func RegisterLocalIp(server string, vKey string, tp string, proxyUrl string, hour int) {

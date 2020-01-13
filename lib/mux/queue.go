@@ -1,8 +1,8 @@
 package mux
 
 import (
+	"ehang.io/nps/lib/common"
 	"errors"
-	"github.com/cnlh/nps/lib/common"
 	"io"
 	"math"
 	"runtime"
@@ -209,23 +209,26 @@ func NewListElement(buf []byte, l uint16, part bool) (element *common.ListElemen
 }
 
 type ReceiveWindowQueue struct {
+	lengthWait uint64
 	chain      *bufChain
 	stopOp     chan struct{}
 	readOp     chan struct{}
-	lengthWait uint64 // really strange ???? need put here
 	// https://golang.org/pkg/sync/atomic/#pkg-note-BUG
 	// On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
 	// On ARM, x86-32, and 32-bit MIPS, it is the caller's responsibility
 	// to arrange for 64-bit alignment of 64-bit words accessed atomically.
 	// The first word in a variable or in an allocated struct, array, or slice can be relied upon to be 64-bit aligned.
-	timeout    time.Time
+	timeout time.Time
 }
 
-func (Self *ReceiveWindowQueue) New() {
-	Self.readOp = make(chan struct{})
-	Self.chain = new(bufChain)
-	Self.chain.new(64)
-	Self.stopOp = make(chan struct{}, 2)
+func NewReceiveWindowQueue() *ReceiveWindowQueue {
+	queue := ReceiveWindowQueue{
+		chain:  new(bufChain),
+		stopOp: make(chan struct{}, 2),
+		readOp: make(chan struct{}),
+	}
+	queue.chain.new(64)
+	return &queue
 }
 
 func (Self *ReceiveWindowQueue) Push(element *common.ListElement) {
@@ -300,8 +303,14 @@ func (Self *ReceiveWindowQueue) waitPush() (err error) {
 	//logs.Warn("wait push")
 	//defer logs.Warn("wait push finish")
 	t := Self.timeout.Sub(time.Now())
-	if t <= 0 {
-		t = time.Minute * 5
+	if t <= 0 { // not set the timeout, so wait for it without timeout, just like a tcp connection
+		select {
+		case <-Self.readOp:
+			return nil
+		case <-Self.stopOp:
+			err = io.EOF
+			return
+		}
 	}
 	timer := time.NewTimer(t)
 	defer timer.Stop()

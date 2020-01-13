@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:versionCode="1"
+        android:versionName="0.26.0"
+        package="org.nps.client"
+        platformBuildVersionCode="15"
+        platformBuildVersionName="4.0.4-1406430">
+
+    <uses-permission
+            android:name="android.permission.INTERNET"/>
+
+    <application
+            android:label="Npc"
+            android:debuggable="true">
+
+        <activity
+                android:label="Npc"
+                android:name="org.golang.app.GoNativeActivity"
+                android:configChanges="0xa0">
+
+            <meta-data
+                    android:name="android.app.lib_name"
+                    android:value="npc"/>
+
+            <intent-filter>
+
+                <action
+                        android:name="android.intent.action.MAIN"/>
+
+                <category
+                        android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+

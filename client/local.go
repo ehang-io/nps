@@ -1,19 +1,21 @@
 package client
 
 import (
+	"errors"
 	"net"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/mux"
+	"ehang.io/nps/server/proxy"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/server/proxy"
 	"github.com/xtaci/kcp-go"
 )
 
@@ -31,6 +33,14 @@ type p2pBridge struct {
 }
 
 func (p2pBridge *p2pBridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (target net.Conn, err error) {
+	for i := 0; muxSession == nil; i++ {
+		if i >= 20 {
+			err = errors.New("p2pBridge:too many times to get muxSession")
+			logs.Error(err)
+			return
+		}
+		runtime.Gosched() // waiting for another goroutine establish the mux connection
+	}
 	nowConn, err := muxSession.NewConn()
 	if err != nil {
 		udpConn = nil
@@ -117,6 +127,7 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 
 func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
 	ticker := time.NewTicker(time.Second * 1)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -157,6 +168,7 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 	if udpConn == nil {
 		logs.Notice("new conn, P2P can not penetrate successfully, traffic will be transferred through the server")
 		handleSecret(localTcpConn, config, l)
+		return
 	}
 	logs.Trace("start trying to connect with the server")
 	//TODO just support compress now because there is not tls file in client packages

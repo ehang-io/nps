@@ -5,11 +5,12 @@ import (
 	"io"
 	"math"
 	"net"
+	"os"
 	"sync/atomic"
 	"time"
 
+	"ehang.io/nps/lib/common"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
 )
 
 type Mux struct {
@@ -34,13 +35,18 @@ type Mux struct {
 func NewMux(c net.Conn, connType string) *Mux {
 	//c.(*net.TCPConn).SetReadBuffer(0)
 	//c.(*net.TCPConn).SetWriteBuffer(0)
+	_ = c.SetDeadline(time.Time{})
+	fd, err := getConnFd(c)
+	if err != nil {
+		logs.Warn(err)
+	}
 	m := &Mux{
 		conn:      c,
 		connMap:   NewConnMap(),
 		id:        0,
 		closeChan: make(chan struct{}, 1),
 		newConnCh: make(chan *conn),
-		bw:        new(bandwidth),
+		bw:        NewBandwidth(fd),
 		IsClose:   false,
 		connType:  connType,
 		pingCh:    make(chan []byte),
@@ -173,9 +179,9 @@ func (s *Mux) ping() {
 		s.sendInfo(common.MUX_PING_FLAG, common.MUX_PING, now)
 		// send the ping flag and get the latency first
 		ticker := time.NewTicker(time.Second * 5)
+		defer ticker.Stop()
 		for {
 			if s.IsClose {
-				ticker.Stop()
 				break
 			}
 			select {
@@ -198,6 +204,7 @@ func (s *Mux) ping() {
 			}
 			atomic.AddUint32(&s.pingOk, 1)
 		}
+		return
 	}()
 }
 
@@ -213,7 +220,7 @@ func (s *Mux) pingReturn() {
 			case data = <-s.pingCh:
 				atomic.StoreUint32(&s.pingCheckTime, 0)
 			case <-s.closeChan:
-				break
+				return
 			}
 			_ = now.UnmarshalText(data)
 			latency := time.Now().UTC().Sub(now).Seconds() / 2
@@ -296,7 +303,7 @@ func (s *Mux) readSession() {
 					if connection.isClose {
 						continue
 					}
-					connection.sendWindow.SetSize(pack.Window, pack.ReadLength)
+					connection.sendWindow.SetSize(pack.Window)
 					continue
 				case common.MUX_CONN_CLOSE: //close the connection
 					connection.closeFlag = true
@@ -390,13 +397,19 @@ type bandwidth struct {
 	readStart     time.Time
 	lastReadStart time.Time
 	bufLength     uint32
+	fd            *os.File
+	calcThreshold uint32
+}
+
+func NewBandwidth(fd *os.File) *bandwidth {
+	return &bandwidth{fd: fd}
 }
 
 func (Self *bandwidth) StartRead() {
 	if Self.readStart.IsZero() {
 		Self.readStart = time.Now()
 	}
-	if Self.bufLength >= common.MAXIMUM_SEGMENT_SIZE*300 {
+	if Self.bufLength >= Self.calcThreshold {
 		Self.lastReadStart, Self.readStart = Self.readStart, time.Now()
 		Self.calcBandWidth()
 	}
@@ -408,7 +421,21 @@ func (Self *bandwidth) SetCopySize(n uint16) {
 
 func (Self *bandwidth) calcBandWidth() {
 	t := Self.readStart.Sub(Self.lastReadStart)
-	atomic.StoreUint64(&Self.readBandwidth, math.Float64bits(float64(Self.bufLength)/t.Seconds()))
+	bufferSize, err := sysGetSock(Self.fd)
+	//logs.Warn(bufferSize)
+	if err != nil {
+		logs.Warn(err)
+		Self.bufLength = 0
+		return
+	}
+	if Self.bufLength >= uint32(bufferSize) {
+		atomic.StoreUint64(&Self.readBandwidth, math.Float64bits(float64(Self.bufLength)/t.Seconds()))
+		// calculate the whole socket buffer, the time meaning to fill the buffer
+		//logs.Warn(Self.Get())
+	} else {
+		Self.calcThreshold = uint32(bufferSize)
+	}
+	// socket buffer size is bigger than bufLength, so we don't calculate it
 	Self.bufLength = 0
 }
 
@@ -416,7 +443,7 @@ func (Self *bandwidth) Get() (bw float64) {
 	// The zero value, 0 for numeric types
 	bw = math.Float64frombits(atomic.LoadUint64(&Self.readBandwidth))
 	if bw <= 0 {
-		bw = 100
+		bw = 0
 	}
 	//logs.Warn(bw)
 	return

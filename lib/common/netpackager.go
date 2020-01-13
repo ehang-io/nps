@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
+	"net"
+	"strconv"
 	"strings"
 )
 
@@ -38,6 +41,9 @@ func (Self *BasePackager) NewPac(contents ...interface{}) (err error) {
 		}
 	}
 	Self.setLength()
+	if Self.Length > MAXIMUM_SEGMENT_SIZE {
+		err = errors.New("mux:packer: newpack content segment too large")
+	}
 	return
 }
 
@@ -74,6 +80,11 @@ func (Self *BasePackager) UnPack(reader io.Reader) (n uint16, err error) {
 	}
 	if int(Self.Length) > cap(Self.Content) {
 		err = errors.New("unpack err, content length too large")
+		return
+	}
+	if Self.Length > MAXIMUM_SEGMENT_SIZE {
+		err = errors.New("mux:packer: unpack content segment too large")
+		return
 	}
 	Self.Content = Self.Content[:int(Self.Length)]
 	//n, err := io.ReadFull(reader, Self.Content)
@@ -119,7 +130,8 @@ func (Self *BasePackager) Split() (strList []string) {
 	return
 }
 
-type ConnPackager struct { // Todo
+type ConnPackager struct {
+	// Todo
 	ConnType uint8
 	BasePackager
 }
@@ -150,10 +162,9 @@ func (Self *ConnPackager) UnPack(reader io.Reader) (n uint16, err error) {
 }
 
 type MuxPackager struct {
-	Flag       uint8
-	Id         int32
-	Window     uint32
-	ReadLength uint32
+	Flag   uint8
+	Id     int32
+	Window uint64
 	BasePackager
 }
 
@@ -166,19 +177,8 @@ func (Self *MuxPackager) NewPac(flag uint8, id int32, content ...interface{}) (e
 		err = Self.BasePackager.NewPac(content...)
 		//logs.Warn(Self.Length, string(Self.Content))
 	case MUX_MSG_SEND_OK:
-		// MUX_MSG_SEND_OK contains two data
-		switch content[0].(type) {
-		case int:
-			Self.Window = uint32(content[0].(int))
-		case uint32:
-			Self.Window = content[0].(uint32)
-		}
-		switch content[1].(type) {
-		case int:
-			Self.ReadLength = uint32(content[1].(int))
-		case uint32:
-			Self.ReadLength = content[1].(uint32)
-		}
+		// MUX_MSG_SEND_OK contains one data
+		Self.Window = content[0].(uint64)
 	}
 	return
 }
@@ -198,10 +198,6 @@ func (Self *MuxPackager) Pack(writer io.Writer) (err error) {
 		WindowBuff.Put(Self.Content)
 	case MUX_MSG_SEND_OK:
 		err = binary.Write(writer, binary.LittleEndian, Self.Window)
-		if err != nil {
-			return
-		}
-		err = binary.Write(writer, binary.LittleEndian, Self.ReadLength)
 	}
 	return
 }
@@ -223,13 +219,219 @@ func (Self *MuxPackager) UnPack(reader io.Reader) (n uint16, err error) {
 		//logs.Warn("unpack", Self.Length, string(Self.Content))
 	case MUX_MSG_SEND_OK:
 		err = binary.Read(reader, binary.LittleEndian, &Self.Window)
-		if err != nil {
-			return
-		}
-		n += 4 // uint32
-		err = binary.Read(reader, binary.LittleEndian, &Self.ReadLength)
-		n += 4 // uint32
+		n += 8 // uint64
 	}
 	n += 5 //uint8 int32
 	return
+}
+
+func (Self *MuxPackager) reset() {
+	Self.Id = 0
+	Self.Flag = 0
+	Self.Length = 0
+	Self.Content = nil
+	Self.Window = 0
+}
+
+const (
+	ipV4       = 1
+	domainName = 3
+	ipV6       = 4
+)
+
+type UDPHeader struct {
+	Rsv  uint16
+	Frag uint8
+	Addr *Addr
+}
+
+func NewUDPHeader(rsv uint16, frag uint8, addr *Addr) *UDPHeader {
+	return &UDPHeader{
+		Rsv:  rsv,
+		Frag: frag,
+		Addr: addr,
+	}
+}
+
+type Addr struct {
+	Type uint8
+	Host string
+	Port uint16
+}
+
+func (addr *Addr) String() string {
+	return net.JoinHostPort(addr.Host, strconv.Itoa(int(addr.Port)))
+}
+
+func (addr *Addr) Decode(b []byte) error {
+	addr.Type = b[0]
+	pos := 1
+	switch addr.Type {
+	case ipV4:
+		addr.Host = net.IP(b[pos : pos+net.IPv4len]).String()
+		pos += net.IPv4len
+	case ipV6:
+		addr.Host = net.IP(b[pos : pos+net.IPv6len]).String()
+		pos += net.IPv6len
+	case domainName:
+		addrlen := int(b[pos])
+		pos++
+		addr.Host = string(b[pos : pos+addrlen])
+		pos += addrlen
+	default:
+		return errors.New("decode error")
+	}
+
+	addr.Port = binary.BigEndian.Uint16(b[pos:])
+
+	return nil
+}
+
+func (addr *Addr) Encode(b []byte) (int, error) {
+	b[0] = addr.Type
+	pos := 1
+	switch addr.Type {
+	case ipV4:
+		ip4 := net.ParseIP(addr.Host).To4()
+		if ip4 == nil {
+			ip4 = net.IPv4zero.To4()
+		}
+		pos += copy(b[pos:], ip4)
+	case domainName:
+		b[pos] = byte(len(addr.Host))
+		pos++
+		pos += copy(b[pos:], []byte(addr.Host))
+	case ipV6:
+		ip16 := net.ParseIP(addr.Host).To16()
+		if ip16 == nil {
+			ip16 = net.IPv6zero.To16()
+		}
+		pos += copy(b[pos:], ip16)
+	default:
+		b[0] = ipV4
+		copy(b[pos:pos+4], net.IPv4zero.To4())
+		pos += 4
+	}
+	binary.BigEndian.PutUint16(b[pos:], addr.Port)
+	pos += 2
+
+	return pos, nil
+}
+
+func (h *UDPHeader) Write(w io.Writer) error {
+	b := BufPoolUdp.Get().([]byte)
+	defer BufPoolUdp.Put(b)
+
+	binary.BigEndian.PutUint16(b[:2], h.Rsv)
+	b[2] = h.Frag
+
+	addr := h.Addr
+	if addr == nil {
+		addr = &Addr{}
+	}
+	length, _ := addr.Encode(b[3:])
+
+	_, err := w.Write(b[:3+length])
+	return err
+}
+
+type UDPDatagram struct {
+	Header *UDPHeader
+	Data   []byte
+}
+
+func ReadUDPDatagram(r io.Reader) (*UDPDatagram, error) {
+	b := BufPoolUdp.Get().([]byte)
+	defer BufPoolUdp.Put(b)
+
+	// when r is a streaming (such as TCP connection), we may read more than the required data,
+	// but we don't know how to handle it. So we use io.ReadFull to instead of io.ReadAtLeast
+	// to make sure that no redundant data will be discarded.
+	n, err := io.ReadFull(r, b[:5])
+	if err != nil {
+		return nil, err
+	}
+
+	header := &UDPHeader{
+		Rsv:  binary.BigEndian.Uint16(b[:2]),
+		Frag: b[2],
+	}
+
+	atype := b[3]
+	hlen := 0
+	switch atype {
+	case ipV4:
+		hlen = 10
+	case ipV6:
+		hlen = 22
+	case domainName:
+		hlen = 7 + int(b[4])
+	default:
+		return nil, errors.New("addr not support")
+	}
+	dlen := int(header.Rsv)
+	if dlen == 0 { // standard SOCKS5 UDP datagram
+		extra, err := ioutil.ReadAll(r) // we assume no redundant data
+		if err != nil {
+			return nil, err
+		}
+		copy(b[n:], extra)
+		n += len(extra) // total length
+		dlen = n - hlen // data length
+	} else { // extended feature, for UDP over TCP, using reserved field as data length
+		if _, err := io.ReadFull(r, b[n:hlen+dlen]); err != nil {
+			return nil, err
+		}
+		n = hlen + dlen
+	}
+	header.Addr = new(Addr)
+	if err := header.Addr.Decode(b[3:hlen]); err != nil {
+		return nil, err
+	}
+	data := make([]byte, dlen)
+	copy(data, b[hlen:n])
+	d := &UDPDatagram{
+		Header: header,
+		Data:   data,
+	}
+	return d, nil
+}
+
+func NewUDPDatagram(header *UDPHeader, data []byte) *UDPDatagram {
+	return &UDPDatagram{
+		Header: header,
+		Data:   data,
+	}
+}
+
+func (d *UDPDatagram) Write(w io.Writer) error {
+	h := d.Header
+	if h == nil {
+		h = &UDPHeader{}
+	}
+	buf := bytes.Buffer{}
+	if err := h.Write(&buf); err != nil {
+		return err
+	}
+	if _, err := buf.Write(d.Data); err != nil {
+		return err
+	}
+
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+func ToSocksAddr(addr net.Addr) *Addr {
+	host := "0.0.0.0"
+	port := 0
+	if addr != nil {
+		h, p, _ := net.SplitHostPort(addr.String())
+		host = h
+		port, _ = strconv.Atoi(p)
+	}
+	return &Addr{
+		Type: ipV4,
+		Host: host,
+		Port: uint16(port),
+	}
 }

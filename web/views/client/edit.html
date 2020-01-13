@@ -128,7 +128,7 @@
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
-                            <button class="btn btn-success" href="#" id="add"><i
+                            <button class="btn btn-success" type="button" id="add"><i
                                     class="fa fa-fw fa-lg fa-eye"></i><span langtag="info-save">保存</span>
                             </button>
                         </div>
@@ -145,7 +145,7 @@
         $("#add").on("click", function () {
             $.ajax({
                 type: "POST",
-                url: "/client/edit",
+                url: "{{.web_base_url}}/client/edit",
                 data: $("form").serializeArray(),
                 success: function (res) {
                     alert(res.msg)

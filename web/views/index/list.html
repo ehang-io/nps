@@ -18,7 +18,7 @@
                 <div class="content">
                     <div class="table-responsive">
                         <div id="toolbar">
-                            <a href="/index/add?type={{.type}}&client_id={{.client_id}}" class="btn btn-primary dim"
+                            <a href="{{.web_base_url}}/index/add?type={{.type}}&client_id={{.client_id}}" class="btn btn-primary dim"
                                type="button" langtag="info-new">新增</a>
                         </div>
                         <table id="taskList_table" class="table-striped table-hover"
@@ -40,7 +40,7 @@
     $('#table').bootstrapTable({
         toolbar: "#toolbar",
         method: 'post', // 服务器数据的请求方式 get or post
-        url: "/index/gettunnel", // 服务器数据的加载地址
+        url: "{{.web_base_url}}/index/gettunnel", // 服务器数据的加载地址
         queryParams: function (params) {
             return {
                 "offset": params.offset,
@@ -191,7 +191,7 @@
         if (confirm("Are you sure you want to delete it？？")) {
             $.ajax({
                 type: "POST",
-                url: "/index/del",
+                url: "{{.web_base_url}}/index/del",
                 data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
@@ -207,7 +207,7 @@
         if (confirm("Are you sure you want to start it？？")) {
             $.ajax({
                 type: "POST",
-                url: "/index/start",
+                url: "{{.web_base_url}}/index/start",
                 data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
@@ -223,7 +223,7 @@
         if (confirm("Are you sure you want to stop it？？")) {
             $.ajax({
                 type: "POST",
-                url: "/index/stop",
+                url: "{{.web_base_url}}/index/stop",
                 data: {"id": id},
                 success: function (res) {
                     alert(res.msg)
@@ -236,7 +236,7 @@
     }
 
     function edit(id) {
-        window.location.href = "/index/edit?id=" + id
+        window.location.href = "{{.web_base_url}}/index/edit?id=" + id
     }
 
 </script>

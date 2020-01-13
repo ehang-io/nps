@@ -1,9 +1,11 @@
 package controllers
 
 import (
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server"
-	"github.com/cnlh/nps/server/tool"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server"
+	"ehang.io/nps/server/tool"
+
+	"github.com/astaxie/beego"
 )
 
 type IndexController struct {
@@ -11,6 +13,7 @@ type IndexController struct {
 }
 
 func (s *IndexController) Index() {
+	s.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	s.Data["data"] = server.GetDashboardData()
 	s.SetInfo("dashboard")
 	s.display("index/index")

@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"ehang.io/nps/bridge"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server/connection"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/connection"
 )
 
 type TunnelModeServer struct {
@@ -63,15 +63,23 @@ func (s *WebServer) Start() error {
 		<-stop
 	}
 	beego.BConfig.WebConfig.Session.SessionOn = true
-	beego.SetStaticPath("/static", filepath.Join(common.GetRunPath(), "web", "static"))
+	beego.SetStaticPath(beego.AppConfig.String("web_base_url")+"/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
-	if l, err := connection.GetWebManagerListener(); err == nil {
+	err := errors.New("Web management startup failure ")
+	var l net.Listener
+	if l, err = connection.GetWebManagerListener(); err == nil {
 		beego.InitBeforeHTTPRun()
-		http.Serve(l, beego.BeeApp.Handlers)
+		if beego.AppConfig.String("web_open_ssl") == "true" {
+			keyPath := beego.AppConfig.String("web_key_file")
+			certPath := beego.AppConfig.String("web_cert_file")
+			err = http.ServeTLS(l, beego.BeeApp.Handlers, certPath, keyPath)
+		} else {
+			err = http.Serve(l, beego.BeeApp.Handlers)
+		}
 	} else {
 		logs.Error(err)
 	}
-	return errors.New("Web management startup failure")
+	return err
 }
 
 func (s *WebServer) Close() error {
