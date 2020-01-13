@@ -22,9 +22,17 @@ const (
 type ConfigLevel uint8
 
 const (
-	CONFIG_LEVEL_CLIENT ConfigLevel = iota
-	CONFIG_LEVEL_PLUGIN
-	CONFIG_LEVEL_GLOBAL
+	CONFIG_LEVEL_CLIENT ConfigLevel = iota // client-level configuration
+	CONFIG_LEVEL_PLUGIN                    // plugin level control
+	CONFIG_LEVEL_GLOBAL                    // global configuration
+)
+
+type ConfigInputType uint8
+
+const (
+	CONFIG_INPUT_TEXT     ConfigInputType = iota // show as single line input box
+	CONFIG_INPUT_SWITCH                          // show as switch
+	CONFIG_INPUT_TEXTAREA                        // show as a multi-line input box
 )
 
 var (
