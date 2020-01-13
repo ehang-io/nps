@@ -1,4 +1,6 @@
 # web api
+
+需要开启请先去掉`nps.conf`中`auth_key`的注释并配置一个合适的密钥
 ## webAPI验证说明
 - 采用auth_key的验证方式
 - 在提交的每个请求后面附带两个参数，`auth_key` 和`timestamp`
