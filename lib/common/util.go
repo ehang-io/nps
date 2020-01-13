@@ -98,7 +98,7 @@ func Getverifyval(vkey string) string {
 }
 
 //Change headers and host of request
-func ChangeHostAndHeader(r *http.Request, host string, header string, addr string) {
+func ChangeHostAndHeader(r *http.Request, host string, header string, addr string,addOrigin bool) {
 	if host != "" {
 		r.Host = host
 	}
@@ -115,8 +115,10 @@ func ChangeHostAndHeader(r *http.Request, host string, header string, addr strin
 	if prior, ok := r.Header["X-Forwarded-For"]; ok {
 		addr = strings.Join(prior, ", ") + ", " + addr
 	}
-	r.Header.Set("X-Forwarded-For", addr)
-	r.Header.Set("X-Real-IP", addr)
+	if addOrigin {
+		r.Header.Set("X-Forwarded-For", addr)
+		r.Header.Set("X-Real-IP", addr)
+	}
 }
 
 //Read file content by file path
