@@ -4,11 +4,11 @@ import (
 	"net"
 	"strings"
 
+	"ehang.io/nps/bridge"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/file"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
 )
 
 type UdpModeServer struct {

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server"
 )
 
 type BaseController struct {
@@ -33,10 +33,13 @@ func (s *BaseController) Prepare() {
 	timestamp := s.GetIntNoErr("timestamp")
 	configKey := beego.AppConfig.String("auth_key")
 	timeNowUnix := time.Now().Unix()
-	if !((math.Abs(float64(timeNowUnix-int64(timestamp))) <= 20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
+	if !(md5Key!="" && (math.Abs(float64(timeNowUnix-int64(timestamp))) <= 20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
 		if s.GetSession("auth") != true {
 			s.Redirect(beego.AppConfig.String("web_base_url")+"/login/index", 302)
 		}
+	}else {
+		s.SetSession("isAdmin",true)
+		s.Data["isAdmin"] = true
 	}
 	if s.GetSession("isAdmin") != nil && !s.GetSession("isAdmin").(bool) {
 		s.Ctx.Input.SetData("client_id", s.GetSession("clientId").(int))

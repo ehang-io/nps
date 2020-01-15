@@ -1,8 +1,8 @@
 package goroutine
 
 import (
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/file"
 	"github.com/panjf2000/ants/v2"
 	"io"
 	"net"

@@ -13,13 +13,13 @@ import (
 	"strings"
 	"sync"
 
+	"ehang.io/nps/bridge"
+	"ehang.io/nps/lib/cache"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server/connection"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/cache"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/connection"
 )
 
 type httpServer struct {
@@ -30,11 +30,12 @@ type httpServer struct {
 	httpsServer   *http.Server
 	httpsListener net.Listener
 	useCache      bool
+	addOrigin     bool
 	cache         *cache.Cache
 	cacheLen      int
 }
 
-func NewHttp(bridge *bridge.Bridge, c *file.Tunnel, httpPort, httpsPort int, useCache bool, cacheLen int) *httpServer {
+func NewHttp(bridge *bridge.Bridge, c *file.Tunnel, httpPort, httpsPort int, useCache bool, cacheLen int, addOrigin bool) *httpServer {
 	httpServer := &httpServer{
 		BaseServer: BaseServer{
 			task:   c,
@@ -45,6 +46,7 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel, httpPort, httpsPort int, use
 		httpsPort: httpsPort,
 		useCache:  useCache,
 		cacheLen:  cacheLen,
+		addOrigin: addOrigin,
 	}
 	if useCache {
 		httpServer.cache = cache.New(cacheLen)
@@ -214,7 +216,7 @@ reset:
 		}
 
 		//change the host and header and set proxy setting
-		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String())
+		common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String(), s.addOrigin)
 		logs.Trace("%s request, method %s, host %s, url %s, remote address %s, target %s", r.URL.Scheme, r.Method, r.Host, r.URL.Path, c.RemoteAddr().String(), lk.Host)
 		//write
 		lenConn = conn.NewLenConn(connClient)

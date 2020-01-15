@@ -44,7 +44,7 @@ npc-update.exe update
  ./npc -config=npc配置文件路径
 ```
 ## 配置文件说明
-[示例配置文件](https://github.com/cnlh/nps/tree/master/conf/npc.conf)
+[示例配置文件](https://github.com/ehang-io/nps/tree/master/conf/npc.conf)
 #### 全局配置
 ```ini
 [common]

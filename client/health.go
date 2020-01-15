@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/sheap"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/sheap"
 	"github.com/pkg/errors"
 )
 

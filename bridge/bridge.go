@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"ehang.io/nps-mux"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -11,27 +12,26 @@ import (
 	"sync"
 	"time"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/version"
+	"ehang.io/nps/server/connection"
+	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/version"
-	"github.com/cnlh/nps/server/connection"
-	"github.com/cnlh/nps/server/tool"
 )
 
 type Client struct {
-	tunnel    *mux.Mux
+	tunnel    *nps_mux.Mux
 	signal    *conn.Conn
-	file      *mux.Mux
+	file      *nps_mux.Mux
 	Version   string
 	retryTime int // it will be add 1 when ping not ok until to 3 will close the client
 }
 
-func NewClient(t, f *mux.Mux, s *conn.Conn, vs string) *Client {
+func NewClient(t, f *nps_mux.Mux, s *conn.Conn, vs string) *Client {
 	return &Client{
 		signal:  s,
 		tunnel:  t,
@@ -242,7 +242,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 		go s.GetHealthFromClient(id, c)
 		logs.Info("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
 	case common.WORK_CHAN:
-		muxConn := mux.NewMux(c.Conn, s.tunnelType)
+		muxConn := nps_mux.NewMux(c.Conn, s.tunnelType)
 		if v, ok := s.Client.LoadOrStore(id, NewClient(muxConn, nil, nil, vs)); ok {
 			v.(*Client).tunnel = muxConn
 		}
@@ -263,7 +263,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 			logs.Error("secret error, failed to match the key successfully")
 		}
 	case common.WORK_FILE:
-		muxConn := mux.NewMux(c.Conn, s.tunnelType)
+		muxConn := nps_mux.NewMux(c.Conn, s.tunnelType)
 		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, muxConn, nil, vs)); ok {
 			v.(*Client).file = muxConn
 		}
@@ -321,7 +321,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (ta
 				}
 			}
 		}
-		var tunnel *mux.Mux
+		var tunnel *nps_mux.Mux
 		if t != nil && t.Mode == "file" {
 			tunnel = v.(*Client).file
 		} else {

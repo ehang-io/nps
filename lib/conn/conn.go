@@ -3,11 +3,11 @@ package conn
 import (
 	"bufio"
 	"bytes"
+	"ehang.io/nps/lib/goroutine"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/goroutine"
 	"io"
 	"net"
 	"net/http"
@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/lib/mux"
-	"github.com/cnlh/nps/lib/rate"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/pmux"
+	"ehang.io/nps/lib/rate"
 	"github.com/xtaci/kcp-go"
 )
 
@@ -126,8 +126,8 @@ func (s *Conn) SetAlive(tp string) {
 		conn.SetReadDeadline(time.Time{})
 		//conn.SetKeepAlive(false)
 		//conn.SetKeepAlivePeriod(time.Duration(2 * time.Second))
-	case *mux.PortConn:
-		s.Conn.(*mux.PortConn).SetReadDeadline(time.Time{})
+	case *pmux.PortConn:
+		s.Conn.(*pmux.PortConn).SetReadDeadline(time.Time{})
 	}
 }
 
@@ -138,8 +138,8 @@ func (s *Conn) SetReadDeadlineBySecond(t time.Duration) {
 		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 	case *net.TCPConn:
 		s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
-	case *mux.PortConn:
-		s.Conn.(*mux.PortConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+	case *pmux.PortConn:
+		s.Conn.(*pmux.PortConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 	}
 }
 

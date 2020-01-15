@@ -1,17 +1,17 @@
 
 # nps
-![](https://img.shields.io/github/stars/cnlh/nps.svg)   ![](https://img.shields.io/github/forks/cnlh/nps.svg)
+![](https://img.shields.io/github/stars/ehang-io/nps.svg)   ![](https://img.shields.io/github/forks/ehang-io/nps.svg)
 [![Gitter](https://badges.gitter.im/cnlh-nps/community.svg)](https://gitter.im/cnlh-nps/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-[![Build Status](https://travis-ci.org/cnlh/nps.svg?branch=master)](https://travis-ci.org/cnlh/nps)
-![GitHub All Releases](https://img.shields.io/github/downloads/cnlh/nps/total)
+[![Build Status](https://travis-ci.org/ehang-io/nps.svg?branch=master)](https://travis-ci.org/ehang-io/nps)
+![GitHub All Releases](https://img.shields.io/github/downloads/ehang-io/nps/total)
 
-[README](https://github.com/cnlh/nps/blob/master/README.md)|[中文文档](https://github.com/cnlh/nps/README_zh.md)
+[README](https://github.com/ehang-io/nps/blob/master/README.md)|[中文文档](https://github.com/ehang-io/nps/blob/master/README_zh.md)
 
 nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务器。目前支持**tcp、udp流量转发**，可支持任何**tcp、udp**上层协议（访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析等等……），此外还**支持内网http代理、内网socks5代理**、**p2p等**，并带有功能强大的web管理端。
 
 
 ## 背景
-![image](https://github.com/cnlh/nps/blob/master/image/web.png?raw=true)
+![image](https://github.com/ehang-io/nps/blob/master/image/web.png?raw=true)
 
 1. 做微信公众号开发、小程序开发等----> 域名代理模式
 
@@ -33,11 +33,11 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 域名解析具备自定义header、404页面配置、host修改、站点保护、URL路由、泛解析等功能
 - 服务端支持多用户和用户注册功能
 
-**没找到你想要的功能？不要紧，点击[进入文档](https://cnlh.github.io/nps/)查找吧**
+**没找到你想要的功能？不要紧，点击[进入文档](https://ehang-io.github.io/nps)查找吧**
 ## 快速开始
 
 ### 安装
-> [releases](https://github.com/cnlh/nps/releases)
+> [releases](https://github.com/ehang-io/nps/releases)
 
 下载对应的系统版本即可，服务端和客户端是单独的
 
@@ -67,11 +67,11 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 点击web管理中客户端前的+号，复制启动命令
 - 执行启动命令，linux直接执行即可，windows将./npc换成npc.exe用cmd执行
 
-如果需要注册到系统服务可查看[注册到系统服务](https://cnlh.github.io/nps/#/use?id=注册到系统服务)
+如果需要注册到系统服务可查看[注册到系统服务](https://ehang-io.github.io/nps/#/use?id=注册到系统服务)
 
 ### 配置
 - 客户端连接后，在web中配置对应穿透服务即可
-- 更多高级用法见[完整文档](https://cnlh.github.io/nps/)
+- 更多高级用法见[完整文档](https://ehang-io.github.io/nps/)
 
 ## 贡献
 - 如果遇到bug可以直接提交至dev分支

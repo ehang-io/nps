@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"bytes"
+	"ehang.io/nps-mux"
 	"net"
 	"net/http"
 	"strconv"
@@ -11,11 +12,10 @@ import (
 	"github.com/astaxie/beego/logs"
 	"github.com/xtaci/kcp-go"
 
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/mux"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/crypt"
 )
 
 type TRPClient struct {
@@ -24,7 +24,7 @@ type TRPClient struct {
 	proxyUrl       string
 	vKey           string
 	p2pAddr        map[string]string
-	tunnel         *mux.Mux
+	tunnel         *nps_mux.Mux
 	signal         *conn.Conn
 	ticker         *time.Ticker
 	cnf            *config.Config
@@ -44,6 +44,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 
 var NowStatus int
 var CloseClient bool
+
 //start
 func (s *TRPClient) Start() {
 	CloseClient = false
@@ -137,7 +138,7 @@ func (s *TRPClient) newUdpConn(localAddr, rAddr string, md5Password string) {
 			conn.SetUdpSession(udpTunnel)
 			logs.Trace("successful connection with client ,address %s", udpTunnel.RemoteAddr().String())
 			//read link info from remote
-			conn.Accept(mux.NewMux(udpTunnel, s.bridgeConnType), func(c net.Conn) {
+			conn.Accept(nps_mux.NewMux(udpTunnel, s.bridgeConnType), func(c net.Conn) {
 				go s.handleChan(c)
 			})
 			break
@@ -145,14 +146,14 @@ func (s *TRPClient) newUdpConn(localAddr, rAddr string, md5Password string) {
 	}
 }
 
-//mux tunnel
+//pmux tunnel
 func (s *TRPClient) newChan() {
 	tunnel, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_CHAN, s.proxyUrl)
 	if err != nil {
 		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
-	s.tunnel = mux.NewMux(tunnel.Conn, s.bridgeConnType)
+	s.tunnel = nps_mux.NewMux(tunnel.Conn, s.bridgeConnType)
 	for {
 		src, err := s.tunnel.Accept()
 		if err != nil {

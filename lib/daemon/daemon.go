@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cnlh/nps/lib/common"
+	"ehang.io/nps/lib/common"
 )
 
 func InitDaemon(f string, runPath string, pidPath string) {
