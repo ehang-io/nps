@@ -59,6 +59,7 @@ func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
 		return
 	} else {
 		target := conn.GetConn(clientConn, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, nil, true)
+		defer target.Close()
 		s.task.Flow.Add(int64(len(data)), 0)
 		buf := common.BufPoolUdp.Get().([]byte)
 		defer common.BufPoolUdp.Put(buf)
