@@ -57,7 +57,7 @@ func NewHttp(bridge *bridge.Bridge, c *file.Tunnel, httpPort, httpsPort int, use
 func (s *httpServer) Start() error {
 	var err error
 	if s.errorContent, err = common.ReadAllFromFile(filepath.Join(common.GetRunPath(), "web", "static", "page", "error.html")); err != nil {
-		s.errorContent = []byte("easyProxy 404")
+		s.errorContent = []byte("nps 404")
 	}
 	if s.httpPort > 0 {
 		s.httpServer = s.NewServer(s.httpPort, "http")
@@ -118,7 +118,6 @@ func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 	var (
 		host       *file.Host
 		target     net.Conn
-		lastHost   *file.Host
 		err        error
 		connClient io.ReadWriteCloser
 		scheme     = r.URL.Scheme
@@ -135,6 +134,10 @@ func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 		}
 		c.Close()
 	}()
+reset:
+	if isReset {
+		host.Client.AddConn()
+	}
 	if host, err = file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 		logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 		return
@@ -143,12 +146,13 @@ func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 		logs.Warn("client id %d, host id %d, error %s, when https connection", host.Client.Id, host.Id, err.Error())
 		return
 	}
-	defer host.Client.AddConn()
+	if !isReset {
+		defer host.Client.AddConn()
+	}
 	if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
 		logs.Warn("auth error", err, r.RemoteAddr)
 		return
 	}
-reset:
 	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
 		logs.Warn(err.Error())
 		return
@@ -159,7 +163,6 @@ reset:
 		return
 	}
 	connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
-	lastHost = host
 
 	//read from inc-client
 	go func() {
@@ -237,9 +240,8 @@ reset:
 		if hostTmp, err := file.GetDb().GetInfoByHost(r.Host, r); err != nil {
 			logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
 			break
-		} else if host != lastHost {
+		} else if host != hostTmp {
 			host = hostTmp
-			lastHost = host
 			isReset = true
 			connClient.Close()
 			goto reset
