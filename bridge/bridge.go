@@ -50,10 +50,10 @@ type Bridge struct {
 	CloseClient chan int
 	SecretChan  chan *conn.Secret
 	ipVerify    bool
-	runList     map[int]interface{}
+	runList     sync.Map //map[int]interface{}
 }
 
-func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int]interface{}) *Bridge {
+func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList sync.Map) *Bridge {
 	return &Bridge{
 		TunnelPort:  tunnelPort,
 		tunnelType:  tunnelType,
@@ -407,7 +407,8 @@ loop:
 				})
 				file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 					v := value.(*file.Tunnel)
-					if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
+					//if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
+					if _, ok := s.runList.Load(v.Id); ok && v.Client.Id == id {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
 					return true

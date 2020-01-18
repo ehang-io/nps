@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ehang.io/nps/bridge"
@@ -24,11 +25,11 @@ import (
 
 var (
 	Bridge  *bridge.Bridge
-	RunList map[int]interface{}
+	RunList sync.Map //map[int]interface{}
 )
 
 func init() {
-	RunList = make(map[int]interface{})
+	RunList = sync.Map{}
 }
 
 //init task from db
@@ -37,7 +38,8 @@ func InitFromCsv() {
 	if vkey := beego.AppConfig.String("public_vkey"); vkey != "" {
 		c := file.NewClient(vkey, true, true)
 		file.GetDb().NewClient(c)
-		RunList[c.Id] = nil
+		RunList.Store(c.Id, nil)
+		//RunList[c.Id] = nil
 	}
 	//Initialize services in server-side files
 	file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
@@ -102,7 +104,8 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		if err := svr.Start(); err != nil {
 			logs.Error(err)
 		}
-		RunList[cnf.Id] = svr
+		RunList.Store(cnf.Id, svr)
+		//RunList[cnf.Id] = svr
 	} else {
 		logs.Error("Incorrect startup mode %s", cnf.Mode)
 	}
@@ -155,7 +158,8 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 
 //stop server
 func StopServer(id int) error {
-	if v, ok := RunList[id]; ok {
+	//if v, ok := RunList[id]; ok {
+	if v, ok := RunList.Load(id); ok {
 		if svr, ok := v.(proxy.Service); ok {
 			if err := svr.Close(); err != nil {
 				return err
@@ -170,7 +174,8 @@ func StopServer(id int) error {
 			t.Status = false
 			file.GetDb().UpdateTask(t)
 		}
-		delete(RunList, id)
+		//delete(RunList, id)
+		RunList.Delete(id)
 		return nil
 	}
 	return errors.New("task is not running")
@@ -180,7 +185,8 @@ func StopServer(id int) error {
 func AddTask(t *file.Tunnel) error {
 	if t.Mode == "secret" || t.Mode == "p2p" {
 		logs.Info("secret task %s start ", t.Remark)
-		RunList[t.Id] = nil
+		//RunList[t.Id] = nil
+		RunList.Store(t.Id, nil)
 		return nil
 	}
 	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
@@ -192,11 +198,13 @@ func AddTask(t *file.Tunnel) error {
 	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		logs.Info("tunnel task %s start mode：%s port %d", t.Remark, t.Mode, t.Port)
-		RunList[t.Id] = svr
+		//RunList[t.Id] = svr
+		RunList.Store(t.Id, svr)
 		go func() {
 			if err := svr.Start(); err != nil {
 				logs.Error("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
-				delete(RunList, t.Id)
+				//delete(RunList, t.Id)
+				RunList.Delete(t.Id)
 				return
 			}
 		}()
@@ -220,7 +228,8 @@ func StartTask(id int) error {
 
 //delete task
 func DelTask(id int) error {
-	if _, ok := RunList[id]; ok {
+	//if _, ok := RunList[id]; ok {
+	if _, ok := RunList.Load(id); ok {
 		if err := StopServer(id); err != nil {
 			return err
 		}
@@ -250,7 +259,8 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 			}
 			if start--; start < 0 {
 				if length--; length >= 0 {
-					if _, ok := RunList[v.Id]; ok {
+					//if _, ok := RunList[v.Id]; ok {
+					if _, ok := RunList.Load(v.Id); ok {
 						v.RunStatus = true
 					} else {
 						v.RunStatus = false
