@@ -28,6 +28,31 @@ var (
 	level string
 )
 
+const systemdScript = `[Unit]
+Description={{.Description}}
+ConditionFileIsExecutable={{.Path|cmdEscape}}
+{{range $i, $dep := .Dependencies}} 
+{{$dep}} {{end}}
+[Service]
+LimitNOFILE=65536
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
+{{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
+{{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
+{{if .UserName}}User={{.UserName}}{{end}}
+{{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
+{{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
+{{if and .LogOutput .HasOutputFileSupport -}}
+StandardOutput=file:/var/log/{{.Name}}.out
+StandardError=file:/var/log/{{.Name}}.err
+{{- end}}
+Restart=always
+RestartSec=120
+[Install]
+WantedBy=multi-user.target
+`
+
 func main() {
 	flag.Parse()
 	// init log
@@ -49,8 +74,6 @@ func main() {
 	}
 	// init service
 	options := make(service.KeyValue)
-	options["Restart"] = "on-success"
-	options["SuccessExitStatus"] = "1 2 8 SIGKILL"
 	svcConfig := &service.Config{
 		Name:        "Nps",
 		DisplayName: "nps内网穿透代理服务器",
@@ -59,14 +82,15 @@ func main() {
 	}
 	svcConfig.Arguments = append(svcConfig.Arguments, "service")
 	if len(os.Args) > 1 && os.Args[1] == "service" {
-		logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+logPath+`","daily":false,"maxlines":100000,"color":true}`)
+		_ = logs.SetLogger(logs.AdapterFile, `{"level":`+level+`,"filename":"`+logPath+`","daily":false,"maxlines":100000,"color":true}`)
 	} else {
-		logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
+		_ = logs.SetLogger(logs.AdapterConsole, `{"level":`+level+`,"color":true}`)
 	}
 	if !common.IsWindows() {
 		svcConfig.Dependencies = []string{
 			"Requires=network.target",
 			"After=network-online.target syslog.target"}
+		svcConfig.Option["SystemdScript"] = systemdScript
 	}
 	prg := &nps{}
 	prg.exit = make(chan struct{})
@@ -82,8 +106,8 @@ func main() {
 			return
 		case "install":
 			// uninstall before
-			service.Control(s, "stop")
-			service.Control(s, "uninstall")
+			_ = service.Control(s, "stop")
+			_ = service.Control(s, "uninstall")
 
 			binPath := install.InstallNps()
 			svcConfig.Executable = binPath
@@ -111,7 +135,7 @@ func main() {
 			return
 		}
 	}
-	s.Run()
+	_ = s.Run()
 }
 
 type nps struct {
@@ -119,10 +143,12 @@ type nps struct {
 }
 
 func (p *nps) Start(s service.Service) error {
-	p.run()
+	_, _ = s.Status()
+	_ = p.run()
 	return nil
 }
 func (p *nps) Stop(s service.Service) error {
+	_, _ = s.Status()
 	close(p.exit)
 	if service.Interactive() {
 		os.Exit(0)
