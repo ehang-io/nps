@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"bytes"
+	"ehang.io/nps-mux"
 	"net"
 	"net/http"
 	"strconv"
@@ -15,7 +16,6 @@ import (
 	"ehang.io/nps/lib/config"
 	"ehang.io/nps/lib/conn"
 	"ehang.io/nps/lib/crypt"
-	"ehang.io/nps/lib/mux"
 )
 
 type TRPClient struct {
@@ -24,7 +24,7 @@ type TRPClient struct {
 	proxyUrl       string
 	vKey           string
 	p2pAddr        map[string]string
-	tunnel         *mux.Mux
+	tunnel         *nps_mux.Mux
 	signal         *conn.Conn
 	ticker         *time.Ticker
 	cnf            *config.Config
@@ -138,7 +138,7 @@ func (s *TRPClient) newUdpConn(localAddr, rAddr string, md5Password string) {
 			conn.SetUdpSession(udpTunnel)
 			logs.Trace("successful connection with client ,address %s", udpTunnel.RemoteAddr().String())
 			//read link info from remote
-			conn.Accept(mux.NewMux(udpTunnel, s.bridgeConnType), func(c net.Conn) {
+			conn.Accept(nps_mux.NewMux(udpTunnel, s.bridgeConnType), func(c net.Conn) {
 				go s.handleChan(c)
 			})
 			break
@@ -146,14 +146,14 @@ func (s *TRPClient) newUdpConn(localAddr, rAddr string, md5Password string) {
 	}
 }
 
-//mux tunnel
+//pmux tunnel
 func (s *TRPClient) newChan() {
 	tunnel, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_CHAN, s.proxyUrl)
 	if err != nil {
 		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
-	s.tunnel = mux.NewMux(tunnel.Conn, s.bridgeConnType)
+	s.tunnel = nps_mux.NewMux(tunnel.Conn, s.bridgeConnType)
 	for {
 		src, err := s.tunnel.Accept()
 		if err != nil {

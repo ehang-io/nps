@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"ehang.io/nps-mux"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"ehang.io/nps/lib/conn"
 	"ehang.io/nps/lib/crypt"
 	"ehang.io/nps/lib/file"
-	"ehang.io/nps/lib/mux"
 	"ehang.io/nps/lib/version"
 	"ehang.io/nps/server/connection"
 	"ehang.io/nps/server/tool"
@@ -24,14 +24,14 @@ import (
 )
 
 type Client struct {
-	tunnel    *mux.Mux
+	tunnel    *nps_mux.Mux
 	signal    *conn.Conn
-	file      *mux.Mux
+	file      *nps_mux.Mux
 	Version   string
 	retryTime int // it will be add 1 when ping not ok until to 3 will close the client
 }
 
-func NewClient(t, f *mux.Mux, s *conn.Conn, vs string) *Client {
+func NewClient(t, f *nps_mux.Mux, s *conn.Conn, vs string) *Client {
 	return &Client{
 		signal:  s,
 		tunnel:  t,
@@ -50,10 +50,10 @@ type Bridge struct {
 	CloseClient chan int
 	SecretChan  chan *conn.Secret
 	ipVerify    bool
-	runList     map[int]interface{}
+	runList     sync.Map //map[int]interface{}
 }
 
-func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList map[int]interface{}) *Bridge {
+func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList sync.Map) *Bridge {
 	return &Bridge{
 		TunnelPort:  tunnelPort,
 		tunnelType:  tunnelType,
@@ -242,7 +242,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 		go s.GetHealthFromClient(id, c)
 		logs.Info("clientId %d connection succeeded, address:%s ", id, c.Conn.RemoteAddr())
 	case common.WORK_CHAN:
-		muxConn := mux.NewMux(c.Conn, s.tunnelType)
+		muxConn := nps_mux.NewMux(c.Conn, s.tunnelType)
 		if v, ok := s.Client.LoadOrStore(id, NewClient(muxConn, nil, nil, vs)); ok {
 			v.(*Client).tunnel = muxConn
 		}
@@ -263,7 +263,7 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 			logs.Error("secret error, failed to match the key successfully")
 		}
 	case common.WORK_FILE:
-		muxConn := mux.NewMux(c.Conn, s.tunnelType)
+		muxConn := nps_mux.NewMux(c.Conn, s.tunnelType)
 		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, muxConn, nil, vs)); ok {
 			v.(*Client).file = muxConn
 		}
@@ -321,7 +321,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (ta
 				}
 			}
 		}
-		var tunnel *mux.Mux
+		var tunnel *nps_mux.Mux
 		if t != nil && t.Mode == "file" {
 			tunnel = v.(*Client).file
 		} else {
@@ -407,7 +407,8 @@ loop:
 				})
 				file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 					v := value.(*file.Tunnel)
-					if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
+					//if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
+					if _, ok := s.runList.Load(v.Id); ok && v.Client.Id == id {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
 					return true
