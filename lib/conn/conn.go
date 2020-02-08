@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ehang.io/nps/lib/common"
@@ -371,7 +372,10 @@ func CopyWaitGroup(conn1, conn2 net.Conn, crypt bool, snappy bool, rate *rate.Ra
 	//if flow != nil {
 	//	flow.Add(in, out)
 	//}
-	err := goroutine.CopyConnsPool.Invoke(goroutine.NewConns(connHandle, conn2, flow))
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	err := goroutine.CopyConnsPool.Invoke(goroutine.NewConns(connHandle, conn2, flow, wg))
+	wg.Wait()
 	if err != nil {
 		logs.Error(err)
 	}
