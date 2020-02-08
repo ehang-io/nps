@@ -47,7 +47,7 @@ POST /client/add/
 | max\_tunnel | 客户端最大隧道数量 空则为不限制 |
 
 ***
-修改客户端(25.4版本有问题暂时不能用)
+修改客户端
 
 ```
 POST /client/edit/

@@ -167,7 +167,7 @@ npc支持环境变量渲染以适应在某些特殊场景下的要求。
 **在无配置文件启动模式下：**
 设置环境变量
 ```
-export NPC_SERVER_ADDR=1.1.1.1:8284
+export NPC_SERVER_ADDR=1.1.1.1:8024
 export NPC_SERVER_VKEY=xxxxx
 ```
 直接执行./npc即可运行

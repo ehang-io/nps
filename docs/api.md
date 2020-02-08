@@ -42,7 +42,4 @@ POST /auth/getauthkey
 - 解密串编码方式 十六进制
 
 ## 详细文档
-- **此文档近期可能更新较慢，建议自行抓包**
-
-为方便第三方扩展，在web模式下可利用webAPI进行相关操作，详情见
-[webAPI文档](https://github.com/ehang-io/nps/wiki/webAPI%E6%96%87%E6%A1%A3)
+- **[详见](webapi.md)** (感谢@avengexyz)
