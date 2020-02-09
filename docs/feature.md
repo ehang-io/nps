@@ -245,3 +245,9 @@ LevelInformational->6 LevelDebug->7
 **对于nps：**
 
 在`nps.conf`中设置相关配置即可
+
+## pprof性能分析与调试
+
+可在服务端与客户端配置中开启pprof端口，用于性能分析与调试，注释或留空相应参数为关闭。
+
+默认为关闭状态

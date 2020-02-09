@@ -145,6 +145,8 @@ func dealCommon(s string) *CommonConfig {
 			c.Client.MaxConn = common.GetIntNoErrByStr(item[1])
 		case "remark":
 			c.Client.Remark = item[1]
+		case "pprof_addr":
+			common.InitPProfFromArg(item[1])
 		}
 	}
 	return c

@@ -59,6 +59,7 @@ rate_limit=10000
 flow_limit=100
 remark=test
 max_conn=10
+#pprof_addr=0.0.0.0:9999
 ```
 项 | 含义
 ---|---
@@ -73,6 +74,7 @@ rate_limit|速度限制，可忽略
 flow_limit|流量限制，可忽略
 remark|客户端备注，可忽略
 max_conn|最大连接数，可忽略
+pprof_addr|debug pprof ip:port
 #### 域名代理
 
 ```ini

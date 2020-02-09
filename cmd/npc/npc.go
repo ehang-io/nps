@@ -33,6 +33,7 @@ var (
 	localType    = flag.String("local_type", "p2p", "p2p target")
 	logPath      = flag.String("log_path", "", "npc log path")
 	debug        = flag.Bool("debug", true, "npc debug")
+	pprofAddr    = flag.String("pprof", "", "PProf debug addr (ip:port)")
 )
 
 const systemdScript = `[Unit]
@@ -171,6 +172,7 @@ func (p *npc) run() error {
 			logs.Warning("npc: panic serving %v: %v\n%s", err, string(buf))
 		}
 	}()
+	common.InitPProfFromArg(*pprofAddr)
 	//p2p or secret command
 	if *password != "" {
 		commonConfig := new(config.CommonConfig)
