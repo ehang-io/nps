@@ -44,4 +44,4 @@
 
 如果无法更新成功，可以直接自行下载releases压缩包然后覆盖原有的nps二进制文件和web目录
 
-对于Redhat系的Linux（例如CentOS），二进制文件会默认存放在 `/usr/bin` 或者 `/usr/lib/bin `
+注意：`nps install` 之后的 nps 不在原位置，请使用 `whereis nps` 查找具体目录覆盖 nps 二进制文件
