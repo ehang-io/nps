@@ -35,11 +35,30 @@ func NewConn(conn net.Conn) *Conn {
 	return &Conn{Conn: conn}
 }
 
+func (s *Conn) readRequest(buf []byte) (n int, err error) {
+	var rd int
+	for {
+		rd, err = s.Read(buf[n:])
+		if err != nil {
+			return
+		}
+		n += rd
+		if string(buf[n-4:n]) == "\r\n\r\n" {
+			return
+		}
+		// buf is full, can't contain the request
+		if n == cap(buf) {
+			err = io.ErrUnexpectedEOF
+			return
+		}
+	}
+}
+
 //get host 、connection type、method...from connection
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
 	var b [32 * 1024]byte
 	var n int
-	if n, err = s.Read(b[:]); err != nil {
+	if n, err = s.readRequest(b[:]); err != nil {
 		return
 	}
 	rb = b[:n]
