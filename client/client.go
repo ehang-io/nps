@@ -216,12 +216,12 @@ func (s *TRPClient) handleChan(src net.Conn) {
 func (s *TRPClient) handleUdp(serverConn net.Conn) {
 	// bind a local udp port
 	local, err := net.ListenUDP("udp", nil)
-	defer local.Close()
 	defer serverConn.Close()
 	if err != nil {
 		logs.Error("bind local udp port error ", err.Error())
 		return
 	}
+	defer local.Close()
 	go func() {
 		defer serverConn.Close()
 		b := common.BufPoolUdp.Get().([]byte)
