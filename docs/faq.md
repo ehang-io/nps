@@ -12,5 +12,5 @@
 ```
 - 服务端配置文件修改无效
 ```
-install之后，linux配置文件在/etc/nps
+install 之后，Linux 配置文件在 /etc/nps
 ```
