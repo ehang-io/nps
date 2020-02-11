@@ -43,6 +43,9 @@ func (s *Conn) readRequest(buf []byte) (n int, err error) {
 			return
 		}
 		n += rd
+		if n < 4 {
+			continue
+		}
 		if string(buf[n-4:n]) == "\r\n\r\n" {
 			return
 		}
