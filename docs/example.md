@@ -1,12 +1,12 @@
 # 使用示例
 ## 统一准备工作（必做）
-- 开启服务端，假设公网服务器ip为1.1.1.1，配置文件中`bridge_port`为8284，配置文件中`web_port`为8080
+- 开启服务端，假设公网服务器ip为1.1.1.1，配置文件中`bridge_port`为8024，配置文件中`web_port`为8080
 - 访问1.1.1.1:8080
 - 在客户端管理中创建一个客户端，记录下验证密钥
 - 内网客户端运行（windows使用cmd运行加.exe）
 
 ```shell
-./npc -server=1.1.1.1:8284 -vkey=客户端的密钥
+./npc -server=1.1.1.1:8024 -vkey=客户端的密钥
 ```
 **注意：运行服务端后，请确保能从客户端设备上正常访问配置文件中所配置的`bridge_port`端口，telnet，netcat这类的来检查**
 
@@ -89,7 +89,7 @@
 - 在需要连接ssh的机器上以执行命令
 
 ```
-./npc -server=1.1.1.1:8284 -vkey=vkey -type=tcp -password=secrettest -local_type=secret
+./npc -server=1.1.1.1:8024 -vkey=vkey -type=tcp -password=secrettest -local_type=secret
 ```
 如需指定本地端口可加参数`-local_port=xx`，默认为2000
 
@@ -112,7 +112,7 @@
 - 在使用端机器（本机）执行命令
 
 ```
-./npc -server=1.1.1.1:8284 -vkey=123 -password=p2pssh -target=10.2.50.2:22
+./npc -server=1.1.1.1:8024 -vkey=123 -password=p2pssh -target=10.2.50.2:22
 ```
 如需指定本地端口可加参数`-local_port=xx`，默认为2000
 

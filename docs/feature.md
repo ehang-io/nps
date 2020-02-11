@@ -167,7 +167,7 @@ npc支持环境变量渲染以适应在某些特殊场景下的要求。
 **在无配置文件启动模式下：**
 设置环境变量
 ```
-export NPC_SERVER_ADDR=1.1.1.1:8284
+export NPC_SERVER_ADDR=1.1.1.1:8024
 export NPC_SERVER_VKEY=xxxxx
 ```
 直接执行./npc即可运行
@@ -245,3 +245,9 @@ LevelInformational->6 LevelDebug->7
 **对于nps：**
 
 在`nps.conf`中设置相关配置即可
+
+## pprof性能分析与调试
+
+可在服务端与客户端配置中开启pprof端口，用于性能分析与调试，注释或留空相应参数为关闭。
+
+默认为关闭状态

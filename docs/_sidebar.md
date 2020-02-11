@@ -22,6 +22,7 @@
 
 * 其他
 
+  * [FAQ](faq.md)
   * [贡献](contribute.md)
   * [捐助](donate.md)
   * [致谢](thanks.md)

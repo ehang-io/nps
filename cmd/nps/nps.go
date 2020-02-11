@@ -59,6 +59,7 @@ func main() {
 	if err := beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf")); err != nil {
 		log.Fatalln("load config file error", err.Error())
 	}
+	common.InitPProfFromFile()
 	if level = beego.AppConfig.String("log_level"); level == "" {
 		level = "7"
 	}

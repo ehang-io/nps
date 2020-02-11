@@ -48,7 +48,7 @@ npc-update.exe update
 #### 全局配置
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 conn_type=tcp
 vkey=123
 username=111
@@ -59,6 +59,7 @@ rate_limit=10000
 flow_limit=100
 remark=test
 max_conn=10
+#pprof_addr=0.0.0.0:9999
 ```
 项 | 含义
 ---|---
@@ -73,11 +74,12 @@ rate_limit|速度限制，可忽略
 flow_limit|流量限制，可忽略
 remark|客户端备注，可忽略
 max_conn|最大连接数，可忽略
+pprof_addr|debug pprof ip:port
 #### 域名代理
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [web1]
 host=a.proxy.com
@@ -97,7 +99,7 @@ header_xxx|请求header修改或添加，header_proxy表示添加header proxy:np
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [tcp]
 mode=tcp
@@ -114,7 +116,7 @@ tartget_addr|内网目标
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [udp]
 mode=udp
@@ -130,7 +132,7 @@ target_addr|内网目标
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [http]
 mode=httpProxy
@@ -144,7 +146,7 @@ server_port | 在服务端的代理端口
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [socks5]
 mode=socks5
@@ -160,7 +162,7 @@ multi_account | socks5多账号配置文件（可选),配置后使用basic_usern
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [secret_ssh]
 mode=secret
@@ -177,7 +179,7 @@ target_addr|内网目标
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [p2p_ssh]
 mode=p2p
@@ -196,7 +198,7 @@ target_addr|内网目标
 
 ```ini
 [common]
-server_addr=1.1.1.1:8284
+server_addr=1.1.1.1:8024
 vkey=123
 [file]
 mode=file

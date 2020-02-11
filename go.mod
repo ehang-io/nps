@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	ehang.io/nps-mux v0.0.0-20200116160632-de59baca47b5
-	fyne.io/fyne v1.2.0
+	fyne.io/fyne v1.2.2
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/astaxie/beego v1.12.0
 	github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 // indirect
@@ -16,7 +16,7 @@ require (
 	github.com/hooklift/assert v0.0.0-20170704181755-9d1defd6d214 // indirect
 	github.com/kardianos/service v1.0.0
 	github.com/klauspost/pgzip v1.2.1 // indirect
-	github.com/panjf2000/ants/v2 v2.2.2
+	github.com/panjf2000/ants/v2 v2.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect
 	github.com/shirou/gopsutil v2.19.11+incompatible

@@ -44,13 +44,15 @@ type Conns struct {
 	conn1 io.ReadWriteCloser // mux connection
 	conn2 net.Conn           // outside connection
 	flow  *file.Flow
+	wg    *sync.WaitGroup
 }
 
-func NewConns(c1 io.ReadWriteCloser, c2 net.Conn, flow *file.Flow) Conns {
+func NewConns(c1 io.ReadWriteCloser, c2 net.Conn, flow *file.Flow, wg *sync.WaitGroup) Conns {
 	return Conns{
 		conn1: c1,
 		conn2: c2,
 		flow:  flow,
+		wg:    wg,
 	}
 }
 
@@ -67,6 +69,7 @@ func copyConns(group interface{}) {
 	if conns.flow != nil {
 		conns.flow.Add(in, out)
 	}
+	conns.wg.Done()
 }
 
 var connCopyPool, _ = ants.NewPoolWithFunc(200000, copyConnGroup, ants.WithNonblocking(false))
