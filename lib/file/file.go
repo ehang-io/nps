@@ -177,4 +177,5 @@ func storeSyncMapToFile(m sync.Map, filePath string) {
 		}
 		return true
 	})
+	file.Sync()
 }
