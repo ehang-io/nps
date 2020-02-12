@@ -17,6 +17,8 @@
 - 启动：`npc.exe start`
 - 停止：`npc.exe stop`
 - 如果需要更换命令内容需要先卸载`npc.exe uninstall`，再重新注册
+- 如果需要当客户端退出时自动重启客户端，请按照如图所示配置
+![image](https://github.com/ehang-io/nps/blob/master/docs/windows_client_service_configuration.png?raw=true)
 
 注册到服务后，日志文件windows位于当前目录下，linux和darwin位于/var/log/npc.log
 
