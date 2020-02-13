@@ -2,8 +2,8 @@ package socks5
 
 import (
 	"context"
+	"ehang.io/nps/core"
 	"errors"
-	"github.com/cnlh/nps/core"
 	"io"
 	"net"
 )

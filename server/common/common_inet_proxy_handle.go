@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
-	"github.com/cnlh/nps/core"
+	"ehang.io/nps/core"
 	"net"
 	"strconv"
 )

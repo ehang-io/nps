@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"github.com/cnlh/nps/bridge"
+	"ehang.io/nps/bridge"
 	"net"
 )
 

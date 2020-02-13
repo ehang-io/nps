@@ -2,9 +2,9 @@ package socks5
 
 import (
 	"context"
+	"ehang.io/nps/core"
+	"ehang.io/nps/server/common"
 	"fmt"
-	"github.com/cnlh/nps/core"
-	"github.com/cnlh/nps/server/common"
 	"net"
 	"strconv"
 )
