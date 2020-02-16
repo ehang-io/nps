@@ -1,8 +1,11 @@
 package proxy
 
 import (
+	"io"
 	"net"
 	"strings"
+	"sync"
+	"time"
 
 	"ehang.io/nps/bridge"
 	"ehang.io/nps/lib/common"
@@ -13,6 +16,7 @@ import (
 
 type UdpModeServer struct {
 	BaseServer
+	addrMap  sync.Map
 	listener *net.UDPConn
 }
 
@@ -33,8 +37,8 @@ func (s *UdpModeServer) Start() error {
 	if err != nil {
 		return err
 	}
-	buf := common.BufPoolUdp.Get().([]byte)
 	for {
+		buf := common.BufPoolUdp.Get().([]byte)
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {
@@ -49,28 +53,43 @@ func (s *UdpModeServer) Start() error {
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {
-	if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
-		logs.Warn("client id %d, task id %d,error %s, when udp connection", s.task.Client.Id, s.task.Id, err.Error())
-		return
-	}
-	defer s.task.Client.AddConn()
-	link := conn.NewLink(common.CONN_UDP, s.task.Target.TargetStr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String(), s.task.Target.LocalProxy)
-	if clientConn, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, s.task); err != nil {
-		return
+	if v, ok := s.addrMap.Load(addr.String()); ok {
+		clientConn, ok := v.(io.ReadWriteCloser)
+		if ok {
+			clientConn.Write(data)
+			s.task.Flow.Add(int64(len(data)), 0)
+		}
 	} else {
-		target := conn.GetConn(clientConn, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, nil, true)
-		defer target.Close()
-		s.task.Flow.Add(int64(len(data)), 0)
-		buf := common.BufPoolUdp.Get().([]byte)
-		defer common.BufPoolUdp.Put(buf)
-		target.Write(data)
-		s.task.Flow.Add(int64(len(data)), 0)
-		if n, err := target.Read(buf); err != nil {
-			logs.Warn(err)
+		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
+			logs.Warn("client id %d, task id %d,error %s, when udp connection", s.task.Client.Id, s.task.Id, err.Error())
+			return
+		}
+		defer s.task.Client.AddConn()
+		link := conn.NewLink(common.CONN_UDP, s.task.Target.TargetStr, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, addr.String(), s.task.Target.LocalProxy)
+		if clientConn, err := s.bridge.SendLinkInfo(s.task.Client.Id, link, s.task); err != nil {
 			return
 		} else {
-			s.listener.WriteTo(buf[:n], addr)
-			s.task.Flow.Add(0, int64(n))
+			target := conn.GetConn(clientConn, s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, nil, true)
+			s.addrMap.Store(addr.String(), target)
+			defer target.Close()
+
+			target.Write(data)
+
+			buf := common.BufPoolUdp.Get().([]byte)
+			defer common.BufPoolUdp.Put(buf)
+
+			s.task.Flow.Add(int64(len(data)), 0)
+			for {
+				clientConn.SetReadDeadline(time.Now().Add(time.Minute * 10))
+				if n, err := target.Read(buf); err != nil {
+					s.addrMap.Delete(addr.String())
+					logs.Warn(err)
+					return
+				} else {
+					s.listener.WriteTo(buf[:n], addr)
+					s.task.Flow.Add(0, int64(n))
+				}
+			}
 		}
 	}
 }
