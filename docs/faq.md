@@ -14,3 +14,7 @@
 ```
 install 之后，Linux 配置文件在 /etc/nps
 ```
+- p2p穿透失败 [p2p服务](https://ehang-io.github.io/nps/#/example?id=p2p%e6%9c%8d%e5%8a%a1)
+```
+双方nat类型都是Symmetric Nat一定不成功，建议先查看nat类型。请按照文档操作(标题上有超链接)
+```

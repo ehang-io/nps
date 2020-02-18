@@ -99,16 +99,28 @@ func (s *JsonDb) GetClient(id int) (c *Client, err error) {
 	return
 }
 
+var hostLock sync.Mutex
+
 func (s *JsonDb) StoreHostToJsonFile() {
+	hostLock.Lock()
 	storeSyncMapToFile(s.Hosts, s.HostFilePath)
+	hostLock.Unlock()
 }
+
+var taskLock sync.Mutex
 
 func (s *JsonDb) StoreTasksToJsonFile() {
+	taskLock.Lock()
 	storeSyncMapToFile(s.Tasks, s.TaskFilePath)
+	taskLock.Unlock()
 }
 
+var clientLock sync.Mutex
+
 func (s *JsonDb) StoreClientsToJsonFile() {
+	clientLock.Lock()
 	storeSyncMapToFile(s.Clients, s.ClientFilePath)
+	clientLock.Unlock()
 }
 
 func (s *JsonDb) GetClientId() int32 {
@@ -134,7 +146,8 @@ func loadSyncMapFromFile(filePath string, f func(value string)) {
 }
 
 func storeSyncMapToFile(m sync.Map, filePath string) {
-	file, err := os.Create(filePath)
+	file, err := os.Create(filePath + ".tmp")
+	// first create a temporary file to store
 	if err != nil {
 		panic(err)
 	}
@@ -177,5 +190,7 @@ func storeSyncMapToFile(m sync.Map, filePath string) {
 		}
 		return true
 	})
-	file.Sync()
+	_ = file.Sync()
+	err = os.Rename(filePath+".tmp", filePath)
+	// replace the file, maybe provides atomic operation
 }

@@ -270,6 +270,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 
 	b := common.BufPoolUdp.Get().([]byte)
 	defer common.BufPoolUdp.Put(b)
+	defer target.Close()
 	for {
 		_, err := c.Read(b)
 		if err != nil {

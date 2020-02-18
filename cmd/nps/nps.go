@@ -1,26 +1,27 @@
 package main
 
 import (
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/file"
 	"ehang.io/nps/lib/install"
+	"ehang.io/nps/lib/version"
+	"ehang.io/nps/server"
+	"ehang.io/nps/server/connection"
+	"ehang.io/nps/server/tool"
+	"ehang.io/nps/web/routers"
 	"flag"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"ehang.io/nps/lib/common"
-	"ehang.io/nps/lib/crypt"
 	"ehang.io/nps/lib/daemon"
-	"ehang.io/nps/lib/file"
-	"ehang.io/nps/lib/version"
-	"ehang.io/nps/server"
-	"ehang.io/nps/server/connection"
-	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
 
-	"ehang.io/nps/web/routers"
 	"github.com/kardianos/service"
 )
 
@@ -97,7 +98,12 @@ func main() {
 	prg.exit = make(chan struct{})
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logs.Error(err)
+		logs.Error(err, "service function disabled")
+		run()
+		// run without service
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		wg.Wait()
 		return
 	}
 	if len(os.Args) > 1 && os.Args[1] != "service" {
@@ -166,6 +172,15 @@ func (p *nps) run() error {
 			logs.Warning("nps: panic serving %v: %v\n%s", err, string(buf))
 		}
 	}()
+	run()
+	select {
+	case <-p.exit:
+		logs.Warning("stop...")
+	}
+	return nil
+}
+
+func run() {
 	routers.Init()
 	task := &file.Tunnel{
 		Mode: "webServer",
@@ -181,9 +196,4 @@ func (p *nps) run() error {
 	tool.InitAllowPort()
 	tool.StartSystemInfo()
 	go server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
-	select {
-	case <-p.exit:
-		logs.Warning("stop...")
-	}
-	return nil
 }
