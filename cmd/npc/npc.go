@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -107,7 +108,12 @@ func main() {
 	}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		logs.Error(err)
+		logs.Error(err, "service function disabled")
+		run()
+		// run without service
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		wg.Wait()
 		return
 	}
 	if len(os.Args) >= 2 {
@@ -172,6 +178,15 @@ func (p *npc) run() error {
 			logs.Warning("npc: panic serving %v: %v\n%s", err, string(buf))
 		}
 	}()
+	run()
+	select {
+	case <-p.exit:
+		logs.Warning("stop...")
+	}
+	return nil
+}
+
+func run() {
 	common.InitPProfFromArg(*pprofAddr)
 	//p2p or secret command
 	if *password != "" {
@@ -187,7 +202,7 @@ func (p *npc) run() error {
 		commonConfig.Client = new(file.Client)
 		commonConfig.Client.Cnf = new(file.Config)
 		go client.StartLocalServer(localServer, commonConfig)
-		return nil
+		return
 	}
 	env := common.GetEnvMap()
 	if *serverAddr == "" {
@@ -211,9 +226,4 @@ func (p *npc) run() error {
 		}
 		go client.StartFromFile(*configPath)
 	}
-	select {
-	case <-p.exit:
-		logs.Warning("stop...")
-	}
-	return nil
 }
