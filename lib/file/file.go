@@ -3,6 +3,7 @@ package file
 import (
 	"encoding/json"
 	"errors"
+	"github.com/astaxie/beego/logs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -151,7 +152,6 @@ func storeSyncMapToFile(m sync.Map, filePath string) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 	m.Range(func(key, value interface{}) bool {
 		var b []byte
 		var err error
@@ -191,6 +191,11 @@ func storeSyncMapToFile(m sync.Map, filePath string) {
 		return true
 	})
 	_ = file.Sync()
+	_ = file.Close()
+	// must close file first, then rename it
 	err = os.Rename(filePath+".tmp", filePath)
+	if err != nil {
+		logs.Error(err, "store to file err, data will lost")
+	}
 	// replace the file, maybe provides atomic operation
 }
