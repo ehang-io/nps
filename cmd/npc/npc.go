@@ -35,6 +35,7 @@ var (
 	logPath      = flag.String("log_path", "", "npc log path")
 	debug        = flag.Bool("debug", true, "npc debug")
 	pprofAddr    = flag.String("pprof", "", "PProf debug addr (ip:port)")
+	stunAddr     = flag.String("stun_addr", "stun.stunprotocol.org:3478", "stun server address (eg:stun.stunprotocol.org:3478)")
 )
 
 const systemdScript = `[Unit]
@@ -130,7 +131,9 @@ func main() {
 			install.UpdateNpc()
 			return
 		case "nat":
-			nat, host, err := stun.NewClient().Discover()
+			c := stun.NewClient()
+			c.SetServerAddr(*stunAddr)
+			nat, host, err := c.Discover()
 			if err != nil || host == nil {
 				logs.Error("get nat type error", err)
 				return
