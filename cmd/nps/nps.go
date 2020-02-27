@@ -12,6 +12,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -28,31 +29,6 @@ import (
 var (
 	level string
 )
-
-const systemdScript = `[Unit]
-Description={{.Description}}
-ConditionFileIsExecutable={{.Path|cmdEscape}}
-{{range $i, $dep := .Dependencies}} 
-{{$dep}} {{end}}
-[Service]
-LimitNOFILE=65536
-StartLimitInterval=5
-StartLimitBurst=10
-ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
-{{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
-{{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
-{{if .UserName}}User={{.UserName}}{{end}}
-{{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
-{{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
-{{if and .LogOutput .HasOutputFileSupport -}}
-StandardOutput=file:/var/log/{{.Name}}.out
-StandardError=file:/var/log/{{.Name}}.err
-{{- end}}
-Restart=always
-RestartSec=120
-[Install]
-WantedBy=multi-user.target
-`
 
 func main() {
 	flag.Parse()
@@ -92,7 +68,8 @@ func main() {
 		svcConfig.Dependencies = []string{
 			"Requires=network.target",
 			"After=network-online.target syslog.target"}
-		svcConfig.Option["SystemdScript"] = systemdScript
+		svcConfig.Option["SystemdScript"] = install.SystemdScript
+		svcConfig.Option["SysvScript"] = install.SysvScript
 	}
 	prg := &nps{}
 	prg.exit = make(chan struct{})
@@ -127,11 +104,37 @@ func main() {
 			if err != nil {
 				logs.Error("Valid actions: %q\n%s", service.ControlAction, err.Error())
 			}
+			if service.Platform() == "unix-systemv" {
+				logs.Info("unix-systemv service")
+				confPath := "/etc/init.d/" + svcConfig.Name
+				os.Symlink(confPath, "/etc/rc.d/S90"+svcConfig.Name)
+				os.Symlink(confPath, "/etc/rc.d/K02"+svcConfig.Name)
+			}
 			return
-		case "start", "restart", "stop", "uninstall":
+		case "start", "restart", "stop":
+			if service.Platform() == "unix-systemv" {
+				logs.Info("unix-systemv service")
+				cmd := exec.Command("/etc/init.d/"+svcConfig.Name, os.Args[1])
+				err := cmd.Run()
+				if err != nil {
+					logs.Error(err)
+				}
+				return
+			}
 			err := service.Control(s, os.Args[1])
 			if err != nil {
 				logs.Error("Valid actions: %q\n%s", service.ControlAction, err.Error())
+			}
+			return
+		case "uninstall":
+			err := service.Control(s, os.Args[1])
+			if err != nil {
+				logs.Error("Valid actions: %q\n%s", service.ControlAction, err.Error())
+			}
+			if service.Platform() == "unix-systemv" {
+				logs.Info("unix-systemv service")
+				os.Remove("/etc/rc.d/S90" + svcConfig.Name)
+				os.Remove("/etc/rc.d/K02" + svcConfig.Name)
 			}
 			return
 		case "update":
