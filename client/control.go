@@ -254,11 +254,12 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 //http proxy connection
 func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	req := &http.Request{
-		Method: "CONNECT",
-		URL:    url,
-		Host:   remoteAddr,
-		Header: http.Header{},
-		Proto:  "HTTP/1.1",
+		Method:     "CONNECT",
+		URL:        url,
+		Host:       remoteAddr,
+		Header:     http.Header{},
+		ProtoMajor: 1,
+		ProtoMinor: 1,
 	}
 	password, _ := url.User.Password()
 	req.Header.Set("Authorization", "Basic "+basicAuth(strings.Trim(url.User.Username(), " "), password))
