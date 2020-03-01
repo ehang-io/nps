@@ -4,7 +4,7 @@
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>client list</h5>
+                    <h5 langtag="page-clientlist"></h5>
 
                     <div class="ibox-tools">
                         <a class="collapse-link">
@@ -20,10 +20,10 @@
 
                 <div class="table-responsive">
                     <div id="toolbar">
-                        <a href="{{.web_base_url}}/client/add" class="btn btn-primary dim" type="button" langtag="info-new">新增</a>
+                        <a href="{{.web_base_url}}/client/add" class="btn btn-primary dim">
+                        <i class="fa fa-fw fa-lg fa-plus"></i> <span langtag="word-add"></span></a>
                     </div>
-                    <table id="taskList_table" class="table-striped table-hover"
-                           data-mobile-responsive="true"></table>
+                    <table id="taskList_table" class="table-striped table-hover" data-mobile-responsive="true"></table>
                 </div>
             </div>
             {{end}}
@@ -38,73 +38,6 @@
 </div>
 
 <script>
-    function del(id) {
-        if (confirm("Are you sure you want to delete it？？")) {
-            $.ajax({
-                type: "POST",
-                url: "{{.web_base_url}}/client/del",
-                data: {"id": id},
-                success: function (res) {
-                    alert(res.msg)
-                    if (res.status) {
-                        document.location.reload();
-                    }
-                }
-            })
-        }
-    }
-
-    function start(id) {
-        if (confirm("Are you sure you want to start it？？")) {
-            $.ajax({
-                type: "POST",
-                url: "{{.web_base_url}}/client/changestatus",
-                data: {"id": id, "status": 1},
-                success: function (res) {
-                    alert(res.msg)
-                    if (res.status) {
-                        document.location.reload();
-                    }
-                }
-            })
-        }
-    }
-
-    function stop(id) {
-        if (confirm("Are you sure you want to stop it？")) {
-            $.ajax({
-                type: "POST",
-                url: "{{.web_base_url}}/client/changestatus",
-                data: {
-                    "id": id, "status": 0
-                },
-                success:
-                        function (res) {
-                            alert(res.msg)
-                            if (res.status) {
-                                document.location.reload();
-                            }
-                        }
-            })
-        }
-    }
-
-    function edit(id) {
-        window.location.href = "{{.web_base_url}}/client/edit?id=" + id
-    }
-
-    function add() {
-        window.location.href = "{{.web_base_url}}/client/add"
-    }
-
-    function tunnel(id) {
-        window.location.href = "{{.web_base_url}}/index/all?client_id=" + id
-    }
-
-    function host(id) {
-        window.location.href = "{{.web_base_url}}/index/hostlist?client_id=" + id
-    }
-
     /*bootstrap table*/
     $('#table').bootstrapTable({
         toolbar: "#toolbar",
@@ -122,131 +55,158 @@
         pageList: [5, 10, 20, 50],//分页步进值
         detailView: true,
         smartDisplay: true, // 智能显示 pagination 和 cardview 等
+        onExpandRow: function () {$('body').setLang ('.detail-view');},
+        onPostBody: function (data) { if ($(this)[0].locale != undefined ) $('body').setLang ('#table'); },
         detailFormatter: function (index, row, element) {
-            return '<b langtag="info-max-conn-num">最大连接数</b>：' + row.MaxConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-now-conn-num">当前连接数</b>：' + row.NowConn + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-flow-limit">流量限制</b>：' + row.Flow.FlowLimit + `m&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-rate-limit">带宽限制</b>：' + row.RateLimit + `kb/s&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-max-tunnel-num">隧道数限制</b>：' + row.MaxTunnelNum + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-client-web-username">web登陆用户名</b>：' + row.WebUserName + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-client-web-password">web登陆密码</b>：' + row.WebPassword + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b langtag="info-crypt">加密</b>：' + row.Cnf.Crypt + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-compress">压缩</b>：' + row.Cnf.Compress + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-config-conn-allow">是否允许配置文件模式连接</b>：' + row.ConfigConnAllow + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-web-auth-username">basic认证用户名</b>：' + row.Cnf.U + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp`
-                    + '<b langtag="info-web-auth-password">basic认证密码</b>：' + row.Cnf.P + `&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp` + "<br/><br>"
-                    + '<b langtag="info-command">命令</b>：' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.VerifyKey + " -type=" +{{.bridgeType}} +"</code>"
+            return '<b langtag="word-maxconnections"></b>: ' + row.MaxConn + '&emsp;'
+                + '<b langtag="word-curconnections"></b>: ' + row.NowConn + '&emsp;'
+                + '<b langtag="word-flowlimit"></b>: ' + row.Flow.FlowLimit + 'm&emsp;'
+                + '<b langtag="word-ratelimit"></b>: ' + row.RateLimit + 'kb/s&emsp;'
+                + '<b langtag="word-maxtunnels"></b>: ' + row.MaxTunnelNum + '&emsp;<br/><br/>'
+                + '<b langtag="word-webusername"></b>: ' + row.WebUserName + '&emsp;'
+                + '<b langtag="word-webpassword"></b>: ' + row.WebPassword + '&emsp;'
+                + '<b langtag="word-basicusername"></b>: ' + row.Cnf.U + '&emsp;'
+                + '<b langtag="word-basicpassword"></b>: ' + row.Cnf.P + '&emsp;<br/><br/>'
+                + '<b langtag="word-crypt"></b>: <span langtag="word-' + row.Cnf.Crypt + '"></span>&emsp;'
+                + '<b langtag="word-compress"></b>: <span langtag="word-' + row.Cnf.Compress + '"></span>&emsp;'
+                + '<b langtag="word-connectbyconfig"></b>: <span langtag="word-' + row.ConfigConnAllow + '"></span>&emsp;<br/><br/>'
+                + '<b langtag="word-commandclient"></b>: ' + "<code>./npc{{.win}} -server={{.ip}}:{{.p}} -vkey=" + row.VerifyKey + " -type=" +{{.bridgeType}} +"</code>"
         },
         //表格的列
         columns: [
             {
                 field: 'Id',//域值
-                title: 'id',//标题
-                visible: true,//false表示不显示
+                title: '<span langtag="word-id"></span>',//标题
+                halign: 'center',
+                visible: true//false表示不显示
             },
             {
                 field: 'Remark',//域值
-                title: 'remark',//标题
-                visible: true,//false表示不显示
+                title: '<span langtag="word-remark"></span>',//标题
+                halign: 'center',
+                visible: true//false表示不显示
             },
             {
                 field: 'Version',//域值
-                title: 'version',//标题
-                visible: true,//false表示不显示
+                title: '<span langtag="word-version"></span>',//标题
+                halign: 'center',
+                visible: true//false表示不显示
             },
             {
                 field: 'VerifyKey',//域值
-                title: 'vkey',//标题
+                title: '<span langtag="word-verifykey"></span>',//标题
+                halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
                     if (!row.NoStore) {
                         return value
                     } else {
-                        return "public vkey"
+                        return '<span langtag="word-publicvkey"></span>'
                     }
                 }
             },
             {
                 field: 'Addr',//域值
-                title: 'client addr',//标题
-                visible: true,//false表示不显示
+                title: '<span langtag="word-address"></span>',//标题
+                halign: 'center',
+                visible: true//false表示不显示
             },
             {
                 field: 'InletFlow',//域值
-                title: 'in flow',//标题
+                title: '<span langtag="word-inletflow"></span>',//标题
+                halign: 'center',
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
-                    return change(row.Flow.InletFlow)
+                    return changeunit(row.Flow.InletFlow)
                 }
             },
             {
                 field: 'ExportFlow',//域值
-                title: 'out flow',//标题
+                title: '<span langtag="word-exportflow"></span>',//标题
+                halign: 'center',
                 visible: true,//false表示不显示
                 sortable: true,//启用排序
                 formatter: function (value, row, index) {
-                    return change(row.Flow.ExportFlow)
+                    return changeunit(row.Flow.ExportFlow)
                 }
             },
             {
                 field: 'IsConnect',//域值
-                title: 'speed',//内容
+                title: '<span langtag="word-speed"></span>',//内容
+                halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
-                    return change(row.Rate.NowRate) + "/S"
+                    return changeunit(row.Rate.NowRate) + "/S"
                 }
             },
             {
                 field: 'Status',//域值
-                title: 'run',//内容
+                title: '<span langtag="word-status"></span>',//内容
+                align: 'center',
+                halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
                     if (value) {
-                        return '<span class="badge badge-primary">open</span>'
+                        return '<span class="badge badge-primary" langtag="word-open"></span>'
                     } else {
-                        return '<span class="badge badge-badge">close</span>'
+                        return '<span class="badge badge-badge" langtag="word-close"></span>'
                     }
                 }
             },
             {
                 field: 'IsConnect',//域值
-                title: 'status',//内容
+                title: '<span langtag="word-connect"></span>',//内容
+                align: 'center',
+                halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
                     if (value) {
-                        return '<span class="badge badge-primary">online</span>'
+                        return '<span class="badge badge-primary" langtag="word-online"></span>'
                     } else {
-                        return '<span class="badge badge-badge">offline</span>'
+                        return '<span class="badge badge-badge" langtag="word-offline"></span>'
                     }
                 }
             },
             {
                 field: 'option',//域值
-                title: 'option',//内容
+                title: '<span langtag="word-option"></span>',//内容
+                align: 'center',
+                halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
-                    btn = `{{if eq true .isAdmin}}<button onclick="del(` + row.Id + `)" class="btn-danger"><i class="fa fa-trash"></i></button>{{end}}<button onclick="edit(` + row.Id + `)" class="btn-primary"><i class="fa fa-edit"></i></button></div>`
 
+                    {{if eq true .isAdmin}}
                     if (row.Status) {
-                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="stop(` + row.Id + `)" class="btn-warning"><i class="fa fa-close"></i></button>`{{end}}+ btn
+                        btn_group += '<a onclick="submitform(\'stop\', \'{{.web_base_url}}/client/changestatus\', {\'id\':' + row.Id
+                        btn_group += ', \'status\': 0})" class="btn btn-outline btn-warning"><i class="fa fa-pause"></i></a>'
                     } else {
-                        return btn_group  {{if eq true .isAdmin}}+ `<button onclick="start(` + row.Id + `)" class="btn-warning"><i class="fa fa-check"></i></button>`{{end}}+ btn
+                        btn_group += '<a onclick="submitform(\'start\', \'{{.web_base_url}}/client/changestatus\', {\'id\':' + row.Id
+                        btn_group += ', \'status\': 1})" class="btn btn-outline btn-primary"><i class="fa fa-play"></i></a>'
                     }
+                    btn_group += '<a onclick="submitform(\'delete\', \'{{.web_base_url}}/client/del\', {\'id\':' + row.Id
+                    btn_group += '})" class="btn btn-outline btn-danger"><i class="fa fa-trash"></i></a>'
+                    {{end}}
+
+                    btn_group += '<a href="{{.web_base_url}}/client/edit?id=' + row.Id
+                    btn_group += '" class="btn btn-outline btn-success"><i class="fa fa-edit"></i></a></div>'
+                    return btn_group
                 }
             },
             {
                 field: 'show',//域值
-                title: 'show',//内容
+                title: '<span langtag="word-show">',//内容
+                align: 'center',
+                halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
-                    return `<button onclick="tunnel(` + row.Id + `)" class="btn-info">tunnel</button><button onclick="host(` + row.Id + `)" class="btn-primary">host</button>`
+                    return '<div class="btn-group"><a href="{{.web_base_url}}/index/all?client_id=' + row.Id
+                        + '" class="btn btn-outline btn-primary" langtag="word-tunnel"></a>'
+                        + '<a href="{{.web_base_url}}/index/hostlist?client_id=' + row.Id
+                        + '" class="btn btn-outline btn-success" langtag="word-host"></a></div>'
                 }
             }
         ]
     });
-
-
 </script>
