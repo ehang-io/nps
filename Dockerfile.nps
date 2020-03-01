@@ -1,4 +1,4 @@
-FROM golang as builder
+FROM golang:1.13.8 as builder
 WORKDIR /go/src/ehang.io/nps
 COPY . .
 RUN go get -d -v ./... 

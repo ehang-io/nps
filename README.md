@@ -44,6 +44,16 @@ For linux、darwin ```sudo ./nps install```
 
 For windows, run cmd as administrator and enter the installation directory ```nps.exe install```
 
+- default ports
+
+The default configuration file of nps use 80，443，8080，8024 ports
+
+80 and 443 ports for host mode default ports
+
+8080 for web management access port
+
+8024 for net bridge port, to communicate between server and client
+
 - start up
 
 For linux、darwin ```sudo nps start```

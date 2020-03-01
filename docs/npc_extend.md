@@ -1,9 +1,9 @@
 # 增强功能
 ## nat类型检测
 ```
- ./npc nat
+ ./npc nat -stun_addr=stun.stunprotocol.org:3478
 ```
-如果p2p双方都是Symmetric Nat，肯定不能成功，其他组合都有较大成功率。
+如果p2p双方都是Symmetric Nat，肯定不能成功，其他组合都有较大成功率。`stun_addr`可以指定stun服务器地址。
 ## 状态检查
 ```
  ./npc status -config=npc配置文件路径
