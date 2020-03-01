@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -11,7 +12,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -253,30 +253,27 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 
 //http proxy connection
 func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
-	req := &http.Request{
-		Method:     "CONNECT",
-		URL:        url,
-		Host:       remoteAddr,
-		Header:     http.Header{},
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-	}
-	password, _ := url.User.Password()
-	req.Header.Set("Authorization", "Basic "+basicAuth(strings.Trim(url.User.Username(), " "), password))
-	b, err := httputil.DumpRequest(req, false)
+	req, err := http.NewRequest("CONNECT", "http://"+remoteAddr, nil)
 	if err != nil {
 		return nil, err
 	}
+	password, _ := url.User.Password()
+	req.Header.Set("Authorization", "Basic "+basicAuth(strings.Trim(url.User.Username(), " "), password))
+	// we make a http proxy request
 	proxyConn, err := net.Dial("tcp", url.Host)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := proxyConn.Write(b); err != nil {
+	if err := req.Write(proxyConn); err != nil {
 		return nil, err
 	}
-	buf := make([]byte, 1024)
-	if _, err := proxyConn.Read(buf); err != nil {
+	res, err := http.ReadResponse(bufio.NewReader(proxyConn), req)
+	if err != nil {
 		return nil, err
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, errors.New("Proxy error " + res.Status)
 	}
 	return proxyConn, nil
 }
