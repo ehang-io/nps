@@ -121,10 +121,9 @@
             $("#" + arr["all"][i]).css("display", "none")
         }
         o = $("#type option:selected").val()
-        for (var i = 0; i < arr[o].length - 1; i++) {
+        for (var i = 0; i < arr[o].length; i++) {
             $("#" + arr[o][i]).css("display", "block")
         }
-        $("#info").html(arr[o][arr[o].length - 1])
     }
 
     function resetClientCnf() {
