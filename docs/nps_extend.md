@@ -14,18 +14,18 @@
 
 ## 与nginx配合
 
-有时候我们还需要在云服务器上运行nginx来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例如httpProxyPort为8024时
+有时候我们还需要在云服务器上运行nginx来保证静态文件缓存等，本代理可和nginx配合使用，在配置文件中将httpProxyPort设置为非80端口，并在nginx中配置代理，例如httpProxyPort为8010时
 ```
 server {
     listen 80;
     server_name *.proxy.com;
     location / {
         proxy_set_header Host  $http_host;
-        proxy_pass http://127.0.0.1:8024;
+        proxy_pass http://127.0.0.1:8010;
     }
 }
 ```
-如需使用https也可在nginx监听443端口并配置ssl，并将本代理的httpsProxyPort设置为空关闭https即可，例如httpProxyPort为8024时
+如需使用https也可在nginx监听443端口并配置ssl，并将本代理的httpsProxyPort设置为空关闭https即可，例如httpProxyPort为8020时
 
 ```
 server {
@@ -40,7 +40,7 @@ server {
     ssl_prefer_server_ciphers on;
     location / {
         proxy_set_header Host  $http_host;
-        proxy_pass http://127.0.0.1:8024;
+        proxy_pass http://127.0.0.1:8020;
     }
 }
 ```
