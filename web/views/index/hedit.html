@@ -1,108 +1,98 @@
 <div class="row tile">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
-            <h3 class="ibox-title">add host</h3>
+            <h3 class="ibox-title" langtag="page-hostedit"></h3>
             <div class="ibox-content">
                 <form class="form-horizontal">
                     <input type="hidden" name="id" value="{{.h.Id}}">
                     <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="info-remark">备注</label>
+                        <label class="control-label font-bold" langtag="word-clientid"></label>
+                        <div class="col-sm-10">
+                            <input value="{{.h.Client.Id}}" class="form-control" type="text" name="client_id" placeholder="" langtag="word-clientid">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label font-bold" langtag="word-remark"></label>
                         <div class="col-sm-10">
                             <input value="{{.h.Remark}}" class="form-control" type="text" name="remark"
                                    placeholder="remark">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="info-host">域名</label>
+                        <label class="control-label font-bold" langtag="word-host"></label>
                         <div class="col-sm-10">
-                            <input value="{{.h.Host}}" class="form-control" type="text" name="host"
-                                   placeholder="such as a.proxy.com">
+                            <input value="{{.h.Host}}" class="form-control" type="text" name="host" placeholder="" langtag="info-suchashost">
                         </div>
                     </div>
                     <div class="form-group" id="scheme">
-                        <label class="control-label col-sm-2" langtag="info-scheme">协议类型</label>
+                        <label class="control-label font-bold" langtag="word-scheme"></label>
                         <div class="col-sm-10">
                             <select id="scheme_select" class="form-control" name="scheme">
-                                <option {{if eq "all" .h.Scheme}}selected{{end}} value="all">all</option>
-                                <option {{if eq "http" .h.Scheme}}selected{{end}} value="http">http</option>
-                                <option {{if eq "https" .h.Scheme}}selected{{end}} value="https">https</option>
+                                <option {{if eq "all" .h.Scheme}}selected{{end}} value="all" langtag="word-all"></option>
+                                <option {{if eq "http" .h.Scheme}}selected{{end}} value="http" langtag="word-http"></option>
+                                <option {{if eq "https" .h.Scheme}}selected{{end}} value="https" langtag="word-https"></option>
                             </select>
                         </div>
                     </div>
                 {{if eq false .https_just_proxy}}
                     <div class="form-group" id="cert_file">
-                        <label class="col-sm-2 control-label" langtag="info-https-cert">https cert file路径</label>
+                        <label class="control-label font-bold" langtag="word-httpscert"></label>
                         <div class="col-sm-10">
-                            <input value="{{.h.CertFilePath}}" class="form-control" type="text" name="cert_file_path"
-                                   placeholder="empty means to be unrestricted">
+                            <input value="{{.h.CertFilePath}}" class="form-control" type="text" name="cert_file_path" placeholder="" langtag="info-unrestricted">
                         </div>
                     </div>
                     <div class="form-group" id="key_file">
-                        <label class="col-sm-2 control-label" langtag="info-https-key">https key file路径</label>
+                        <label class="control-label font-bold" langtag="word-httpskey"></label>
                         <div class="col-sm-10">
-                            <input value="{{.h.KeyFilePath}}" class="form-control" type="text" name="key_file_path"
-                                   placeholder="empty means to be unrestricted">
+                            <input value="{{.h.KeyFilePath}}" class="form-control" type="text" name="key_file_path" placeholder="" langtag="info-unrestricted">
                         </div>
                     </div>
                 {{end}}
                     <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="info-url-router">url路由</label>
+                        <label class="control-label font-bold" langtag="word-urlroute"></label>
                         <div class="col-sm-10">
-                            <input value="{{.h.Location}}" class="form-control" type="text" name="location"
-                                   placeholder="empty means to be unrestricted">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="info-client-id">客户端id</label>
-                        <div class="col-sm-10">
-                            <input value="{{.h.Client.Id}}" class="form-control" type="text" name="client_id"
-                                   placeholder="client id">
+                            <input value="{{.h.Location}}" class="form-control" type="text" name="location" placeholder="" langtag="info-unrestricted">
                         </div>
                     </div>
                 {{if eq true .allow_local_proxy}}
                     <div class="form-group" id="local_proxy">
-                        <label class="control-label col-sm-2" langtag="info-local-proxy">是否代理为服务端本地</label>
+                        <label class="control-label font-bold" langtag="word-proxytolocal"></label>
                         <div class="col-sm-10">
                             <select class="form-control" name="local_proxy">
-                                <option  {{if eq false .h.Target.LocalProxy}}selected{{end}} value="0">no</option>
-                                <option  {{if eq true .h.Target.LocalProxy}}selected{{end}} value="1">yes</option>
+                                <option {{if eq false .h.Target.LocalProxy}}selected{{end}} value="0" langtag="word-no"></option>
+                                <option {{if eq true .h.Target.LocalProxy}}selected{{end}} value="1" langtag="word-yes"></option>
                             </select>
                         </div>
                     </div>
                 {{end}}
                     <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="info-target">内网目标(ip:端口)</label>
+                        <label class="control-label font-bold" langtag="word-target"></label>
                         <div class="col-sm-10">
-                        <textarea class="form-control" rows="4" type="text" name="target"
-                                  placeholder="such as
-10.1.50.203:80
-10.1.50.202:80">{{.h.Target.TargetStr}}</textarea>
-                            <span class="help-block m-b-none">Line break if load balancing</span>
+                        <textarea class="form-control" rows="4" type="text" name="target" placeholder="" langtag="info-suchasiplist">{{.h.Target.TargetStr}}</textarea>
+                            <span class="help-block m-b-none" langtag="info-targethost"></span>
 
                         </div>
                     </div>
                     <div class="form-group" id="header">
-                        <label class="col-sm-2 control-label" langtag="info-header-modify">request header修改</label>
+                        <label class="control-label font-bold" langtag="word-requestheader"></label>
                         <div class="col-sm-10">
-                        <textarea class="form-control" rows="4" type="text" name="header"
-                                  placeholder="Cache-Control: no-cache">{{.h.HeaderChange}}</textarea>
-                            <span class="help-block m-b-none"> Colon separated, multiple lines please fill in</span>
+                        <textarea class="form-control" rows="4" type="text" name="header" placeholder="Cache-Control: no-cache">{{.h.HeaderChange}}</textarea>
+                            <span class="help-block m-b-none" langtag="info-header"></span>
                         </div>
 
                     </div>
                     <div class="form-group" id="hostchange">
-                        <label class="col-sm-2 control-label" langtag="info-host-change">request host修改</label>
+                        <label class="control-label font-bold" langtag="word-requesthost"></label>
                         <div class="col-sm-10">
-                            <input value="{{.h.HostChange}}" class="form-control" value="" type="text" name="hostchange"
-                                   placeholder="host modify">
+                            <input value="{{.h.HostChange}}" class="form-control" value="" type="text" name="hostchange" placeholder="" langtag="word-requesthost">
                         </div>
                     </div>
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
-                            &nbsp;<button class="btn btn-success" type="button" id="add"><i
-                                class="fa fa-fw fa-lg fa-eye"></i><span langtag="info-save">保存</span>
-                        </button>
+                            <button class="btn btn-success" type="button" onclick="submitform('edit', '{{.web_base_url}}/index/edithost', $('form').serializeArray())">
+                                <i class="fa fa-fw fa-lg fa-save"></i> <span langtag="word-save"></span>
+                            </button>
                         </div>
                     </div>
                 </form>
@@ -113,19 +103,6 @@
 
 <script>
     $(function () {
-        $("#add").on("click", function () {
-            $.ajax({
-                type: "POST",
-                url: "{{.web_base_url}}/index/edithost",
-                data: $("form").serializeArray(),
-                success: function (res) {
-                    alert(res.msg)
-                    if (res.status) {
-                        history.back(-1)
-                    }
-                }
-            })
-        })
         $("#scheme_select").on("change", function () {
             if ($("#scheme_select").val() == "all" || $("#scheme_select").val() == "https") {
                 $("#cert_file").css("display", "block")

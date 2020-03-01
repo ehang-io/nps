@@ -3,7 +3,7 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>客户端连接端口</h5>
+                    <h5 langtag="word-connectionport"></h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.p}}</h1>
@@ -13,7 +13,7 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>总客户端数</h5>
+                    <h5 langtag="word-totalclients"></h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.clientCount}}</h1>
@@ -24,7 +24,7 @@
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
                 {{/*<span class="label label-primary pull-right">今日</span>*/}}
-                    <h5>在线客户端数</h5>
+                    <h5 langtag="word-onlineclients"></h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.clientOnlineCount}}</h1>
@@ -36,7 +36,7 @@
         <div class="col-lg-3">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>当前TCP连接总数</h5>
+                    <h5 langtag="word-tcpconnections"></h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins">{{.data.tcpCount}}</h1>
@@ -49,7 +49,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>配置信息</h5>
+                    <h5 langtag="word-configurationinformation"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -65,7 +65,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>桥接模式</strong>
+                                    <strong langtag="word-bridgingmode"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.bridgeType}}</strong>
@@ -75,7 +75,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>http代理端口</strong>
+                                    <strong langtag="word-httpport"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.httpProxyPort}}</strong>
@@ -85,7 +85,7 @@
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>https代理端口</strong>
+                                    <strong langtag="word-httpsport"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.httpsProxyPort}}</strong>
@@ -95,17 +95,17 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>ip限制</strong>
+                                    <strong langtag="word-iprestriction"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
-                                    <strong>{{.data.ipLimit}}</strong>
+                                    <strong langtag="word-{{.data.ipLimit}}"></strong>
                                 </div>
                             </div>
                         </li>
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>流量持久化</strong>
+                                    <strong langtag="word-trafficdatapersistence"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.flowStoreInterval}}</strong>
@@ -115,7 +115,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>日志级别</strong>
+                                    <strong langtag="word-loglevel"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.logLevel}}</strong>
@@ -125,7 +125,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>p2p端口</strong>
+                                    <strong langtag="word-p2pport"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.p2pPort}}</strong>
@@ -135,7 +135,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>服务端IP</strong>
+                                    <strong langtag="word-serveriP"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.serverIp}}</strong>
@@ -145,7 +145,7 @@
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>服务端版本</strong>
+                                    <strong langtag="word-serverversion"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
                                     <strong>{{.data.version}}</strong>
@@ -157,92 +157,93 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="ibox-title">
-                <h5>系统信息</h5>
-                <div class="ibox-tools">
-                    <a class="collapse-link">
-                        <i class="fa fa-chevron-up"></i>
-                    </a>
-                    <a class="close-link">
-                        <i class="fa fa-times"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="ibox-content">
-
-                <div>
-                    <div>
-                        <span>CPU</span>
-                        <small class="pull-right">{{.data.cpu}}%</small>
-                    </div>
-                    <div class="progress progress-small">
-                        <div style="width: {{.data.cpu}}%;" class="progress-bar"></div>
-                    </div>
-
-
-                    <div>
-                        <span>虚拟内存</span>
-                        <small class="pull-right">{{.data.virtual_mem}}%</small>
-                    </div>
-                    <div class="progress progress-small">
-                        <div style="width: {{.data.virtual_mem}}%;" class="progress-bar"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
-        <div class="col-lg-6">
             <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5 langtag="word-systeminformation"></h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                        <a class="close-link">
+                            <i class="fa fa-times"></i>
+                        </a>
+                    </div>
+                </div>
                 <div class="ibox-content no-padding">
                     <ul class="list-group">
                         <li class="list-group-item">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>负载</strong>
+                                    <strong langtag="word-cpu"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
-                                    <strong>{{.data.load}}</strong>
+                                    <strong id="overview_cpu"></strong>
+                                </div>
+                            </div>
+                            <div class="progress progress-small">
+                                <div id="overview_cpu_bar" class="progress-bar"></div>
+                            </div>
+                        </li>
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong langtag="word-memory"></strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong id="overview_memory"></strong>
+                                </div>
+                            </div>
+                            <div class="progress progress-small">
+                                <div id="overview_memory_bar" class="progress-bar"></div>
+                            </div>
+                        </li>
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong langtag="word-load"></strong>
+                                </div>
+                                <div class="col-sm-6 text-right">
+                                    <strong id="overview_load"></strong>
                                 </div>
                             </div>
                         </li>
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>TCP连接数（establish）</strong>
+                                    <strong langtag="word-tcpconnections_established"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
-                                    <strong>{{.data.tcp}}</strong>
+                                    <strong id="overview_tcp"></strong>
                                 </div>
                             </div>
                         </li>
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>UDP连接数（establish）</strong>
+                                    <strong langtag="word-udpconnections_established"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
-                                    <strong>{{.data.udp}}</strong>
+                                    <strong id="overview_udp"></strong>
                                 </div>
                             </div>
                         </li>
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>出口带宽</strong>
+                                    <strong langtag="word-outbandwidth"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
-                                    <strong id="send"></strong>
+                                    <strong id="overview_send"></strong>
                                 </div>
                             </div>
                         </li>
                         <li class="list-group-item ">
                             <div class="row">
                                 <div class="col-sm-6">
-                                    <strong>入口带宽</strong>
+                                    <strong langtag="word-inbandwidth"></strong>
                                 </div>
                                 <div class="col-sm-6 text-right">
-                                    <strong id="recv"></strong>
+                                    <strong id="overview_recv"></strong>
                                 </div>
                             </div>
                         </li>
@@ -257,7 +258,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>负载</h5>
+                    <h5 langtag="word-load"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -275,7 +276,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>CPU</h5>
+                    <h5 langtag="word-cpu"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -295,7 +296,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>内存</h5>
+                    <h5 langtag="word-memory"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -306,14 +307,14 @@
                     </div>
                 </div>
                 <div class="ibox-content">
-                    <div id="virtual_mem" style="height: 300px"></div>
+                    <div id="memory" style="height: 300px"></div>
                 </div>
             </div>
         </div>
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>连接数</h5>
+                    <h5 langtag="word-connections_established"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -324,7 +325,7 @@
                     </div>
                 </div>
                 <div class="ibox-content">
-                    <div id="conn_num" style="height: 300px"></div>
+                    <div id="connections" style="height: 300px"></div>
                 </div>
             </div>
         </div>
@@ -334,7 +335,7 @@
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>带宽</h5>
+                    <h5 langtag="word-bandwidth"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -356,7 +357,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>流量统计</h5>
+                    <h5 langtag="word-trafficstatistics"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -374,7 +375,7 @@
         <div class="col-lg-6">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>类型</h5>
+                    <h5 langtag="word-type"></h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -385,7 +386,7 @@
                     </div>
                 </div>
                 <div class="ibox-content">
-                    <div id="tj" style="height:400px;"></div>
+                    <div id="counts" style="height:400px;"></div>
                 </div>
             </div>
         </div>
@@ -395,373 +396,345 @@
 </div>
 
 <script>
-    option = {
-        title: {
-            x: 'center'
-        },
-        tooltip: {
-            trigger: 'item',
-            formatter: function (p) {
-                return p.seriesName + "<br>" + p.name + ":" + change(p.data.value);
-            },
-        },
-        legend: {
-            orient: 'vertical',
-            left: 'left',
-            data: ['出口流量', '入口流量']
-        },
-        series: [
-            {
-                name: 'traffic',
-                type: 'pie',
-                radius: '55%',
-                center: ['50%', '60%'],
-                data: [
-                    {value:{{.data.inletFlowCount}}, name: '入口流量'},
-                    {value:{{.data.exportFlowCount}}, name: '出口流量'},
-                ],
-                itemStyle: {
-                    emphasis: {
-                        shadowBlur: 10,
-                        shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)'
-                    }
-                }
-            }
-        ]
-    };
+    $("#overview_cpu").text("{{.data.cpu}}%")
+    $("#overview_cpu_bar").width("{{.data.cpu}}%")
+    $("#overview_memory").text("{{.data.virtual_mem}}%")
+    $("#overview_memory_bar").width("{{.data.virtual_mem}}%")
+    $.each( JSON.parse({{.data.load}}), function(i, value) { $("#overview_load").append('&emsp;' + value) });
+    $("#overview_tcp").text("{{.data.tcp}}")
+    $("#overview_udp").text("{{.data.udp}}")
+    $("#overview_send").text(changeunit({{.data.io_send}}) + "/s")
+    $("#overview_recv").text(changeunit({{.data.io_recv}}) + "/s")
 
-    var myChart1 = echarts.init(document.getElementById('flow'));
-    myChart1.setOption(option);
+	chartdatas['load'] = {
+		tooltip: {
+			trigger: 'axis',
+			formatter: function (params) {
+				var str = params[0].axisValue + '<br/>';
+				for (i in params){
+					str += '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + params[i].color + ';"></span>' + params[i].seriesName +': '+ params[i].data +'</br>';
+					}
+				return str;
+			}
+		},
+		grid: {
+			left: '3%',
+			right: '3%',
+			top: '5%',
+			bottom: '3%',
+			containLabel: true
+		},
+		xAxis: {
+			type: 'category',
+			boundaryGap: false,
+			data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+		},
+		yAxis: {
+			type: 'value'
+		},
+		series: [
+			{
+				name: '',
+				type: 'line',
+				stack: 'load1',
+				smooth: true,
+				data: [{{.data.sys1.load1}}, {{.data.sys2.load1}}, {{.data.sys3.load1}}, {{.data.sys4.load1}}, {{.data.sys5.load1}}, {{.data.sys6.load1}}, {{.data.sys7.load1}}, {{.data.sys8.load1}}, {{.data.sys9.load1}}, {{.data.sys10.load1}}]
+			},
+			{
+				name: '',
+				type: 'line',
+				stack: 'load5',
+				smooth: true,
+				data: [{{.data.sys1.load5}}, {{.data.sys2.load5}}, {{.data.sys3.load5}}, {{.data.sys4.load5}}, {{.data.sys5.load5}}, {{.data.sys6.load5}}, {{.data.sys7.load5}}, {{.data.sys8.load5}}, {{.data.sys9.load5}}, {{.data.sys10.load5}}]
+			},
+			{
+				name: '',
+				type: 'line',
+				stack: 'load15',
+				smooth: true,
+				data: [{{.data.sys1.load15}}, {{.data.sys2.load15}}, {{.data.sys3.load15}}, {{.data.sys4.load15}}, {{.data.sys5.load15}}, {{.data.sys6.load15}}, {{.data.sys7.load15}}, {{.data.sys8.load15}}, {{.data.sys9.load15}}, {{.data.sys10.load15}}]
+			}
+		]
+	};
 
+	chartdatas['cpu'] = {
+		tooltip: {
+			trigger: 'axis',
+			formatter: function (params) {
+				var str = params[0].axisValue + '<br/>';
+				for (i in params){
+					str += '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + params[i].color + ';"></span>' + params[i].seriesName +': '+ params[i].data +'%</br>';
+				}
+				return str;
+			}
+		},
+		grid: {
+			left: '3%',
+			right: '3%',
+			top: '5%',
+			bottom: '3%',
+			containLabel: true
+		},
+		xAxis: {
+			type: 'category',
+			boundaryGap: false,
+			data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+		},
+		yAxis: {
+			type: 'value',
+			axisLabel: {
+				show: true,
+				interval: 'auto',
+				formatter: '{value} %'
+			}
+		},
+		series: [
+			{
+				name: '',
+				type: 'line',
+				stack: 'cpu',
+				smooth: true,
+				data: [{{.data.sys1.cpu}}, {{.data.sys2.cpu}}, {{.data.sys3.cpu}}, {{.data.sys4.cpu}}, {{.data.sys5.cpu}}, {{.data.sys6.cpu}}, {{.data.sys7.cpu}}, {{.data.sys8.cpu}}, {{.data.sys9.cpu}}, {{.data.sys10.cpu}}]
+			}
+		]
+	};
 
-    option = {
-        title: {
-            x: 'center'
-        },
-        tooltip: {
-            trigger: 'item',
-            formatter: "{a} <br/>{b} : {c} ({d}%)"
-        },
-        legend: {
-            orient: 'vertical',
-            left: 'left',
-            data: ['tcp隧道数量', 'socks5隧道数量', 'http代理隧道数量', 'udp隧道数量', '域名解析数量', '私密代理数量', 'p2p数量']
-        },
-        series: [
-            {
-                name: 'types',
-                type: 'pie',
-                radius: '55%',
-                center: ['50%', '60%'],
-                data: [
-                    {value:{{.data.tcpC}}, name: 'tcp隧道数量'},
-                    {value:{{.data.socks5Count}}, name: 'socks5隧道数量'},
-                    {value:{{.data.httpProxyCount}}, name: 'http代理隧道数量'},
-                    {value:{{.data.udpCount}}, name: 'udp隧道数量'},
-                    {value:{{.data.hostCount}}, name: '域名解析数量'},
-                    {value:{{.data.secretCount}}, name: '私密代理数量'},
-                    {value:{{.data.p2pCount}}, name: 'p2p数量'},
-                ],
-                itemStyle: {
-                    emphasis: {
-                        shadowBlur: 10,
-                        shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)'
-                    }
-                }
-            }
-        ]
-    };
+	chartdatas['memory'] = {
+		tooltip: {
+			trigger: 'axis',
+			formatter: function (params) {
+				var str = params[0].axisValue + '<br/>';
+				for (i in params){
+					str += '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + params[i].color + ';"></span>' + params[i].seriesName +': '+ params[i].data +'MB</br>';
+				}
+				return str;
+			}
+		},
+		grid: {
+			left: '3%',
+			right: '3%',
+			top: '5%',
+			bottom: '3%',
+			containLabel: true
+		},
+		xAxis: {
+			type: 'category',
+			boundaryGap: false,
+			data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+			},
+		yAxis: {
+			type: 'value',
+			axisLabel: {
+				show: true,
+				interval: 'auto',
+				formatter: '{value} MB'
+			}
+		},
+		series: [
+			{
+				name: '',
+				type: 'line',
+				stack: 'virtual_mem',
+				smooth: true,
+				data: [{{.data.sys1.virtual_mem}}, {{.data.sys2.virtual_mem}}, {{.data.sys3.virtual_mem}}, {{.data.sys4.virtual_mem}}, {{.data.sys5.virtual_mem}}, {{.data.sys6.virtual_mem}}, {{.data.sys7.virtual_mem}}, {{.data.sys8.virtual_mem}}, {{.data.sys9.virtual_mem}}, {{.data.sys10.virtual_mem}}]
+			},
+			{
+				name: '',
+				type: 'line',
+				stack: 'swap_mem',
+				smooth: true,
+				data: [{{.data.sys1.swap_mem}}, {{.data.sys2.swap_mem}}, {{.data.sys3.swap_mem}}, {{.data.sys4.swap_mem}}, {{.data.sys5.swap_mem}}, {{.data.sys6.swap_mem}}, {{.data.sys7.swap_mem}}, {{.data.sys8.swap_mem}}, {{.data.sys9.swap_mem}}, {{.data.sys10.swap_mem}}]
+			}
+		]
+	};
 
-    var myChart2 = echarts.init(document.getElementById('tj'));
-    myChart2.setOption(option);
-    $(function () {
-        $("#send").html(change({{.data.io_send}}) + "/s")
-        $("#recv").html(change({{.data.io_recv}}) + "/s")
-    })
+	chartdatas['connections'] = {
+		tooltip: {
+			trigger: 'axis'
+		},
+		grid: {
+			left: '3%',
+			right: '3%',
+			top: '5%',
+			bottom: '3%',
+			containLabel: true
+		},
+		xAxis: {
+			type: 'category',
+			boundaryGap: false,
+			data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+		},
+		yAxis: {
+			type: 'value'
+		},
+		series: [
+			{
+				name: '',
+				type: 'line',
+				stack: 'tcp',
+				smooth: true,
+				data: [{{.data.sys1.tcp}}, {{.data.sys2.tcp}}, {{.data.sys3.tcp}}, {{.data.sys4.tcp}}, {{.data.sys5.tcp}}, {{.data.sys6.tcp}}, {{.data.sys7.tcp}}, {{.data.sys8.tcp}}, {{.data.sys9.tcp}}, {{.data.sys10.tcp}}]
+			},
+			{
+				name: '',
+				type: 'line',
+				stack: 'udp',
+				smooth: true,
+				data: [{{.data.sys1.udp}}, {{.data.sys2.udp}}, {{.data.sys3.udp}}, {{.data.sys4.udp}}, {{.data.sys5.udp}}, {{.data.sys6.udp}}, {{.data.sys7.udp}}, {{.data.sys8.udp}}, {{.data.sys9.udp}}, {{.data.sys10.udp}}]
+			}
+		]
+	};
 
+	chartdatas['bandwidth'] = {
+		tooltip: {
+			trigger: 'axis',
+			formatter: function (params) {
+				var str = params[0].axisValue + '<br/>';
+				for (i in params){
+					str += '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + params[i].color + ';"></span>' + params[i].seriesName +': '+ changeunit(params[i].data) +'/s</br>';
+				}
+				return str;
+			}
+		},
+		grid: {
+		left: '3%',
+		right: '3%',
+		top: '5%',
+		bottom: '3%',
+		containLabel: true
+		},
+		xAxis: {
+			type: 'category',
+			boundaryGap: false,
+			data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
+		},
+		yAxis: {
+			type: 'value',
+			axisLabel: {
+				show: true,
+				interval: 'auto',
+				formatter: function (params){
+					return changeunit (params);
+				}
+			}
+		},
+		series: [
+			{
+				name: '',
+				type: 'line',
+				stack: 'in',
+				smooth: true,
+				data: [{{.data.sys1.io_recv}}, {{.data.sys2.io_recv}}, {{.data.sys3.io_recv}}, {{.data.sys4.io_recv}}, {{.data.sys5.io_recv}}, {{.data.sys6.io_recv}}, {{.data.sys7.io_recv}}, {{.data.sys8.io_recv}}, {{.data.sys9.io_recv}}, {{.data.sys10.io_recv}}]
+			},
+			{
+				name: '',
+				type: 'line',
+				stack: 'out',
+				smooth: true,
+				data: [{{.data.sys1.io_send}}, {{.data.sys2.io_send}}, {{.data.sys3.io_send}}, {{.data.sys4.io_send}}, {{.data.sys5.io_send}}, {{.data.sys6.io_send}}, {{.data.sys7.io_send}}, {{.data.sys8.io_send}}, {{.data.sys9.io_send}}, {{.data.sys10.io_send}}]
+			}
+		]
+	};
 
-    var dom = document.getElementById("load");
-    var myChart3 = echarts.init(dom);
-    var app = {};
-    option = null;
-    option = {
-        title: {
-            text: '负载'
-        },
-        tooltip: {
-            trigger: 'axis'
-        },
+	chartdatas['flow'] = {
+		tooltip: {
+			trigger: 'item',
+			formatter: function (p) {
+				return p.seriesName + '<br>' + p.name + ':' + changeunit(p.data.value);
+			}
+		},
+		legend: {
+			orient: 'vertical',
+			left: 'left',
+			data: ['', '']
+		},
+		series: [
+			{
+				name: '',
+				type: 'pie',
+				radius: '55%',
+				center: ['50%', '60%'],
+				data: [
+					{
+						name: '',
+						value:{{.data.inletFlowCount}}
+					},
+					{
+						name: '',
+						value:{{.data.exportFlowCount}}
+					}
+				],
+				itemStyle: {
+					emphasis: {
+						shadowBlur: 10,
+						shadowOffsetX: 0,
+						shadowColor: 'rgba(0, 0, 0, 0.5)'
+					}
+				}
+			}
+		]
+	};
 
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true
-        },
-        toolbox: {
-            feature: {
-                saveAsImage: {}
-            }
-        },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: 'load1',
-                type: 'line',
-                stack: 'load1',
-                smooth: true,
-                data: [{{.data.sys1.load1}}, {{.data.sys2.load1}}, {{.data.sys3.load1}}, {{.data.sys4.load1}}, {{.data.sys5.load1}}, {{.data.sys6.load1}}, {{.data.sys7.load1}}, {{.data.sys8.load1}}, {{.data.sys9.load1}}, {{.data.sys10.load1}}],
-            },
-            {
-                name: 'load5',
-                type: 'line',
-                stack: 'load5',
-                smooth: true,
-                data: [{{.data.sys1.load5}}, {{.data.sys2.load5}}, {{.data.sys3.load5}}, {{.data.sys4.load5}}, {{.data.sys5.load5}}, {{.data.sys6.load5}}, {{.data.sys7.load5}}, {{.data.sys8.load5}}, {{.data.sys9.load5}}, {{.data.sys10.load5}}],
-            },
-            {
-                name: 'load15',
-                type: 'line',
-                stack: 'load15',
-                smooth: true,
-                data: [{{.data.sys1.load15}}, {{.data.sys2.load15}}, {{.data.sys3.load15}}, {{.data.sys4.load15}}, {{.data.sys5.load15}}, {{.data.sys6.load15}}, {{.data.sys7.load15}}, {{.data.sys8.load15}}, {{.data.sys9.load15}}, {{.data.sys10.load15}}],
-            }
-        ]
-    };
-    if (option && typeof option === "object") {
-        myChart3.setOption(option, true);
-    }
+	chartdatas['counts'] = {
+		tooltip: {
+			trigger: 'item',
+			formatter: '{a} <br/>{b} : {c} ({d}%)'
+		},
+		legend: {
+			orient: 'vertical',
+			left: 'left',
+			data: ['', '', '', '', '', '', '']
+		},
+		series: [
+			{
+				name: '',
+				type: 'pie',
+				radius: '55%',
+				center: ['50%', '60%'],
+				data: [
+					{
+						name: '',
+						value:{{.data.hostCount}}
+					},
+					{
+						name: '',
+						value:{{.data.tcpC}}
+					},
+					{
+						name: '',
+						value:{{.data.udpCount}}
+					},
+					{
+						name: '',
+						value:{{.data.httpProxyCount}}
+					},
+					{
+						name: '',
+						value:{{.data.socks5Count}}
+					},
+					{
+						name: '',
+						value:{{.data.secretCount}}
+					},
+					{
+						name: '',
+						value:{{.data.p2pCount}}
+					}
+				],
+				itemStyle: {
+					emphasis: {
+						shadowBlur: 10,
+						shadowOffsetX: 0,
+						shadowColor: 'rgba(0, 0, 0, 0.5)'
+					}
+				}
+			}
+		]
+	};
 
-    var dom = document.getElementById("cpu");
-    var myChart4 = echarts.init(dom);
-    var app = {};
-    option = null;
-    option = {
-        title: {
-            text: 'CPU'
-        },
-        tooltip: {
-            trigger: 'axis'
-        },
-
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true
-        },
-        toolbox: {
-            feature: {
-                saveAsImage: {}
-            }
-        },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: 'cpu',
-                type: 'line',
-                stack: 'cpu',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.cpu}}, {{.data.sys2.cpu}}, {{.data.sys3.cpu}}, {{.data.sys4.cpu}}, {{.data.sys5.cpu}}, {{.data.sys6.cpu}}, {{.data.sys7.cpu}}, {{.data.sys8.cpu}}, {{.data.sys9.cpu}}, {{.data.sys10.cpu}}],
-            }
-        ]
-    };
-    if (option && typeof option === "object") {
-        myChart4.setOption(option, true);
-    }
-
-
-    var dom = document.getElementById("virtual_mem");
-    var myChart5 = echarts.init(dom);
-    var app = {};
-    option = null;
-    option = {
-        title: {
-            text: '内存'
-        },
-        tooltip: {
-            trigger: 'axis'
-        },
-
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true
-        },
-        toolbox: {
-            feature: {
-                saveAsImage: {}
-            }
-        },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: 'virtual_mem',
-                type: 'line',
-                stack: 'virtual_mem',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.virtual_mem}}, {{.data.sys2.virtual_mem}}, {{.data.sys3.virtual_mem}}, {{.data.sys4.virtual_mem}}, {{.data.sys5.virtual_mem}}, {{.data.sys6.virtual_mem}}, {{.data.sys7.virtual_mem}}, {{.data.sys8.virtual_mem}}, {{.data.sys9.virtual_mem}}, {{.data.sys10.virtual_mem}}],
-            },
-            {
-                name: 'swap_mem',
-                type: 'line',
-                stack: 'swap_mem',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.swap_mem}}, {{.data.sys2.swap_mem}}, {{.data.sys3.swap_mem}}, {{.data.sys4.swap_mem}}, {{.data.sys5.swap_mem}}, {{.data.sys6.swap_mem}}, {{.data.sys7.swap_mem}}, {{.data.sys8.swap_mem}}, {{.data.sys9.swap_mem}}, {{.data.sys10.swap_mem}}],
-            }
-        ],
-    };
-    if (option && typeof option === "object") {
-        myChart5.setOption(option, true);
-    }
-
-    var dom = document.getElementById("conn_num");
-    var myChart6 = echarts.init(dom);
-    var app = {};
-    option = null;
-    option = {
-        title: {
-            text: '连接数（establish）'
-        },
-        tooltip: {
-            trigger: 'axis'
-        },
-
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true
-        },
-        toolbox: {
-            feature: {
-                saveAsImage: {}
-            }
-        },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: 'tcp',
-                type: 'line',
-                stack: 'tcp',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.tcp}}, {{.data.sys2.tcp}}, {{.data.sys3.tcp}}, {{.data.sys4.tcp}}, {{.data.sys5.tcp}}, {{.data.sys6.tcp}}, {{.data.sys7.tcp}}, {{.data.sys8.tcp}}, {{.data.sys9.tcp}}, {{.data.sys10.tcp}}],
-            },
-            {
-                name: 'udp',
-                type: 'line',
-                stack: 'udp',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.udp}}, {{.data.sys2.udp}}, {{.data.sys3.udp}}, {{.data.sys4.udp}}, {{.data.sys5.udp}}, {{.data.sys6.udp}}, {{.data.sys7.udp}}, {{.data.sys8.udp}}, {{.data.sys9.udp}}, {{.data.sys10.udp}}],
-            }
-        ]
-    };
-    if (option && typeof option === "object") {
-        myChart6.setOption(option, true);
-    }
-
-    var dom = document.getElementById("bandwidth");
-    var myChart7 = echarts.init(dom);
-    var app = {};
-    option = null;
-    option = {
-        title: {
-            text: '带宽'
-        },
-        tooltip: {
-            trigger: 'axis',
-            formatter: function (a) {
-                return "in:" + change(a[0].data) + "/s<br/>" + "out:" + change(a[1].data) + "/s<br/>" + a[0].axisValue;
-            }
-        },
-
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true
-        },
-        toolbox: {
-            feature: {
-                saveAsImage: {}
-            }
-        },
-
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: ['{{.data.sys1.time}}', '{{.data.sys2.time}}', '{{.data.sys3.time}}', '{{.data.sys4.time}}', '{{.data.sys5.time}}', '{{.data.sys6.time}}', '{{.data.sys7.time}}', '{{.data.sys8.time}}', '{{.data.sys9.time}}', '{{.data.sys10.time}}']
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [
-            {
-                name: 'in',
-                type: 'line',
-                stack: 'in',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.io_recv}}, {{.data.sys2.io_recv}}, {{.data.sys3.io_recv}}, {{.data.sys4.io_recv}}, {{.data.sys5.io_recv}}, {{.data.sys6.io_recv}}, {{.data.sys7.io_recv}}, {{.data.sys8.io_recv}}, {{.data.sys9.io_recv}}, {{.data.sys10.io_recv}}],
-            },
-            {
-                name: 'out',
-                type: 'line',
-                stack: 'out',
-                smooth: true,
-                areas: {},
-                data: [{{.data.sys1.io_send}}, {{.data.sys2.io_send}}, {{.data.sys3.io_send}}, {{.data.sys4.io_send}}, {{.data.sys5.io_send}}, {{.data.sys6.io_send}}, {{.data.sys7.io_send}}, {{.data.sys8.io_send}}, {{.data.sys9.io_send}}, {{.data.sys10.io_send}}],
-            }
-        ]
-    };
-    if (option && typeof option === "object") {
-        myChart7.setOption(option, true);
-    }
-
-    window.addEventListener("resize", () => {
-        this.myChart1.resize();
-        this.myChart2.resize();
-        this.myChart3.resize();
-        this.myChart4.resize();
-        this.myChart5.resize();
-        this.myChart6.resize();
-        this.myChart7.resize();
+    window.addEventListener('resize', () => {
+        for(var key in charts){
+            charts[key].resize();
+        }
     });
-
 </script>
