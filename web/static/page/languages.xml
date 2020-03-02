@@ -41,7 +41,7 @@
 	</lang>
 	<lang id="scheme-socks5">
 		<zh-CN>SOCKS 代理</zh-CN>
-		<en-US>SOCKS</en-US>
+		<en-US>SOCKS 5</en-US>
 	</lang>
 	<lang id="scheme-secret">
 		<zh-CN>私密代理</zh-CN>
@@ -98,7 +98,7 @@
 	</lang>
 	<lang id="page-listsocks5">
 		<zh-CN>SOCKS 代理列表</zh-CN>
-		<en-US>SOCKS list</en-US>
+		<en-US>SOCKS 5 list</en-US>
 	</lang>
 	<lang id="page-listsecret">
 		<zh-CN>私密代理列表</zh-CN>
@@ -507,6 +507,10 @@
 		<zh-CN>URL 路由</zh-CN>
 		<en-US>Url router</en-US>
 	</lang>
+	<lang id="word-usecase">
+		<zh-CN>使用场景</zh-CN>
+		<en-US>Use Case</en-US>
+	</lang>
 	<lang id="word-username">
 		<zh-CN>用户名</zh-CN>
 		<en-US>Username</en-US>
@@ -550,6 +554,34 @@
 		<zh-CN>唯一值，不填将自动生成</zh-CN>
 		<en-US>Unique, non-filling will be generated automatically</en-US>
 	</lang>
+	<lang id="info-casefile">
+		<zh-CN>通提供一个公网可访问的本地文件服务，此模式仅客户端使用配置文件模式方可启动。</zh-CN>
+		<en-US>Provide a local file service accessible to the public network, which can only be started by the client using the profile mode.</en-US>
+	</lang>
+	<lang id="info-casehttpproxy">
+		<zh-CN>将公网服务器1.1.1.1的8004端口作为HTTP代理，访问内网网站。</zh-CN>
+		<en-US>Use port 8004 of public server 1.1.1.1 as HTTP proxy to visit intranet site.</en-US>
+	</lang>
+	<lang id="info-casep2p">
+		<zh-CN>流量不经过公网服务器，受nat类型影响较大，不能保证100%成功，支持大部分nat类型。</zh-CN>
+		<en-US>The traffic does not pass through the public network server, which is greatly affected by the NAT type, and cannot guarantee 100% success. Most NAT types are supported. A client is also required to provide a port for access to the access side.</en-US>
+	</lang>
+	<lang id="info-casesecret">
+		<zh-CN>无需新增端口,实现访问内网服务器10.1.50.2的22端口,可防止其他人连接。还需要一个客户端作为访问端提供一个端口进行访问。</zh-CN>
+		<en-US>There is no need to add a new port to access port 22 of intranet server 10.1.50.2, which can prevent other people from connecting. A client is also required to provide a port for access to the access side.</en-US>
+	</lang>
+	<lang id="info-casesocks5">
+		<zh-CN>将公网服务器1.1.1.1的8003端口作为SOCKS5代理，访问内网任意设备或者资源。</zh-CN>
+		<en-US>Use port 8003 of public server 1.1.1.1 as Socks5 proxy to access any device or resource in the Intranet.</en-US>
+	</lang>
+	<lang id="info-casetcp">
+		<zh-CN>通过公网服务器1.1.1.1的8001端口，连接内网机器10.1.50.101的22端口，实现SSH连接。</zh-CN>
+		<en-US>Connect port 8001 of public server 1.1.1.1 to port 22 of Intranet machine 10.1.50.101 to realize SSH connection.</en-US>
+	</lang>
+	<lang id="info-caseudp">
+		<zh-CN>通过公网服务器1.1.1.1的53端口，访问内网机器10.1.50.101的53端口，使用DNS服务。</zh-CN>
+		<en-US>Through port 53 of public server 1.1.1.1, access port 53 of Intranet machine 10.1.50.101, and use DNS service.</en-US>
+	</lang>
 	<lang id="info-createaccount">
 		<zh-CN>创建账号以进行管理</zh-CN>
 		<en-US>Create account to see it in action.</en-US>
@@ -563,7 +595,7 @@
 		<en-US>Colon separated, multiple lines please fill in</en-US>
 	</lang>
 	<lang id="info-identificationkey">
-		<zh-CN>P2P模式和私密代理模式需要</zh-CN>
+		<zh-CN>P2P连接和私密代理模式需要</zh-CN>
 		<en-US>When P2P or Secret</en-US>
 	</lang>
 	<lang id="info-feature1">
@@ -877,7 +909,7 @@
 					</array>
 					<array id="4">
 						<zh-CN>SOCKS 代理</zh-CN>
-						<en-US>SOCKS</en-US>
+						<en-US>SOCKS 5</en-US>
 					</array>
 					<array id="5">
 						<zh-CN>私密代理</zh-CN>
@@ -923,7 +955,7 @@
 						<array id="4">
 							<name>
 								<zh-CN>SOCKS 代理</zh-CN>
-								<en-US>SOCKS</en-US>
+								<en-US>SOCKS 5</en-US>
 							</name>
 						</array>
 						<array id="5">
