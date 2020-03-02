@@ -134,7 +134,7 @@
     }
 
     $(function () {
-        $("#type").val('{{.type}}');
+        $("#type").val(('{{.type}}' == '') ? 'tcp' : '{{.type}}');
         resetForm()
         $("#type").on("change", function () {
             resetForm()
