@@ -14,6 +14,7 @@ before_deploy:
 
 deploy:
   provider: releases
+  edge: true
   token: ${GH_TOKEN}
   cleanup: false
   file:
