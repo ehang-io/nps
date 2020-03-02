@@ -14,9 +14,9 @@ before_deploy:
 
 deploy:
   provider: releases
-  api_key:
-    secure: ${TOKEN}
-  skip_cleanup: true
+  edge: true
+  token: ${GH_TOKEN}
+  cleanup: false
   file:
   - freebsd_386_client.tar.gz
   - freebsd_386_server.tar.gz
