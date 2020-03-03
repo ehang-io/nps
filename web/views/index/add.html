@@ -7,17 +7,25 @@
                     <div class="form-group">
                         <label class="control-label font-bold" langtag="word-scheme"></label>
                         <div class="col-sm-10">
+                            <span class="help-block m-b-none font-bold" langtag="word-usecase"></span>: 
+                            <span id="usecase">
+                                <span id="casetcp" langtag="info-casetcp"></span>
+                                <span id="caseudp" langtag="info-caseudp"></span>
+                                <span id="casehttpProxy" langtag="info-casehttpproxy"></span>
+                                <span id="casesocks5" langtag="info-casesocks5"></span>
+                                <span id="casesecret" langtag="info-casesecret"></span>
+                                <span id="casep2p" langtag="info-casep2p"></span>
+                                <span id="casefile" langtag="info-casefile"></span>
+                            </span>
                             <select class="form-control" name="type" id="type">
-                                <option {{if eq "tcp" .type}}selected{{end}} value="tcp" langtag="scheme-tcp"></option>
-                                <option {{if eq "udp" .type}}selected{{end}} value="udp" langtag="scheme-udp"></option>
-                                <option {{if eq "httpProxy" .type}}selected{{end}} value="httpProxy" langtag="scheme-httpProxy"></option>
-                                <option {{if eq "socks5" .type}}selected{{end}} value="socks5" langtag="scheme-socks5">
-                                </option>
-                                <option {{if eq "secret" .type}}selected{{end}} value="secret" langtag="scheme-secret"></option>
-                                <option {{if eq "p2p" .type}}selected{{end}} value="p2p" langtag="scheme-p2p"></option>
-                            {{/*<option {{if eq "file" .type}}selected{{end}} value="file" langtag="scheme-file"></option>*/}}
+                                <option value="tcp" langtag="scheme-tcp"></option>
+                                <option value="udp" langtag="scheme-udp"></option>
+                                <option value="httpProxy" langtag="scheme-httpProxy"></option>
+                                <option value="socks5" langtag="scheme-socks5"></option>
+                                <option value="secret" langtag="scheme-secret"></option>
+                                <option value="p2p" langtag="scheme-p2p"></option>
+                            {{/*<option value="file" langtag="scheme-file"></option>*/}}
                             </select>
-
                         </div>
                     </div>
 
@@ -106,48 +114,33 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["type", "port", "compress", "u", "p", "target", "password", "local_path", "strip_pre", "local_proxy"]
-    arr["tcp"] = ["type", "port", "target", "u", "p", "compress", "local_proxy"]
-    arr["udp"] = ["type", "port", "target", "compress", "local_proxy"]
-    arr["socks5"] = ["type", "port", "compress", "u", "p"]
-    arr["httpProxy"] = ["type", "port", "compress", "u", "p"]
-    arr["secret"] = ["type", "target", "compress", "u", "p", "password"]
-    arr["p2p"] = ["type", "target", "password"]
-    arr["file"] = ["type", "port", "local_path", "strip_pre"]
-    arrClientHide = ["compress", "u", "p", "crypt", "mux"]
+    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy"]
+    arr["tcp"] = ["port", "target", "local_proxy"]
+    arr["udp"] = ["port", "target", "local_proxy"]
+    arr["socks5"] = ["port"]
+    arr["httpProxy"] = ["port"]
+    arr["secret"] = ["target", "password"]
+    arr["p2p"] = ["target", "password"]
+    arr["file"] = ["port", "local_path", "strip_pre"]
 
     function resetForm() {
-        for (var i = 0; i < arr["all"].length; i++) {
-            $("#" + arr["all"][i]).css("display", "none")
-        }
-        o = $("#type option:selected").val()
+        $(".form-group[id]").css("display", "none");
+        $("#usecase span").css("display", "none");
+        o = $("#type").val();
+        $('#case'+ o).css("display", "inline")
         for (var i = 0; i < arr[o].length; i++) {
             $("#" + arr[o][i]).css("display", "block")
         }
     }
 
-    function resetClientCnf() {
-        for (var i = 0; i < arrClientHide.length; i++) {
-            $("#" + arrClientHide[i]).css("display", "block")
-        }
-        op = $("#use_client  option:selected").val()
-        if (op == 1) {
-            for (var i = 0; i < arrClientHide.length; i++) {
-                $("#" + arrClientHide[i]).css("display", "none")
-            }
-        }
-    }
-
     $(function () {
+        $("#type").val(('{{.type}}' == '') ? 'tcp' : '{{.type}}');
         resetForm()
-        resetClientCnf()
         $("#type").on("change", function () {
             resetForm()
-            resetClientCnf()
         })
         $("#use_client").on("change", function () {
             resetForm()
-            resetClientCnf()
         })
     })
 </script>
