@@ -129,8 +129,9 @@ func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 	)
 	defer func() {
 		if connClient != nil {
-			s.writeConnFail(c.Conn)
 			connClient.Close()
+		}else {
+			s.writeConnFail(c.Conn)
 		}
 		c.Close()
 	}()
