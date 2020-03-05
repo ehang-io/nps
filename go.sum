@@ -1,7 +1,7 @@
 ehang.io/nps-mux v0.0.0-20200216160218-8928a6177bac h1:tNbuf7od+Y/8KfpzhxhJRIROS+CKNG0pJXR3kSmujXs=
 ehang.io/nps-mux v0.0.0-20200216160218-8928a6177bac/go.mod h1:v2gdtoMBRGYe5y9mSBwPw6V4V/2Zz5GyTuCNlsUPHkY=
-fyne.io/fyne v1.2.2 h1:mf7EseASp3CAC5vLWVPLnsoKxvp/ARdu3Seh0HvAQak=
-fyne.io/fyne v1.2.2/go.mod h1:Ab+3DIB/FVteW0y4DXfmZv4N3JdnCBh2lHkINI02BOU=
+fyne.io/fyne v1.2.3 h1:5xwtSBNjxxmg+GF/lYvvf4xPzyjgWQoJVrzb+bt5gaA=
+fyne.io/fyne v1.2.3/go.mod h1:JhDdBrPP/Kdr1H5ZT3HW8E/6zlz+GkOldWqSirGBDnY=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Kodeworks/golang-image-ico v0.0.0-20141118225523-73f0f4cfade9/go.mod h1:7uhhqiBaR4CpN0k9rMjOtjpcfGd6DG2m04zQxKnWQ0I=
 github.com/OwnLocal/goes v1.0.0/go.mod h1:8rIFjBGTue3lCU0wplczcUgt9Gxgrkkrw7etMIcn8TM=
