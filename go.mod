@@ -17,7 +17,7 @@ require (
 	github.com/kardianos/service v1.0.0
 	github.com/klauspost/cpuid v1.2.3 // indirect
 	github.com/klauspost/pgzip v1.2.1 // indirect
-	github.com/panjf2000/ants/v2 v2.3.0
+	github.com/panjf2000/ants/v2 v2.3.1
 	github.com/pkg/errors v0.9.1
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect
 	github.com/shirou/gopsutil v2.19.11+incompatible
