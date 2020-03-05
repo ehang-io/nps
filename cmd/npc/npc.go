@@ -37,6 +37,7 @@ var (
 	debug        = flag.Bool("debug", true, "npc debug")
 	pprofAddr    = flag.String("pprof", "", "PProf debug addr (ip:port)")
 	stunAddr     = flag.String("stun_addr", "stun.stunprotocol.org:3478", "stun server address (eg:stun.stunprotocol.org:3478)")
+	ver          = flag.Bool("version", false, "show current version")
 )
 
 func main() {
@@ -44,6 +45,10 @@ func main() {
 	logs.Reset()
 	logs.EnableFuncCallDepth(true)
 	logs.SetLogFuncCallDepth(3)
+	if *ver {
+		common.PrintVersion()
+		return
+	}
 	if *logPath == "" {
 		*logPath = common.GetNpcLogPath()
 	}

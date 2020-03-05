@@ -2,9 +2,11 @@ package common
 
 import (
 	"bytes"
+	"ehang.io/nps/lib/version"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -98,7 +100,7 @@ func Getverifyval(vkey string) string {
 }
 
 //Change headers and host of request
-func ChangeHostAndHeader(r *http.Request, host string, header string, addr string,addOrigin bool) {
+func ChangeHostAndHeader(r *http.Request, host string, header string, addr string, addOrigin bool) {
 	if host != "" {
 		r.Host = host
 	}
@@ -460,4 +462,8 @@ func GetServerIpByClientIp(clientIp net.IP) string {
 	}
 	_, ip := GetIntranetIp()
 	return ip
+}
+
+func PrintVersion() {
+	fmt.Printf("Version: %s\nCore version: %s\nSame core version of client and server can connect each other\n", version.VERSION, version.GetVersion())
 }
