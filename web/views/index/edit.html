@@ -6,50 +6,60 @@
                 <form class="form-horizontal">
                     <input type="hidden" name="id" value="{{.t.Id}}">
                     <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="word-scheme"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-scheme"></label>
                         <div class="col-sm-10">
+                            <span class="help-block m-b-none font-bold" langtag="word-usecase"></span>: 
+                            <span id="usecase">
+                                <span id="casetcp" langtag="info-casetcp"></span>
+                                <span id="caseudp" langtag="info-caseudp"></span>
+                                <span id="casehttpProxy" langtag="info-casehttpproxy"></span>
+                                <span id="casesocks5" langtag="info-casesocks5"></span>
+                                <span id="casesecret" langtag="info-casesecret"></span>
+                                <span id="casep2p" langtag="info-casep2p"></span>
+                                <span id="casefile" langtag="info-casefile"></span>
+                            </span>
                             <select class="form-control" name="type" id="type">
-                                <option {{if eq "tcp" .t.Mode}}selected{{end}} value="tcp" langtag="scheme-tcp"></option>
-                                <option {{if eq "udp" .t.Mode}}selected{{end}} value="udp" langtag="scheme-udp"></option>
-                                <option {{if eq "httpProxy" .t.Mode}}selected{{end}} value="httpProxy" langtag="scheme-httpProxy"></option>
-                                <option {{if eq "socks5" .t.Mode}}selected{{end}} value="socks5" langtag="scheme-socks5"></option>
-                                <option {{if eq "secret" .t.Mode}}selected{{end}} value="secret" langtag="scheme-secret"></option>
-                                <option {{if eq "p2p" .t.Mode}}selected{{end}} value="p2p" langtag="scheme-p2p"></option>
-                                <option {{if eq "file" .t.Mode}}selected{{end}} value="file" langtag="scheme-file"></option>
+                                <option value="tcp" langtag="scheme-tcp"></option>
+                                <option value="udp" langtag="scheme-udp"></option>
+                                <option value="httpProxy" langtag="scheme-httpProxy"></option>
+                                <option value="socks5" langtag="scheme-socks5"></option>
+                                <option value="secret" langtag="scheme-secret"></option>
+                                <option value="p2p" langtag="scheme-p2p"></option>
+                            {{/*<option value="file" langtag="scheme-file"></option>*/}}
                             </select>
                         </div>
                     </div>
 
                     <div class="form-group" id="client_id">
-                        <label class="col-sm-2 control-label" langtag="word-clientid"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-clientid"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.Client.Id}}" value="{{.client_id}}" class="form-control" type="text" name="client_id" placeholder="" langtag="word-clientid">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="col-sm-2 control-label" langtag="word-remark"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-remark"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.Remark}}" class="form-control" type="text" name="remark" placeholder="" langtag="info-unrestricted">
                         </div>
                     </div>
                 {{if eq true .allow_multi_ip}}
                     <div class="form-group" id="server_ip">
-                        <label class="col-sm-2 control-label" langtag="word-serverip"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-serverip"></label>
                         <div class="col-sm-10">
                             <input class="form-control" type="text" value="{{.t.ServerIp}}" name="server_ip" placeholder="" langtag="info-suchasip">
                         </div>
                     </div>
                 {{end}}
                     <div class="form-group" id="port">
-                        <label class="col-sm-2 control-label" langtag="word-serverport"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-serverport"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.Port}}" class="form-control" type="text" name="port" placeholder="" langtag="info-suchasport">
                         </div>
                     </div>
                 {{if eq true .allow_local_proxy}}
                     <div class="form-group" id="local_proxy">
-                        <label class="control-label col-sm-2" langtag="word-proxytolocal"></label>
+                        <label class="control-label col-sm-2 font-bold" langtag="word-proxytolocal"></label>
                         <div class="col-sm-10">
                             <select class="form-control" name="local_proxy">
                                 <option  {{if eq false .t.Target.LocalProxy}}selected{{end}} value="0" langtag="word-no"></option>
@@ -59,7 +69,7 @@
                     </div>
                 {{end}}
                     <div class="form-group" id="target">
-                        <label class="col-sm-2 control-label" langtag="word-target"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-target"></label>
                         <div class="col-sm-10">
                             <textarea class="form-control" name="target" rows="4" placeholder="" langtag="info-suchasiplist">{{.t.Target.TargetStr}}</textarea>
                             <span class="help-block m-b-none" langtag="info-targettunnel"></span>
@@ -67,21 +77,21 @@
                     </div>
 
                     <div class="form-group" id="local_path">
-                        <label class="col-sm-2 control-label" langtag="word-localpath"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-localpath"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.LocalPath}}" class="form-control" type="text" name="local_path" placeholder="" langtag="info-suchaslocalpath">
                         </div>
                     </div>
 
                     <div class="form-group" id="strip_pre">
-                        <label class="col-sm-2 control-label" langtag="word-stripprefix"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-stripprefix"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.StripPre}}" class="form-control" type="text" name="strip_pre" placeholder="" langtag="info-suchasstripprefix">
                         </div>
                     </div>
 
                     <div class="form-group" id="password">
-                        <label class="col-sm-2 control-label" langtag="word-identificationkey"></label>
+                        <label class="col-sm-2 control-label font-bold" langtag="word-identificationkey"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.Password}}" class="form-control" type="text" name="password" placeholder="" langtag="word-identificationkey">
                             <span class="help-block m-b-none" langtag="info-identificationkey"></span>
@@ -104,48 +114,33 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["type", "port", "compress", "u", "p", "target", "password", "local_path", "strip_pre", "local_proxy"]
-    arr["tcp"] = ["type", "port", "target", "u", "p", "compress", "local_proxy"]
-    arr["udp"] = ["type", "port", "target", "compress", "local_proxy"]
-    arr["socks5"] = ["type", "port", "compress", "u", "p"]
-    arr["httpProxy"] = ["type", "port", "compress", "u", "p"]
-    arr["secret"] = ["type", "target", "compress", "u", "p", "password"]
-    arr["p2p"] = ["type", "target", "password"]
-    arr["file"] = ["type", "port", "local_path", "strip_pre"]
-    arrClientHide = ["compress", "u", "p", "crypt", "mux"]
+    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy"]
+    arr["tcp"] = ["port", "target", "local_proxy"]
+    arr["udp"] = ["port", "target", "local_proxy"]
+    arr["socks5"] = ["port"]
+    arr["httpProxy"] = ["port"]
+    arr["secret"] = ["target", "password"]
+    arr["p2p"] = ["target", "password"]
+    arr["file"] = ["port", "local_path", "strip_pre"]
 
     function resetForm() {
-        for (var i = 0; i < arr["all"].length; i++) {
-            $("#" + arr["all"][i]).css("display", "none")
-        }
-        o = $("#type option:selected").val()
+        $(".form-group[id]").css("display", "none");
+        $("#usecase span").css("display", "none");
+        o = $("#type").val();
+        $('#case'+ o).css("display", "inline")
         for (var i = 0; i < arr[o].length; i++) {
             $("#" + arr[o][i]).css("display", "block")
         }
     }
 
-    function resetClientCnf() {
-        for (var i = 0; i < arrClientHide.length; i++) {
-            $("#" + arrClientHide[i]).css("display", "block")
-        }
-        op = $("#use_client  option:selected").val()
-        if (op == 1) {
-            for (var i = 0; i < arrClientHide.length; i++) {
-                $("#" + arrClientHide[i]).css("display", "none")
-            }
-        }
-    }
-
     $(function () {
+        $("#type").val('{{.t.Mode}}');
         resetForm()
-        resetClientCnf()
         $("#type").on("change", function () {
             resetForm()
-            resetClientCnf()
         })
         $("#use_client").on("change", function () {
             resetForm()
-            resetClientCnf()
         })
     })
 </script>

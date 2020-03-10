@@ -6,7 +6,7 @@ go:
 services:
   - docker
 script:
-  - go test -v ./cmd/nps/
+  - GOPROXY=direct go test -v ./cmd/nps/
 os:
   - linux
 before_deploy:

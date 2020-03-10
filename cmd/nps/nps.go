@@ -28,11 +28,16 @@ import (
 
 var (
 	level string
+	ver   = flag.Bool("version", false, "show current version")
 )
 
 func main() {
 	flag.Parse()
 	// init log
+	if *ver {
+		common.PrintVersion()
+		return
+	}
 	if err := beego.LoadAppConfig("ini", filepath.Join(common.GetRunPath(), "conf", "nps.conf")); err != nil {
 		log.Fatalln("load config file error", err.Error())
 	}
