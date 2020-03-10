@@ -79,14 +79,7 @@ target_port=8001-8009,10002,13000-14000
 target_ip=10.1.50.2
 ```
 填写target_ip后则表示映射的该地址机器的端口，忽略则便是映射本地127.0.0.1,仅范围映射时有效
-## 守护进程
-本代理支持守护进程，使用示例如下，服务端客户端所有模式通用,支持linux，darwin，windows。
-```
-./(nps|npc) start|stop|restart|status 若有其他参数可加其他参数
-```
-```
-(nps|npc).exe start|stop|restart|status 若有其他参数可加其他参数
-```
+
 ## KCP协议支持
 
 在网络质量非常好的情况下，例如专线，内网，可以开启略微降低延迟。如需使用可在nps.conf中修改`bridge_type`为kcp
