@@ -1,5 +1,6 @@
 #/bash/sh
 export VERSION=0.26.5
+export GOPROXY=direct
 
 sudo apt-get install gcc-mingw-w64-i686 gcc-multilib
 env GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -ldflags "-s -w -extldflags -static -extldflags -static" -buildmode=c-shared -o npc_sdk.dll cmd/npc/sdk.go
@@ -164,10 +165,10 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 sudo apt-get update
 sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
 docker --version
-docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk ffdfgdfg/fyne-cross:android /app/build.android.sh
+docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct ffdfgdfg/fyne-cross:android /app/build.android.sh
 git clone https://github.com/cnlh/spksrc.git ~/spksrc
 mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
-docker run -itd --name spksrc --env VERSION=$VERSION  -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
+docker run -itd --name spksrc --env VERSION=$VERSION -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
 docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
 cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_syno.spk
 
