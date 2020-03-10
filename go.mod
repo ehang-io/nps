@@ -3,7 +3,7 @@ module ehang.io/nps
 go 1.13
 
 require (
-	ehang.io/nps-mux v0.0.0-20200309113730-6037e2b2b988
+	ehang.io/nps-mux v0.0.0-20200310052025-e00374a8cdb6
 	fyne.io/fyne v1.2.3
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/astaxie/beego v1.12.0
@@ -15,17 +15,13 @@ require (
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
 	github.com/hooklift/assert v0.0.0-20170704181755-9d1defd6d214 // indirect
 	github.com/kardianos/service v1.0.0
-	github.com/klauspost/cpuid v1.2.3 // indirect
 	github.com/klauspost/pgzip v1.2.1 // indirect
 	github.com/panjf2000/ants/v2 v2.3.1
 	github.com/pkg/errors v0.9.1
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect
 	github.com/shirou/gopsutil v2.19.11+incompatible
-	github.com/tjfoc/gmsm v1.3.0 // indirect
 	github.com/xtaci/kcp-go v5.4.20+incompatible
-	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073 // indirect
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
 )
 
 replace github.com/astaxie/beego => github.com/exfly/beego v1.12.0-export-init
