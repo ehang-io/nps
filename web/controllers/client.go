@@ -61,10 +61,6 @@ func (s *ClientController) Add() {
 				FlowLimit:  int64(s.GetIntNoErr("flow_limit")),
 			},
 		}
-		if t.RateLimit > 0 {
-			t.Rate = rate.NewRate(int64(t.RateLimit * 1024))
-			t.Rate.Start()
-		}
 		if err := file.GetDb().NewClient(t); err != nil {
 			s.AjaxErr(err.Error())
 		}
