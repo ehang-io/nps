@@ -123,14 +123,14 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy", "client_id"]
-    arr["tcp"] = ["port", "target", "local_proxy", "client_id"]
-    arr["udp"] = ["port", "target", "local_proxy", "client_id"]
-    arr["socks5"] = ["port", "client_id"]
-    arr["httpProxy"] = ["port", "client_id"]
-    arr["secret"] = ["target", "password", "client_id"]
-    arr["p2p"] = ["target", "password", "client_id"]
-    arr["file"] = ["port", "local_path", "strip_pre", "client_id"]
+    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy", "client_id", "server_ip"]
+    arr["tcp"] = ["port", "target", "local_proxy", "client_id", "server_ip"]
+    arr["udp"] = ["port", "target", "local_proxy", "client_id", "server_ip"]
+    arr["socks5"] = ["port", "client_id", "server_ip"]
+    arr["httpProxy"] = ["port", "client_id", "server_ip"]
+    arr["secret"] = ["target", "password", "client_id", "server_ip"]
+    arr["p2p"] = ["target", "password", "client_id", "server_ip"]
+    arr["file"] = ["port", "local_path", "strip_pre", "client_id", "server_ip"]
 
     function resetForm() {
         $(".form-group[id]").css("display", "none");
