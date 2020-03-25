@@ -159,7 +159,7 @@ type nps struct {
 
 func (p *nps) Start(s service.Service) error {
 	_, _ = s.Status()
-	_ = p.run()
+	go p.run()
 	return nil
 }
 func (p *nps) Stop(s service.Service) error {
