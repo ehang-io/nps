@@ -28,7 +28,12 @@ func (s *ClientController) List() {
 		clientId = clientIdSession.(int)
 	}
 	list, cnt := server.GetClientList(start, length, s.getEscapeString("search"), s.getEscapeString("sort"), s.getEscapeString("order"), clientId)
-	s.AjaxTable(list, cnt, cnt)
+	cmd := make(map[string]interface{})
+	ip := s.Ctx.Request.Host
+	cmd["ip"] = common.GetIpByAddr(ip)
+	cmd["bridgeType"] = beego.AppConfig.String("bridge_type")
+	cmd["bridgePort"] = server.Bridge.TunnelPort
+	s.AjaxTable(list, cnt, cnt, cmd)
 }
 
 //添加客户端

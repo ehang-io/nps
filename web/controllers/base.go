@@ -33,12 +33,12 @@ func (s *BaseController) Prepare() {
 	timestamp := s.GetIntNoErr("timestamp")
 	configKey := beego.AppConfig.String("auth_key")
 	timeNowUnix := time.Now().Unix()
-	if !(md5Key!="" && (math.Abs(float64(timeNowUnix-int64(timestamp))) <= 20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
+	if !(md5Key != "" && (math.Abs(float64(timeNowUnix-int64(timestamp))) <= 20) && (crypt.Md5(configKey+strconv.Itoa(timestamp)) == md5Key)) {
 		if s.GetSession("auth") != true {
 			s.Redirect(beego.AppConfig.String("web_base_url")+"/login/index", 302)
 		}
-	}else {
-		s.SetSession("isAdmin",true)
+	} else {
+		s.SetSession("isAdmin", true)
 		s.Data["isAdmin"] = true
 	}
 	if s.GetSession("isAdmin") != nil && !s.GetSession("isAdmin").(bool) {
@@ -141,10 +141,17 @@ func ajax(str string, status int) map[string]interface{} {
 }
 
 //ajax table返回
-func (s *BaseController) AjaxTable(list interface{}, cnt int, recordsTotal int) {
+func (s *BaseController) AjaxTable(list interface{}, cnt int, recordsTotal int, kwargs map[string]interface{}) {
 	json := make(map[string]interface{})
 	json["rows"] = list
 	json["total"] = recordsTotal
+	if kwargs != nil {
+		for k, v := range kwargs {
+			if v != nil {
+				json[k] = v
+			}
+		}
+	}
 	s.Data["json"] = json
 	s.ServeJSON()
 	s.StopRun()
