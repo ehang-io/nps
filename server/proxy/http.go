@@ -132,6 +132,7 @@ func (rp *HttpReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 	if host.Client.Cnf.U != "" && host.Client.Cnf.P != "" && !common.CheckAuth(req, host.Client.Cnf.U, host.Client.Cnf.P) {
+		rw.Header().Set("WWW-Authenticate", "Basic realm=\"Private Area\"")
 		rw.WriteHeader(http.StatusUnauthorized)
 		rw.Write([]byte("Unauthorized"))
 		return
@@ -141,6 +142,7 @@ func (rp *HttpReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		rw.Write([]byte("502 Bad Gateway"))
 		return
 	}
+	req.URL.Host = req.Host
 	req = req.WithContext(context.WithValue(req.Context(), "host", host))
 	req = req.WithContext(context.WithValue(req.Context(), "target", targetAddr))
 	req = req.WithContext(context.WithValue(req.Context(), "req", req))
