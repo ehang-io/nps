@@ -155,13 +155,8 @@ func NewHttpReverseProxy(s *httpServer) *HttpReverseProxy {
 	local, _ := net.ResolveTCPAddr("tcp", "127.0.0.1")
 	proxy := NewReverseProxy(&httputil.ReverseProxy{
 		Director: func(r *http.Request) {
-			r.URL.Host = r.Host
-			if host, err := file.GetDb().GetInfoByHost(r.Host, r); err != nil {
-				logs.Notice("the url %s %s %s can't be parsed!", r.URL.Scheme, r.Host, r.RequestURI)
-				return
-			} else {
-				common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, "", false)
-			}
+			host := r.Context().Value("host").(*file.Host)
+			common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, "", false)
 		},
 		Transport: &http.Transport{
 			ResponseHeaderTimeout: rp.responseHeaderTimeout,
