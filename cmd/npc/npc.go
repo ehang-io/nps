@@ -218,6 +218,7 @@ func run() {
 		commonConfig.Client = new(file.Client)
 		commonConfig.Client.Cnf = new(file.Config)
 		go client.StartLocalServer(localServer, commonConfig)
+		return
 	}
 	env := common.GetEnvMap()
 	if *serverAddr == "" {
