@@ -21,7 +21,7 @@ var (
 )
 
 func InitTls() {
-	c, k, err := generateKeyPair("NPS Corp,.Inc")
+	c, k, err := generateKeyPair("NPS Org")
 	if err == nil {
 		cert, err = tls.X509KeyPair(c, k)
 	}
