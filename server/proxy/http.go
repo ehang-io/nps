@@ -130,7 +130,7 @@ func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 	defer func() {
 		if connClient != nil {
 			connClient.Close()
-		}else {
+		} else {
 			s.writeConnFail(c.Conn)
 		}
 		c.Close()
