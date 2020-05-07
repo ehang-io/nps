@@ -107,7 +107,7 @@ func onclick(s, v, c string) {
 		if sp != s || vk != v || ct != c {
 			saveConfig(s, v, c)
 		}
-		cl = client.NewRPClient(s, v, c, "", nil)
+		cl = client.NewRPClient(s, v, c, "", nil, 60)
 		go cl.Start()
 	} else {
 		// close the npc

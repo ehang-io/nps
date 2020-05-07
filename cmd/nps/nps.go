@@ -205,5 +205,9 @@ func run() {
 	crypt.InitTls()
 	tool.InitAllowPort()
 	tool.StartSystemInfo()
-	go server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"))
+	timeout, err := beego.AppConfig.Int("disconnect_timeout")
+	if err != nil {
+		timeout = 60
+	}
+	go server.StartNewServer(bridgePort, task, beego.AppConfig.String("bridge_type"), timeout)
 }
