@@ -28,10 +28,11 @@ type TRPClient struct {
 	signal         *conn.Conn
 	ticker         *time.Ticker
 	cnf            *config.Config
+	disconnectTime int
 }
 
 //new client
-func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config) *TRPClient {
+func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config, disconnectTime int) *TRPClient {
 	return &TRPClient{
 		svrAddr:        svraddr,
 		p2pAddr:        make(map[string]string, 0),
@@ -39,6 +40,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 		bridgeConnType: bridgeConnType,
 		proxyUrl:       proxyUrl,
 		cnf:            cnf,
+		disconnectTime: disconnectTime,
 	}
 }
 
@@ -138,7 +140,7 @@ func (s *TRPClient) newUdpConn(localAddr, rAddr string, md5Password string) {
 			conn.SetUdpSession(udpTunnel)
 			logs.Trace("successful connection with client ,address %s", udpTunnel.RemoteAddr().String())
 			//read link info from remote
-			conn.Accept(nps_mux.NewMux(udpTunnel, s.bridgeConnType), func(c net.Conn) {
+			conn.Accept(nps_mux.NewMux(udpTunnel, s.bridgeConnType, s.disconnectTime), func(c net.Conn) {
 				go s.handleChan(c)
 			})
 			break
@@ -153,7 +155,7 @@ func (s *TRPClient) newChan() {
 		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
-	s.tunnel = nps_mux.NewMux(tunnel.Conn, s.bridgeConnType)
+	s.tunnel = nps_mux.NewMux(tunnel.Conn, s.bridgeConnType, s.disconnectTime)
 	for {
 		src, err := s.tunnel.Accept()
 		if err != nil {

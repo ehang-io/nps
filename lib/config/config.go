@@ -17,6 +17,7 @@ type CommonConfig struct {
 	AutoReconnection bool
 	ProxyUrl         string
 	Client           *file.Client
+	DisconnectTime   int
 }
 
 type LocalServer struct {
@@ -147,6 +148,8 @@ func dealCommon(s string) *CommonConfig {
 			c.Client.Remark = item[1]
 		case "pprof_addr":
 			common.InitPProfFromArg(item[1])
+		case "disconnect_timeout":
+			c.DisconnectTime = common.GetIntNoErrByStr(item[1])
 		}
 	}
 	return c
