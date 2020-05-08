@@ -248,3 +248,5 @@ LevelInformational->6 LevelDebug->7
 
 客户端与服务端间会间隔5s相互发送延迟测量包，这个时间间隔不可修改。
 可修改延迟测量包丢包的次数，默认为60也就是5分钟都收不到一个延迟测量回包，则会断开客户端连接。
+
+在`nps.conf`或`npc.conf`中设置`disconnect_timeout`即可
