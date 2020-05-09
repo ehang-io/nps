@@ -248,5 +248,7 @@ LevelInformational->6 LevelDebug->7
 
 客户端与服务端间会间隔5s相互发送延迟测量包，这个时间间隔不可修改。
 可修改延迟测量包丢包的次数，默认为60也就是5分钟都收不到一个延迟测量回包，则会断开客户端连接。
+值得注意的是需要客户端的socket关闭，才会进行重连，也就是当客户端无法收到服务端的fin包时，只有客户端自行关闭socket才行。
+也就是假如服务端设置为较低值，而客户端设置较高值，而此时服务端断开连接而客户端无法收到服务端的fin包，客户端也会继续等着直到触发客户端的超时设置。
 
-在`nps.conf`或`npc.conf`中设置`disconnect_timeout`即可
+在`nps.conf`或`npc.conf`中设置`disconnect_timeout`即可，客户端还可附带`-disconnect_timeout=60`参数启动
