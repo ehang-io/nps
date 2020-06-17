@@ -3,7 +3,7 @@ module ehang.io/nps
 go 1.13
 
 require (
-	ehang.io/nps-mux v0.0.0-20200610152202-c424c819296f
+	ehang.io/nps-mux v0.0.0-20200617154922-5dc86cc6082a
 	fyne.io/fyne v1.2.4
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/astaxie/beego v1.12.0
@@ -28,8 +28,8 @@ require (
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
 	golang.org/x/mod v0.3.0 // indirect
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
-	golang.org/x/tools v0.0.0-20200610052024-8d7dbee4c8ae // indirect
+	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1 // indirect
+	golang.org/x/tools v0.0.0-20200617042924-7f3f4b10a808 // indirect
 )
 
 replace github.com/astaxie/beego => github.com/exfly/beego v1.12.0-export-init
