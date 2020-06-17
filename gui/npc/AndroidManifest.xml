@@ -3,7 +3,7 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         package="org.nps.client"
         android:versionCode="1"
-        android:versionName="0.26.7">
+        android:versionName="0.26.8">
 
     <application android:label="Npc" android:debuggable="true">
         <activity android:name="org.golang.app.GoNativeActivity"

@@ -65,7 +65,7 @@ max_conn=10
 ```
 项 | 含义
 ---|---
-server_addr | 服务端ip:port
+server_addr | 服务端ip/域名:port
 conn_type | 与服务端通信模式(tcp或kcp)
 vkey|服务端配置文件中的密钥(非web)
 username|socks5或http(s)密码保护用户名(可忽略)

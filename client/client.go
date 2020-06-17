@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/astaxie/beego/logs"
@@ -29,6 +30,7 @@ type TRPClient struct {
 	ticker         *time.Ticker
 	cnf            *config.Config
 	disconnectTime int
+	once           sync.Once
 }
 
 //new client
@@ -41,6 +43,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 		proxyUrl:       proxyUrl,
 		cnf:            cnf,
 		disconnectTime: disconnectTime,
+		once:           sync.Once{},
 	}
 }
 
@@ -290,13 +293,17 @@ loop:
 }
 
 func (s *TRPClient) Close() {
+	s.once.Do(s.closing)
+}
+
+func (s *TRPClient) closing() {
 	CloseClient = true
 	NowStatus = 0
 	if s.tunnel != nil {
-		s.tunnel.Close()
+		_ = s.tunnel.Close()
 	}
 	if s.signal != nil {
-		s.signal.Close()
+		_ = s.signal.Close()
 	}
 	if s.ticker != nil {
 		s.ticker.Stop()
