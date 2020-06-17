@@ -1,5 +1,5 @@
 #/bash/sh
-export VERSION=0.26.7
+export VERSION=0.26.8
 export GOPROXY=direct
 
 sudo apt-get update
