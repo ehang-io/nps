@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	ehang.io/nps-mux v0.0.0-20200617154922-5dc86cc6082a
-	fyne.io/fyne v1.2.4
+	fyne.io/fyne v1.3.0
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/astaxie/beego v1.12.0
 	github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 // indirect
