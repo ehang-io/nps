@@ -115,13 +115,13 @@
 <script>
     var arr = []
     arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy"]
-    arr["tcp"] = ["port", "target", "local_proxy"]
-    arr["udp"] = ["port", "target", "local_proxy"]
-    arr["socks5"] = ["port"]
-    arr["httpProxy"] = ["port"]
-    arr["secret"] = ["target", "password"]
-    arr["p2p"] = ["target", "password"]
-    arr["file"] = ["port", "local_path", "strip_pre"]
+    arr["tcp"] = ["client_id", "port", "target", "local_proxy"]
+    arr["udp"] = ["client_id", "port", "target", "local_proxy"]
+    arr["socks5"] = ["client_id", "port"]
+    arr["httpProxy"] = ["client_id", "port"]
+    arr["secret"] = ["client_id", "target", "password"]
+    arr["p2p"] = ["client_id", "target", "password"]
+    arr["file"] = ["client_id", "port", "local_path", "strip_pre"]
 
     function resetForm() {
         $(".form-group[id]").css("display", "none");
