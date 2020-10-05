@@ -1,5 +1,5 @@
 #/bash/sh
-export VERSION=0.26.8
+export VERSION=0.26.9
 export GOPROXY=direct
 
 sudo apt-get update
@@ -166,7 +166,7 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 sudo apt-get update
 sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
 docker --version
-docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct ffdfgdfg/fyne-cross:android /app/build.android.sh
+docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct lucor/fyne-cross:android-latest /app/build.android.sh
 git clone https://github.com/cnlh/spksrc.git ~/spksrc
 mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
 docker run -itd --name spksrc --env VERSION=$VERSION -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
@@ -178,5 +178,5 @@ echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
 docker buildx create --use --name mybuilder
-docker buildx build --tag ffdfgdfg/nps:$VERSION --tag ffdfgdfg/nps:latest --output type=image,push=true --file Dockerfile.nps --platform=linux/amd64,linux/arm64 .
-docker buildx build --tag ffdfgdfg/npc:$VERSION --tag ffdfgdfg/npc:latest --output type=image,push=true --file Dockerfile.npc --platform=linux/amd64,linux/arm64 .
+docker buildx build --tag ffdfgdfg/nps:$VERSION --tag ffdfgdfg/nps:latest --output type=image,push=true --file Dockerfile.nps --platform=linux/amd64,linux/arm64,linux/386,linux/arm .
+docker buildx build --tag ffdfgdfg/npc:$VERSION --tag ffdfgdfg/npc:latest --output type=image,push=true --file Dockerfile.npc --platform=linux/amd64,linux/arm64,linux/386,linux/arm .

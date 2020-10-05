@@ -233,6 +233,12 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 			c.Close()
 			return
 		}
+		tcpConn, ok := c.Conn.(*net.TCPConn)
+		if ok {
+			// add tcp keep alive option for signal connection
+			_ = tcpConn.SetKeepAlive(true)
+			_ = tcpConn.SetKeepAlivePeriod(5 * time.Second)
+		}
 		//the vKey connect by another ,close the client of before
 		if v, ok := s.Client.LoadOrStore(id, NewClient(nil, nil, c, vs)); ok {
 			if v.(*Client).signal != nil {

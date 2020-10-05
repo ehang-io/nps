@@ -239,7 +239,7 @@ func run() {
 		}()
 	} else {
 		if *configPath == "" {
-			*configPath = "conf/npc.conf"
+			*configPath = common.GetConfigPath()
 		}
 		go client.StartFromFile(*configPath)
 	}

@@ -177,7 +177,8 @@ reset:
 			}
 		}()
 		for {
-			if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil || resp == nil {
+			if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil || resp == nil || r == nil {
+				// if there got broken pipe, http.ReadResponse will get a nil
 				return
 			} else {
 				//if the cache is start and the response is in the extension,store the response to the cache list
