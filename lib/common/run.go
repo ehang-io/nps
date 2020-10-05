@@ -76,3 +76,14 @@ func GetTmpPath() string {
 	}
 	return path
 }
+
+//config file path
+func GetConfigPath() string {
+	var path string
+	if IsWindows() {
+		path = filepath.Join(GetAppPath(), "conf/npc.conf")
+	} else {
+		path = "conf/npc.conf"
+	}
+	return path
+}
