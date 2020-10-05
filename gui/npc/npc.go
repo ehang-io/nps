@@ -66,7 +66,7 @@ func makeMainTab() fyne.Widget {
 	}()
 
 	lo := widget.NewMultiLineEntry()
-	lo.SetReadOnly(true)
+	lo.Disable()
 	lo.Resize(fyne.NewSize(910, 250))
 	slo := widget.NewScrollContainer(lo)
 	slo.Resize(fyne.NewSize(910, 250))
