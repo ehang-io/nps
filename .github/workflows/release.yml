@@ -17,10 +17,8 @@ jobs:
       with:
         go-version: ^1.14
       id: go
-
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
-
     - name: Get dependencies
       run: |
         go get -v -t -d ./...
@@ -28,7 +26,6 @@ jobs:
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
             dep ensure
         fi
-
     - name: Build
       run: |
         chmod +x build.assets.sh
@@ -41,7 +38,6 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
-
     - name: Build
       run: |
         chmod +x build.android.sh
@@ -54,10 +50,8 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
-      
     - name: Set env
       run: echo ::set-env name=VERSION::${GITHUB_REF#refs/*/}
-
     - name: Build
       run: |
         git clone https://github.com/cnlh/spksrc.git ~/spksrc
@@ -73,10 +67,8 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
-    
     - name: Set env
       run: echo ::set-env name=VERSION::${GITHUB_REF#refs/*/}
-
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
