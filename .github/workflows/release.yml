@@ -30,6 +30,46 @@ jobs:
       run: |
         chmod +x build.assets.sh
         ./build.assets.sh
+    - name: Upload
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          freebsd_386_client.tar.gz
+          freebsd_386_server.tar.gz
+          freebsd_amd64_client.tar.gz
+          freebsd_amd64_server.tar.gz
+          freebsd_arm_client.tar.gz
+          freebsd_arm_server.tar.gz
+          linux_386_client.tar.gz
+          linux_386_server.tar.gz
+          linux_amd64_client.tar.gz
+          linux_amd64_server.tar.gz
+          linux_arm64_client.tar.gz
+          linux_arm64_server.tar.gz
+          linux_arm_v5_client.tar.gz
+          linux_arm_v6_client.tar.gz
+          linux_arm_v7_client.tar.gz
+          linux_arm_v5_server.tar.gz
+          linux_arm_v6_server.tar.gz
+          linux_arm_v7_server.tar.gz
+          linux_mips64le_client.tar.gz
+          linux_mips64le_server.tar.gz
+          linux_mips64_client.tar.gz
+          linux_mips64_server.tar.gz
+          linux_mipsle_client.tar.gz
+          linux_mipsle_server.tar.gz
+          linux_mips_client.tar.gz
+          linux_mips_server.tar.gz
+          darwin_amd64_client.tar.gz
+          darwin_amd64_server.tar.gz
+          windows_386_client.tar.gz
+          windows_386_server.tar.gz
+          windows_amd64_client.tar.gz
+          windows_amd64_server.tar.gz
+          npc_sdk.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
   build_android:
     
@@ -42,6 +82,14 @@ jobs:
       run: |
         chmod +x build.android.sh
         docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct lucor/fyne-cross:android-latest /app/build.android.sh
+    - name: Upload
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          android_client.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_spk:
     
@@ -56,9 +104,17 @@ jobs:
       run: |
         git clone https://github.com/cnlh/spksrc.git ~/spksrc
         mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
-        docker run -d --name spksrc --env VERSION=${{ env.RELEASE_VERSION }} -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
+        docker run -id --name spksrc --env VERSION=${{ env.RELEASE_VERSION }} -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
         docker exec spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
         cp ~/spksrc/packages/npc_noarch-all_${{ env.RELEASE_VERSION }}-1.spk ./npc_syno.spk
+    - name: Upload
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          npc_syno.spk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_docker:
     
@@ -83,7 +139,7 @@ jobs:
       with:
         context: .
         file: ./Dockerfile.nps
-        platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
+        platforms: linux/386,linux/amd64,linux/arm,linux/arm64
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/nps:latest
@@ -93,7 +149,7 @@ jobs:
       with:
         context: .
         file: ./Dockerfile.npc
-        platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
+        platforms: linux/386,linux/amd64,linux/arm,linux/arm64
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/npc:latest
