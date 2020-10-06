@@ -99,7 +99,7 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
     - name: Set env
-      run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Build
       run: |
         git clone https://github.com/cnlh/spksrc.git ~/spksrc
@@ -124,11 +124,18 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
     - name: Set env
-      run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
+    - name: Cache Docker layers
+      uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
     - name: Login to DockerHub
       uses: docker/login-action@v1 
       with:
@@ -139,7 +146,7 @@ jobs:
       with:
         context: .
         file: ./Dockerfile.nps
-        platforms: linux/386,linux/amd64,linux/arm,linux/arm64
+        platforms: linux/amd64,linux/arm,linux/arm64
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/nps:latest
@@ -149,7 +156,7 @@ jobs:
       with:
         context: .
         file: ./Dockerfile.npc
-        platforms: linux/386,linux/amd64,linux/arm,linux/arm64
+        platforms: linux/amd64,linux/arm,linux/arm64
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/npc:latest
