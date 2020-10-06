@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+    branches: [ master ]
+
+jobs:
+
+  build_assets:
+    
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.14
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Get dependencies
+      run: |
+        go get -v -t -d ./...
+        if [ -f Gopkg.toml ]; then
+            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            dep ensure
+        fi
+
+    - name: Build
+      run: |
+        chmod +x build.assets.sh
+        ./build.assets.sh
+        
+  build_android:
+    
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Build
+      run: |
+        chmod +x build.android.sh
+        docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct lucor/fyne-cross:android-latest /app/build.android.sh
+
+  build_spk:
+    
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+      
+    - name: Set env
+      run: echo ::set-env name=VERSION::${GITHUB_REF#refs/*/}
+
+    - name: Build
+      run: |
+        git clone https://github.com/cnlh/spksrc.git ~/spksrc
+        mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
+        docker run -itd --name spksrc --env VERSION=$VERSION -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
+        docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
+        cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_syno.spk
+
+  build_docker:
+    
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    
+    - name: Set env
+      run: echo ::set-env name=VERSION::${GITHUB_REF#refs/*/}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Login to DockerHub
+      uses: docker/login-action@v1 
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Build and push nps
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./Dockerfile.nps
+        platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/nps:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/nps:$VERSION
+    - name: Build and push npc
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./Dockerfile.npc
+        platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/npc:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/npc:$VERSION
