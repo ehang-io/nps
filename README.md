@@ -15,7 +15,7 @@ NPS is a lightweight, high-performance, powerful **intranet penetration** proxy 
 ## Feature
 
 - Comprehensive protocol support, compatible with almost all commonly used protocols, such as tcp, udp, http(s), socks5, p2p, http proxy ...
-- Full platform compatibility (linux, windows, macos, Qunhui, etc.), support installation as a system service simply.
+- Full platform compatibility (linux, windows, macos, Synology, etc.), support installation as a system service simply.
 - Comprehensive control, both client and server control are allowed.
 - Https integration, support to convert backend proxy and web services to https, and support multiple certificates.
 - Just simple configuration on web ui can complete most requirements.
