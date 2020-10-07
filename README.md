@@ -2,7 +2,7 @@
 # NPS
 ![](https://img.shields.io/github/stars/ehang-io/nps.svg)   ![](https://img.shields.io/github/forks/ehang-io/nps.svg)
 [![Gitter](https://badges.gitter.im/cnlh-nps/community.svg)](https://gitter.im/cnlh-nps/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-[![Build Status](https://travis-ci.org/ehang-io/nps.svg?branch=master)](https://travis-ci.org/ehang-io/nps)
+![Release](https://github.com/ehang-io/nps/workflows/Release/badge.svg)
 ![GitHub All Releases](https://img.shields.io/github/downloads/ehang-io/nps/total)
 
 [README](https://github.com/ehang-io/nps/blob/master/README.md)|[中文文档](https://github.com/ehang-io/nps/blob/master/README_zh.md)
@@ -15,7 +15,7 @@ NPS is a lightweight, high-performance, powerful **intranet penetration** proxy 
 ## Feature
 
 - Comprehensive protocol support, compatible with almost all commonly used protocols, such as tcp, udp, http(s), socks5, p2p, http proxy ...
-- Full platform compatibility (linux, windows, macos, Qunhui, etc.), support installation as a system service simply.
+- Full platform compatibility (linux, windows, macos, Synology, etc.), support installation as a system service simply.
 - Comprehensive control, both client and server control are allowed.
 - Https integration, support to convert backend proxy and web services to https, and support multiple certificates.
 - Just simple configuration on web ui can complete most requirements.
