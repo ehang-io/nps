@@ -80,7 +80,7 @@ func (https *HttpsServer) Start() error {
 				}
 			}
 			//change the host and header and set proxy setting
-			common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String(), s.addOrigin)
+			common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String(), https.addOrigin)
 			acceptConn := conn.NewConn(c)
 			acceptConn.Rb = rb
 			l.acceptConn <- acceptConn
