@@ -6,11 +6,11 @@ import (
 	"ehang.io/nps/lib/daemon"
 	"ehang.io/nps/lib/version"
 	"fmt"
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/container"
-	"fyne.io/fyne/layout"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 	"github.com/astaxie/beego/logs"
 	"io/ioutil"
 	"os"
@@ -34,6 +34,7 @@ func main() {
 
 var (
 	start     bool
+	closing   bool
 	status    = "Start!"
 	connType  = "tcp"
 	cl        = new(client.TRPClient)
@@ -100,6 +101,7 @@ func makeMainTab() *fyne.Container {
 func onclick(s, v, c string) {
 	start = !start
 	if start {
+		closing = false
 		status = "Stop!"
 		// init the npc
 		fmt.Println("submit", s, v, c)
@@ -110,14 +112,22 @@ func onclick(s, v, c string) {
 		go func() {
 			for {
 				cl = client.NewRPClient(s, v, c, "", nil, 60)
+				status = "Stop!"
+				refreshCh <- struct{}{}
 				cl.Start()
-				logs.Info("client disconnected, reconnecting in 5 seconds...")
+				logs.Warn("client closed, reconnecting in 5 seconds...")
+				if closing {
+					return
+				}
+				status = "Reconnecting..."
+				refreshCh <- struct{}{}
 				time.Sleep(time.Second * 5)
 			}
 		}()
 	} else {
 		// close the npc
 		status = "Start!"
+		closing = true
 		if cl != nil {
 			go cl.Close()
 			cl = nil
