@@ -14,7 +14,7 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/golang/snappy v0.0.2
 	github.com/hooklift/assert v0.0.0-20170704181755-9d1defd6d214 // indirect
-	github.com/kardianos/service v1.0.0
+	github.com/kardianos/service v1.2.0
 	github.com/klauspost/cpuid v1.3.0 // indirect
 	github.com/klauspost/pgzip v1.2.1 // indirect
 	github.com/klauspost/reedsolomon v1.9.9 // indirect
@@ -28,7 +28,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
 	golang.org/x/mod v0.3.0 // indirect
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
-	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1 // indirect
+	golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 // indirect
 	golang.org/x/tools v0.0.0-20200617042924-7f3f4b10a808 // indirect
 )
 
