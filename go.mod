@@ -1,6 +1,6 @@
 module ehang.io/nps
 
-go 1.14
+go 1.15
 
 require (
 	ehang.io/nps-mux v0.0.0-20210407130203-4afa0c10c992
