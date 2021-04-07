@@ -17,10 +17,10 @@ import (
 	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/load"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/net"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/load"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v3/net"
 )
 
 var (
