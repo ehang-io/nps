@@ -107,8 +107,14 @@ func onclick(s, v, c string) {
 		if sp != s || vk != v || ct != c {
 			saveConfig(s, v, c)
 		}
-		cl = client.NewRPClient(s, v, c, "", nil, 60)
-		go cl.Start()
+		go func() {
+			for {
+				cl = client.NewRPClient(s, v, c, "", nil, 60)
+				cl.Start()
+				logs.Info("client disconnected, reconnecting in 5 seconds...")
+				time.Sleep(time.Second * 5)
+			}
+		}()
 	} else {
 		// close the npc
 		status = "Start!"
