@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
+	"fyne.io/fyne/container"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
 	"github.com/astaxie/beego/logs"
@@ -45,14 +46,13 @@ func WidgetScreen() fyne.CanvasObject {
 	)
 }
 
-func makeMainTab() fyne.Widget {
+func makeMainTab() *fyne.Container {
 	serverPort := widget.NewEntry()
 	serverPort.SetPlaceHolder("Server:Port")
 
 	vKey := widget.NewEntry()
 	vKey.SetPlaceHolder("Vkey")
-
-	radio := widget.NewRadio([]string{"tcp", "kcp"}, func(s string) { connType = s })
+	radio := widget.NewRadioGroup([]string{"tcp", "kcp"}, func(s string) { connType = s })
 	radio.Horizontal = true
 
 	button := widget.NewButton(status, func() {
@@ -68,7 +68,7 @@ func makeMainTab() fyne.Widget {
 	lo := widget.NewMultiLineEntry()
 	lo.Disable()
 	lo.Resize(fyne.NewSize(910, 250))
-	slo := widget.NewScrollContainer(lo)
+	slo := container.NewScroll(lo)
 	slo.Resize(fyne.NewSize(910, 250))
 	go func() {
 		for {
@@ -87,7 +87,7 @@ func makeMainTab() fyne.Widget {
 		onclick(sp, vk, ct)
 	}
 
-	return widget.NewVBox(
+	return container.NewVBox(
 		widget.NewLabel("Npc "+version.VERSION),
 		serverPort,
 		vKey,
@@ -147,7 +147,7 @@ func saveConfig(host, vkey, connType string) {
 		return
 	}
 	if _, err := f.Write([]byte(data)); err != nil {
-		f.Close() // ignore error; Write error takes precedence
+		_ = f.Close() // ignore error; Write error takes precedence
 		logs.Error(err)
 		return
 	}

@@ -81,7 +81,7 @@ jobs:
     - name: Build
       run: |
         chmod +x build.android.sh
-        docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct lucor/fyne-cross:android-latest /app/build.android.sh
+        docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct fyneio/fyne-cross:android-latest /app/build.android.sh
     - name: Upload
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
