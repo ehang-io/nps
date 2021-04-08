@@ -1,5 +1,5 @@
 # 服务端配置文件
-- /conf/nps.conf
+- /etc/nps/conf/nps.conf
 
 名称 | 含义
 ---|---
