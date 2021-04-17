@@ -1,33 +1,35 @@
 package server
 
 import (
+	"ehang.io/nps/lib/version"
 	"errors"
 	"math"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"ehang.io/nps/bridge"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server/proxy"
+	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/bridge"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
-	"github.com/cnlh/nps/server/proxy"
-	"github.com/cnlh/nps/server/tool"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/load"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/net"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/load"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v3/net"
 )
 
 var (
 	Bridge  *bridge.Bridge
-	RunList map[int]interface{}
+	RunList sync.Map //map[int]interface{}
 )
 
 func init() {
-	RunList = make(map[int]interface{})
+	RunList = sync.Map{}
 }
 
 //init task from db
@@ -36,7 +38,8 @@ func InitFromCsv() {
 	if vkey := beego.AppConfig.String("public_vkey"); vkey != "" {
 		c := file.NewClient(vkey, true, true)
 		file.GetDb().NewClient(c)
-		RunList[c.Id] = nil
+		RunList.Store(c.Id, nil)
+		//RunList[c.Id] = nil
 	}
 	//Initialize services in server-side files
 	file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
@@ -82,8 +85,8 @@ func DealBridgeTask() {
 }
 
 //start a new server
-func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
-	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList)
+func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string, bridgeDisconnect int) {
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList, bridgeDisconnect)
 	go func() {
 		if err := Bridge.StartTunnel(); err != nil {
 			logs.Error("start server bridge error", err)
@@ -101,7 +104,8 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 		if err := svr.Start(); err != nil {
 			logs.Error(err)
 		}
-		RunList[cnf.Id] = svr
+		RunList.Store(cnf.Id, svr)
+		//RunList[cnf.Id] = svr
 	} else {
 		logs.Error("Incorrect startup mode %s", cnf.Mode)
 	}
@@ -109,6 +113,7 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string) {
 
 func dealClientFlow() {
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -145,14 +150,16 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 		httpsPort, _ := beego.AppConfig.Int("https_proxy_port")
 		useCache, _ := beego.AppConfig.Bool("http_cache")
 		cacheLen, _ := beego.AppConfig.Int("http_cache_length")
-		service = proxy.NewHttp(Bridge, c, httpPort, httpsPort, useCache, cacheLen)
+		addOrigin, _ := beego.AppConfig.Bool("http_add_origin_header")
+		service = proxy.NewHttp(Bridge, c, httpPort, httpsPort, useCache, cacheLen, addOrigin)
 	}
 	return service
 }
 
 //stop server
 func StopServer(id int) error {
-	if v, ok := RunList[id]; ok {
+	//if v, ok := RunList[id]; ok {
+	if v, ok := RunList.Load(id); ok {
 		if svr, ok := v.(proxy.Service); ok {
 			if err := svr.Close(); err != nil {
 				return err
@@ -167,7 +174,8 @@ func StopServer(id int) error {
 			t.Status = false
 			file.GetDb().UpdateTask(t)
 		}
-		delete(RunList, id)
+		//delete(RunList, id)
+		RunList.Delete(id)
 		return nil
 	}
 	return errors.New("task is not running")
@@ -177,7 +185,8 @@ func StopServer(id int) error {
 func AddTask(t *file.Tunnel) error {
 	if t.Mode == "secret" || t.Mode == "p2p" {
 		logs.Info("secret task %s start ", t.Remark)
-		RunList[t.Id] = nil
+		//RunList[t.Id] = nil
+		RunList.Store(t.Id, nil)
 		return nil
 	}
 	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
@@ -189,11 +198,13 @@ func AddTask(t *file.Tunnel) error {
 	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		logs.Info("tunnel task %s start mode：%s port %d", t.Remark, t.Mode, t.Port)
-		RunList[t.Id] = svr
+		//RunList[t.Id] = svr
+		RunList.Store(t.Id, svr)
 		go func() {
 			if err := svr.Start(); err != nil {
 				logs.Error("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
-				delete(RunList, t.Id)
+				//delete(RunList, t.Id)
+				RunList.Delete(t.Id)
 				return
 			}
 		}()
@@ -217,7 +228,8 @@ func StartTask(id int) error {
 
 //delete task
 func DelTask(id int) error {
-	if _, ok := RunList[id]; ok {
+	//if _, ok := RunList[id]; ok {
+	if _, ok := RunList.Load(id); ok {
 		if err := StopServer(id); err != nil {
 			return err
 		}
@@ -247,7 +259,8 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 			}
 			if start--; start < 0 {
 				if length--; length >= 0 {
-					if _, ok := RunList[v.Id]; ok {
+					//if _, ok := RunList[v.Id]; ok {
+					if _, ok := RunList.Load(v.Id); ok {
 						v.RunStatus = true
 					} else {
 						v.RunStatus = false
@@ -270,8 +283,9 @@ func GetClientList(start, length int, search, sort, order string, clientId int) 
 func dealClientData() {
 	file.GetDb().JsonDb.Clients.Range(func(key, value interface{}) bool {
 		v := value.(*file.Client)
-		if _, ok := Bridge.Client.Load(v.Id); ok {
+		if vv, ok := Bridge.Client.Load(v.Id); ok {
 			v.IsConnect = true
+			v.Version = vv.(*bridge.Client).Version
 		} else {
 			v.IsConnect = false
 		}
@@ -337,8 +351,12 @@ func DelClientConnect(clientId int) {
 
 func GetDashboardData() map[string]interface{} {
 	data := make(map[string]interface{})
+	data["version"] = version.VERSION
 	data["hostCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Hosts)
-	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients) - 1 //Remove the public key client
+	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients)
+	if beego.AppConfig.String("public_vkey") != "" { //remove public vkey
+		data["clientCount"] = data["clientCount"].(int) - 1
+	}
 	dealClientData()
 	c := 0
 	var in, out int64
@@ -430,6 +448,7 @@ func GetDashboardData() map[string]interface{} {
 
 func flowSession(m time.Duration) {
 	ticker := time.NewTicker(m)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:

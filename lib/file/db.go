@@ -4,14 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/rate"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/rate"
 )
 
 type DbUtils struct {
@@ -328,13 +327,16 @@ func (s *DbUtils) GetInfoByHost(host string, r *http.Request) (h *Host, err erro
 		}
 		//Remove http(s) http(s)://a.proxy.com
 		//*.proxy.com *.a.proxy.com  Do some pan-parsing
-		tmp := strings.Replace(v.Host, "*", `\w+?`, -1)
-		var re *regexp.Regexp
-		if re, err = regexp.Compile(tmp); err != nil {
+		if v.Scheme != "all" && v.Scheme != r.URL.Scheme {
 			return true
 		}
-		if len(re.FindAllString(host, -1)) > 0 && (v.Scheme == "all" || v.Scheme == r.URL.Scheme) {
-			//URL routing
+		tmpHost := v.Host
+		if strings.Contains(tmpHost, "*") {
+			tmpHost = strings.Replace(tmpHost, "*", "", -1)
+			if strings.Contains(host, tmpHost) {
+				hosts = append(hosts, v)
+			}
+		} else if v.Host == host {
 			hosts = append(hosts, v)
 		}
 		return true

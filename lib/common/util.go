@@ -2,8 +2,11 @@ package common
 
 import (
 	"bytes"
+	"ehang.io/nps/lib/version"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -15,8 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/pool"
+	"ehang.io/nps/lib/crypt"
 )
 
 //Get the corresponding IP address through domain name
@@ -51,7 +53,10 @@ func DomainCheck(domain string) bool {
 func CheckAuth(r *http.Request, user, passwd string) bool {
 	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
 	if len(s) != 2 {
-		return false
+		s = strings.SplitN(r.Header.Get("Proxy-Authorization"), " ", 2)
+		if len(s) != 2 {
+			return false
+		}
 	}
 
 	b, err := base64.StdEncoding.DecodeString(s[1])
@@ -95,7 +100,7 @@ func Getverifyval(vkey string) string {
 }
 
 //Change headers and host of request
-func ChangeHostAndHeader(r *http.Request, host string, header string, addr string) {
+func ChangeHostAndHeader(r *http.Request, host string, header string, addr string, addOrigin bool) {
 	if host != "" {
 		r.Host = host
 	}
@@ -109,8 +114,13 @@ func ChangeHostAndHeader(r *http.Request, host string, header string, addr strin
 		}
 	}
 	addr = strings.Split(addr, ":")[0]
-	r.Header.Set("X-Forwarded-For", addr)
-	r.Header.Set("X-Real-IP", addr)
+	if prior, ok := r.Header["X-Forwarded-For"]; ok {
+		addr = strings.Join(prior, ", ") + ", " + addr
+	}
+	if addOrigin {
+		r.Header.Set("X-Forwarded-For", addr)
+		r.Header.Set("X-Real-IP", addr)
+	}
 }
 
 //Read file content by file path
@@ -119,6 +129,7 @@ func ReadAllFromFile(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 	return ioutil.ReadAll(f)
 }
 
@@ -264,11 +275,14 @@ func GetPortByAddr(addr string) int {
 	return p
 }
 
-func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := pool.GetBufPoolCopy()
-	defer pool.PutBufPoolCopy(buf)
+func CopyBuffer(dst io.Writer, src io.Reader, label ...string) (written int64, err error) {
+	buf := CopyBuff.Get()
+	defer CopyBuff.Put(buf)
 	for {
 		nr, er := src.Read(buf)
+		//if len(pr)>0 && pr[0] && nr > 50 {
+		//	logs.Warn(string(buf[:50]))
+		//}
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {
@@ -284,9 +298,7 @@ func CopyBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
 			}
 		}
 		if er != nil {
-			if er != io.EOF {
-				err = er
-			}
+			err = er
 			break
 		}
 	}
@@ -391,4 +403,67 @@ func GetExtFromPath(path string) string {
 		return ""
 	}
 	return string(re.Find([]byte(s[0])))
+}
+
+var externalIp string
+
+func GetExternalIp() string {
+	if externalIp != "" {
+		return externalIp
+	}
+	resp, err := http.Get("http://myexternalip.com/raw")
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	content, _ := ioutil.ReadAll(resp.Body)
+	externalIp = string(content)
+	return externalIp
+}
+
+func GetIntranetIp() (error, string) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, ""
+	}
+	for _, address := range addrs {
+		// 检查ip地址判断是否回环地址
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return nil, ipnet.IP.To4().String()
+			}
+		}
+	}
+	return errors.New("get intranet ip error"), ""
+}
+
+func IsPublicIP(IP net.IP) bool {
+	if IP.IsLoopback() || IP.IsLinkLocalMulticast() || IP.IsLinkLocalUnicast() {
+		return false
+	}
+	if ip4 := IP.To4(); ip4 != nil {
+		switch true {
+		case ip4[0] == 10:
+			return false
+		case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
+			return false
+		case ip4[0] == 192 && ip4[1] == 168:
+			return false
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+func GetServerIpByClientIp(clientIp net.IP) string {
+	if IsPublicIP(clientIp) {
+		return GetExternalIp()
+	}
+	_, ip := GetIntranetIp()
+	return ip
+}
+
+func PrintVersion() {
+	fmt.Printf("Version: %s\nCore version: %s\nSame core version of client and server can connect each other\n", version.VERSION, version.GetVersion())
 }

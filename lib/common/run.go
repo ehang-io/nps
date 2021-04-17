@@ -48,9 +48,20 @@ func IsWindows() bool {
 func GetLogPath() string {
 	var path string
 	if IsWindows() {
-		path = GetAppPath()
+		path = filepath.Join(GetAppPath(), "nps.log")
 	} else {
-		path = "/tmp"
+		path = "/var/log/nps.log"
+	}
+	return path
+}
+
+//interface npc log file path
+func GetNpcLogPath() string {
+	var path string
+	if IsWindows() {
+		path = filepath.Join(GetAppPath(), "npc.log")
+	} else {
+		path = "/var/log/npc.log"
 	}
 	return path
 }
@@ -62,6 +73,17 @@ func GetTmpPath() string {
 		path = GetAppPath()
 	} else {
 		path = "/tmp"
+	}
+	return path
+}
+
+//config file path
+func GetConfigPath() string {
+	var path string
+	if IsWindows() {
+		path = filepath.Join(GetAppPath(), "conf/npc.conf")
+	} else {
+		path = "conf/npc.conf"
 	}
 	return path
 }

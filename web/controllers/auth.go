@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"ehang.io/nps/lib/crypt"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/crypt"
 )
 
 type AuthController struct {

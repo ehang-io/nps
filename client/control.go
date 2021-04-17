@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -11,7 +12,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -19,12 +19,12 @@ import (
 	"strings"
 	"time"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/conn"
+	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/version"
 	"github.com/astaxie/beego/logs"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/config"
-	"github.com/cnlh/nps/lib/conn"
-	"github.com/cnlh/nps/lib/crypt"
-	"github.com/cnlh/nps/lib/version"
 	"github.com/xtaci/kcp-go"
 	"golang.org/x/net/proxy"
 )
@@ -175,7 +175,7 @@ re:
 	} else {
 		logs.Notice("web access login username:%s password:%s", cnf.CommonConfig.Client.WebUserName, cnf.CommonConfig.Client.WebPassword)
 	}
-	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf).Start()
+	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf, cnf.CommonConfig.DisconnectTime).Start()
 	CloseLocalServer()
 	goto re
 }
@@ -198,7 +198,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 					return nil, er
 				}
 				connection, err = n.Dial("tcp", server)
-			case "http":
+			default:
 				connection, err = NewHttpProxyConn(u, server)
 			}
 		} else {
@@ -220,11 +220,19 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
 		return nil, err
 	}
-	if _, err := c.Write([]byte(crypt.Md5(version.GetVersion()))); err != nil {
+	if err := c.WriteLenContent([]byte(version.GetVersion())); err != nil {
 		return nil, err
 	}
-	if b, err := c.GetShortContent(32); err != nil || crypt.Md5(version.GetVersion()) != string(b) {
-		logs.Error("The client does not match the server version. The current version of the client is", version.GetVersion())
+	if err := c.WriteLenContent([]byte(version.VERSION)); err != nil {
+		return nil, err
+	}
+	b, err := c.GetShortContent(32)
+	if err != nil {
+		logs.Error(err)
+		return nil, err
+	}
+	if crypt.Md5(version.GetVersion()) != string(b) {
+		logs.Error("The client does not match the server version. The current core version of the client is", version.GetVersion())
 		return nil, err
 	}
 	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
@@ -233,8 +241,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if s, err := c.ReadFlag(); err != nil {
 		return nil, err
 	} else if s == common.VERIFY_EER {
-		logs.Error("Validation key %s incorrect", vkey)
-		os.Exit(0)
+		return nil, errors.New(fmt.Sprintf("Validation key %s incorrect", vkey))
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
 		return nil, err
@@ -246,29 +253,27 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 
 //http proxy connection
 func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
-	req := &http.Request{
-		Method: "CONNECT",
-		URL:    url,
-		Host:   remoteAddr,
-		Header: http.Header{},
-		Proto:  "HTTP/1.1",
-	}
-	password, _ := url.User.Password()
-	req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(url.User.Username(), password))
-	b, err := httputil.DumpRequest(req, false)
+	req, err := http.NewRequest("CONNECT", "http://"+remoteAddr, nil)
 	if err != nil {
 		return nil, err
 	}
+	password, _ := url.User.Password()
+	req.Header.Set("Authorization", "Basic "+basicAuth(strings.Trim(url.User.Username(), " "), password))
+	// we make a http proxy request
 	proxyConn, err := net.Dial("tcp", url.Host)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := proxyConn.Write(b); err != nil {
+	if err := req.Write(proxyConn); err != nil {
 		return nil, err
 	}
-	buf := make([]byte, 1024)
-	if _, err := proxyConn.Read(buf); err != nil {
+	res, err := http.ReadResponse(bufio.NewReader(proxyConn), req)
+	if err != nil {
 		return nil, err
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, errors.New("Proxy error " + res.Status)
 	}
 	return proxyConn, nil
 }
@@ -364,6 +369,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 		}
 		logs.Trace("try send test packet to target %s", addr)
 		ticker := time.NewTicker(time.Millisecond * 500)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
@@ -389,6 +395,7 @@ func sendP2PTestMsg(localConn *net.UDPConn, remoteAddr1, remoteAddr2, remoteAddr
 						return
 					}
 					ticker := time.NewTicker(time.Second * 2)
+					defer ticker.Stop()
 					for {
 						select {
 						case <-ticker.C:

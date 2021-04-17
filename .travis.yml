@@ -1,0 +1,57 @@
+language: go
+
+go:
+  - 1.14.x
+services:
+  - docker
+script:
+  - GOPROXY=direct go test -v ./cmd/nps/
+os:
+  - linux
+before_deploy:
+  - chmod +x ./build.sh && chmod +x ./build.android.sh && ./build.sh
+
+deploy:
+  provider: releases
+  edge: true
+  token: ${GH_TOKEN}
+  cleanup: false
+  file:
+  - freebsd_386_client.tar.gz
+  - freebsd_386_server.tar.gz
+  - freebsd_amd64_client.tar.gz
+  - freebsd_amd64_server.tar.gz
+  - freebsd_arm_client.tar.gz
+  - freebsd_arm_server.tar.gz
+  - linux_386_client.tar.gz
+  - linux_386_server.tar.gz
+  - linux_amd64_client.tar.gz
+  - linux_amd64_server.tar.gz
+  - linux_arm64_client.tar.gz
+  - linux_arm64_server.tar.gz
+  - linux_arm_v5_client.tar.gz
+  - linux_arm_v6_client.tar.gz
+  - linux_arm_v7_client.tar.gz
+  - linux_arm_v5_server.tar.gz
+  - linux_arm_v6_server.tar.gz
+  - linux_arm_v7_server.tar.gz
+  - linux_mips64le_client.tar.gz
+  - linux_mips64le_server.tar.gz
+  - linux_mips64_client.tar.gz
+  - linux_mips64_server.tar.gz
+  - linux_mipsle_client.tar.gz
+  - linux_mipsle_server.tar.gz
+  - linux_mips_client.tar.gz
+  - linux_mips_server.tar.gz
+  - darwin_amd64_client.tar.gz
+  - darwin_amd64_server.tar.gz
+  - windows_386_client.tar.gz
+  - windows_386_server.tar.gz
+  - windows_amd64_client.tar.gz
+  - windows_amd64_server.tar.gz
+  - npc_syno.spk
+  - npc_sdk.tar.gz
+  - android_client.apk
+  on:
+    tags: true
+    all_branches: true

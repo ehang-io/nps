@@ -1,0 +1,978 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content>
+
+	<application>NPS</application>
+
+	<default>en-US</default>
+
+	<languages>
+		<zh-CN>简体中文</zh-CN>
+		<en-US>English</en-US>
+	</languages>
+
+	<lang id="title-admin">
+		<zh-CN>NPS - 管理</zh-CN>
+		<en-US>NPS Admin</en-US>
+	</lang>
+	<lang id="title-login">
+		<zh-CN>NPS - 登录</zh-CN>
+		<en-US>NPS login</en-US>
+	</lang>
+	<lang id="title-register">
+		<zh-CN>NPS - 注册</zh-CN>
+		<en-US>NPS Register</en-US>
+	</lang>
+
+	<lang id="scheme-host">
+		<zh-CN>域名解析</zh-CN>
+		<en-US>Host</en-US>
+	</lang>
+	<lang id="scheme-tcp">
+		<zh-CN>TCP 隧道</zh-CN>
+		<en-US>TCP</en-US>
+	</lang>
+	<lang id="scheme-udp">
+		<zh-CN>UDP 隧道</zh-CN>
+		<en-US>UDP</en-US>
+	</lang>
+	<lang id="scheme-httpproxy">
+		<zh-CN>HTTP 代理</zh-CN>
+		<en-US>HTTP proxy</en-US>
+	</lang>
+	<lang id="scheme-socks5">
+		<zh-CN>SOCKS 代理</zh-CN>
+		<en-US>SOCKS 5</en-US>
+	</lang>
+	<lang id="scheme-secret">
+		<zh-CN>私密代理</zh-CN>
+		<en-US>Secret</en-US>
+	</lang>
+	<lang id="scheme-p2p">
+		<zh-CN>P2P 连接</zh-CN>
+		<en-US>P2P</en-US>
+	</lang>
+	<lang id="scheme-file">
+		<zh-CN>文件访问</zh-CN>
+		<en-US>File server</en-US>
+	</lang>
+
+	<lang id="page-clientlist">
+		<zh-CN>客户端列表</zh-CN>
+		<en-US>Client list</en-US>
+	</lang>
+	<lang id="page-clientadd">
+		<zh-CN>新增客户端</zh-CN>
+		<en-US>Add client</en-US>
+	</lang>
+	<lang id="page-clientedit">
+		<zh-CN>编辑客户端</zh-CN>
+		<en-US>Edit client</en-US>
+	</lang>
+	<lang id="page-hostlist">
+		<zh-CN>主机列表</zh-CN>
+		<en-US>Host list</en-US>
+	</lang>
+	<lang id="page-hostadd">
+		<zh-CN>新增主机</zh-CN>
+		<en-US>Add host</en-US>
+	</lang>
+	<lang id="page-hostedit">
+		<zh-CN>编辑主机</zh-CN>
+		<en-US>Edit host</en-US>
+	</lang>
+	<lang id="page-listclientid">
+		<zh-CN>隧道列表 - 客户端 ID: </zh-CN>
+		<en-US>Tunnels list - Client ID: </en-US>
+	</lang>
+	<lang id="page-listtcp">
+		<zh-CN>TCP 隧道列表</zh-CN>
+		<en-US>TCP list</en-US>
+	</lang>
+	<lang id="page-listudp">
+		<zh-CN>UDP 隧道列表</zh-CN>
+		<en-US>UDP list</en-US>
+	</lang>
+	<lang id="page-listhttpproxy">
+		<zh-CN>HTTP 代理列表</zh-CN>
+		<en-US>HTTP proxy list</en-US>
+	</lang>
+	<lang id="page-listsocks5">
+		<zh-CN>SOCKS 代理列表</zh-CN>
+		<en-US>SOCKS 5 list</en-US>
+	</lang>
+	<lang id="page-listsecret">
+		<zh-CN>私密代理列表</zh-CN>
+		<en-US>Secret list</en-US>
+	</lang>
+	<lang id="page-listp2p">
+		<zh-CN>P2P 连接列表</zh-CN>
+		<en-US>P2P list</en-US>
+	</lang>
+	<lang id="page-listfileserver">
+		<zh-CN>文件代理列表</zh-CN>
+		<en-US>File server list</en-US>
+	</lang>
+	<lang id="page-add">
+		<zh-CN>新增</zh-CN>
+		<en-US>Add</en-US>
+	</lang>
+	<lang id="page-edit">
+		<zh-CN>编辑</zh-CN>
+		<en-US>Edit</en-US>
+	</lang>
+
+	<lang id="word-address">
+		<zh-CN>客户端地址</zh-CN>
+		<en-US>Client address</en-US>
+	</lang>
+	<lang id="word-add">
+		<zh-CN>新增</zh-CN>
+		<en-US>Add</en-US>
+	</lang>
+	<lang id="word-admin">
+		<zh-CN>管理员</zh-CN>
+		<en-US>Admin</en-US>
+	</lang>
+	<lang id="word-all">
+		<zh-CN>所有</zh-CN>
+		<en-US>All</en-US>
+	</lang>
+	<lang id="word-bandwidth">
+		<zh-CN>带宽</zh-CN>
+		<en-US>Bandwidth</en-US>
+	</lang>
+	<lang id="word-basicpassword">
+		<zh-CN>Basic 认证密码</zh-CN>
+		<en-US>Basic authentication password</en-US>
+	</lang>
+	<lang id="word-basicusername">
+		<zh-CN>Basic 认证用户名</zh-CN>
+		<en-US>Basic authentication username</en-US>
+	</lang>
+	<lang id="word-bridgingmode">
+		<zh-CN>桥接模式</zh-CN>
+		<en-US>Bridging mode</en-US>
+	</lang>
+	<lang id="word-clientid">
+		<zh-CN>客户端 ID</zh-CN>
+		<en-US>Client ID</en-US>
+	</lang>
+	<lang id="word-clientstatus">
+		<zh-CN>客户端状态</zh-CN>
+		<en-US>Client status</en-US>
+	</lang>
+	<lang id="word-client">
+		<zh-CN>客户端</zh-CN>
+		<en-US>Client</en-US>
+	</lang>
+	<lang id="word-close">
+		<zh-CN>关闭</zh-CN>
+		<en-US>Close</en-US>
+	</lang>
+	<lang id="word-commandaccessp2ps">
+		<zh-CN>访问端命令 (SOCKS 5)</zh-CN>
+		<en-US>Access command (SOCKS 5)</en-US>
+	</lang>
+	<lang id="word-commandaccessp2pt">
+		<zh-CN>访问端命令 (透明代理)</zh-CN>
+		<en-US>Access command (Transparent proxy)</en-US>
+	</lang>
+	<lang id="word-commandaccessp2p">
+		<zh-CN>访问端命令 (TCP)</zh-CN>
+		<en-US>Access command (TCP)</en-US>
+	</lang>
+	<lang id="word-commandaccess">
+		<zh-CN>访问端命令</zh-CN>
+		<en-US>Access command</en-US>
+	</lang>
+	<lang id="word-commandclient">
+		<zh-CN>客户端命令</zh-CN>
+		<en-US>Command</en-US>
+	</lang>
+	<lang id="word-compress">
+		<zh-CN>压缩</zh-CN>
+		<en-US>Compress</en-US>
+	</lang>
+	<lang id="word-configurationinformation">
+		<zh-CN>配置信息</zh-CN>
+		<en-US>Configuration information</en-US>
+	</lang>
+	<lang id="word-connectbyconfig">
+		<zh-CN>允许客户端通过配置文件连接</zh-CN>
+		<en-US>Allow client connect by config file</en-US>
+	</lang>
+	<lang id="word-connectionport">
+		<zh-CN>客户端连接端口</zh-CN>
+		<en-US>Client connection port</en-US>
+	</lang>
+	<lang id="word-connections_established">
+		<zh-CN>连接数 (已建立)</zh-CN>
+		<en-US>Connections (establish)</en-US>
+	</lang>
+	<lang id="word-connect">
+		<zh-CN>连接</zh-CN>
+		<en-US>Connect</en-US>
+	</lang>
+	<lang id="word-copyright">
+		<zh-CN>版权所有</zh-CN>
+		<en-US>Copyright</en-US>
+	</lang>
+	<lang id="word-cpu">
+		<zh-CN>处理器</zh-CN>
+		<en-US>CPU</en-US>
+	</lang>
+	<lang id="word-crypt">
+		<zh-CN>加密</zh-CN>
+		<en-US>Crypt</en-US>
+	</lang>
+	<lang id="word-curconnections">
+		<zh-CN>当前连接数</zh-CN>
+		<en-US>Current connections</en-US>
+	</lang>
+	<lang id="word-dashboard">
+		<zh-CN>仪表盘</zh-CN>
+		<en-US>Dashboard</en-US>
+	</lang>
+	<lang id="word-exportflow">
+		<zh-CN>出口流量</zh-CN>
+		<en-US>Export Flow</en-US>
+	</lang>
+	<lang id="word-false">
+		<zh-CN>否</zh-CN>
+		<en-US>Flase</en-US>
+	</lang>
+	<lang id="word-flowlimit">
+		<zh-CN>流量限制</zh-CN>
+		<en-US>Flow limit</en-US>
+	</lang>
+	<lang id="word-go">
+		<zh-CN>进入</zh-CN>
+		<en-US>go</en-US>
+	</lang>
+	<lang id="word-help">
+		<zh-CN>使用说明</zh-CN>
+		<en-US>Manual</en-US>
+	</lang>
+	<lang id="word-host">
+		<zh-CN>主机</zh-CN>
+		<en-US>Host</en-US>
+	</lang>
+	<lang id="word-http">HTTP
+	</lang>
+	<lang id="word-httpport">
+		<zh-CN>HTTP 端口</zh-CN>
+		<en-US>HTTP port</en-US>
+	</lang>
+	<lang id="word-httpscert">
+		<zh-CN>HTTPS 证书</zh-CN>
+		<en-US>HTTPS cert</en-US>
+	</lang>
+	<lang id="word-https">HTTPS
+	</lang>
+	<lang id="word-httpskey">
+		<zh-CN>HTTPS 密钥</zh-CN>
+		<en-US>HTTPS key</en-US>
+	</lang>
+	<lang id="word-httpsport">
+		<zh-CN>HTTPS 端口</zh-CN>
+		<en-US>HTTPS port</en-US>
+	</lang>
+	<lang id="word-identificationkey">
+		<zh-CN>唯一标识密钥</zh-CN>
+		<en-US>Unique identification  Key</en-US>
+	</lang>
+	<lang id="word-id">ID
+	</lang>
+	<lang id="word-inbandwidth">
+		<zh-CN>流入带宽</zh-CN>
+		<en-US>In</en-US>
+	</lang>
+	<lang id="word-inletflow">
+		<zh-CN>入口流量</zh-CN>
+		<en-US>Inlet Flow</en-US>
+	</lang>
+	<lang id="word-iprestriction">
+		<zh-CN>IP 限制</zh-CN>
+		<en-US>IP restriction</en-US>
+	</lang>
+	<lang id="word-load">
+		<zh-CN>负载</zh-CN>
+		<en-US>Load</en-US>
+	</lang>
+	<lang id="word-localpath">
+		<zh-CN>本地路径</zh-CN>
+		<en-US>Local path</en-US>
+	</lang>
+	<lang id="word-location">
+		<zh-CN>位置</zh-CN>
+		<en-US>Location</en-US>
+	</lang>
+	<lang id="word-login">
+		<zh-CN>登录</zh-CN>
+		<en-US>Login</en-US>
+	</lang>
+	<lang id="word-loglevel">
+		<zh-CN>日志级别</zh-CN>
+		<en-US>Log level</en-US>
+	</lang>
+	<lang id="word-logout">
+		<zh-CN>退出</zh-CN>
+		<en-US>Logout</en-US>
+	</lang>
+	<lang id="word-maxconnections">
+		<zh-CN>最大连接数</zh-CN>
+		<en-US>Maximum connections</en-US>
+	</lang>
+	<lang id="word-maxtunnels">
+		<zh-CN>最大隧道数</zh-CN>
+		<en-US>Maximum tunnels</en-US>
+	</lang>
+	<lang id="word-memory">
+		<zh-CN>内存</zh-CN>
+		<en-US>Memory</en-US>
+	</lang>
+	<lang id="word-no">
+		<zh-CN>否</zh-CN>
+		<en-US>No</en-US>
+	</lang>
+	<lang id="word-offline">
+		<zh-CN>离线</zh-CN>
+		<en-US>Offline</en-US>
+	</lang>
+	<lang id="word-onlineclients">
+		<zh-CN>在线客户端</zh-CN>
+		<en-US>Online clients</en-US>
+	</lang>
+	<lang id="word-online">
+		<zh-CN>在线</zh-CN>
+		<en-US>Online</en-US>
+	</lang>
+	<lang id="word-open">
+		<zh-CN>开放</zh-CN>
+		<en-US>Open</en-US>
+	</lang>
+	<lang id="word-option">
+		<zh-CN>选项</zh-CN>
+		<en-US>option</en-US>
+	</lang>
+	<lang id="word-outbandwidth">
+		<zh-CN>流出带宽</zh-CN>
+		<en-US>Out</en-US>
+	</lang>
+	<lang id="word-p2pport">
+		<zh-CN>P2P 端口</zh-CN>
+		<en-US>P2P port</en-US>
+	</lang>
+	<lang id="word-password">
+		<zh-CN>密码</zh-CN>
+		<en-US>Password</en-US>
+	</lang>
+	<lang id="word-port">
+		<zh-CN>端口</zh-CN>
+		<en-US>Port</en-US>
+	</lang>
+	<lang id="word-proxytolocal">
+		<zh-CN>代理到服务器本地</zh-CN>
+		<en-US>Proxy to server local</en-US>
+	</lang>
+	<lang id="word-publicvkey">
+		<zh-CN>公钥</zh-CN>
+		<en-US>Public vkey</en-US>
+	</lang>
+	<lang id="word-ratelimit">
+		<zh-CN>带宽限制</zh-CN>
+		<en-US>Rate limit</en-US>
+	</lang>
+	<lang id="word-readmore">
+		<zh-CN>更多说明</zh-CN>
+		<en-US>Read more</en-US>
+	</lang>
+	<lang id="word-register">
+		<zh-CN>注册</zh-CN>
+		<en-US>Register</en-US>
+	</lang>
+	<lang id="word-remark">
+		<zh-CN>备注</zh-CN>
+		<en-US>Remark</en-US>
+	</lang>
+	<lang id="word-requestheader">
+		<zh-CN>请求头部信息修改</zh-CN>
+		<en-US>Header modify</en-US>
+	</lang>
+	<lang id="word-requesthost">
+		<zh-CN>请求主机信息修改</zh-CN>
+		<en-US>Host modify</en-US>
+	</lang>
+	<lang id="word-runstatus">
+		<zh-CN>运行状态</zh-CN>
+		<en-US>Run status</en-US>
+	</lang>
+	<lang id="word-save">
+		<zh-CN>保存</zh-CN>
+		<en-US>Save</en-US>
+	</lang>
+	<lang id="word-scheme">
+		<zh-CN>模式</zh-CN>
+		<en-US>Scheme</en-US>
+	</lang>
+	<lang id="word-serverip">
+		<zh-CN>服务端 IP</zh-CN>
+		<en-US>Server IP</en-US>
+	</lang>
+	<lang id="word-serveriP">
+		<zh-CN>服务端 IP</zh-CN>
+		<en-US>Server IP</en-US>
+	</lang>
+	<lang id="word-serverport">
+		<zh-CN>服务端端口</zh-CN>
+		<en-US>Server Port</en-US>
+	</lang>
+	<lang id="word-serverversion">
+		<zh-CN>服务端版本</zh-CN>
+		<en-US>Server version</en-US>
+	</lang>
+	<lang id="word-show">
+		<zh-CN>查看</zh-CN>
+		<en-US>Show</en-US>
+	</lang>
+	<lang id="word-speed">
+		<zh-CN>网速</zh-CN>
+		<en-US>Speed</en-US>
+	</lang>
+	<lang id="word-status">
+		<zh-CN>状态</zh-CN>
+		<en-US>Status</en-US>
+	</lang>
+	<lang id="word-stripprefix">
+		<zh-CN>访问前缀</zh-CN>
+		<en-US>Strip prefix</en-US>
+	</lang>
+	<lang id="word-swapmemory">
+		<zh-CN>交换空间</zh-CN>
+		<en-US>Swap memory</en-US>
+	</lang>
+	<lang id="word-systeminformation">
+		<zh-CN>系统信息</zh-CN>
+		<en-US>System information</en-US>
+	</lang>
+	<lang id="word-system">
+		<zh-CN>系统</zh-CN>
+		<en-US>System</en-US>
+	</lang>
+	<lang id="word-target">
+		<zh-CN>目标 (IP:端口)</zh-CN>
+		<en-US>Target (IP:Port)</en-US>
+	</lang>
+	<lang id="word-tcpconnections_established">
+		<zh-CN>TCP 连接 (已建立)</zh-CN>
+		<en-US>TCP connections (establish)</en-US>
+	</lang>
+	<lang id="word-tcpconnections">
+		<zh-CN>当前TCP连接数</zh-CN>
+		<en-US>TCP connections</en-US>
+	</lang>
+	<lang id="word-totalclients">
+		<zh-CN>客户端总数</zh-CN>
+		<en-US>Total clients</en-US>
+	</lang>
+	<lang id="word-trafficdatapersistence">
+		<zh-CN>流量数据持久化</zh-CN>
+		<en-US>Traffic data persistence</en-US>
+	</lang>
+	<lang id="word-trafficstatistics">
+		<zh-CN>流量统计</zh-CN>
+		<en-US>Traffic statistics</en-US>
+	</lang>
+	<lang id="word-true">
+		<zh-CN>是</zh-CN>
+		<en-US>True</en-US>
+	</lang>
+	<lang id="word-tunnel">
+		<zh-CN>隧道</zh-CN>
+		<en-US>Tunnel</en-US>
+	</lang>
+	<lang id="word-type">
+		<zh-CN>连接类型</zh-CN>
+		<en-US>Connect type</en-US>
+	</lang>
+	<lang id="word-udpconnections_established">
+		<zh-CN>UDP 连接 (已建立)</zh-CN>
+		<en-US>UDP connections (establish)</en-US>
+	</lang>
+	<lang id="word-unit">
+		<zh-CN>单位</zh-CN>
+		<en-US>Flow limit</en-US>
+	</lang>
+	<lang id="word-urlroute">
+		<zh-CN>URL 路由</zh-CN>
+		<en-US>Url router</en-US>
+	</lang>
+	<lang id="word-usecase">
+		<zh-CN>使用场景</zh-CN>
+		<en-US>Use Case</en-US>
+	</lang>
+	<lang id="word-username">
+		<zh-CN>用户名</zh-CN>
+		<en-US>Username</en-US>
+	</lang>
+	<lang id="word-user">
+		<zh-CN>用户</zh-CN>
+		<en-US>User</en-US>
+	</lang>
+	<lang id="word-verifykey">
+		<zh-CN>唯一验证密钥</zh-CN>
+		<en-US>Unique verify Key</en-US>
+	</lang>
+	<lang id="word-version">
+		<zh-CN>版本</zh-CN>
+		<en-US>Version</en-US>
+	</lang>
+	<lang id="word-virtualmemory">
+		<zh-CN>虚拟内存</zh-CN>
+		<en-US>Virtual memory</en-US>
+	</lang>
+	<lang id="word-webpassword">
+		<zh-CN>Web登陆密码</zh-CN>
+		<en-US>Password of Web login</en-US>
+	</lang>
+	<lang id="word-webusername">
+		<zh-CN>Web登陆用户名</zh-CN>
+		<en-US>Username of Web login</en-US>
+	</lang>
+	<lang id="word-welcome">
+		<zh-CN>欢迎使用</zh-CN>
+		<en-US>Welcome to use</en-US>
+	</lang>
+	<lang id="word-yes">
+		<zh-CN>是</zh-CN>
+		<en-US>Yes</en-US>
+	</lang>
+	<lang id="word-">
+	</lang>
+
+	<lang id="info-autogenerated">
+		<zh-CN>唯一值，不填将自动生成</zh-CN>
+		<en-US>Unique, non-filling will be generated automatically</en-US>
+	</lang>
+	<lang id="info-casefile">
+		<zh-CN>通提供一个公网可访问的本地文件服务，此模式仅客户端使用配置文件模式方可启动。</zh-CN>
+		<en-US>Provide a local file service accessible to the public network, which can only be started by the client using the profile mode.</en-US>
+	</lang>
+	<lang id="info-casehttpproxy">
+		<zh-CN>将公网服务器1.1.1.1的8004端口作为HTTP代理，访问内网网站。</zh-CN>
+		<en-US>Use port 8004 of public server 1.1.1.1 as HTTP proxy to visit intranet site.</en-US>
+	</lang>
+	<lang id="info-casep2p">
+		<zh-CN>流量不经过公网服务器，受nat类型影响较大，不能保证100%成功，支持大部分nat类型。</zh-CN>
+		<en-US>The traffic does not pass through the public network server, which is greatly affected by the NAT type, and cannot guarantee 100% success. Most NAT types are supported. A client is also required to provide a port for access to the access side.</en-US>
+	</lang>
+	<lang id="info-casesecret">
+		<zh-CN>无需新增端口,实现访问内网服务器10.1.50.2的22端口,可防止其他人连接。还需要一个客户端作为访问端提供一个端口进行访问。</zh-CN>
+		<en-US>There is no need to add a new port to access port 22 of intranet server 10.1.50.2, which can prevent other people from connecting. A client is also required to provide a port for access to the access side.</en-US>
+	</lang>
+	<lang id="info-casesocks5">
+		<zh-CN>将公网服务器1.1.1.1的8003端口作为SOCKS5代理，访问内网任意设备或者资源。</zh-CN>
+		<en-US>Use port 8003 of public server 1.1.1.1 as Socks5 proxy to access any device or resource in the Intranet.</en-US>
+	</lang>
+	<lang id="info-casetcp">
+		<zh-CN>通过公网服务器1.1.1.1的8001端口，连接内网机器10.1.50.101的22端口，实现SSH连接。</zh-CN>
+		<en-US>Connect port 8001 of public server 1.1.1.1 to port 22 of Intranet machine 10.1.50.101 to realize SSH connection.</en-US>
+	</lang>
+	<lang id="info-caseudp">
+		<zh-CN>通过公网服务器1.1.1.1的53端口，访问内网机器10.1.50.101的53端口，使用DNS服务。</zh-CN>
+		<en-US>Through port 53 of public server 1.1.1.1, access port 53 of Intranet machine 10.1.50.101, and use DNS service.</en-US>
+	</lang>
+	<lang id="info-createaccount">
+		<zh-CN>创建账号以进行管理</zh-CN>
+		<en-US>Create account to see it in action.</en-US>
+	</lang>
+	<lang id="info-haveaccount">
+		<zh-CN>已经有帐号了？</zh-CN>
+		<en-US>Already have an account?</en-US>
+	</lang>
+	<lang id="info-header">
+		<zh-CN>冒号分割，多个头部请填写多行</zh-CN>
+		<en-US>Colon separated, multiple lines please fill in</en-US>
+	</lang>
+	<lang id="info-identificationkey">
+		<zh-CN>P2P连接和私密代理模式需要</zh-CN>
+		<en-US>When P2P or Secret</en-US>
+	</lang>
+	<lang id="info-feature1">
+		<zh-CN>协议支持全面，兼容几乎所有常用协议，例如tcp、udp、http(s)、socks5、p2p、http代理...</zh-CN>
+		<en-US>Comprehensive protocol support, compatible with almost all commonly used protocols, such as tcp, udp, http(s), socks5, p2p, http proxy ...</en-US>
+	</lang>
+	<lang id="info-feature2">
+		<zh-CN>全平台兼容(linux、windows、macos、群辉等)，支持一键安装为系统服务</zh-CN>
+		<en-US>Full platform compatibility (linux, windows, macos, Qunhui, etc.), support installation as a system service simply.</en-US>
+	</lang>
+	<lang id="info-feature3">
+		<zh-CN>控制全面，同时支持服务端和客户端控制</zh-CN>
+		<en-US>Comprehensive control, both client and server control are allowed.</en-US>
+	</lang>
+	<lang id="info-feature4">
+		<zh-CN>https集成，支持将后端代理和web服务转成https，同时支持多证书</zh-CN>
+		<en-US>Https integration, support to convert backend proxy and web services to https, and support multiple certificates.</en-US>
+	</lang>
+	<lang id="info-feature5">
+		<zh-CN>操作简单，只需简单的配置即可在web ui上完成其余操作</zh-CN>
+		<en-US>Just simple configuration on web ui can complete most requirements.</en-US>
+	</lang>
+	<lang id="info-feature6">
+		<zh-CN>展示信息全面，流量、系统信息、即时带宽、客户端版本等</zh-CN>
+		<en-US>Complete information display, such as traffic, system information, real-time bandwidth, client version, etc.</en-US>
+	</lang>
+	<lang id="info-feature7">
+		<zh-CN>扩展功能强大，该有的都有了（缓存、压缩、加密、流量限制、带宽限制、端口复用等等）</zh-CN>
+		<en-US>Powerful extension functions, everything is available (cache, compression, encryption, traffic limit, bandwidth limit, port reuse, etc.)</en-US>
+	</lang>
+	<lang id="info-feature8">
+		<zh-CN>域名解析具备自定义header、404页面配置、host修改、站点保护、URL路由、泛解析等功能</zh-CN>
+		<en-US>Domain name resolution has functions such as custom headers, 404 page configuration, host modification, site protection, URL routing, and pan-resolution.</en-US>
+	</lang>
+	<lang id="info-feature9">
+		<zh-CN>服务端支持多用户和用户注册功能</zh-CN>
+		<en-US>Multi-user and user registration support on server.</en-US>
+	</lang>
+	<lang id="info-noaccount">
+		<zh-CN>还没有有帐号？</zh-CN>
+		<en-US>Do not have an account?</en-US>
+	</lang>
+	<lang id="info-onlyproxy">
+		<zh-CN>仅限Socks5、Web、HTTP转发代理</zh-CN>
+		<en-US>Only socks5 , web, HTTP forward proxy</en-US>
+	</lang>
+	<lang id="info-register">
+		<zh-CN>注册到 NPS</zh-CN>
+		<en-US>Register to NPS</en-US>
+	</lang>
+	<lang id="info-suchashost">
+		<zh-CN>例如 a.proxy.com</zh-CN>
+		<en-US>such as a.proxy.com</en-US>
+	</lang>
+	<lang id="info-suchasip">
+		<zh-CN>例如 0.0.0.0</zh-CN>
+		<en-US>such as 0.0.0.0</en-US>
+	</lang>
+	<lang id="info-suchasiplist">
+		<zh-CN>例如&#10;10.1.50.203:80&#10;10.1.50.202:80</zh-CN>
+		<en-US>such as&#10;10.1.50.203:80&#10;10.1.50.202:80</en-US>
+	</lang>
+	<lang id="info-suchaslocalpath">
+		<zh-CN>例如 /tmp</zh-CN>
+		<en-US>such as /tmp</en-US>
+	</lang>
+	<lang id="info-suchasport">
+		<zh-CN>例如 8024</zh-CN>
+		<en-US>such as 8024</en-US>
+	</lang>
+	<lang id="info-suchasstripprefix">
+		<zh-CN>例如 static</zh-CN>
+		<en-US>such as static</en-US>
+	</lang>
+	<lang id="info-tagline">
+		<zh-CN>一款轻量级、高性能、功能强大的内网穿透代理服务器</zh-CN>
+		<en-US>A lightweight, high-performance, powerful intranet reverse proxy server</en-US>
+	</lang>
+	<lang id="info-targethost">
+		<zh-CN>分行填写多个目标可实现负载均衡</zh-CN>
+		<en-US>Line break if load balancing</en-US>
+	</lang>
+	<lang id="info-targettunnel">
+		<zh-CN>代理到本地可以只填写端口号，只有TCP模式支持负载均衡</zh-CN>
+		<en-US>Can only fill in ports if it is local machine proxy, only tcp supports load balancing</en-US>
+	</lang>
+	<lang id="info-unrestricted">
+		<zh-CN>留空表示不受限制</zh-CN>
+		<en-US>Empty means to be unrestricted</en-US>
+	</lang>
+
+	<confirm>
+		<lang id="delete">
+			<zh-CN>你确定你要删除它吗？</zh-CN>
+			<en-US>Are you sure you want to delete it?</en-US>
+		</lang>
+		<lang id="start">
+			<zh-CN>你确定你要启动它吗？</zh-CN>
+			<en-US>Are you sure you want to start it?</en-US>
+		</lang>
+		<lang id="stop">
+			<zh-CN>你确定你要停止它吗？</zh-CN>
+			<en-US>Are you sure you want to stop it?</en-US>
+		</lang>
+	</confirm>
+
+	<reply>
+		<lang id="adderrortheclientcannotbefound">
+			<zh-CN>添加错误，找不到客户端</zh-CN>
+			<en-US>Add error, the client can not be found</en-US>
+		</lang>
+		<lang id="addfailhosthasexist">
+			<zh-CN>添加失败，主机已存在</zh-CN>
+			<en-US>Add fail, host has exist</en-US>
+		</lang>
+		<lang id="addsuccess">
+			<zh-CN>添加成功</zh-CN>
+			<en-US>Add success</en-US>
+		</lang>
+		<lang id="deleteerror">
+			<zh-CN>删除出错</zh-CN>
+			<en-US>Delete error</en-US>
+		</lang>
+		<lang id="deletesuccess">
+			<zh-CN>删除成功</zh-CN>
+			<en-US>Delete success</en-US>
+		</lang>
+		<lang id="hosthasexist">
+			<zh-CN>主机已存在</zh-CN>
+			<en-US>Host has exist</en-US>
+		</lang>
+		<lang id="modifiederrortheclientisnotexist">
+			<zh-CN>修改出错，客户端不存在</zh-CN>
+			<en-US>Modified error, the client is not exist</en-US>
+		</lang>
+		<lang id="modifiedfail">
+			<zh-CN>修改失败</zh-CN>
+			<en-US>Modified fail</en-US>
+		</lang>
+		<lang id="modifiedsuccess">
+			<zh-CN>修改成功</zh-CN>
+			<en-US>Modified success</en-US>
+		</lang>
+		<lang id="savesuccess">
+			<zh-CN>保存成功</zh-CN>
+			<en-US>Save success</en-US>
+		</lang>
+		<lang id="starterror">
+			<zh-CN>启动出错</zh-CN>
+			<en-US>Start error</en-US>
+		</lang>
+		<lang id="startsuccess">
+			<zh-CN>启动成功</zh-CN>
+			<en-US>Start success</en-US>
+		</lang>
+		<lang id="stoperror">
+			<zh-CN>停止出错</zh-CN>
+			<en-US>Stop error</en-US>
+		</lang>
+		<lang id="stopsuccess">
+			<zh-CN>停止成功</zh-CN>
+			<en-US>Stop success</en-US>
+		</lang>
+		<lang id="Thenumberoftunnelsexceedsthelimit">
+			<zh-CN>隧道数量超过限制</zh-CN>
+			<en-US>The number of tunnels exceeds the limit</en-US>
+		</lang>
+		<lang id="theportcannotbeopenedbecauseitmayhasbeenoccupiedorisnolongerallowed">
+			<zh-CN>无法打开端口，因为它可能已被占用或不再被允许。</zh-CN>
+			<en-US>The port cannot be opened because it may has been occupied or is no longer allowed.</en-US>
+		</lang>
+		<lang id="vkeyduplicatepleasereset">
+			<zh-CN>唯一验证密钥重复，请重新设置</zh-CN>
+			<en-US>Unique verify key duplicate, please reset</en-US>
+		</lang>
+		<lang id="webloginusernameduplicatepleasereset">
+			<zh-CN>Web登陆用户名重复，请重新设置</zh-CN>
+			<en-US>Web login username duplicate, please reset</en-US>
+		</lang>
+	</reply>
+
+	<charts>
+		<lang id="load">
+			<series>
+				<array id="0">
+					<name>
+						<zh-CN>平均负载 1</zh-CN>
+						<en-US>Load avg 1</en-US>
+					</name>
+				</array>
+				<array id="1">
+					<name>
+						<zh-CN>平均负载 5</zh-CN>
+						<en-US>Load avg 5</en-US>
+					</name>
+				</array>
+				<array id="2">
+					<name>
+						<zh-CN>平均负载 15</zh-CN>
+						<en-US>Load avg 15</en-US>
+					</name>
+				</array>
+			</series>
+		</lang>
+		<lang id="cpu">
+			<series>
+				<array id="0">
+					<name>
+						<zh-CN>处理器</zh-CN>
+						<en-US>CPU</en-US>
+					</name>
+				</array>
+			</series>
+		</lang>
+		<lang id="memory">
+			<series>
+				<array id="0">
+					<name>
+						<zh-CN>虚拟内存</zh-CN>
+						<en-US>Virtual memory</en-US>
+					</name>
+				</array>
+				<array id="1">
+					<name>
+						<zh-CN>交换空间</zh-CN>
+						<en-US>Swap memory</en-US>
+					</name>
+				</array>
+			</series>
+		</lang>
+		<lang id="connections">
+			<series>
+				<array id="0">
+					<name>TCP</name>
+				</array>
+				<array id="1">
+					<name>UDP</name>
+				</array>
+			</series>
+		</lang>
+		<lang id="bandwidth">
+			<series>
+				<array id="0">
+					<name>
+						<zh-CN>入口</zh-CN>
+						<en-US>In</en-US>
+					</name>
+				</array>
+				<array id="1">
+					<name>
+						<zh-CN>出口</zh-CN>
+						<en-US>Out</en-US>
+					</name>
+				</array>
+			</series>
+		</lang>
+		<lang id="flow">
+			<legend>
+				<data>
+					<array id="0">
+						<zh-CN>出口</zh-CN>
+						<en-US>Out</en-US>
+					</array>
+					<array id="1">
+						<zh-CN>入口</zh-CN>
+						<en-US>In</en-US>
+					</array>
+				</data>
+			</legend>
+			<series>
+				<array id="0">
+					<name>
+						<zh-CN>流量统计</zh-CN>
+						<en-US>Traffic</en-US>
+					</name>
+					<data>
+						<array id="0">
+							<name>
+								<zh-CN>入口</zh-CN>
+								<en-US>In</en-US>
+							</name>
+						</array>
+						<array id="1">
+							<name>
+								<zh-CN>出口</zh-CN>
+								<en-US>Out</en-US>
+							</name>
+						</array>
+					</data>
+				</array>
+			</series>
+		</lang>
+		<lang id="counts">
+			<legend>
+				<data>
+					<array id="0">
+						<zh-CN>域名转发</zh-CN>
+						<en-US>HOST</en-US>
+					</array>
+					<array id="1">
+						<zh-CN>TCP 隧道</zh-CN>
+						<en-US>TCP</en-US>
+					</array>
+					<array id="2">
+						<zh-CN>UDP 隧道</zh-CN>
+						<en-US>UDP</en-US>
+					</array>
+					<array id="3">
+						<zh-CN>HTTP 代理</zh-CN>
+						<en-US>HTTP</en-US>
+					</array>
+					<array id="4">
+						<zh-CN>SOCKS 代理</zh-CN>
+						<en-US>SOCKS 5</en-US>
+					</array>
+					<array id="5">
+						<zh-CN>私密代理</zh-CN>
+						<en-US>Secret</en-US>
+					</array>
+					<array id="6">
+						<zh-CN>P2P 连接</zh-CN>
+						<en-US>P2P</en-US>
+					</array>
+				</data>
+			</legend>
+			<series>
+				<array id="0">
+					<name>
+						<zh-CN>协议类型</zh-CN>
+						<en-US>Tcheme type</en-US>
+					</name>
+					<data>
+						<array id="0">
+							<name>
+								<zh-CN>域名转发</zh-CN>
+								<en-US>HOST</en-US>
+							</name>
+						</array>
+						<array id="1">
+							<name>
+								<zh-CN>TCP 隧道</zh-CN>
+								<en-US>TCP</en-US>
+							</name>
+						</array>
+						<array id="2">
+							<name>
+								<zh-CN>UDP 隧道</zh-CN>
+								<en-US>UDP</en-US>
+							</name>
+						</array>
+						<array id="3">
+							<name>
+								<zh-CN>HTTP 代理</zh-CN>
+								<en-US>HTTP</en-US>
+							</name>
+						</array>
+						<array id="4">
+							<name>
+								<zh-CN>SOCKS 代理</zh-CN>
+								<en-US>SOCKS 5</en-US>
+							</name>
+						</array>
+						<array id="5">
+							<name>
+								<zh-CN>私密代理</zh-CN>
+								<en-US>Secret</en-US>
+							</name>
+						</array>
+						<array id="6">
+							<name>
+								<zh-CN>P2P 连接</zh-CN>
+								<en-US>P2P</en-US>
+							</name>
+						</array>
+					</data>
+				</array>
+			</series>
+		</lang>
+	</charts>
+</content>

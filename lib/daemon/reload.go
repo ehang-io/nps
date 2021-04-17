@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"ehang.io/nps/lib/common"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
 )
 
 func init() {

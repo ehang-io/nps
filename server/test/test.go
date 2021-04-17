@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/file"
 	"github.com/astaxie/beego"
-	"github.com/cnlh/nps/lib/common"
-	"github.com/cnlh/nps/lib/file"
 )
 
 func TestServerConfig() {
@@ -52,10 +52,10 @@ func TestServerConfig() {
 			if port, err := strconv.Atoi(p); err != nil {
 				log.Fatalln("get https port error", err)
 			} else {
-				if !common.FileExists(filepath.Join(common.GetRunPath(), beego.AppConfig.String("pemPath"))) {
+				if beego.AppConfig.String("pemPath") != "" && !common.FileExists(filepath.Join(common.GetRunPath(), beego.AppConfig.String("pemPath"))) {
 					log.Fatalf("ssl certFile %s is not exist", beego.AppConfig.String("pemPath"))
 				}
-				if !common.FileExists(filepath.Join(common.GetRunPath(), beego.AppConfig.String("ketPath"))) {
+				if beego.AppConfig.String("keyPath") != "" && !common.FileExists(filepath.Join(common.GetRunPath(), beego.AppConfig.String("keyPath"))) {
 					log.Fatalf("ssl keyFile %s is not exist", beego.AppConfig.String("pemPath"))
 				}
 				isInArr(&postTcpArr, port, "http port", "tcp")

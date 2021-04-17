@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        package="org.nps.client"
+        android:versionCode="1"
+        android:versionName="0.26.10">
+
+    <application android:label="Npc" android:debuggable="true">
+        <activity android:name="org.golang.app.GoNativeActivity"
+                  android:label="Npc"
+                  android:configChanges="orientation|keyboardHidden">
+            <meta-data android:name="android.app.lib_name" android:value="npc"/>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>
