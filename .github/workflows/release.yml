@@ -32,7 +32,6 @@ jobs:
         ./build.assets.sh
     - name: Upload
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
           freebsd_386_client.tar.gz
