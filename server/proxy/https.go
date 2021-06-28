@@ -80,7 +80,6 @@ func (https *HttpsServer) Start() error {
 				}
 			}
 			//change the host and header and set proxy setting
-			common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String(), https.addOrigin)
 			acceptConn := conn.NewConn(c)
 			acceptConn.Rb = rb
 			l.acceptConn <- acceptConn
@@ -126,6 +125,7 @@ func (https *HttpsServer) handleHttps(c net.Conn) {
 	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
 		logs.Warn(err.Error())
 	}
+	common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.Conn.RemoteAddr().String(), s.addOrigin)
 	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
 	https.DealClient(conn.NewConn(c), host.Client, targetAddr, rb, common.CONN_TCP, nil, host.Flow, host.Target.LocalProxy)
 }
