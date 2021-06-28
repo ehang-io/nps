@@ -69,7 +69,7 @@ jobs:
           windows_amd64_server.tar.gz
           npc_sdk.tar.gz
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
         
 
 
