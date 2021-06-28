@@ -30,6 +30,11 @@ jobs:
       run: |
         chmod +x build.assets.sh
         ./build.assets.sh
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v2
+        with:
+          name: dist-without-markdown
+          path: linux_amd64_server.tar.gz
     - name: Upload
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
