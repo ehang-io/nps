@@ -2,7 +2,7 @@
 
 cd /go
 apt-get install libegl1-mesa-dev libgles2-mesa-dev libx11-dev xorg-dev -y
-go get -u fyne.io/fyne/cmd/fyne fyne.io/fyne
+go get -u fyne.io/fyne/v2/cmd/fyne fyne.io/fyne/v2
 #mkdir -p /go/src/fyne.io
 #cd src/fyne.io
 #git clone https://github.com/fyne-io/fyne.git

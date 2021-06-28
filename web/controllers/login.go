@@ -24,11 +24,28 @@ type record struct {
 }
 
 func (self *LoginController) Index() {
-	self.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
+	// Try login implicitly, will succeed if it's configured as no-auth(empty username&password).
+	webBaseUrl := beego.AppConfig.String("web_base_url")
+	if self.doLogin("", "", false) {
+		self.Redirect(webBaseUrl+"/index/index", 302)
+	}
+	self.Data["web_base_url"] = webBaseUrl
 	self.Data["register_allow"], _ = beego.AppConfig.Bool("allow_user_register")
 	self.TplName = "login/index.html"
 }
+
 func (self *LoginController) Verify() {
+	username := self.GetString("username")
+	password := self.GetString("password")
+	if self.doLogin(username, password, true) {
+		self.Data["json"] = map[string]interface{}{"status": 1, "msg": "login success"}
+	} else {
+		self.Data["json"] = map[string]interface{}{"status": 0, "msg": "username or password incorrect"}
+	}
+	self.ServeJSON()
+}
+
+func (self *LoginController) doLogin(username, password string, explicit bool) bool {
 	clearIprecord()
 	ip, _, _ := net.SplitHostPort(self.Ctx.Request.RemoteAddr)
 	if v, ok := ipRecord.Load(ip); ok {
@@ -37,13 +54,11 @@ func (self *LoginController) Verify() {
 			vv.hasLoginFailTimes = 0
 		}
 		if vv.hasLoginFailTimes >= 10 {
-			self.Data["json"] = map[string]interface{}{"status": 0, "msg": "username or password incorrect"}
-			self.ServeJSON()
-			return
+			return false
 		}
 	}
 	var auth bool
-	if self.GetString("password") == beego.AppConfig.String("web_password") && self.GetString("username") == beego.AppConfig.String("web_username") {
+	if password == beego.AppConfig.String("web_password") && username == beego.AppConfig.String("web_username") {
 		self.SetSession("isAdmin", true)
 		self.DelSession("clientId")
 		self.DelSession("username")
@@ -58,13 +73,13 @@ func (self *LoginController) Verify() {
 				return true
 			}
 			if v.WebUserName == "" && v.WebPassword == "" {
-				if self.GetString("username") != "user" || v.VerifyKey != self.GetString("password") {
+				if username != "user" || v.VerifyKey != password {
 					return true
 				} else {
 					auth = true
 				}
 			}
-			if !auth && v.WebPassword == self.GetString("password") && self.GetString("username") == v.WebUserName {
+			if !auth && v.WebPassword == password && v.WebUserName == username {
 				auth = true
 			}
 			if auth {
@@ -78,18 +93,17 @@ func (self *LoginController) Verify() {
 	}
 	if auth {
 		self.SetSession("auth", true)
-		self.Data["json"] = map[string]interface{}{"status": 1, "msg": "login success"}
 		ipRecord.Delete(ip)
-	} else {
-		if v, load := ipRecord.LoadOrStore(ip, &record{hasLoginFailTimes: 1, lastLoginTime: time.Now()}); load {
-			vv := v.(*record)
-			vv.lastLoginTime = time.Now()
-			vv.hasLoginFailTimes += 1
-			ipRecord.Store(ip, vv)
-		}
-		self.Data["json"] = map[string]interface{}{"status": 0, "msg": "username or password incorrect"}
+		return true
+
 	}
-	self.ServeJSON()
+	if v, load := ipRecord.LoadOrStore(ip, &record{hasLoginFailTimes: 1, lastLoginTime: time.Now()}); load && explicit {
+		vv := v.(*record)
+		vv.lastLoginTime = time.Now()
+		vv.hasLoginFailTimes += 1
+		ipRecord.Store(ip, vv)
+	}
+	return false
 }
 func (self *LoginController) Register() {
 	if self.Ctx.Request.Method == "GET" {

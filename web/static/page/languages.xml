@@ -672,7 +672,7 @@
 	</lang>
 	<lang id="info-tagline">
 		<zh-CN>一款轻量级、高性能、功能强大的内网穿透代理服务器</zh-CN>
-		<en-US>a lightweight, high-performance, powerful intranet penetration proxy server</en-US>
+		<en-US>A lightweight, high-performance, powerful intranet reverse proxy server</en-US>
 	</lang>
 	<lang id="info-targethost">
 		<zh-CN>分行填写多个目标可实现负载均衡</zh-CN>
