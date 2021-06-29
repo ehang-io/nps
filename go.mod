@@ -9,6 +9,7 @@ require (
 	github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 // indirect
 	github.com/c4milo/unpackit v0.0.0-20170704181138-4ed373e9ef1c
 	github.com/ccding/go-stun v0.0.0-20180726100737-be486d185f3d
+	github.com/dchest/captcha v0.0.0-20200903113550-03f5f0333e1f
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/golang/snappy v0.0.3
 	github.com/hooklift/assert v0.0.0-20170704181755-9d1defd6d214 // indirect

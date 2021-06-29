@@ -367,6 +367,10 @@
 		<zh-CN>密码</zh-CN>
 		<en-US>Password</en-US>
 	</lang>
+	<lang id="word-captcha">
+		<zh-CN>验证码</zh-CN>
+		<en-US>Captcha</en-US>
+	</lang>
 	<lang id="word-port">
 		<zh-CN>端口</zh-CN>
 		<en-US>Port</en-US>

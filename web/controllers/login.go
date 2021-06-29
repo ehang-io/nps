@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"github.com/astaxie/beego/cache"
+	"github.com/astaxie/beego/utils/captcha"
 	"math/rand"
 	"net"
 	"sync"
@@ -17,10 +19,17 @@ type LoginController struct {
 }
 
 var ipRecord sync.Map
+var cpt *captcha.Captcha
 
 type record struct {
 	hasLoginFailTimes int
 	lastLoginTime     time.Time
+}
+
+func init() {
+	// use beego cache system store the captcha data
+	store := cache.NewMemoryCache()
+	cpt = captcha.NewWithFilter("/captcha/", store)
 }
 
 func (self *LoginController) Index() {
@@ -31,12 +40,20 @@ func (self *LoginController) Index() {
 	}
 	self.Data["web_base_url"] = webBaseUrl
 	self.Data["register_allow"], _ = beego.AppConfig.Bool("allow_user_register")
+	self.Data["captcha_open"], _ = beego.AppConfig.Bool("open_captcha")
 	self.TplName = "login/index.html"
 }
 
 func (self *LoginController) Verify() {
 	username := self.GetString("username")
 	password := self.GetString("password")
+	captchaOpen, _ := beego.AppConfig.Bool("open_captcha")
+	if captchaOpen {
+		if !cpt.VerifyReq(self.Ctx.Request) {
+			self.Data["json"] = map[string]interface{}{"status": 0, "msg": "the verification code is wrong, please get it again and try again"}
+			self.ServeJSON()
+		}
+	}
 	if self.doLogin(username, password, true) {
 		self.Data["json"] = map[string]interface{}{"status": 1, "msg": "login success"}
 	} else {
