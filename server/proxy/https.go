@@ -198,6 +198,7 @@ func buildMyHttpsRequest(hostName string, c net.Conn) *http.Request {
 	addr = strings.Split(addr, ":")[0]
 	r.Header.Set("X-Forwarded-For", addr)
 	r.Header.Set("X-Real-IP", addr)
+	r.Header.Set("X-IP", addr)
 	return r
 }
 
