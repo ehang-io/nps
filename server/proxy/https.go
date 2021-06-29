@@ -177,7 +177,7 @@ func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
 }
 
 // build https request
-func buildHttpsRequest(hostName string, c) *http.Request {
+func buildHttpsRequest(hostName string, c net.Conn) *http.Request {
 	r := new(http.Request)
 	r.RequestURI = "/"
 	r.URL = new(url.URL)
