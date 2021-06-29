@@ -104,7 +104,7 @@ func (https *HttpsServer) NewHttps(l net.Listener, certFile string, keyFile stri
 func (https *HttpsServer) handleHttps(c net.Conn) {
 	hostName, rb := GetServerNameFromClientHello(c)
 	var targetAddr string
-	r := buildHttpsRequest(hostName,c)
+	r := buildMyHttpsRequest(hostName,c)
 	var host *file.Host
 	var err error
 	if host, err = file.GetDb().GetInfoByHost(hostName, r); err != nil {
@@ -177,7 +177,17 @@ func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
 }
 
 // build https request
-func buildHttpsRequest(hostName string, c net.Conn) *http.Request {
+func buildHttpsRequest(hostName string) *http.Request {
+	r := new(http.Request)
+	r.RequestURI = "/"
+	r.URL = new(url.URL)
+	r.URL.Scheme = "https"
+	r.Host = hostName
+	return r
+}
+// addheader req
+
+func buildMyHttpsRequest(hostName string, c net.Conn) *http.Request {
 	r := new(http.Request)
 	r.RequestURI = "/"
 	r.URL = new(url.URL)
