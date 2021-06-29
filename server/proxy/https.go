@@ -191,6 +191,8 @@ func buildMyHttpsRequest(hostName string, c net.Conn) *http.Request {
 	r.URL = new(url.URL)
 	r.URL.Scheme = "https"
 	r.Host = hostName
+	logs.Trace("start make")
+	r.Header = make(http.Header)
 	logs.Trace("start add header")
 	r.Header.Set("X-Forwarded-For", c.RemoteAddr().String())
 	r.Header.Set("X-Real-IP", c.RemoteAddr().String())
