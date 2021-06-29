@@ -125,8 +125,7 @@ func (https *HttpsServer) handleHttps(c net.Conn) {
 	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
 		logs.Warn(err.Error())
 	}
-	r.Header.Set("X-Forwarded-For", c.RemoteAddr().String())
-	r.Header.Set("X-Real-IP", c.RemoteAddr().String())
+
 	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
 	https.DealClient(conn.NewConn(c), host.Client, targetAddr, rb, common.CONN_TCP, nil, host.Flow, host.Target.LocalProxy)
 }
@@ -184,5 +183,7 @@ func buildHttpsRequest(hostName string) *http.Request {
 	r.URL = new(url.URL)
 	r.URL.Scheme = "https"
 	r.Host = hostName
+	r.Header.Set("X-Forwarded-For", c.RemoteAddr().String())
+	r.Header.Set("X-Real-IP", c.RemoteAddr().String())
 	return r
 }
