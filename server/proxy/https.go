@@ -104,7 +104,7 @@ func (https *HttpsServer) NewHttps(l net.Listener, certFile string, keyFile stri
 func (https *HttpsServer) handleHttps(c net.Conn) {
 	hostName, rb := GetServerNameFromClientHello(c)
 	var targetAddr string
-	r := buildHttpsRequest(hostName)
+	r := buildMyHttpsRequest(hostName,c)
 	var host *file.Host
 	var err error
 	if host, err = file.GetDb().GetInfoByHost(hostName, r); err != nil {
@@ -125,7 +125,6 @@ func (https *HttpsServer) handleHttps(c net.Conn) {
 	if targetAddr, err = host.Target.GetRandomTarget(); err != nil {
 		logs.Warn(err.Error())
 	}
-        common.ChangeHostAndHeader(r, host.HostChange, host.HeaderChange, c.RemoteAddr().String(), https.addOrigin)
 	logs.Trace("new https connection,clientId %d,host %s,remote address %s", host.Client.Id, r.Host, c.RemoteAddr().String())
 	https.DealClient(conn.NewConn(c), host.Client, targetAddr, rb, common.CONN_TCP, nil, host.Flow, host.Target.LocalProxy)
 }
@@ -185,3 +184,16 @@ func buildHttpsRequest(hostName string) *http.Request {
 	r.Host = hostName
 	return r
 }
+
+func buildMyHttpsRequest(hostName string, c net.Conn) *http.Request {
+	r := new(http.Request)
+	r.RequestURI = "/"
+	r.URL = new(url.URL)
+	r.URL.Scheme = "https"
+	r.Host = hostName
+	logs.Trace("start add header")
+	r.Header.Set("X-Forwarded-For", '1.1.1.1')
+	r.Header.Set("X-Real-IP", '1.1.1.1')
+	return r
+}
+
