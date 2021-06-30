@@ -25,8 +25,8 @@ func (s *Flow) Add(in, out int64) {
 }
 
 type Config struct {
-	U        string
-	P        string
+	U        string  // username
+	P        string  // password
 	Compress bool
 	Crypt    bool
 }

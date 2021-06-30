@@ -96,6 +96,9 @@ func (s *Sock5ModeServer) sendReply(c net.Conn, rep uint8) {
 	localAddr := c.LocalAddr().String()
 	localHost, localPort, _ := net.SplitHostPort(localAddr)
 	ipBytes := net.ParseIP(localHost).To4()
+	if ipBytes == nil {
+		ipBytes = net.ParseIP("127.0.0.1").To4()
+	}
 	nPort, _ := strconv.Atoi(localPort)
 	reply = append(reply, ipBytes...)
 	portBytes := make([]byte, 2)
