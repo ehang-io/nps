@@ -170,8 +170,8 @@ docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk
 git clone https://github.com/cnlh/spksrc.git ~/spksrc
 mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
 docker run -itd --name spksrc --env VERSION=$VERSION -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
-docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
-cp ~/spksrc/packages/npc_noarch-all_$VERSION-1.spk ./npc_syno.spk
+docker exec -it spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make arch-x64-7.0'
+cp ~/spksrc/packages/npc_x64-7.0_$VERSION-1.spk ./npc_syno.spk
 
 
 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
