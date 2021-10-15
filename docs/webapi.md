@@ -163,7 +163,7 @@ POST /index/gettunnel/
 | 参数 | 含义 |
 | --- | --- |
 | client\_id | 穿透隧道的客户端id |
-| type | 类型tcp udp httpProx socks5 secret p2p |
+| type | 类型tcp udp httpProxy socks5 secret p2p |
 | search | 搜索 |
 | offset | 分页(第几页) |
 | limit | 条数(分页显示的条数) |
@@ -177,7 +177,7 @@ POST /index/add/
 
 | 参数 | 含义 |
 | --- | --- |
-| type | 类型tcp udp httpProx socks5 secret p2p |
+| type | 类型tcp udp httpProxy socks5 secret p2p |
 | remark | 备注 |
 | port | 服务端端口 |
 | target | 目标(ip:端口) |
@@ -192,7 +192,7 @@ POST /index/edit/
 
 | 参数 | 含义 |
 | --- | --- |
-| type | 类型tcp udp httpProx socks5 secret p2p |
+| type | 类型tcp udp httpProxy socks5 secret p2p |
 | remark | 备注 |
 | port | 服务端端口 |
 | target | 目标(ip:端口) |
