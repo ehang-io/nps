@@ -172,6 +172,7 @@ func StopServer(id int) error {
 			return err
 		} else {
 			t.Status = false
+			logs.Info("close port %d,remark %s,client id %d,task id %d", t.Port, t.Remark, t.Client.Id, t.Id)
 			file.GetDb().UpdateTask(t)
 		}
 		//delete(RunList, id)

@@ -24,16 +24,18 @@
 </head>
 
 <body class="gray-bg">
-    <div class="row border-bottom">
-        <nav class="navbar navbar-static-top navbar-right" role="navigation" style="margin: 20px 40px">
-<div></div>
-            <h1 style="margin:0px" class="navbar-header font-bold" langtag="application"></h1>
-            <span class="btn-group dropdown">
-                <button id="languagemenu" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fa fa-globe-asia fa-lg"></i><span></span></button>
+<div class="row border-bottom">
+    <nav class="navbar navbar-static-top navbar-right" role="navigation" style="margin: 20px 40px">
+        <div></div>
+        <h1 style="margin:0px" class="navbar-header font-bold" langtag="application"></h1>
+        <span class="btn-group dropdown">
+                <button id="languagemenu" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false"><i
+                            class="fa fa-globe-asia fa-lg"></i><span></span></button>
                 <ul class="dropdown-menu"></ul>
             </span>
-        </nav>
-    </div>
+    </nav>
+</div>
 <div class="loginColumns animated fadeInDown mt-3 px-5">
     <div class="row">
 
@@ -56,16 +58,27 @@
             <div class="ibox-content">
                 <form class="m-t" onsubmit="return false">
                     <div class="form-group">
-                        <input name="username" class="form-control" placeholder="username" required="" langtag="word-username">
+                        <input name="username" class="form-control" placeholder="username" required=""
+                               langtag="word-username">
                     </div>
                     <div class="form-group">
-                        <input name="password" type="password" class="form-control" placeholder="password" required="" langtag="word-password">
+                        <input name="password" type="password" class="form-control" placeholder="password" required=""
+                               langtag="word-password">
                     </div>
-                    <button onclick="login()" class="btn btn-primary block full-width m-b" langtag="word-login"></button>
-                {{if eq true .register_allow}}
-                    <p class="text-muted text-center"><small langtag="info-noaccount"></small></p>
-                    <a class="btn btn-sm btn-white btn-block" href="{{.web_base_url}}/login/register" langtag="word-register"></a>
-                {{end}}
+                    {{if eq true .captcha_open}}
+                        <div class="form-group">
+                            {{create_captcha}}
+                            <input name="captcha" class="form-control" placeholder="captcha" required=""
+                                   langtag="word-captcha">
+                        </div>
+                    {{end}}
+                    <button onclick="login()" class="btn btn-primary block full-width m-b"
+                            langtag="word-login"></button>
+                    {{if eq true .register_allow}}
+                        <p class="text-muted text-center"><small langtag="info-noaccount"></small></p>
+                        <a class="btn btn-sm btn-white btn-block" href="{{.web_base_url}}/login/register"
+                           langtag="word-register"></a>
+                    {{end}}
                 </form>
             </div>
         </div>
@@ -84,7 +97,8 @@
 
 
 <script type="text/javascript">
-    window.nps = { "web_base_url": {{.web_base_url}} }
+    window.nps = {"web_base_url": {{.web_base_url}} }
+
     // Login Page Flipbox control
     function login() {
         $.ajax({
