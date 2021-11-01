@@ -115,7 +115,7 @@ location=/static
 在需要访问的机器上，运行客户端
 
 ```
-./npc register -server=ip:port -vkey=公钥或客户端密钥 time=2
+./npc register -server=ip:port -vkey=公钥或客户端密钥 -time=2
 ```
 
 time为有效小时数，例如time=2，在当前时间后的两小时内，本机公网ip都可以访问nps代理.
