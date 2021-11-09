@@ -4,7 +4,7 @@ TEST_OPTIONS?=
 
 export PATH := ./bin:$(PATH)
 export GO111MODULE := on
-export GOPROXY := https://gocenter.io
+export GOPROXY := https://goproxy.io
 
 # Build a beta version of goreleaser
 build:
