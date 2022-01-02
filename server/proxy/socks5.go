@@ -302,7 +302,13 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 		c.Close()
 		return
 	}
-	if (s.task.Client.Cnf.U != "" && s.task.Client.Cnf.P != "") || (s.task.MultiAccount != nil && len(s.task.MultiAccount.AccountMap) > 0) {
+
+	var accountMap map[string]string = nil
+	if s.task.MultiAccount != nil {
+		accountMap = s.task.MultiAccount.AccountMap
+	}
+
+	if common.HasValid(s.task.Client.Cnf.U, s.task.Client.Cnf.P, accountMap) {
 		buf[1] = UserPassAuth
 		c.Write(buf)
 		if err := s.Auth(c); err != nil {

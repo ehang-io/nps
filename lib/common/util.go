@@ -50,6 +50,28 @@ func DomainCheck(domain string) bool {
 	return match
 }
 
+// 判断是否有有效的账号
+func hasValidAccount(accountMap map[string]string) bool {
+	if accountMap == nil {
+		return false
+	}
+
+	for u, p := range accountMap {
+		if u != "" && p != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// 判断是否需要验证
+// user global user
+// passwd global passwd
+// accountMap enable multi user auth
+func HasValid(user, passwd string, accountMap map[string]string) bool {
+	return hasValidAccount(accountMap) || (user != "" && passwd != "")
+}
+
 // CheckAuthWithAccountMap
 // u current login user
 // p current login passwd
@@ -57,6 +79,11 @@ func DomainCheck(domain string) bool {
 // passwd global passwd
 // accountMap enable multi user auth
 func checkAuthWithAccountMap(u, p, user, passwd string, accountMap map[string]string) bool {
+	// 是否需要验证
+	if !HasValid(user, passwd, accountMap) {
+		return true
+	}
+
 	// invalid user or passwd
 	if u == "" || p == "" {
 		return false
@@ -91,6 +118,11 @@ func CheckAuthWithAccountMap(u, p, user, passwd string, accountMap map[string]st
 
 //Check if the Request request is validated
 func CheckAuth(r *http.Request, user, passwd string, accountMap map[string]string) bool {
+	// 是否需要验证
+	if !HasValid(user, passwd, accountMap) {
+		return true
+	}
+
 	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
 	if len(s) != 2 {
 		s = strings.SplitN(r.Header.Get("Proxy-Authorization"), " ", 2)

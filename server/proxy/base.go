@@ -65,7 +65,7 @@ func (s *BaseServer) writeConnFail(c net.Conn) {
 
 //auth check
 func (s *BaseServer) auth(r *http.Request, c *conn.Conn, u, p string, AccountMap map[string]string) error {
-	if u != "" && p != "" && !common.CheckAuth(r, u, p, AccountMap) {
+	if !common.CheckAuth(r, u, p, AccountMap) {
 		var resp = common.UnauthorizedBytes
 		resp = strings.ReplaceAll(resp, "\n", "\r\n")
 		c.Write([]byte(resp))
