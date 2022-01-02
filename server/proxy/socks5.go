@@ -340,21 +340,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 		return err
 	}
 
-	var U, P string
-	if s.task.MultiAccount != nil {
-		// enable multi user auth
-		U = string(user)
-		var ok bool
-		P, ok = s.task.MultiAccount.AccountMap[U]
-		if !ok {
-			return errors.New("验证不通过")
-		}
-	} else {
-		U = s.task.Client.Cnf.U
-		P = s.task.Client.Cnf.P
-	}
-
-	if string(user) == U && string(pass) == P {
+	if common.CheckAuthWithAccountMap(string(user), string(pass), s.task.Client.Cnf.U, s.task.Client.Cnf.P, s.task.MultiAccount.AccountMap) {
 		if _, err := c.Write([]byte{userAuthVersion, authSuccess}); err != nil {
 			return err
 		}

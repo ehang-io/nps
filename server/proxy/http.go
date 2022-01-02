@@ -150,7 +150,7 @@ reset:
 	if !isReset {
 		defer host.Client.AddConn()
 	}
-	if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
+	if err = s.auth(r, c, host.Client.Cnf.U, host.Client.Cnf.P, s.task.MultiAccount.AccountMap); err != nil {
 		logs.Warn("auth error", err, r.RemoteAddr)
 		return
 	}

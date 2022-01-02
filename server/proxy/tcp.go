@@ -40,8 +40,11 @@ func (s *TunnelModeServer) Start() error {
 			return
 		}
 		logs.Trace("new tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
-		s.process(conn.NewConn(c), s)
-		s.task.Client.AddConn()
+		err := s.process(conn.NewConn(c), s)
+		if err == nil {
+			s.task.Client.AddConn()
+		}
+
 	}, &s.listener)
 }
 
@@ -114,12 +117,14 @@ func ProcessHttp(c *conn.Conn, s *TunnelModeServer) error {
 		logs.Info(err)
 		return err
 	}
+
+	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P, s.task.MultiAccount.AccountMap); err != nil {
+		return err
+	}
+
 	if r.Method == "CONNECT" {
 		c.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 		rb = nil
-	}
-	if err := s.auth(r, c, s.task.Client.Cnf.U, s.task.Client.Cnf.P); err != nil {
-		return err
 	}
 	return s.DealClient(c, s.task.Client, addr, rb, common.CONN_TCP, nil, s.task.Flow, s.task.Target.LocalProxy)
 }
