@@ -117,7 +117,7 @@ func (https *HttpsServer) handleHttps(c net.Conn) {
 		return
 	}
 	defer host.Client.AddConn()
-	if err = https.auth(r, conn.NewConn(c), host.Client.Cnf.U, host.Client.Cnf.P); err != nil {
+	if err = https.auth(r, conn.NewConn(c), host.Client.Cnf.U, host.Client.Cnf.P, https.task.MultiAccount.AccountMap); err != nil {
 		logs.Warn("auth error", err, r.RemoteAddr)
 		return
 	}

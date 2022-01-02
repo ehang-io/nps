@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 
 	"ehang.io/nps/bridge"
@@ -63,11 +64,13 @@ func (s *BaseServer) writeConnFail(c net.Conn) {
 }
 
 //auth check
-func (s *BaseServer) auth(r *http.Request, c *conn.Conn, u, p string) error {
-	if u != "" && p != "" && !common.CheckAuth(r, u, p) {
-		c.Write([]byte(common.UnauthorizedBytes))
+func (s *BaseServer) auth(r *http.Request, c *conn.Conn, u, p string, AccountMap map[string]string) error {
+	if !common.CheckAuth(r, u, p, AccountMap) {
+		var resp = common.UnauthorizedBytes
+		resp = strings.ReplaceAll(resp, "\n", "\r\n")
+		c.Write([]byte(resp))
 		c.Close()
-		return errors.New("401 Unauthorized")
+		return errors.New("407 Unauthorized")
 	}
 	return nil
 }
