@@ -2,7 +2,7 @@ name: Release
 
 on:
   release:
-    types: [published]
+    types: [default]
     branches: [ master ]
 
 jobs:
