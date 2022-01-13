@@ -70,7 +70,7 @@ jobs:
           windows_amd64_server.tar.gz
           npc_sdk.tar.gz
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
         
   build_android:
     
@@ -90,7 +90,7 @@ jobs:
         files: |
           android_client.apk
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
   build_spk:
     
@@ -115,6 +115,6 @@ jobs:
         files: |
           npc_syno.spk
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
 
