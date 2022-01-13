@@ -2,9 +2,9 @@ name: Release
 
 on:
   release:
-    types: [published]
     branches: [ master ]
-
+  pull_request:
+    branches: [ master ]
 jobs:
 
   build_assets:
