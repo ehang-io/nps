@@ -1,7 +1,7 @@
 name: Release
 
 on:
-  release:
+  hello:
     types: [default]
     branches: [ master ]
 
