@@ -109,6 +109,7 @@ jobs:
         docker exec spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
         cp ~/spksrc/packages/npc_noarch-all_${{ env.RELEASE_VERSION }}-1.spk ./npc_syno.spk
     - name: Upload
+      id: tag 
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
@@ -116,5 +117,15 @@ jobs:
           npc_syno.spk
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
+  
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@v1
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
 
 
