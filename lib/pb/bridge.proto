@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+option go_package = "ehang.io/nps/lib/pb";
+
+
+message ConnRequest {
+  string Id = 1;
+  oneof connType {
+    AppInfo app_info = 2;
+    NpcInfo npc_info = 3;
+    SecretInfo secret_info = 4;
+  }
+}
+
+message ClientRequest {
+  oneof connType {
+    AppInfo app_info = 1;
+    ping ping = 2;
+  }
+}
+
+enum conn_type{
+  tcp = 0;
+  udp = 1 ;
+  unix = 2;
+}
+
+message AppInfo {
+  string app_addr = 1;
+  string npc_id = 2;
+  conn_type conn_type = 3;
+}
+
+message SecretInfo {
+  bool is_udp_conn = 1;
+  string app_addr = 2;
+}
+
+message NpcInfo {
+  string tunnel_id = 2;
+  bool is_control_tunnel = 3;
+}
+
+message NpcResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ping{
+  string now = 1;
+}
