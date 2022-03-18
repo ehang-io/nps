@@ -23,7 +23,7 @@
 注册到服务后，日志文件windows位于当前目录下，linux和darwin位于/var/log/npc.log
 
 ## 客户端更新
-首先进入到对于的客户端二进制文件目录
+首先进入到对应的客户端二进制文件目录
 
 请首先执行`sudo npc stop`或者`npc.exe stop`停止运行，然后
 
