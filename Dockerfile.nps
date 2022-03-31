@@ -9,4 +9,4 @@ FROM scratch
 COPY --from=builder /go/src/ehang.io/nps/nps /
 COPY --from=builder /go/src/ehang.io/nps/web /web
 VOLUME /conf
-CMD ["/nps"]
+CMD ["/nps", "service"]
