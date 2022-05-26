@@ -7,10 +7,21 @@
 
 ```
 auth_key的生成方式为：md5(配置文件中的auth_key+当前时间戳)
+
+```
+- java代码使用hutool工具构建auth_key示例
+```
+Long time = new Date().getTime() / 1000;
+String authKey = MD5.create().digestHex("Ayq5h5xMoc9HTe52ZZWSzXDOzxuxcErgMcp1RM04legfPQTruH4QhcxdG" + time.toString());
+System.out.println(authKey);
+```
+- auth_key生成结果示例：
+```
+40fd9533f90c8aafb6fd2c8c06fafc21
 ```
 
 ```
-timestamp为当前时间戳
+timestamp为当前时间戳(时间戳单位为s)
 ```
 ```
 curl --request POST \
