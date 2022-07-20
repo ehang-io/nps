@@ -102,6 +102,8 @@ func (s *ClientController) Edit() {
 	} else {
 		if c, err := file.GetDb().GetClient(id); err != nil {
 			s.error()
+			s.AjaxErr("client ID not found")
+			return
 		} else {
 			if s.getEscapeString("web_username") != "" {
 				if s.getEscapeString("web_username") == beego.AppConfig.String("web_username") || !file.GetDb().VerifyUserName(s.getEscapeString("web_username"), c.Id) {

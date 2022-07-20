@@ -3,7 +3,7 @@
 
 **方式一：** 类似于nginx实现https的处理
 
-在配置文件中将https_proxy_port设置为443或者其他你想配置的端口，和在web中对应域名编辑中设置对应的证书路径，将`https_just_proxy`设置为false，然后就和http代理一样了
+在配置文件中将https_proxy_port设置为443或者其他你想配置的端口，将`https_just_proxy`设置为false，nps 重启后，在web管理界面，域名新增或修改界面中修改域名证书和密钥。
 
 **此外：** 可以在`nps.conf`中设置一个默认的https配置，当遇到未在web中设置https证书的域名解析时，将自动使用默认证书，另还有一种情况就是对于某些请求的clienthello不携带sni扩展信息，nps也将自动使用默认证书
 
