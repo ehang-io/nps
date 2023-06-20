@@ -95,7 +95,7 @@ func (s *DbUtils) NewTask(t *Tunnel) (err error) {
 	s.JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*Tunnel)
 		if (v.Mode == "secret" || v.Mode == "p2p") && v.Password == t.Password {
-			err = errors.New(fmt.Sprintf("secret mode keys %s must be unique", t.Password))
+			err = fmt.Errorf("secret mode keys %s must be unique", t.Password)
 			return false
 		}
 		return true

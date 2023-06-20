@@ -241,7 +241,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if s, err := c.ReadFlag(); err != nil {
 		return nil, err
 	} else if s == common.VERIFY_EER {
-		return nil, errors.New(fmt.Sprintf("Validation key %s incorrect", vkey))
+		return nil, fmt.Errorf("Validation key %s incorrect", vkey)
 	}
 	if _, err := c.Write([]byte(connType)); err != nil {
 		return nil, err
@@ -465,7 +465,7 @@ func newUdpConnByAddr(addr string) (*net.UDPConn, error) {
 func getNextAddr(addr string, n int) (string, error) {
 	arr := strings.Split(addr, ":")
 	if len(arr) != 2 {
-		return "", errors.New(fmt.Sprintf("the format of %s incorrect", addr))
+		return "", fmt.Errorf("the format of %s incorrect", addr)
 	}
 	if p, err := strconv.Atoi(arr[1]); err != nil {
 		return "", err
@@ -477,15 +477,15 @@ func getNextAddr(addr string, n int) (string, error) {
 func getAddrInterval(addr1, addr2, addr3 string) (int, error) {
 	arr1 := strings.Split(addr1, ":")
 	if len(arr1) != 2 {
-		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr1))
+		return 0, fmt.Errorf("the format of %s incorrect", addr1)
 	}
 	arr2 := strings.Split(addr2, ":")
 	if len(arr2) != 2 {
-		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr2))
+		return 0, fmt.Errorf("the format of %s incorrect", addr2)
 	}
 	arr3 := strings.Split(addr3, ":")
 	if len(arr3) != 2 {
-		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr3))
+		return 0, fmt.Errorf("the format of %s incorrect", addr3)
 	}
 	p1, err := strconv.Atoi(arr1[1])
 	if err != nil {

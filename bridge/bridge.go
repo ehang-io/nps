@@ -322,10 +322,10 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (ta
 		if s.ipVerify {
 			ip := common.GetIpByAddr(link.RemoteAddr)
 			if v, ok := s.Register.Load(ip); !ok {
-				return nil, errors.New(fmt.Sprintf("The ip %s is not in the validation list", ip))
+				return nil, fmt.Errorf("The ip %s is not in the validation list", ip)
 			} else {
 				if !v.(time.Time).After(time.Now()) {
-					return nil, errors.New(fmt.Sprintf("The validity of the ip %s has expired", ip))
+					return nil, fmt.Errorf("The validity of the ip %s has expired", ip)
 				}
 			}
 		}
@@ -353,7 +353,7 @@ func (s *Bridge) SendLinkInfo(clientId int, link *conn.Link, t *file.Tunnel) (ta
 			return
 		}
 	} else {
-		err = errors.New(fmt.Sprintf("the client %d is not connect", clientId))
+		err = fmt.Errorf("the client %d is not connect", clientId)
 	}
 	return
 }
