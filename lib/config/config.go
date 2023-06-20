@@ -310,7 +310,7 @@ func getAllTitle(content string) (arr []string, err error) {
 	m := make(map[string]bool)
 	for _, v := range arr {
 		if _, ok := m[v]; ok {
-			err = errors.New(fmt.Sprintf("Item names %s are not allowed to be duplicated", v))
+			err = fmt.Errorf("Item names %s are not allowed to be duplicated", v)
 			return
 		}
 		m[v] = true
