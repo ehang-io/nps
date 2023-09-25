@@ -3,12 +3,15 @@
 ```
 命令行模式启动客户端
 从v0.26.10开始，此函数会阻塞，直到客户端退出返回，请自行管理是否重连
-p0->连接地址
-p1->vkey
-p2->连接类型（tcp or udp）
-p3->连接代理
+serverAddr->连接地址
+verifyKey->vkey
+connType->连接类型（tcp or udp）
+proxyUrl->连接代理
 
-extern GoInt StartClientByVerifyKey(char* p0, char* p1, char* p2, char* p3);
+extern GoInt StartClientByVerifyKey(char* serverAddr, char* verifyKey, char* connType, char* proxyUrl);
+
+命令行模式启动本地P2P或私密连接
+extern GoInt StartLocalServer(char* serverAddr, char* verifyKey, char* connType, char* password, char* localType, char* localPortStr, char* target, char* proxyUrl);
 
 查看当前启动的客户端状态，在线为1，离线为0
 extern GoInt GetClientStatus();
