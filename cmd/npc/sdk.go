@@ -4,11 +4,17 @@ import (
 	"C"
 	"ehang.io/nps/client"
 	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/file"
 	"ehang.io/nps/lib/version"
 	"github.com/astaxie/beego/logs"
+	"strconv"
 )
 
-var cl *client.TRPClient
+var (
+	cl *client.TRPClient
+	ls bool
+)
 
 //export StartClientByVerifyKey
 func StartClientByVerifyKey(serverAddr, verifyKey, connType, proxyUrl *C.char) int {
@@ -21,8 +27,34 @@ func StartClientByVerifyKey(serverAddr, verifyKey, connType, proxyUrl *C.char) i
 	return 1
 }
 
+//export StartLocalServer
+func StartLocalServer(serverAddr, verifyKey, connType, password, localType, localPortStr, target, proxyUrl *C.char) int {
+	ls = true
+	_ = logs.SetLogger("store")
+	var localPort int
+	localPort, _ = strconv.Atoi(C.GoString(localPortStr))
+	client.CloseLocalServer()
+	commonConfig := new(config.CommonConfig)
+	commonConfig.Server = C.GoString(serverAddr)
+	commonConfig.VKey = C.GoString(verifyKey)
+	commonConfig.Tp = C.GoString(connType)
+	commonConfig.ProxyUrl = C.GoString(proxyUrl)
+	localServer := new(config.LocalServer)
+	localServer.Type = C.GoString(localType)
+	localServer.Password = C.GoString(password)
+	localServer.Target = C.GoString(target)
+	localServer.Port = localPort
+	commonConfig.Client = new(file.Client)
+	commonConfig.Client.Cnf = new(file.Config)
+	client.StartLocalServer(localServer, commonConfig)
+	return 1
+}
+
 //export GetClientStatus
 func GetClientStatus() int {
+	if ls && len(client.LocalServer) > 0 {
+		return 1
+	}
 	return client.NowStatus
 }
 
@@ -30,6 +62,10 @@ func GetClientStatus() int {
 func CloseClient() {
 	if cl != nil {
 		cl.Close()
+	}
+	if ls {
+		client.CloseLocalServer()
+		ls = false
 	}
 }
 
