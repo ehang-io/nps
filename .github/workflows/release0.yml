@@ -1,4 +1,4 @@
-name: Release
+name: Release   #自动发布
 
 on:
   release:
@@ -151,12 +151,12 @@ jobs:
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/nps:latest
           ${{ secrets.DOCKERHUB_USERNAME }}/nps:${{ env.RELEASE_VERSION }}
-    - name: Build and push npc
+    - name: Build and push npc #编译和发布
       uses: docker/build-push-action@v2
       with:
         context: .
         file: ./Dockerfile.npc
-        platforms: linux/amd64,linux/arm,linux/arm64
+        platforms: linux/amd64,linux/arm64
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/npc:latest
