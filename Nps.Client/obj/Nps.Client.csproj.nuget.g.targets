@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)system.text.json/9.0.5/buildTransitive/net8.0/System.Text.Json.targets" Condition="Exists('$(NuGetPackageRoot)system.text.json/9.0.5/buildTransitive/net8.0/System.Text.Json.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.options/9.0.5/buildTransitive/net8.0/Microsoft.Extensions.Options.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.options/9.0.5/buildTransitive/net8.0/Microsoft.Extensions.Options.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.configuration.binder/9.0.5/buildTransitive/netstandard2.0/Microsoft.Extensions.Configuration.Binder.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.configuration.binder/9.0.5/buildTransitive/netstandard2.0/Microsoft.Extensions.Configuration.Binder.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.logging.abstractions/9.0.5/buildTransitive/net8.0/Microsoft.Extensions.Logging.Abstractions.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.logging.abstractions/9.0.5/buildTransitive/net8.0/Microsoft.Extensions.Logging.Abstractions.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets/9.0.5/buildTransitive/net8.0/Microsoft.Extensions.Configuration.UserSecrets.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets/9.0.5/buildTransitive/net8.0/Microsoft.Extensions.Configuration.UserSecrets.targets')" />
+  </ImportGroup>
+</Project>

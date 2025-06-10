@@ -1,0 +1,12 @@
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.GeneratedMSBuildEditorConfig.editorconfig
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.AssemblyInfoInputs.cache
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.AssemblyInfo.cs
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.csproj.CoreCompileInputs.cache
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.sourcelink.json
+/app/Nps.Core/bin/Debug/net8.0/Nps.Core.deps.json
+/app/Nps.Core/bin/Debug/net8.0/Nps.Core.dll
+/app/Nps.Core/bin/Debug/net8.0/Nps.Core.pdb
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.dll
+/app/Nps.Core/obj/Debug/net8.0/refint/Nps.Core.dll
+/app/Nps.Core/obj/Debug/net8.0/Nps.Core.pdb
+/app/Nps.Core/obj/Debug/net8.0/ref/Nps.Core.dll

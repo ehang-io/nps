@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/Nps.WebAPI.props" />
+</Project>

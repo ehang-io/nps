@@ -1,0 +1,6 @@
+@Nps.WebAPI_HostAddress = http://localhost:5140
+
+GET {{Nps.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

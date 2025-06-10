@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "+WljeCFbbul4CJkvXmJ8LPnz7po1UQyWCatICy6NMwQ=",
+  "Source": "Nps.WebAPI",
+  "BasePath": "_content/Nps.WebAPI",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
