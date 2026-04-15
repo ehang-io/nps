@@ -27,6 +27,7 @@ const (
 	CONN_TCP          = "tcp"
 	CONN_UDP          = "udp"
 	CONN_TEST         = "TST"
+	HEART_BEAT        = "heat" //heart beat
 	UnauthorizedBytes = `HTTP/1.1 401 Unauthorized
 Content-Type: text/plain; charset=utf-8
 WWW-Authenticate: Basic realm="easyProxy"
