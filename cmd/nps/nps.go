@@ -19,7 +19,6 @@ import (
 	"ehang.io/nps/web/routers"
 
 	"ehang.io/nps/lib/common"
-	"ehang.io/nps/lib/crypt"
 	"ehang.io/nps/lib/daemon"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
@@ -144,7 +143,12 @@ func main() {
 			}
 			return
 		case "update":
-			install.UpdateNps()
+			// install.UpdateNps downloads from upstream ehang-io, which on
+			// this fork means silently replacing the server with the
+			// unmaintained 0.26.10. Updating a server also means the web
+			// assets that sit beside the binary, which no in-process path
+			// handles, so point at the script that does.
+			logs.Error("use deploy/update.sh on this host: `nps update` fetches upstream builds, not this fork's")
 			return
 		default:
 			logs.Error("command is not support")
@@ -199,10 +203,8 @@ func run() {
 		logs.Error("Getting bridge_port error", err)
 		os.Exit(0)
 	}
-	logs.Info("the version of server is %s ,allow client core version to be %s", version.VERSION, version.GetVersion())
+	logs.Info("the version of server is %s, the bridge protocol is %s", version.VERSION, version.Protocol)
 	connection.InitConnectionService()
-	//crypt.InitTls(filepath.Join(common.GetRunPath(), "conf", "server.pem"), filepath.Join(common.GetRunPath(), "conf", "server.key"))
-	crypt.InitTls()
 	tool.InitAllowPort()
 	tool.StartSystemInfo()
 	timeout, err := beego.AppConfig.Int("disconnect_timeout")

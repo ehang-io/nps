@@ -17,6 +17,8 @@ import (
 	"ehang.io/nps/lib/config"
 	"ehang.io/nps/lib/conn"
 	"ehang.io/nps/lib/crypt"
+	"ehang.io/nps/lib/selfupdate"
+	"ehang.io/nps/lib/sysstat"
 )
 
 type TRPClient struct {
@@ -31,6 +33,7 @@ type TRPClient struct {
 	cnf            *config.Config
 	disconnectTime int
 	once           sync.Once
+	closed         chan struct{}
 }
 
 //new client
@@ -44,6 +47,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 		cnf:            cnf,
 		disconnectTime: disconnectTime,
 		once:           sync.Once{},
+		closed:         make(chan struct{}),
 	}
 }
 
@@ -70,6 +74,10 @@ retry:
 		goto retry
 	}
 	logs.Info("Successful connection with server %s", s.svrAddr)
+	// Reaching this point is what makes a freshly installed binary
+	// trustworthy: it started, it speaks the protocol, and the server
+	// accepted it. If an update is being verified, this clears it.
+	selfupdate.Confirm()
 	//monitor the connection
 	go s.ping()
 	s.signal = c
@@ -86,6 +94,7 @@ retry:
 
 //handle main connection
 func (s *TRPClient) handleMain() {
+readLoop:
 	for {
 		flags, err := s.signal.ReadFlag()
 		if err != nil {
@@ -113,6 +122,24 @@ func (s *TRPClient) handleMain() {
 				}
 				go s.newUdpConn(localAddr, string(lAddr), string(pwd))
 			}
+		case common.WORK_UPDATE:
+			// The tag always follows the flag, empty meaning "the latest
+			// release".
+			tag, err := s.signal.GetShortLenContent()
+			if err != nil {
+				// Leave through the loop, not out of the function: the exit
+				// below closes the mux tunnel and resets NowStatus, and
+				// returning here would leak both and leave this client
+				// reported as connected while it reconnects.
+				logs.Warn("update: cannot read the requested tag,", err)
+				break readLoop
+			}
+			logs.Info("update: the server asked this client to update to %q", string(tag))
+			go func(tag string) {
+				if err := selfupdate.Apply(tag); err != nil {
+					logs.Error("update:", err)
+				}
+			}(string(tag))
 		}
 	}
 	s.Close()
@@ -158,7 +185,7 @@ func (s *TRPClient) newChan() {
 		logs.Error("connect to ", s.svrAddr, "error:", err)
 		return
 	}
-	s.tunnel = nps_mux.NewMux(tunnel.Conn, s.bridgeConnType, s.disconnectTime)
+	s.tunnel = nps_mux.NewMuxStats(tunnel.Conn, s.bridgeConnType, s.disconnectTime, sysstat.Latest, nil)
 	for {
 		src, err := s.tunnel.Accept()
 		if err != nil {
@@ -280,14 +307,18 @@ func (s *TRPClient) handleUdp(serverConn net.Conn) {
 // Whether the monitor channel is closed
 func (s *TRPClient) ping() {
 	s.ticker = time.NewTicker(time.Second * 5)
-loop:
 	for {
 		select {
 		case <-s.ticker.C:
 			if s.tunnel != nil && s.tunnel.IsClose {
 				s.Close()
-				break loop
+				return
 			}
+		case <-s.closed:
+			// Closed from elsewhere. closing stops the ticker, so without
+			// this case the loop would wait on it forever, one goroutine
+			// per lost session.
+			return
 		}
 	}
 }
@@ -299,6 +330,7 @@ func (s *TRPClient) Close() {
 func (s *TRPClient) closing() {
 	CloseClient = true
 	NowStatus = 0
+	close(s.closed)
 	if s.tunnel != nil {
 		_ = s.tunnel.Close()
 	}

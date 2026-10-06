@@ -73,13 +73,16 @@ func (s *DbUtils) GetClientList(start, length int, search, sort, order string, c
 	return list, cnt
 }
 
-func (s *DbUtils) GetIdByVerifyKey(vKey string, addr string) (id int, err error) {
+// FindClientByProof finds the enabled client whose vkey makes match true, and
+// notes where it connected from. A client does not say which key it holds, it
+// proves that it holds one, so the keys are tried in turn; match is the check.
+func (s *DbUtils) FindClientByProof(match func(vkey string) bool, addr string) (id int, vkey string, err error) {
 	var exist bool
 	s.JsonDb.Clients.Range(func(key, value interface{}) bool {
 		v := value.(*Client)
-		if common.Getverifyval(v.VerifyKey) == vKey && v.Status {
+		if v.Status && match(v.VerifyKey) {
 			v.Addr = common.GetIpByAddr(addr)
-			id = v.Id
+			id, vkey = v.Id, v.VerifyKey
 			exist = true
 			return false
 		}
@@ -88,7 +91,7 @@ func (s *DbUtils) GetIdByVerifyKey(vKey string, addr string) (id int, err error)
 	if exist {
 		return
 	}
-	return 0, errors.New("not found")
+	return 0, "", errors.New("not found")
 }
 
 func (s *DbUtils) NewTask(t *Tunnel) (err error) {

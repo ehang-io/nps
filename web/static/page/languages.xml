@@ -700,6 +700,10 @@
 			<zh-CN>你确定你要停止它吗？</zh-CN>
 			<en-US>Are you sure you want to stop it?</en-US>
 		</lang>
+		<lang id="update">
+			<zh-CN>把这个客户端更新到最新版本吗？它会下载新版本并重启，重连失败会自动回滚。</zh-CN>
+			<en-US>Update this client to the latest release? It downloads it and restarts, and rolls back by itself if it cannot reconnect.</en-US>
+		</lang>
 	</confirm>
 
 	<reply>
@@ -758,6 +762,10 @@
 		<lang id="stopsuccess">
 			<zh-CN>停止成功</zh-CN>
 			<en-US>Stop success</en-US>
+		</lang>
+		<lang id="updaterequestedwatchtheclientversioncolumnfortheresult">
+			<zh-CN>已发出更新请求。稍后看客户端的版本列：变成新版本即成功，仍是旧版本说明已回滚。</zh-CN>
+			<en-US>Update requested, watch the client version column for the result</en-US>
 		</lang>
 		<lang id="Thenumberoftunnelsexceedsthelimit">
 			<zh-CN>隧道数量超过限制</zh-CN>

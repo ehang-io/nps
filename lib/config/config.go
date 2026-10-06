@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/file"
+	"github.com/astaxie/beego/logs"
 )
 
 type CommonConfig struct {
@@ -26,6 +28,7 @@ type LocalServer struct {
 	Ip       string
 	Password string
 	Target   string
+	Links    int // long-lived links to the server for a secret: 0 is the default, negative is none
 }
 
 type Config struct {
@@ -291,6 +294,8 @@ func delLocalService(s string) *LocalServer {
 			l.Port = common.GetIntNoErrByStr(item[1])
 		case "local_ip":
 			l.Ip = item[1]
+		case "links":
+			l.Links = parseLinks(item[1])
 		case "password":
 			l.Password = item[1]
 		case "target_addr":
@@ -326,4 +331,19 @@ func splitStr(s string) (configDataArr []string) {
 		configDataArr = strings.Split(s, "\n")
 	}
 	return
+}
+
+// parseLinks reads the links setting of a secret: off, or a number of links
+// from 1 to 8. Anything else is said so and means the default, which is 0.
+func parseLinks(v string) int {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "off", "false", "no":
+		return -1
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n < 1 || n > 8 {
+		logs.Warn("links=%q is neither off nor a number from 1 to 8, using the default", v)
+		return 0
+	}
+	return n
 }

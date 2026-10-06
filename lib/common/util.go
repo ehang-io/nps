@@ -465,5 +465,6 @@ func GetServerIpByClientIp(clientIp net.IP) string {
 }
 
 func PrintVersion() {
-	fmt.Printf("Version: %s\nCore version: %s\nSame core version of client and server can connect each other\n", version.VERSION, version.GetVersion())
+	fmt.Printf("Version: %s\nFork: %s\nProtocol: %s\nClient and server must speak the same protocol to connect\n",
+		version.VERSION, version.Fork, version.Protocol)
 }

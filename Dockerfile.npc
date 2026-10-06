@@ -1,11 +1,24 @@
-FROM golang:1.15 as builder
-ARG GOPROXY=direct
-WORKDIR /go/src/ehang.io/nps
+# The Go version tracks the go directive in go.mod. It was pinned at 1.15,
+# which stopped building once the dependencies moved off their 2021 versions
+# -- x/crypto alone now needs a current toolchain.
+FROM golang:1.26 AS builder
+# Upstream defaulted this to "direct", which makes the build git-clone every
+# dependency straight from its host -- slower, and it fails outright wherever
+# raw VCS access is unavailable. The proxy is tried first and direct remains
+# the fallback. Override the whole thing where a different mirror is needed:
+#   docker build --build-arg GOPROXY=https://goproxy.cn,direct ...
+ARG GOPROXY=https://proxy.golang.org,direct
+# Passed through to the version the client reports to the server and the
+# client list shows. Build with the release tag; it has to carry the fork
+# marker or the server will refuse to push updates to the resulting node.
+ARG VERSION=dev
+WORKDIR /src
 COPY . .
-RUN go get -d -v ./... 
-RUN CGO_ENABLED=0 go build -ldflags="-w -s -extldflags -static" ./cmd/npc/npc.go
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags="-w -s -X ehang.io/nps/lib/version.VERSION=${VERSION}" \
+    -o /out/npc ./cmd/npc/npc.go
 
 FROM scratch
-COPY --from=builder /go/src/ehang.io/nps/npc /
+COPY --from=builder /out/npc /npc
 VOLUME /conf
 ENTRYPOINT ["/npc"]

@@ -1,0 +1,113 @@
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>主机状态 Host stats</h5>
+                    <div class="ibox-tools"><span id="stats_updated" class="text-muted"></span></div>
+                </div>
+                <div class="ibox-content">
+                    <table class="table table-striped table-hover" id="stats_table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>备注 Remark</th>
+                            <th>在线 Online</th>
+                            <th>CPU %</th>
+                            <th>内存 Mem %</th>
+                            <th>显卡功率 GPU power / limit (W)</th>
+                            <th>更新 Updated</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row" id="stats_chart_row" style="display:none">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title"><h5 id="stats_chart_title"></h5></div>
+                <div class="ibox-content"><div id="stats_chart" style="height:360px"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var base = "{{.web_base_url}}";
+        var chart = null, chartId = null;
+
+        function esc(v) { return $('<div>').text(v == null ? '' : v).html(); }
+
+        function render(rows) {
+            var tb = $('#stats_table tbody').empty();
+            rows.forEach(function (r) {
+                var gpus = '-';
+                if (r.has_data && r.gpu_count > 0) {
+                    gpus = r.gpus.map(function (g) {
+                        return g.power + ' / ' + (g.limit || '?');
+                    }).join(' &nbsp; ');
+                    if (r.gpu_count > r.gpus.length) gpus += ' &nbsp; (+' + (r.gpu_count - r.gpus.length) + ')';
+                }
+                // a record older than three pings means the client stopped reporting
+                var stale = r.age < 0 || r.age > 15;
+                var tr = $('<tr style="cursor:pointer">').toggleClass('text-muted', stale).data('id', r.id)
+                    .append('<td>' + r.id + '</td>')
+                    .append('<td>' + esc(r.remark) + '</td>')
+                    .append('<td>' + (r.online ? '●' : '○') + '</td>')
+                    .append('<td>' + (r.has_data ? r.cpu.toFixed(1) : '-') + '</td>')
+                    .append('<td>' + (r.has_data ? r.mem.toFixed(1) : '-') + '</td>')
+                    .append('<td>' + gpus + '</td>')
+                    .append('<td>' + (r.age < 0 ? '-' : r.age + 's') + '</td>');
+                tr.data('remark', r.remark);
+                tb.append(tr);
+            });
+            $('#stats_updated').text(new Date().toLocaleTimeString());
+        }
+
+        function refresh() {
+            $.get(base + '/stats/latest', function (d) { render(d.rows || []); });
+            if (chartId !== null) drawChart(chartId, $('#stats_chart_title').data('remark'));
+        }
+
+        function drawChart(id, remark) {
+            $.get(base + '/stats/history', {id: id}, function (d) {
+                var rows = d.rows || [], gpuN = 0;
+                rows.forEach(function (p) { gpuN = Math.max(gpuN, (p.power || []).length); });
+                var series = [
+                    {name: 'CPU %', type: 'line', showSymbol: false, data: rows.map(function (p) { return [p.t, p.cpu]; })},
+                    {name: 'Mem %', type: 'line', showSymbol: false, data: rows.map(function (p) { return [p.t, p.mem]; })}
+                ];
+                for (var i = 0; i < gpuN; i++) {
+                    (function (i) {
+                        series.push({name: 'GPU' + i + ' W', type: 'line', showSymbol: false, yAxisIndex: 1,
+                            data: rows.map(function (p) { return [p.t, (p.power || [])[i] || 0]; })});
+                    })(i);
+                }
+                $('#stats_chart_title').data('remark', remark).text('#' + id + ' ' + (remark || '') + ' — 最近2小时 last 2h');
+                $('#stats_chart_row').show();
+                if (!chart) chart = echarts.init(document.getElementById('stats_chart'));
+                chart.setOption({
+                    tooltip: {trigger: 'axis'},
+                    legend: {},
+                    grid: {left: 50, right: 50},
+                    xAxis: {type: 'time'},
+                    yAxis: [{type: 'value', name: '%', min: 0, max: 100}, {type: 'value', name: 'W', min: 0}],
+                    series: series
+                }, true);
+                chart.resize();
+            });
+        }
+
+        $('#stats_table').on('click', 'tbody tr', function () {
+            chartId = $(this).data('id');
+            drawChart(chartId, $(this).data('remark'));
+        });
+
+        refresh();
+        setInterval(refresh, 5000);
+    })();
+</script>

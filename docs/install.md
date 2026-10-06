@@ -1,6 +1,6 @@
 # 安装
 ## 安装包安装
- [releases](https://github.com/ehang-io/nps/releases)
+ [releases](https://github.com/hector918/nps/releases)
 
 下载对应的系统版本即可，服务端和客户端是单独的
 

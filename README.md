@@ -20,7 +20,7 @@ NPS is a lightweight, high-performance, powerful **intranet penetration** proxy 
 - Https integration, support to convert backend proxy and web services to https, and support multiple certificates.
 - Just simple configuration on web ui can complete most requirements.
 - Complete information display, such as traffic, system information, real-time bandwidth, client version, etc.
-- Powerful extension functions, everything is available (cache, compression, encryption, traffic limit, bandwidth limit, port reuse, etc.)
+- Powerful extension functions, everything is available (cache, compression, encryption, traffic limit, bandwidth limit, etc.)
 - Domain name resolution has functions such as custom headers, 404 page configuration, host modification, site protection, URL routing, and pan-resolution.
 - Multi-user and user registration support on server.
 
@@ -30,9 +30,31 @@ NPS is a lightweight, high-performance, powerful **intranet penetration** proxy 
 
 ### Installation
 
-> [releases](https://github.com/ehang-io/nps/releases)
+> [releases](https://github.com/hector918/nps/releases)
 
 Download the corresponding system version, the server and client are separate.
+
+Or update a node that is already running. This replaces the binary, and on a
+server also the web UI in `web/views` and `web/static` -- the service unit and
+the config are left alone, so it makes no difference whether the node was
+started from flags or from a config file -- then waits for it to come back and
+rolls back if it does not:
+
+```sh
+curl -fsSL https://github.com/hector918/nps/releases/latest/download/update.sh | sudo bash
+```
+
+This installs the latest release, using the copy of the script published with
+that release. Append `-s -- --tag vX.Y.Z-hzN` to install a specific one, or
+`-s -- --rollback` to put the previous binary back.
+
+Take the script from a release, never from `master`. This pipes it into a root
+shell, so wherever it comes from holds the keys to every node that runs it: a
+release asset is fixed when the release is built, a branch is whatever was
+pushed to it last.
+
+A node running in a container is not updated this way -- see
+[deploy/docker](deploy/docker).
 
 ### Server start
 

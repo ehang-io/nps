@@ -6,6 +6,7 @@ import (
 	"ehang.io/nps/lib/config"
 	"ehang.io/nps/lib/file"
 	"ehang.io/nps/lib/install"
+	"ehang.io/nps/lib/selfupdate"
 	"ehang.io/nps/lib/version"
 	"flag"
 	"fmt"
@@ -111,7 +112,14 @@ func main() {
 			flag.CommandLine.Parse(os.Args[2:])
 			client.RegisterLocalIp(*serverAddr, *verifyKey, *connType, *proxyUrl, *registerTime)
 		case "update":
-			install.UpdateNpc()
+			// Deliberately not install.UpdateNpc: that one downloads from
+			// upstream ehang-io, so running it on a patched node would
+			// quietly swap this build for the unmaintained 0.26.10 -- taking
+			// the mux spin fix with it -- and report a version that merely
+			// looks like a failed update.
+			if err := selfupdate.Apply(""); err != nil {
+				logs.Error("update:", err)
+			}
 			return
 		case "nat":
 			c := stun.NewClient()
@@ -228,7 +236,11 @@ func run() {
 	if *verifyKey == "" {
 		*verifyKey, _ = env["NPC_SERVER_VKEY"]
 	}
-	logs.Info("the version of client is %s, the core version of client is %s", version.VERSION, version.GetVersion())
+	logs.Info("the version of client is %s, the protocol is %s", version.VERSION, version.Protocol)
+	// Arm the update watchdog only here, past the local-server branch above.
+	// That branch never connects to a server and so never confirms, and an
+	// unconfirmable start would roll a perfectly good binary back.
+	selfupdate.OnStart()
 	if *verifyKey != "" && *serverAddr != "" && *configPath == "" {
 		go func() {
 			for {

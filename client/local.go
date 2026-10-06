@@ -54,6 +54,7 @@ func (p2pBridge *p2pBridge) SendLinkInfo(clientId int, link *conn.Link, t *file.
 }
 
 func CloseLocalServer() {
+	closeSecretLinks()
 	for _, v := range LocalServer {
 		v.Close()
 	}
@@ -112,6 +113,9 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 			return err
 		}
 		LocalServer = append(LocalServer, listener)
+		if l.Type == "secret" {
+			startSecretLinks(config, l) // up before the first connection comes
+		}
 		logs.Info("successful start-up of local tcp monitoring, port", l.Port)
 		conn.Accept(listener, func(c net.Conn) {
 			logs.Trace("new %s connection", l.Type)
@@ -152,13 +156,26 @@ func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
 }
 
 func handleSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
+	// On a link if one is up, which saves everything a new connection costs;
+	// otherwise, or if the link turns out to be broken, a connection of its own.
+	if links := linksOf(l); links != nil {
+		if st, ok := links.open(); ok {
+			if _, err := st.Write([]byte(crypt.Md5(l.Password))); err == nil {
+				conn.CopyWaitGroup(st, localTcpConn, false, false, nil, nil, false, nil)
+				return
+			}
+			st.Close()
+		}
+	}
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_SECRET, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
+		localTcpConn.Close()
 		return
 	}
 	if _, err := remoteConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
 		logs.Error("Local connection server failed ", err.Error())
+		localTcpConn.Close()
 		return
 	}
 	conn.CopyWaitGroup(remoteConn.Conn, localTcpConn, false, false, nil, nil, false, nil)

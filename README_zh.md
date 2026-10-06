@@ -29,7 +29,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - https集成，支持将后端代理和web服务转成https，同时支持多证书
 - 操作简单，只需简单的配置即可在web ui上完成其余操作
 - 展示信息全面，流量、系统信息、即时带宽、客户端版本等
-- 扩展功能强大，该有的都有了（缓存、压缩、加密、流量限制、带宽限制、端口复用等等）
+- 扩展功能强大，该有的都有了（缓存、压缩、加密、流量限制、带宽限制等等）
 - 域名解析具备自定义header、404页面配置、host修改、站点保护、URL路由、泛解析等功能
 - 服务端支持多用户和用户注册功能
 
@@ -37,9 +37,27 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 ## 快速开始
 
 ### 安装
-> [releases](https://github.com/ehang-io/nps/releases)
+> [releases](https://github.com/hector918/nps/releases)
 
 下载对应的系统版本即可，服务端和客户端是单独的
+
+或者更新一台已经在跑的节点。它替换二进制，服务端还会一并替换 `web/views` 和
+`web/static` 里的管理页面；service 文件和配置一律不动，所以参数启动和配置文件
+启动都适用；替换后等节点恢复，起不来就自动回滚：
+
+```sh
+curl -fsSL https://github.com/hector918/nps/releases/latest/download/update.sh | sudo bash
+```
+
+它安装最新的 release，用的也是随该 release 一起发布的那份脚本。要装指定版本，
+在命令末尾加 `-s -- --tag vX.Y.Z-hzN`；要回退到上一个二进制，加
+`-s -- --rollback`。
+
+脚本要从 release 取，不要从 `master` 取。这条命令把脚本喂给 root shell，脚本
+从哪里来，哪里就握着所有跑过它的节点：release 附件在构建时就定下了，分支是
+最后一次推上去的任何东西。
+
+跑在容器里的节点不走这条路，见 [deploy/docker](deploy/docker)。
 
 ### 服务端启动
 下载完服务器压缩包后，解压，然后进入解压后的文件夹

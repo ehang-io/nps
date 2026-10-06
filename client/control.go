@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"ehang.io/nps/lib/bridgetls"
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/config"
 	"ehang.io/nps/lib/conn"
@@ -121,15 +123,18 @@ re:
 		// send global configuration to server and get status of config setting
 		if _, err := c.SendInfo(cnf.CommonConfig.Client, common.NEW_CONF); err != nil {
 			logs.Error(err)
+			c.Close()
 			goto re
 		}
-		if !c.GetAddStatus() {
-			logs.Error("the web_user may have been occupied!")
+		if ok, err := c.GetAddStatus(); err != nil || !ok {
+			logAddFail(err, "the web_user may have been occupied!")
+			c.Close()
 			goto re
 		}
 
 		if b, err = c.GetShortContent(16); err != nil {
 			logs.Error(err)
+			c.Close()
 			goto re
 		}
 		vkey = string(b)
@@ -140,10 +145,12 @@ re:
 	for _, v := range cnf.Hosts {
 		if _, err := c.SendInfo(v, common.NEW_HOST); err != nil {
 			logs.Error(err)
+			c.Close()
 			goto re
 		}
-		if !c.GetAddStatus() {
-			logs.Error(errAdd, v.Host)
+		if ok, err := c.GetAddStatus(); err != nil || !ok {
+			logAddFail(err, errAdd, v.Host)
+			c.Close()
 			goto re
 		}
 	}
@@ -152,10 +159,12 @@ re:
 	for _, v := range cnf.Tasks {
 		if _, err := c.SendInfo(v, common.NEW_TASK); err != nil {
 			logs.Error(err)
+			c.Close()
 			goto re
 		}
-		if !c.GetAddStatus() {
-			logs.Error(errAdd, v.Ports, v.Remark)
+		if ok, err := c.GetAddStatus(); err != nil || !ok {
+			logAddFail(err, errAdd, v.Ports, v.Remark)
+			c.Close()
 			goto re
 		}
 		if v.Mode == "file" {
@@ -180,8 +189,83 @@ re:
 	goto re
 }
 
+// logAddFail tells a refusal from the server apart from a connection that
+// died before its reply arrived; both used to be logged as a refusal.
+func logAddFail(err error, refused interface{}, detail ...interface{}) {
+	if err != nil {
+		logs.Error("lost the connection while waiting for the server's reply:", err)
+		return
+	}
+	logs.Error(refused, detail...)
+}
+
 // Create a new connection with the server and verify it
 func NewConn(tp string, vkey string, server string, connType string, proxyUrl string) (*conn.Conn, error) {
+	raw, err := dialServer(tp, server, proxyUrl)
+	if err != nil {
+		return nil, err
+	}
+	secured, err := bridgetls.Client(raw, bridgetls.ClientConfig())
+	if err != nil {
+		// A link that connects but then fails the handshake is the normal
+		// case on a flapping network; bridgetls has closed the socket.
+		return nil, err
+	}
+	c, err := authenticate(secured, vkey, connType)
+	if err != nil {
+		secured.Close()
+		return nil, err
+	}
+	return c, nil
+}
+
+// authenticate runs the proofs over a fresh TLS connection. TLS here only
+// encrypts, the server's certificate is not checked, so until the server has
+// proved that it holds the vkey nothing but the hello and the client's proof
+// is sent to it. The proof is not the vkey, but it is enough for whoever
+// answers to guess a weak vkey offline, see bridgetls.
+func authenticate(secured *tls.Conn, vkey string, connType string) (*conn.Conn, error) {
+	exporter, err := bridgetls.Exporter(secured)
+	if err != nil {
+		return nil, err
+	}
+	hello := bridgetls.Hello(version.Protocol, version.VERSION, connType)
+	proof := bridgetls.ClientProof(vkey, exporter, hello)
+	secured.SetDeadline(time.Now().Add(time.Second * 10))
+	defer secured.SetDeadline(time.Time{})
+	if _, err := secured.Write(append(hello, proof...)); err != nil {
+		return nil, err
+	}
+	c := conn.NewConn(secured)
+	flag, err := c.ReadFlag()
+	if err != nil {
+		return nil, err
+	}
+	switch flag {
+	case common.VERIFY_SUCCESS:
+	case common.VERIFY_EER:
+		// The vkey stays out of the message: it is the one secret, and logs get shared.
+		return nil, errors.New("the server did not accept the vkey: it is wrong, or the client is disabled, or something between here and the server is relaying the connection")
+	case common.VERIFY_PROTOCOL:
+		return nil, errors.New("the server speaks another protocol revision than this client (" + version.Protocol + "): update both to the same release")
+	default:
+		return nil, fmt.Errorf("unexpected reply %q from the server", flag)
+	}
+	got, err := c.GetShortContent(bridgetls.ProofLen)
+	if err != nil {
+		return nil, err
+	}
+	if !bridgetls.Equal(got, bridgetls.ServerProof(vkey, exporter, proof)) {
+		err := errors.New("ALERT: the server did not prove that it holds the vkey: whatever answered is not the server, and may be a man in the middle")
+		logs.Error(err)
+		return nil, err
+	}
+	return c, nil
+}
+
+// dialServer opens the transport to the server, through the proxy if one is
+// configured.
+func dialServer(tp string, server string, proxyUrl string) (net.Conn, error) {
 	var err error
 	var connection net.Conn
 	var sess *kcp.UDPSession
@@ -214,41 +298,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	if err != nil {
 		return nil, err
 	}
-	connection.SetDeadline(time.Now().Add(time.Second * 10))
-	defer connection.SetDeadline(time.Time{})
-	c := conn.NewConn(connection)
-	if _, err := c.Write([]byte(common.CONN_TEST)); err != nil {
-		return nil, err
-	}
-	if err := c.WriteLenContent([]byte(version.GetVersion())); err != nil {
-		return nil, err
-	}
-	if err := c.WriteLenContent([]byte(version.VERSION)); err != nil {
-		return nil, err
-	}
-	b, err := c.GetShortContent(32)
-	if err != nil {
-		logs.Error(err)
-		return nil, err
-	}
-	if crypt.Md5(version.GetVersion()) != string(b) {
-		logs.Error("The client does not match the server version. The current core version of the client is", version.GetVersion())
-		return nil, err
-	}
-	if _, err := c.Write([]byte(common.Getverifyval(vkey))); err != nil {
-		return nil, err
-	}
-	if s, err := c.ReadFlag(); err != nil {
-		return nil, err
-	} else if s == common.VERIFY_EER {
-		return nil, errors.New(fmt.Sprintf("Validation key %s incorrect", vkey))
-	}
-	if _, err := c.Write([]byte(connType)); err != nil {
-		return nil, err
-	}
-	c.SetAlive(tp)
-
-	return c, nil
+	return connection, nil
 }
 
 //http proxy connection

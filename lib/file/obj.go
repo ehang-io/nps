@@ -88,11 +88,26 @@ func (s *Client) GetConn() bool {
 	return false
 }
 
-func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
+// HasTunnel reports whether this client already owns the tunnel t would
+// create. Secret and p2p tunnels have no port, so they are the same tunnel
+// when the key matches. Without that, a key left behind by a registration
+// whose client never came up again can only ever be refused as a duplicate,
+// and nothing removes it while this client stays offline.
+func (s *Client) HasTunnel(t *Tunnel) bool {
+	return s.OwnTunnel(t) != nil
+}
+
+// OwnTunnel returns the tunnel of this client that t would create, if there
+// is one; see HasTunnel.
+func (s *Client) OwnTunnel(t *Tunnel) (own *Tunnel) {
+	keyed := t.IsKeyed()
 	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*Tunnel)
-		if v.Client.Id == s.Id && v.Port == t.Port && t.Port != 0 {
-			exist = true
+		if v.Client.Id != s.Id {
+			return true
+		}
+		if (t.Port != 0 && v.Port == t.Port) || (keyed && v.Mode == t.Mode && v.Password == t.Password) {
+			own = v
 			return false
 		}
 		return true
@@ -144,6 +159,26 @@ type Tunnel struct {
 	MultiAccount *MultiAccount
 	Health
 	sync.RWMutex
+}
+
+// IsKeyed reports whether the tunnel is found by its key rather than a port.
+func (s *Tunnel) IsKeyed() bool {
+	return s.Mode == "secret" || s.Mode == "p2p"
+}
+
+// GetTarget and SetTarget guard the Target pointer, which a client
+// re-registering a tunnel it already owns replaces while connections are
+// being dispatched to it.
+func (s *Tunnel) GetTarget() *Target {
+	s.RLock()
+	defer s.RUnlock()
+	return s.Target
+}
+
+func (s *Tunnel) SetTarget(t *Target) {
+	s.Lock()
+	s.Target = t
+	s.Unlock()
 }
 
 type Health struct {

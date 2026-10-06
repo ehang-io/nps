@@ -59,7 +59,9 @@
 	$.fn.cloudLang = function () {
 		$.ajax({
 			type: 'GET',
-			url: window.nps.web_base_url + '/static/page/languages.xml',
+			// Versioned like the scripts: a cached copy from the previous
+			// release lacks the entries new buttons look up.
+			url: window.nps.web_base_url + '/static/page/languages.xml' + (window.nps.version ? '?v=' + encodeURIComponent(window.nps.version) : ''),
 			dataType: 'xml',
 			success: function (xml) {
 				languages['content'] = xml2json($(xml).children())['content'];
@@ -144,6 +146,7 @@ function submitform(action, url, postdata) {
         case 'start':
         case 'stop':
         case 'delete':
+        case 'update':
             var langobj = languages['content']['confirm'][action];
             action = (langobj[languages['current']] || langobj[languages['default']] || 'Are you sure you want to ' + action + ' it?');
             if (! confirm(action)) return;

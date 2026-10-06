@@ -1,163 +1,78 @@
 name: Release
 
+# Pushing a release tag is the whole release: this builds, tests and creates
+# the GitHub release with its assets. Nothing is clicked in the web UI, and a
+# release never exists without binaries, since it is only created at the end.
 on:
-  release:
-    types: [published]
-    branches: [ master ]
+  push:
+    tags:
+      - 'v*-hz*'
 
+permissions:
+  contents: write
+
+# This replaces the 2021 pipeline, which built thirty-three targets plus an
+# Android APK, a Synology package and DockerHub images. Its jobs were pinned to
+# action versions current runners no longer execute, and the image jobs need
+# DockerHub secrets this fork does not have. What remains is what the fleet
+# actually consumes: Linux client and server binaries, and the checksum file
+# that makes a curl-driven update verifiable. The old pipeline is in git
+# history if a platform is ever needed back.
 jobs:
-
-  build_assets:
-    
+  build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
 
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.15
-      id: go
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-        if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            dep ensure
-        fi
-    - name: Build
-      run: |
-        chmod +x build.assets.sh
-        ./build.assets.sh
-    - name: Upload
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: |
-          freebsd_386_client.tar.gz
-          freebsd_386_server.tar.gz
-          freebsd_amd64_client.tar.gz
-          freebsd_amd64_server.tar.gz
-          freebsd_arm_client.tar.gz
-          freebsd_arm_server.tar.gz
-          linux_386_client.tar.gz
-          linux_386_server.tar.gz
-          linux_amd64_client.tar.gz
-          linux_amd64_server.tar.gz
-          linux_arm64_client.tar.gz
-          linux_arm64_server.tar.gz
-          linux_arm_v5_client.tar.gz
-          linux_arm_v6_client.tar.gz
-          linux_arm_v7_client.tar.gz
-          linux_arm_v5_server.tar.gz
-          linux_arm_v6_server.tar.gz
-          linux_arm_v7_server.tar.gz
-          linux_mips64le_client.tar.gz
-          linux_mips64le_server.tar.gz
-          linux_mips64_client.tar.gz
-          linux_mips64_server.tar.gz
-          linux_mipsle_client.tar.gz
-          linux_mipsle_server.tar.gz
-          linux_mips_client.tar.gz
-          linux_mips_server.tar.gz
-          darwin_amd64_client.tar.gz
-          darwin_amd64_server.tar.gz
-          windows_386_client.tar.gz
-          windows_386_server.tar.gz
-          windows_amd64_client.tar.gz
-          windows_amd64_server.tar.gz
-          npc_sdk.tar.gz
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-  build_android:
-    
-    runs-on: ubuntu-latest
-    steps:
+      - uses: actions/setup-go@v5
+        with:
+          # Taken from the go directive so the toolchain cannot drift away
+          # from what the dependencies require.
+          go-version-file: go.mod
+          cache: true
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-    - name: Build
-      run: |
-        chmod +x build.android.sh
-        docker run --rm -i -w /app -v $(pwd):/app -e ANDROID_HOME=/usr/local/android_sdk -e GOPROXY=direct fyneio/fyne-cross:android-latest /app/build.android.sh
-    - name: Upload
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: |
-          android_client.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Test
+        run: |
+          go vet ./lib/selfupdate/...
+          # -short, because upstream's mux tests drive docker containers on a
+          # fixed subnet and a few others time out even against pristine
+          # upstream sources. They are skipped rather than removed so they
+          # stay available to run by hand.
+          cd nps-mux && go test -short -race ./...
+          # The end-to-end mux tests skip themselves under -race: closing a
+          # mux races on close flags upstream never synchronised.
+          go test -short ./...
 
-  build_spk:
-    
-    runs-on: ubuntu-latest
-    steps:
+      # Deliberately non-blocking. A stale version number in the docs is worth
+      # knowing about immediately, but not worth withholding a release whose
+      # tag is already pushed, which would then have to be deleted and pushed
+      # again.
+      - name: Docs point at this release
+        continue-on-error: true
+        run: |
+          missing=0
+          for f in deploy/docker/README.md; do
+            grep -q "$GITHUB_REF_NAME" "$f" || {
+              echo "::warning file=$f::still points at another release; run deploy/bump-version.sh $GITHUB_REF_NAME before tagging"
+              missing=1
+            }
+          done
+          exit $missing
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-    - name: Set env
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-    - name: Build
-      run: |
-        git clone https://github.com/cnlh/spksrc.git ~/spksrc
-        mkdir ~/spksrc/nps && cp -rf ./* ~/spksrc/nps/
-        docker run -id --name spksrc --env VERSION=${{ env.RELEASE_VERSION }} -e GOPROXY=direct -v ~/spksrc:/spksrc synocommunity/spksrc /bin/bash
-        docker exec spksrc /bin/bash -c 'cd /spksrc && make setup && cd /spksrc/spk/npc && make'
-        cp ~/spksrc/packages/npc_noarch-all_${{ env.RELEASE_VERSION }}-1.spk ./npc_syno.spk
-    - name: Upload
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: |
-          npc_syno.spk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: |
+          chmod +x build.release.sh
+          ./build.release.sh "${GITHUB_REF_NAME}"
 
-  build_docker:
-    
-    runs-on: ubuntu-latest
-    steps:
-
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-    - name: Set env
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-    - name: Cache Docker layers
-      uses: actions/cache@v2
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
-    - name: Login to DockerHub
-      uses: docker/login-action@v1 
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Build and push nps
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ./Dockerfile.nps
-        platforms: linux/amd64,linux/arm,linux/arm64
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/nps:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/nps:${{ env.RELEASE_VERSION }}
-    - name: Build and push npc
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ./Dockerfile.npc
-        platforms: linux/amd64,linux/arm,linux/arm64
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/npc:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/npc:${{ env.RELEASE_VERSION }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          # update.sh rides along so the install one-liner can take it from
+          # releases/latest/download: always current, and fixed per release
+          # rather than tracking a branch.
+          files: |
+            dist/*.tar.gz
+            dist/sha256sums.txt
+            deploy/update.sh

@@ -171,7 +171,10 @@
             {
                 field: 'option',//域值
                 title: '<span langtag="word-option"></span>',//内容
-                align: 'center',
+                // left, not center: rows carry different sets of buttons (the
+                // update button only shows for some), and centred groups of
+                // different widths do not line up
+                align: 'left',
                 halign: 'center',
                 visible: true,//false表示不显示
                 formatter: function (value, row, index) {
@@ -187,6 +190,14 @@
                     }
                     btn_group += '<a onclick="submitform(\'delete\', \'{{.web_base_url}}/client/del\', {\'id\':' + row.Id
                     btn_group += '})" class="btn btn-outline btn-danger"><i class="fa fa-trash"></i></a>'
+                    // Only for a connected client built from this fork: the
+                    // server refuses to push to anything reporting a version
+                    // without the "-hz" marker, and an offline client cannot
+                    // receive the request. One client per click, on purpose.
+                    if (row.IsConnect && (row.Version || '').indexOf('-hz') !== -1) {
+                        btn_group += '<a onclick="submitform(\'update\', \'{{.web_base_url}}/client/pushupdate\', {\'id\':' + row.Id
+                        btn_group += ', \'tag\': \'\'})" class="btn btn-outline btn-info"><i class="fa fa-cloud-download-alt"></i></a>'
+                    }
                     {{end}}
 
                     btn_group += '<a href="{{.web_base_url}}/client/edit?id=' + row.Id

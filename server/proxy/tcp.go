@@ -11,6 +11,7 @@ import (
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/conn"
 	"ehang.io/nps/lib/file"
+	"ehang.io/nps/lib/version"
 	"ehang.io/nps/server/connection"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
@@ -65,6 +66,12 @@ func (s *WebServer) Start() error {
 	beego.BConfig.WebConfig.Session.SessionOn = true
 	beego.SetStaticPath(beego.AppConfig.String("web_base_url")+"/static", filepath.Join(common.GetRunPath(), "web", "static"))
 	beego.SetViewsPath(filepath.Join(common.GetRunPath(), "web", "views"))
+	// Pages reference their scripts and styles with ?v={{static_version}}.
+	// Static files are served with only Last-Modified, so browsers cache them
+	// heuristically and keep running the previous release's JavaScript after
+	// an upgrade -- a new button then silently does nothing. A version in the
+	// URL makes every release a different resource.
+	_ = beego.AddFuncMap("static_version", func() string { return version.VERSION })
 	err := errors.New("Web management startup failure ")
 	var l net.Listener
 	if l, err = connection.GetWebManagerListener(); err == nil {

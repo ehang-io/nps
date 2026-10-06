@@ -63,6 +63,7 @@ func DealBridgeTask() {
 			if v, ok := file.GetDb().JsonDb.Clients.Load(id); ok {
 				if v.(*file.Client).NoStore {
 					file.GetDb().DelClient(id)
+					Bridge.ForgetStats(id)
 				}
 			}
 		case tunnel := <-Bridge.OpenTask:
@@ -71,7 +72,8 @@ func DealBridgeTask() {
 			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
 			if t := file.GetDb().GetTaskByMd5Password(s.Password); t != nil {
 				if t.Status {
-					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, t.Target.TargetStr, nil, common.CONN_TCP, nil, t.Flow, t.Target.LocalProxy)
+					target := t.GetTarget()
+					go proxy.NewBaseServer(Bridge, t).DealClient(s.Conn, t.Client, target.TargetStr, nil, common.CONN_TCP, nil, t.Flow, target.LocalProxy)
 				} else {
 					s.Conn.Close()
 					logs.Trace("This key %s cannot be processed,status is close", s.Password)
@@ -347,6 +349,11 @@ func DelTunnelAndHostByClientId(clientId int, justDelNoStore bool) {
 //close the client
 func DelClientConnect(clientId int) {
 	Bridge.DelClient(clientId)
+}
+
+//ask the client to update its own binary, empty tag means the latest release
+func PushClientUpdate(clientId int, tag string) error {
+	return Bridge.SendUpdate(clientId, tag)
 }
 
 func GetDashboardData() map[string]interface{} {
