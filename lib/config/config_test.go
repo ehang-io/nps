@@ -49,15 +49,57 @@ p=2
 }
 
 func TestDealCommon(t *testing.T) {
-	s := `server=127.0.0.1:8284
-tp=tcp
+	// the config keys are server_addr / conn_type, the old test used the
+	// legacy server / tp names and could never pass
+	s := `server_addr=127.0.0.1:8284
+conn_type=tcp
 vkey=123`
-	f := new(CommonConfig)
-	f.Server = "127.0.0.1:8284"
-	f.Tp = "tcp"
-	f.VKey = "123"
-	if c := dealCommon(s); *c != *f {
-		t.Fail()
+	c := dealCommon(s)
+	if c.Server != "127.0.0.1:8284" {
+		t.Fatalf("server = %q", c.Server)
+	}
+	if c.Tp != "tcp" {
+		t.Fatalf("conn_type = %q", c.Tp)
+	}
+	if c.VKey != "123" {
+		t.Fatalf("vkey = %q", c.VKey)
+	}
+	if c.Client == nil || c.Client.Cnf == nil {
+		t.Fatal("client config was not initialised")
+	}
+}
+
+func TestDealCommonMultiServer(t *testing.T) {
+	// 多服务端穿透：server_addr 支持逗号 / 分号 / 空格分隔
+	cases := []struct {
+		addr string
+		want []string
+	}{
+		{"a.com:8024,b.com:8024", []string{"a.com:8024", "b.com:8024"}},
+		{" a.com:8024 ; b.com:8024 ", []string{"a.com:8024", "b.com:8024"}},
+		{"a.com:8024 b.com:8024\tc.com:8024", []string{"a.com:8024", "b.com:8024", "c.com:8024"}},
+		{"a.com:8024", []string{"a.com:8024"}},
+		{"", nil},
+	}
+	for _, cs := range cases {
+		got := SplitServerAddr(cs.addr)
+		if len(got) != len(cs.want) {
+			t.Fatalf("SplitServerAddr(%q) = %v, want %v", cs.addr, got, cs.want)
+		}
+		for i := range got {
+			if got[i] != cs.want[i] {
+				t.Fatalf("SplitServerAddr(%q) = %v, want %v", cs.addr, got, cs.want)
+			}
+		}
+	}
+
+	c := dealCommon("server_addr=a.com:8024,b.com:8024\nconn_type=tcp\nvkey=123")
+	if len(c.Servers) != 2 || c.Servers[0] != "a.com:8024" || c.Servers[1] != "b.com:8024" {
+		t.Fatalf("servers = %v", c.Servers)
+	}
+	// Server 保持第一个地址，兼容 status 查询等只认单地址的逻辑
+	if c.Server != "a.com:8024" {
+		t.Fatalf("server = %q", c.Server)
 	}
 }
 

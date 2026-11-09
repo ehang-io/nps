@@ -104,7 +104,7 @@ var hostLock sync.Mutex
 
 func (s *JsonDb) StoreHostToJsonFile() {
 	hostLock.Lock()
-	storeSyncMapToFile(s.Hosts, s.HostFilePath)
+	storeSyncMapToFile(&s.Hosts, s.HostFilePath)
 	hostLock.Unlock()
 }
 
@@ -112,7 +112,7 @@ var taskLock sync.Mutex
 
 func (s *JsonDb) StoreTasksToJsonFile() {
 	taskLock.Lock()
-	storeSyncMapToFile(s.Tasks, s.TaskFilePath)
+	storeSyncMapToFile(&s.Tasks, s.TaskFilePath)
 	taskLock.Unlock()
 }
 
@@ -120,7 +120,7 @@ var clientLock sync.Mutex
 
 func (s *JsonDb) StoreClientsToJsonFile() {
 	clientLock.Lock()
-	storeSyncMapToFile(s.Clients, s.ClientFilePath)
+	storeSyncMapToFile(&s.Clients, s.ClientFilePath)
 	clientLock.Unlock()
 }
 
@@ -139,18 +139,27 @@ func (s *JsonDb) GetHostId() int32 {
 func loadSyncMapFromFile(filePath string, f func(value string)) {
 	b, err := common.ReadAllFromFile(filePath)
 	if err != nil {
-		panic(err)
+		// 全新部署或数据文件被清理时缺失属于正常情况；原来这里直接 panic，
+		// 会让服务端在启动阶段整个崩掉（bridge 端口已监听，看起来像"启动成功又退出"）。
+		if os.IsNotExist(err) {
+			logs.Info("data file %s not found, starting with empty data", filePath)
+			return
+		}
+		logs.Error("read data file %s error: %v", filePath, err)
+		return
 	}
 	for _, v := range strings.Split(string(b), "\n"+common.CONN_DATA_SEQ) {
 		f(v)
 	}
 }
 
-func storeSyncMapToFile(m sync.Map, filePath string) {
+func storeSyncMapToFile(m *sync.Map, filePath string) {
 	file, err := os.Create(filePath + ".tmp")
 	// first create a temporary file to store
 	if err != nil {
-		panic(err)
+		// 数据目录不可写时只记录错误，不再因为一次落盘失败把服务端打死
+		logs.Error("create data file %s.tmp error: %v, data will be lost", filePath, err)
+		return
 	}
 	m.Range(func(key, value interface{}) bool {
 		var b []byte

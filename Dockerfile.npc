@@ -1,11 +1,13 @@
-FROM golang:1.15 as builder
-ARG GOPROXY=direct
+FROM golang:1.22 AS builder
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY} CGO_ENABLED=0
 WORKDIR /go/src/ehang.io/nps
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-RUN go get -d -v ./... 
-RUN CGO_ENABLED=0 go build -ldflags="-w -s -extldflags -static" ./cmd/npc/npc.go
+RUN go build -trimpath -ldflags="-s -w" -o /npc ./cmd/npc/npc.go
 
 FROM scratch
-COPY --from=builder /go/src/ehang.io/nps/npc /
+COPY --from=builder /npc /npc
 VOLUME /conf
 ENTRYPOINT ["/npc"]

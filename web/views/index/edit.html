@@ -1,3 +1,4 @@
+<div class="wrapper wrapper-content animated fadeInRight">
 <div class="row tile">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
@@ -33,7 +34,7 @@
                     <div class="form-group" id="client_id">
                         <label class="col-sm-2 control-label font-bold" langtag="word-clientid"></label>
                         <div class="col-sm-10">
-                            <input value="{{.t.Client.Id}}" value="{{.client_id}}" class="form-control" type="text" name="client_id" placeholder="" langtag="word-clientid">
+                            <input value="{{.t.Client.Id}}" class="form-control" type="text" name="client_id" placeholder="" langtag="word-clientid">
                         </div>
                     </div>
 
@@ -55,6 +56,25 @@
                         <label class="col-sm-2 control-label font-bold" langtag="word-serverport"></label>
                         <div class="col-sm-10">
                             <input value="{{.t.Port}}" class="form-control" type="text" name="port" placeholder="" langtag="info-suchasport">
+                        </div>
+                    </div>
+                    <div class="form-group" id="ip_acl">
+                        <label class="col-sm-2 control-label font-bold">允许访问的 IP</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.IpAcl}}" class="form-control" type="text" name="ip_acl" placeholder="1.2.3.4,10.0.0.0/8,192.168.1.*；留空表示不限制">
+                            <span class="help-block m-b-none">非白名单来源在握手前就被关闭，扫描器拿不到服务指纹，也不会把爆破请求转给内网（如 3389 会锁账号）</span>
+                        </div>
+                    </div>
+                    <div class="form-group" id="ip_deny">
+                        <label class="col-sm-2 control-label font-bold">拒绝访问的 IP</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.IpDeny}}" class="form-control" type="text" name="ip_deny" placeholder="优先级高于允许列表；留空表示不限制">
+                        </div>
+                    </div>
+                    <div class="form-group" id="conn_rate">
+                        <label class="col-sm-2 control-label font-bold">单 IP 连接速率</label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.ConnRate}}" class="form-control" type="text" name="conn_rate" placeholder="每个 IP 每秒允许的新建连接数，0 表示用服务端配置">
                         </div>
                     </div>
                 {{if eq true .allow_local_proxy}}
@@ -97,6 +117,30 @@
                             <span class="help-block m-b-none" langtag="info-identificationkey"></span>
                         </div>
                     </div>
+                    <div class="form-group" id="auth_user">
+                        <label class="col-sm-2 control-label font-bold" langtag="word-authuser"></label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.AuthUser}}" class="form-control" type="text" name="auth_user" placeholder="">
+                            <span class="help-block m-b-none" langtag="info-authuser"></span>
+                        </div>
+                    </div>
+                    <div class="form-group" id="auth_pass">
+                        <label class="col-sm-2 control-label font-bold" langtag="word-authpass"></label>
+                        <div class="col-sm-10">
+                            <input value="{{.t.AuthPass}}" class="form-control" type="password" name="auth_pass" placeholder="" autocomplete="new-password">
+                            <span class="help-block m-b-none" langtag="info-authpass"></span>
+                        </div>
+                    </div>
+                    <div class="form-group" id="tls">
+                        <label class="col-sm-2 control-label font-bold" langtag="word-tlsenable"></label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="tls">
+                                <option {{if eq false .t.TlsEnable}}selected{{end}} value="0" langtag="word-no"></option>
+                                <option {{if eq true .t.TlsEnable}}selected{{end}} value="1" langtag="word-yes"></option>
+                            </select>
+                            <span class="help-block m-b-none" langtag="info-tlsenable"></span>
+                        </div>
+                    </div>
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
@@ -114,11 +158,11 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy"]
-    arr["tcp"] = ["client_id", "port", "target", "local_proxy"]
-    arr["udp"] = ["client_id", "port", "target", "local_proxy"]
-    arr["socks5"] = ["client_id", "port"]
-    arr["httpProxy"] = ["client_id", "port"]
+    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy", "ip_acl", "ip_deny", "conn_rate"]
+    arr["tcp"] = ["client_id", "port", "target", "local_proxy", "ip_acl", "ip_deny", "conn_rate", "auth_user", "auth_pass", "tls"]
+    arr["udp"] = ["client_id", "port", "target", "local_proxy", "ip_acl", "ip_deny", "conn_rate"]
+    arr["socks5"] = ["client_id", "port", "ip_acl", "ip_deny", "conn_rate"]
+    arr["httpProxy"] = ["client_id", "port", "ip_acl", "ip_deny", "conn_rate"]
     arr["secret"] = ["client_id", "target", "password"]
     arr["p2p"] = ["client_id", "target", "password"]
     arr["file"] = ["client_id", "port", "local_path", "strip_pre"]
@@ -126,10 +170,12 @@
     function resetForm() {
         $(".form-group[id]").css("display", "none");
         $("#usecase span").css("display", "none");
-        o = $("#type").val();
-        $('#case'+ o).css("display", "inline")
-        for (var i = 0; i < arr[o].length; i++) {
-            $("#" + arr[o][i]).css("display", "block")
+        var o = $("#type").val();
+        // 任务不存在或类型未知时 val() 为 null，原来会直接读 undefined.length 抛错导致整页脚本中断
+        var fields = arr[o] || arr["all"];
+        $('#case' + o).css("display", "inline")
+        for (var i = 0; i < fields.length; i++) {
+            $("#" + fields[i]).css("display", "block")
         }
     }
 
@@ -144,3 +190,4 @@
         })
     })
 </script>
+</div>

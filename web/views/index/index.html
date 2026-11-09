@@ -1,45 +1,46 @@
 <div class="wrapper wrapper-content">
     <div class="row">
         <div class="col-lg-3">
-            <div class="ibox float-e-margins">
-                <div class="ibox-title">
-                    <h5 langtag="word-connectionport"></h5>
-                </div>
-                <div class="ibox-content">
-                    <h1 class="no-margins">{{.p}}</h1>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3">
-            <div class="ibox float-e-margins">
-                <div class="ibox-title">
-                    <h5 langtag="word-totalclients"></h5>
-                </div>
-                <div class="ibox-content">
-                    <h1 class="no-margins">{{.data.clientCount}}</h1>
+            <div class="ibox float-e-margins ly-kpi-card ly-tone-info">
+                <div class="ly-kpi">
+                    <div class="ly-kpi-text">
+                        <h2>{{.p}}</h2>
+                        <small langtag="word-connectionport"></small>
+                    </div>
+                    <div class="ly-kpi-icon ly-tone-info"><i class="fa fa-plug"></i></div>
                 </div>
             </div>
         </div>
         <div class="col-lg-3">
-            <div class="ibox float-e-margins">
-                <div class="ibox-title">
-                {{/*<span class="label label-primary pull-right">今日</span>*/}}
-                    <h5 langtag="word-onlineclients"></h5>
-                </div>
-                <div class="ibox-content">
-                    <h1 class="no-margins">{{.data.clientOnlineCount}}</h1>
-                {{/*<div class="stat-percent font-bold text-navy">44% <i class="fa fa-level-up"></i></div>*/}}
-                {{/*<small>新访客</small>*/}}
+            <div class="ibox float-e-margins ly-kpi-card">
+                <div class="ly-kpi">
+                    <div class="ly-kpi-text">
+                        <h2 id="kpi_client_total">{{.data.clientCount}}</h2>
+                        <small langtag="word-totalclients"></small>
+                    </div>
+                    <div class="ly-kpi-icon"><i class="fa fa-desktop"></i></div>
                 </div>
             </div>
         </div>
         <div class="col-lg-3">
-            <div class="ibox float-e-margins">
-                <div class="ibox-title">
-                    <h5 langtag="word-tcpconnections"></h5>
+            <div class="ibox float-e-margins ly-kpi-card ly-tone-success">
+                <div class="ly-kpi">
+                    <div class="ly-kpi-text">
+                        <h2 id="kpi_client_online">{{.data.clientOnlineCount}}</h2>
+                        <small langtag="word-onlineclients"></small>
+                    </div>
+                    <div class="ly-kpi-icon ly-tone-success"><i class="fa fa-signal"></i></div>
                 </div>
-                <div class="ibox-content">
-                    <h1 class="no-margins">{{.data.tcpCount}}</h1>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins ly-kpi-card ly-tone-warning">
+                <div class="ly-kpi">
+                    <div class="ly-kpi-text">
+                        <h2 id="kpi_tcp_conn">{{.data.tcpCount}}</h2>
+                        <small langtag="word-tcpconnections"></small>
+                    </div>
+                    <div class="ly-kpi-icon ly-tone-warning"><i class="fa fa-retweet"></i></div>
                 </div>
             </div>
         </div>
@@ -737,4 +738,7 @@
             charts[key].resize();
         }
     });
+
+    //仪表盘的 KPI 与饼图随客户端上下线、新增隧道实时更新
+    window.npsLiveDashboard('{{.web_base_url}}/index/status');
 </script>

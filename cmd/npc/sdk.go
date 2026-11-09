@@ -1,3 +1,6 @@
+//go:build sdk
+// +build sdk
+
 package main
 
 import (

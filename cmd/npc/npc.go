@@ -25,7 +25,8 @@ var (
 	configPath     = flag.String("config", "", "Configuration file path")
 	verifyKey      = flag.String("vkey", "", "Authentication key")
 	logType        = flag.String("log", "stdout", "Log output mode（stdout|file）")
-	connType       = flag.String("type", "tcp", "Connection type with the server（kcp|tcp）")
+	connType       = flag.String("type", "tcp", "Connection type with the server（kcp|tcp|tls）")
+	tlsVerify      = flag.Bool("tls_verify", false, "verify the server certificate when type=tls")
 	proxyUrl       = flag.String("proxy", "", "proxy socks5 url(eg:socks5://111:222@127.0.0.1:9007)")
 	logLevel       = flag.String("log_level", "7", "log level 0~7")
 	registerTime   = flag.Int("time", 2, "register time long /h")
@@ -205,6 +206,8 @@ func (p *npc) run() error {
 
 func run() {
 	common.InitPProfFromArg(*pprofAddr)
+	// conn_type=tls 时是否校验服务端证书
+	client.SetTlsVerify(*tlsVerify)
 	//p2p or secret command
 	if *password != "" {
 		commonConfig := new(config.CommonConfig)
@@ -230,13 +233,20 @@ func run() {
 	}
 	logs.Info("the version of client is %s, the core version of client is %s", version.VERSION, version.GetVersion())
 	if *verifyKey != "" && *serverAddr != "" && *configPath == "" {
-		go func() {
-			for {
-				client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl, nil, *disconnectTime).Start()
-				logs.Info("Client closed! It will be reconnected in five seconds")
-				time.Sleep(time.Second * 5)
-			}
-		}()
+		// server 支持逗号 / 空格分隔的多个地址，每个地址独立连接、独立重连
+		servers := config.SplitServerAddr(*serverAddr)
+		if len(servers) > 1 {
+			logs.Info("multi-server mode enabled, %d servers: %s", len(servers), strings.Join(servers, ", "))
+		}
+		for _, addr := range servers {
+			go func(serverAddr string) {
+				for {
+					client.NewRPClient(serverAddr, *verifyKey, *connType, *proxyUrl, nil, *disconnectTime).Start()
+					logs.Info("Client closed! It will be reconnected in five seconds, server %s", serverAddr)
+					time.Sleep(time.Second * 5)
+				}
+			}(addr)
+		}
 	} else {
 		if *configPath == "" {
 			*configPath = common.GetConfigPath()

@@ -7,14 +7,13 @@ import (
 	"bytes"
 	"io"
 	"net"
-	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ehang.io/nps/lib/common"
 	"github.com/astaxie/beego/logs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -34,6 +33,7 @@ type PortMux struct {
 	net.Listener
 	port        int
 	isClose     bool
+	closeOnce   sync.Once
 	managerHost string
 	clientConn  chan *PortConn
 	httpConn    chan *PortConn
@@ -41,7 +41,7 @@ type PortMux struct {
 	managerConn chan *PortConn
 }
 
-func NewPortMux(port int, managerHost string) *PortMux {
+func NewPortMux(port int, managerHost string) (*PortMux, error) {
 	pMux := &PortMux{
 		managerHost: managerHost,
 		port:        port,
@@ -50,8 +50,10 @@ func NewPortMux(port int, managerHost string) *PortMux {
 		httpsConn:   make(chan *PortConn),
 		managerConn: make(chan *PortConn),
 	}
-	pMux.Start()
-	return pMux
+	if err := pMux.Start(); err != nil {
+		return nil, err
+	}
+	return pMux, nil
 }
 
 func (pMux *PortMux) Start() error {
@@ -62,8 +64,8 @@ func (pMux *PortMux) Start() error {
 	}
 	pMux.Listener, err = net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		logs.Error(err)
-		os.Exit(0)
+		// a library must not exit the process here, the caller decides
+		return err
 	}
 	go func() {
 		for {
@@ -72,6 +74,8 @@ func (pMux *PortMux) Start() error {
 				logs.Warn(err)
 				//close
 				pMux.Close()
+				// the listener is gone, keep Accept would spin on a closed fd
+				return
 			}
 			go pMux.process(conn)
 		}
@@ -138,15 +142,17 @@ func (pMux *PortMux) process(conn net.Conn) {
 }
 
 func (pMux *PortMux) Close() error {
-	if pMux.isClose {
-		return errors.New("the port pmux has closed")
-	}
-	pMux.isClose = true
-	close(pMux.clientConn)
-	close(pMux.httpsConn)
-	close(pMux.httpConn)
-	close(pMux.managerConn)
-	return pMux.Listener.Close()
+	// Close can race with the accept loop, closing the channels twice panics
+	var err error
+	pMux.closeOnce.Do(func() {
+		pMux.isClose = true
+		close(pMux.clientConn)
+		close(pMux.httpsConn)
+		close(pMux.httpConn)
+		close(pMux.managerConn)
+		err = pMux.Listener.Close()
+	})
+	return err
 }
 
 func (pMux *PortMux) GetClientListener() net.Listener {

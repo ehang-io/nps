@@ -1,12 +1,17 @@
 package conn
 
 import (
+	"errors"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/astaxie/beego/logs"
 	"github.com/xtaci/kcp-go"
 )
+
+//acceptErrorBackoff 用于在 Accept 持续失败（如 fd 耗尽）时退避，避免空转占满 CPU
+const acceptErrorBackoff = 100 * time.Millisecond
 
 func NewTcpListenerAndProcess(addr string, f func(c net.Conn), listener *net.Listener) error {
 	var err error
@@ -26,11 +31,15 @@ func NewKcpListenerAndProcess(addr string, f func(c net.Conn)) error {
 	}
 	for {
 		c, err := kcpListener.AcceptKCP()
-		SetUdpSession(c)
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
+				break
+			}
 			logs.Warn(err)
+			time.Sleep(acceptErrorBackoff)
 			continue
 		}
+		SetUdpSession(c)
 		go f(c)
 	}
 	return nil
@@ -40,13 +49,12 @@ func Accept(l net.Listener, f func(c net.Conn)) {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				break
-			}
-			if strings.Contains(err.Error(), "the mux has closed") {
+			if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") ||
+				strings.Contains(err.Error(), "the mux has closed") {
 				break
 			}
 			logs.Warn(err)
+			time.Sleep(acceptErrorBackoff)
 			continue
 		}
 		if c == nil {

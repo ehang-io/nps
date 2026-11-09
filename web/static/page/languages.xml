@@ -245,6 +245,22 @@
 		<zh-CN>流量限制</zh-CN>
 		<en-US>Flow limit</en-US>
 	</lang>
+	<lang id="word-group-overview">
+		<zh-CN>概览</zh-CN>
+		<en-US>Overview</en-US>
+	</lang>
+	<lang id="word-group-node">
+		<zh-CN>客户端与节点</zh-CN>
+		<en-US>Clients &amp; nodes</en-US>
+	</lang>
+	<lang id="word-group-tunnel">
+		<zh-CN>穿透管理</zh-CN>
+		<en-US>Tunnel management</en-US>
+	</lang>
+	<lang id="word-group-support">
+		<zh-CN>帮助与支持</zh-CN>
+		<en-US>Help &amp; support</en-US>
+	</lang>
 	<lang id="word-go">
 		<zh-CN>进入</zh-CN>
 		<en-US>go</en-US>
@@ -975,4 +991,28 @@
 			</series>
 		</lang>
 	</charts>
+	<lang id="word-authuser">
+		<zh-CN>访问用户名</zh-CN>
+		<en-US>Access username</en-US>
+	</lang>
+	<lang id="word-authpass">
+		<zh-CN>访问密码</zh-CN>
+		<en-US>Access password</en-US>
+	</lang>
+	<lang id="info-authuser">
+		<zh-CN>TCP 隧道端口的 Basic 认证用户名，留空表示不认证。认证在建立隧道前完成，未通过认证的连接不会转发到目标</zh-CN>
+		<en-US>Basic auth username of the tcp tunnel port. Leave empty to disable. Auth happens before the tunnel is built</en-US>
+	</lang>
+	<lang id="info-authpass">
+		<zh-CN>Basic 认证密码。访问者用 HTTP CONNECT / AUTH Basic 方式携带凭据，建议同时开启 TLS</zh-CN>
+		<en-US>Basic auth password. Visitors send it via HTTP CONNECT or AUTH Basic, TLS is recommended</en-US>
+	</lang>
+	<lang id="word-tlsenable">
+		<zh-CN>TLS 加密</zh-CN>
+		<en-US>TLS</en-US>
+	</lang>
+	<lang id="info-tlsenable">
+		<zh-CN>开启后隧道端口只接受 TLS 连接，证书取 nps.conf 的 bridge_cert_file / bridge_key_file，未配置则用内建自签证书</zh-CN>
+		<en-US>When enabled the port only accepts TLS. The certificate comes from bridge_cert_file / bridge_key_file, otherwise a built-in self-signed one is used</en-US>
+	</lang>
 </content>

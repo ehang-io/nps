@@ -34,7 +34,8 @@ func GetDb() *DbUtils {
 	return Db
 }
 
-func GetMapKeys(m sync.Map, isSort bool, sortKey, order string) (keys []int) {
+//GetMapKeys 传指针，避免复制 sync.Map 内部的锁
+func GetMapKeys(m *sync.Map, isSort bool, sortKey, order string) (keys []int) {
 	if sortKey != "" && isSort {
 		return sortClientByKey(m, sortKey, order)
 	}
@@ -49,7 +50,7 @@ func GetMapKeys(m sync.Map, isSort bool, sortKey, order string) (keys []int) {
 func (s *DbUtils) GetClientList(start, length int, search, sort, order string, clientId int) ([]*Client, int) {
 	list := make([]*Client, 0)
 	var cnt int
-	keys := GetMapKeys(s.JsonDb.Clients, true, sort, order)
+	keys := GetMapKeys(&s.JsonDb.Clients, true, sort, order)
 	for _, key := range keys {
 		if value, ok := s.JsonDb.Clients.Load(key); ok {
 			v := value.(*Client)
@@ -177,7 +178,7 @@ func (s *DbUtils) NewHost(t *Host) error {
 func (s *DbUtils) GetHost(start, length int, id int, search string) ([]*Host, int) {
 	list := make([]*Host, 0)
 	var cnt int
-	keys := GetMapKeys(s.JsonDb.Hosts, false, "", "")
+	keys := GetMapKeys(&s.JsonDb.Hosts, false, "", "")
 	for _, key := range keys {
 		if value, ok := s.JsonDb.Hosts.Load(key); ok {
 			v := value.(*Host)
@@ -332,9 +333,20 @@ func (s *DbUtils) GetInfoByHost(host string, r *http.Request) (h *Host, err erro
 		}
 		tmpHost := v.Host
 		if strings.Contains(tmpHost, "*") {
-			tmpHost = strings.Replace(tmpHost, "*", "", -1)
-			if strings.Contains(host, tmpHost) {
-				hosts = append(hosts, v)
+			//泛域名只做边界匹配："*.proxy.com" 命中 a.proxy.com，但不再命中 evilproxy.com
+			if strings.HasSuffix(tmpHost, "*") {
+				prefix := strings.TrimSuffix(tmpHost, "*")
+				if prefix != "" && len(host) > len(prefix) && strings.HasPrefix(host, prefix) {
+					hosts = append(hosts, v)
+				}
+			} else {
+				suffix := strings.ReplaceAll(tmpHost, "*", "")
+				if !strings.HasPrefix(suffix, ".") {
+					suffix = "." + suffix
+				}
+				if len(host) > len(suffix) && strings.HasSuffix(host, suffix) {
+					hosts = append(hosts, v)
+				}
 			}
 		} else if v.Host == host {
 			hosts = append(hosts, v)

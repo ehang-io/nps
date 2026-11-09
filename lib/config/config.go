@@ -12,12 +12,29 @@ import (
 
 type CommonConfig struct {
 	Server           string
+	Servers          []string
 	VKey             string
-	Tp               string //bridgeType kcp or tcp
+	Tp               string //bridgeType kcp or tcp or tls
 	AutoReconnection bool
 	ProxyUrl         string
-	Client           *file.Client
-	DisconnectTime   int
+	// TlsVerify 为 true 时校验服务端证书（conn_type=tls 时生效，nps 自签部署默认不校验）
+	TlsVerify      bool
+	Client         *file.Client
+	DisconnectTime int
+}
+
+// SplitServerAddr 解析 server_addr 配置，支持用逗号、分号或空白分隔多个服务端地址。
+// 例：server_addr=a.com:8024,b.com:8024,c.com:8024
+func SplitServerAddr(s string) []string {
+	var servers []string
+	for _, v := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\t' || r == '\r' || r == '\n'
+	}) {
+		if v = strings.TrimSpace(v); v != "" {
+			servers = append(servers, v)
+		}
+	}
+	return servers
 }
 
 type LocalServer struct {
@@ -117,11 +134,18 @@ func dealCommon(s string) *CommonConfig {
 		}
 		switch item[0] {
 		case "server_addr":
-			c.Server = item[1]
+			if servers := SplitServerAddr(item[1]); len(servers) > 0 {
+				c.Servers = servers
+				c.Server = servers[0]
+			} else {
+				c.Server = item[1]
+			}
 		case "vkey":
 			c.VKey = item[1]
 		case "conn_type":
 			c.Tp = item[1]
+		case "tls_verify":
+			c.TlsVerify = common.GetBoolByStr(item[1])
 		case "auto_reconnection":
 			c.AutoReconnection = common.GetBoolByStr(item[1])
 		case "basic_username":
@@ -240,6 +264,16 @@ func dealTunnel(s string) *file.Tunnel {
 			t.TargetAddr = item[1]
 		case "password":
 			t.Password = item[1]
+		case "auth_user":
+			t.AuthUser = item[1]
+		case "auth_pass":
+			t.AuthPass = item[1]
+		case "tls":
+			t.TlsEnable = common.GetBoolByStr(item[1])
+		case "tls_cert_file":
+			t.TlsCertFile = item[1]
+		case "tls_key_file":
+			t.TlsKeyFile = item[1]
 		case "local_path":
 			t.LocalPath = item[1]
 		case "strip_pre":

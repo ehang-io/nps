@@ -107,14 +107,21 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Hijacking not supported", http.StatusInternalServerError)
 		return
 	}
-	c, _, err := hijacker.Hijack()
+	c, rw, err := hijacker.Hijack()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		//原来会把 err.Error() 直接写回客户端，内部错误细节（含监听地址等）会外泄，
+		//这里只回固定文案，细节留在服务端日志
+		logs.Warn("hijack http connection from %s error %s", r.RemoteAddr, err.Error())
+		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+		// without the return the nil conn is dereferenced right below
+		return
 	}
-	s.handleHttp(conn.NewConn(c), r)
+	// rw.Reader may already hold bytes of the next request, hand it over
+	// instead of throwing them away
+	s.handleHttp(conn.NewConn(c), r, rw.Reader)
 }
 
-func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
+func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request, br *bufio.Reader) {
 	var (
 		host       *file.Host
 		target     net.Conn
@@ -126,7 +133,16 @@ func (s *httpServer) handleHttp(c *conn.Conn, r *http.Request) {
 		lenConn    *conn.LenConn
 		isReset    bool
 		wg         sync.WaitGroup
+		// one reader per direction for the whole connection: rebuilding a
+		// bufio.Reader on every loop throws away buffered bytes, which breaks
+		// pipelined requests and responses that arrive with the next one
+		reqReader  *bufio.Reader
+		respReader *bufio.Reader
 	)
+	if br == nil {
+		br = bufio.NewReader(c)
+	}
+	reqReader = br
 	defer func() {
 		if connClient != nil {
 			connClient.Close()
@@ -164,10 +180,13 @@ reset:
 		return
 	}
 	connClient = conn.GetConn(target, lk.Crypt, lk.Compress, host.Client.Rate, true)
+	respReader = bufio.NewReader(connClient)
 
 	//read from inc-client
+	//Add must happen before the goroutine starts, otherwise the main goroutine
+	//can reach Wait() first and close the connection under the writer
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		isReset = false
 		defer connClient.Close()
 		defer func() {
@@ -177,7 +196,7 @@ reset:
 			}
 		}()
 		for {
-			if resp, err := http.ReadResponse(bufio.NewReader(connClient), r); err != nil || resp == nil || r == nil {
+			if resp, err := http.ReadResponse(respReader, r); err != nil || resp == nil || r == nil {
 				// if there got broken pipe, http.ReadResponse will get a nil
 				return
 			} else {
@@ -233,7 +252,7 @@ reset:
 
 	readReq:
 		//read req from connection
-		if r, err = http.ReadRequest(bufio.NewReader(c)); err != nil {
+		if r, err = http.ReadRequest(reqReader); err != nil {
 			break
 		}
 		r.URL.Scheme = scheme
@@ -266,6 +285,11 @@ func (s *httpServer) NewServer(port int, scheme string) *http.Server {
 	return &http.Server{
 		Addr: ":" + strconv.Itoa(port),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			//域名转发同样可能被公网扫描器盯上：先按 allow_ip/deny_ip 过滤来源
+			if !CheckHttpSource(r.RemoteAddr) {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			r.URL.Scheme = scheme
 			s.handleTunneling(w, r)
 		}),

@@ -46,50 +46,87 @@ func (addr *Addr) String() string {
 }
 
 func (addr *Addr) Decode(b []byte) error {
+	// every field is length checked: this parses bytes coming from the peer,
+	// an unchecked slice here used to panic the whole process
+	if len(b) < 1 {
+		return errors.New("decode error: empty addr")
+	}
 	addr.Type = b[0]
 	pos := 1
 	switch addr.Type {
 	case ipV4:
+		if len(b) < pos+net.IPv4len {
+			return errors.New("decode error: short ipv4 addr")
+		}
 		addr.Host = net.IP(b[pos : pos+net.IPv4len]).String()
 		pos += net.IPv4len
 	case ipV6:
+		if len(b) < pos+net.IPv6len {
+			return errors.New("decode error: short ipv6 addr")
+		}
 		addr.Host = net.IP(b[pos : pos+net.IPv6len]).String()
 		pos += net.IPv6len
 	case domainName:
+		if len(b) < pos+1 {
+			return errors.New("decode error: short domain addr")
+		}
 		addrlen := int(b[pos])
 		pos++
+		if len(b) < pos+addrlen {
+			return errors.New("decode error: short domain name")
+		}
 		addr.Host = string(b[pos : pos+addrlen])
 		pos += addrlen
 	default:
 		return errors.New("decode error")
 	}
-
+	if len(b) < pos+2 {
+		return errors.New("decode error: short port")
+	}
 	addr.Port = binary.BigEndian.Uint16(b[pos:])
 
 	return nil
 }
 
 func (addr *Addr) Encode(b []byte) (int, error) {
+	if len(b) < 1 {
+		return 0, errors.New("encode error: short buffer")
+	}
 	b[0] = addr.Type
 	pos := 1
 	switch addr.Type {
 	case ipV4:
+		if len(b) < pos+net.IPv4len+2 {
+			return 0, errors.New("encode error: short buffer")
+		}
 		ip4 := net.ParseIP(addr.Host).To4()
 		if ip4 == nil {
 			ip4 = net.IPv4zero.To4()
 		}
 		pos += copy(b[pos:], ip4)
 	case domainName:
+		if len(addr.Host) > 255 {
+			return 0, errors.New("encode error: domain name too long")
+		}
+		if len(b) < pos+1+len(addr.Host)+2 {
+			return 0, errors.New("encode error: short buffer")
+		}
 		b[pos] = byte(len(addr.Host))
 		pos++
 		pos += copy(b[pos:], []byte(addr.Host))
 	case ipV6:
+		if len(b) < pos+net.IPv6len+2 {
+			return 0, errors.New("encode error: short buffer")
+		}
 		ip16 := net.ParseIP(addr.Host).To16()
 		if ip16 == nil {
 			ip16 = net.IPv6zero.To16()
 		}
 		pos += copy(b[pos:], ip16)
 	default:
+		if len(b) < pos+4+2 {
+			return 0, errors.New("encode error: short buffer")
+		}
 		b[0] = ipV4
 		copy(b[pos:pos+4], net.IPv4zero.To4())
 		pos += 4
@@ -111,9 +148,12 @@ func (h *UDPHeader) Write(w io.Writer) error {
 	if addr == nil {
 		addr = &Addr{}
 	}
-	length, _ := addr.Encode(b[3:])
+	length, err := addr.Encode(b[3:])
+	if err != nil {
+		return err
+	}
 
-	_, err := w.Write(b[:3+length])
+	_, err = w.Write(b[:3+length])
 	return err
 }
 
@@ -153,14 +193,17 @@ func ReadUDPDatagram(r io.Reader) (*UDPDatagram, error) {
 	}
 	dlen := int(header.Rsv)
 	if dlen == 0 { // standard SOCKS5 UDP datagram
-		extra, err := ioutil.ReadAll(r) // we assume no redundant data
+		// the pool buffer is a hard limit, never read past it
+		extra, err := ioutil.ReadAll(io.LimitReader(r, int64(len(b)-n)))
 		if err != nil {
 			return nil, err
 		}
-		copy(b[n:], extra)
-		n += len(extra) // total length
-		dlen = n - hlen // data length
+		n += copy(b[n:], extra) // total length
+		dlen = n - hlen         // data length
 	} else { // extended feature, for UDP over TCP, using reserved field as data length
+		if dlen > len(b)-hlen {
+			return nil, errors.New("udp datagram too large")
+		}
 		if _, err := io.ReadFull(r, b[n:hlen+dlen]); err != nil {
 			return nil, err
 		}

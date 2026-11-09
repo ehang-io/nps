@@ -20,6 +20,7 @@ type TunnelModeServer struct {
 	BaseServer
 	process  process
 	listener net.Listener
+	guard    *common.AccessGuard
 }
 
 //tcp|http|host
@@ -33,20 +34,66 @@ func NewTunnelModeServer(process process, bridge NetBridge, task *file.Tunnel) *
 
 //开始
 func (s *TunnelModeServer) Start() error {
+	s.guard = TaskGuard(s.task)
+	if s.guard != nil && !s.guard.Disabled() {
+		logs.Info(guardDescription(s.guard, s.task.Port))
+	}
+	if s.task.Mode == "tcp" && (s.task.TlsEnabled() || s.task.AuthEnabled()) {
+		logs.Info("port %d tcp tunnel protection enabled, tls=%v auth_user=%q", s.task.Port, s.task.TlsEnabled(), s.task.AuthUser)
+	}
 	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+		//公网侧连接同样关闭 Nagle、开启保活，并按端口画像设置失效连接回收时间：
+		//3389/22 这类会话靠的就是小包及时下发，且对端消失后要尽快释放连接
+		c = common.TuneConnForPort(c, s.task.Port)
+		//来源校验必须在读取任何字节、建立隧道之前完成：被拒绝的扫描器
+		//拿不到目标服务的 banner，请求也不会转发到内网（3389 被爆破会锁账号）
+		if ok, reason := s.guard.Check(c.RemoteAddr()); !ok {
+			logReject(c.RemoteAddr(), reason)
+			rejectConn(c)
+			return
+		}
+		//TLS 与 Basic 认证同样在建立隧道之前完成：未通过认证的连接既不占用客户端连接数，
+		//也不会触达内网目标。认证帧读到的多余字节通过 preReadConn 回放给目标。
+		wrapped, err := wrapTunnelConn(c, s.task)
+		if err != nil {
+			if !errors.Is(err, errAuthResponded) {
+				if errors.Is(err, errAuthFailed) || errors.Is(err, errAuthTooLarge) {
+					logReject(c.RemoteAddr(), "tcp tunnel auth rejected")
+				}
+				rejectConn(c)
+			}
+			return
+		}
+		//首包守卫：RDP/SSH/HTTP 都是客户端先说话，连上却一直不发数据的连接是扫描器，
+		//在建立隧道之前就关掉，既省资源也不把端口状态暴露给探测脚本。
+		//已在上面完成 TLS/认证握手的连接无需再等（握手本身已经消费了首包）。
+		if !s.task.TlsEnabled() && !s.task.AuthEnabled() {
+			guarded, gerr := common.AwaitFirstByte(wrapped, FirstByteGuardTimeout(s.task))
+			if gerr != nil {
+				logReject(c.RemoteAddr(), "no application data after connect")
+				rejectConn(wrapped)
+				return
+			}
+			wrapped = guarded
+		}
 		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
 			logs.Warn("client id %d, task id %d,error %s, when tcp connection", s.task.Client.Id, s.task.Id, err.Error())
-			c.Close()
+			_ = wrapped.Close()
 			return
 		}
 		logs.Trace("new tcp connection,local port %d,client %d,remote address %s", s.task.Port, s.task.Client.Id, c.RemoteAddr())
-		s.process(conn.NewConn(c), s)
-		s.task.Client.AddConn()
+		// give the counter back even if the proxy panics, otherwise the client
+		// slot leaks until nps restarts
+		defer s.task.Client.AddConn()
+		s.process(conn.NewConn(wrapped), s)
 	}, &s.listener)
 }
 
 //close
 func (s *TunnelModeServer) Close() error {
+	if s.listener == nil {
+		return nil
+	}
 	return s.listener.Close()
 }
 

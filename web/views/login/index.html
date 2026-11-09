@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title langtag="title-login"></title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235a8dee'/%3E%3Ctext x='16' y='23' font-size='19' font-family='Helvetica,Arial' font-weight='bold' text-anchor='middle' fill='%23ffffff'%3EN%3C/text%3E%3C/svg%3E">
 
     <!-- Mainly scripts -->
     <!-- Latest compiled and minified CSS -->
@@ -14,6 +15,7 @@
     <link href="{{.web_base_url}}/static/css/solid.min.css" rel="stylesheet">
     <link href="{{.web_base_url}}/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{.web_base_url}}/static/css/style.css" rel="stylesheet">
+    <link href="{{.web_base_url}}/static/css/lightyear.css" rel="stylesheet">
 
     <!-- Latest compiled and minified JavaScript -->
     <script src="{{.web_base_url}}/static/js/jquery-3.4.1.min.js"></script>
@@ -23,43 +25,45 @@
 
 </head>
 
-<body class="gray-bg">
-    <div class="row border-bottom">
-        <nav class="navbar navbar-static-top navbar-right" role="navigation" style="margin: 20px 40px">
-<div></div>
-            <h1 style="margin:0px" class="navbar-header font-bold" langtag="application"></h1>
-            <span class="btn-group dropdown">
-                <button id="languagemenu" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fa fa-globe-asia fa-lg"></i><span></span></button>
-                <ul class="dropdown-menu"></ul>
-            </span>
-        </nav>
-    </div>
-<div class="loginColumns animated fadeInDown mt-3 px-5">
-    <div class="row">
+<body class="ly-login-body">
+<div class="ly-login-topbar">
+    <h1 langtag="application"></h1>
+    <span class="btn-group dropdown">
+        <button id="languagemenu" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fa fa-globe-asia fa-lg"></i><span></span></button>
+        <ul class="dropdown-menu dropdown-menu-right"></ul>
+    </span>
+</div>
 
-        <div class="col-md-6 mt-3">
-            <h3 langtag="info-tagline"></h3>
-            <ul class="px-1 text-justify">
-                <li langtag="info-feature1"></li>
-                <li langtag="info-feature2"></li>
-                <li langtag="info-feature3"></li>
-                <li langtag="info-feature4"></li>
-                <li langtag="info-feature5"></li>
-                <li langtag="info-feature6"></li>
-                <li langtag="info-feature7"></li>
-                <li langtag="info-feature8"></li>
-                <li langtag="info-feature9"></li>
-            </ul>
+<div class="ly-login-card">
+    <div class="row" style="margin:0">
+        <div class="col-md-5" style="padding:0">
+            <div class="ly-login-brand">
+                <h3 langtag="info-tagline"></h3>
+                <ul>
+                    <li langtag="info-feature1"></li>
+                    <li langtag="info-feature2"></li>
+                    <li langtag="info-feature3"></li>
+                    <li langtag="info-feature4"></li>
+                    <li langtag="info-feature5"></li>
+                    <li langtag="info-feature6"></li>
+                    <li langtag="info-feature7"></li>
+                    <li langtag="info-feature8"></li>
+                    <li langtag="info-feature9"></li>
+                </ul>
+            </div>
         </div>
 
-        <div class="col-md-6 mt-3">
-            <div class="ibox-content">
+        <div class="col-md-7" style="padding:0">
+            <div class="ly-login-form">
+                <h3 langtag="word-login"></h3>
                 <form class="m-t" onsubmit="return false">
-                    <div class="form-group">
-                        <input name="username" class="form-control" placeholder="username" required="" langtag="word-username">
+                    <div class="ly-field">
+                        <input name="username" class="form-control" placeholder=" " required="" autocomplete="username">
+                        <label class="ly-label" langtag="word-username"></label>
                     </div>
-                    <div class="form-group">
-                        <input name="password" type="password" class="form-control" placeholder="password" required="" langtag="word-password">
+                    <div class="ly-field">
+                        <input name="password" type="password" class="form-control" placeholder=" " required="" autocomplete="current-password">
+                        <label class="ly-label" langtag="word-password"></label>
                     </div>
                     <button onclick="login()" class="btn btn-primary block full-width m-b" langtag="word-login"></button>
                 {{if eq true .register_allow}}
@@ -70,18 +74,14 @@
             </div>
         </div>
     </div>
-    <hr/>
-    <div class="footer" style="position: unset;">
-        <div class="pull-right">
-            <span langtag="word-readmore"></span> <strong><a href="https://ehang.io/nps" langtag="word-go"></a></strong>
-        </div>
-        <div><strong langtag="word-copyright"></strong> <span langtag="application"></span> &copy; 2018-2020</div>
-    </div>
 </div>
 
-</body>
-</html>
-
+<div class="ly-login-footer">
+    <div class="pull-right">
+        <span langtag="word-readmore"></span> <strong><a href="https://ehang.io/nps" langtag="word-go"></a></strong>
+    </div>
+    <div><strong langtag="word-copyright"></strong> <span langtag="application"></span> &copy; 2018-2020</div>
+</div>
 
 <script type="text/javascript">
     window.nps = { "web_base_url": {{.web_base_url}} }

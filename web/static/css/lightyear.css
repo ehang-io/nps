@@ -1,0 +1,835 @@
+/*
+ * lightyear.css —— 后台管理界面视觉层
+ * 设计参考 Light-Year-Admin-Template v5：深蓝侧栏 + 浅灰画布 + 圆角卡片 + 柔和阴影
+ * 该文件在 style.css 之后加载，只做覆盖，不改变既有 DOM 结构与脚本行为。
+ */
+
+:root {
+    --ly-primary: #5a8dee;
+    --ly-primary-dark: #3f6fd8;
+    --ly-primary-soft: rgba(90, 141, 238, .12);
+    --ly-success: #39da8a;
+    --ly-warning: #fdac41;
+    --ly-danger: #ff5b5c;
+    --ly-info: #00cfdd;
+    --ly-side: #1b2a47;
+    --ly-side-2: #22355a;
+    --ly-canvas: #f2f4f8;
+    --ly-border: #e6e9f0;
+    --ly-text: #2f3b52;
+    --ly-text-muted: #7b8794;
+    --ly-radius: 6px;
+    --ly-shadow: 0 2px 6px rgba(27, 42, 71, .06);
+    --ly-shadow-hover: 0 6px 18px rgba(27, 42, 71, .12);
+}
+
+body,
+body.gray-bg {
+    background-color: var(--ly-canvas);
+    color: var(--ly-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+}
+
+a {
+    color: var(--ly-primary);
+}
+
+a:hover,
+a:focus {
+    color: var(--ly-primary-dark);
+}
+
+/* ---------------- 侧边栏 ---------------- */
+
+#wrapper nav.navbar-static-side {
+    background: linear-gradient(180deg, var(--ly-side) 0%, var(--ly-side-2) 100%);
+    box-shadow: 2px 0 12px rgba(27, 42, 71, .12);
+    height: 100vh;
+    overflow: hidden;
+}
+
+#wrapper nav.navbar-static-side .sidebar-collapse {
+    height: 100vh;
+    padding-bottom: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .18) transparent;
+}
+
+#wrapper nav.navbar-static-side .sidebar-collapse::-webkit-scrollbar {
+    width: 6px;
+}
+
+#wrapper nav.navbar-static-side .sidebar-collapse::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .18);
+    border-radius: 3px;
+}
+
+#wrapper nav.navbar-static-side .sidebar-collapse::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#wrapper nav.navbar-static-side .nav-header {
+    padding: 22px 18px 14px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+
+#wrapper nav.navbar-static-side .nav-header .profile-element span,
+#wrapper nav.navbar-static-side .nav-header .profile-element strong {
+    color: #f4f7ff;
+}
+
+#wrapper nav.navbar-static-side .nav-header .profile-element i {
+    color: var(--ly-primary);
+    opacity: .95;
+}
+
+#wrapper nav.navbar-static-side .nav-header .text-muted {
+    color: #8ea0c2 !important;
+}
+
+#wrapper .logo-element {
+    color: var(--ly-primary);
+    font-weight: 700;
+}
+
+#wrapper .nav.metismenu > li {
+    border: 0;
+}
+
+#wrapper .nav.metismenu > li > a {
+    position: relative;
+    margin: 2px 10px;
+    padding: 10px 14px;
+    border-radius: var(--ly-radius);
+    color: #b9c5db;
+    font-size: 13px;
+    transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+#wrapper .nav.metismenu > li > a i {
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+    color: #8ea0c2;
+    transition: color .18s ease;
+}
+
+#wrapper .nav.metismenu > li > a:hover {
+    background: rgba(255, 255, 255, .06);
+    color: #fff;
+    transform: translateX(2px);
+}
+
+#wrapper .nav.metismenu > li > a:hover i {
+    color: #dfe8ff;
+}
+
+#wrapper .nav.metismenu > li.active > a,
+#wrapper .nav.metismenu > li > a:focus {
+    background: var(--ly-primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(90, 141, 238, .38);
+}
+
+#wrapper .nav.metismenu > li.active > a i {
+    color: #fff;
+}
+
+/* 分组标题（穿透管理 / 客户端 …） */
+#wrapper .nav.metismenu > li.ly-nav-group {
+    margin-top: 16px;
+}
+
+#wrapper .nav.metismenu > li.ly-nav-group > span.ly-nav-title {
+    display: block;
+    padding: 0 24px 6px;
+    color: #6b7c9c;
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+#wrapper .nav.metismenu > li.ly-nav-foot {
+    margin: 20px 14px 0;
+    padding: 12px 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    color: #7b8caa;
+    font-size: 11px;
+}
+
+/* ---------------- 顶栏与画布 ---------------- */
+
+.navbar.white-bg,
+.navbar-default.white-bg {
+    background: #fff;
+    border-bottom: 1px solid var(--ly-border) !important;
+    box-shadow: 0 1px 10px rgba(27, 42, 71, .05);
+}
+
+.navbar-static-top .navbar-minimalize {
+    background: var(--ly-primary);
+    border-color: var(--ly-primary);
+    border-radius: var(--ly-radius);
+    box-shadow: 0 4px 10px rgba(90, 141, 238, .32);
+}
+
+.welcome-message {
+    color: var(--ly-text-muted);
+}
+
+#page-wrapper.gray-bg {
+    background: var(--ly-canvas);
+    overflow-x: hidden;
+}
+
+.wrapper-content {
+    padding: 20px 22px 24px;
+}
+
+/* footer 改为随内容排布，避免 fixed 覆盖表单最后几行与侧栏底部菜单 */
+.footer.fixed {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 0;
+    padding: 12px 22px;
+    background: #fff;
+    border-top: 1px solid var(--ly-border);
+    color: var(--ly-text-muted);
+    font-size: 12px;
+}
+
+/* ---------------- 卡片 ---------------- */
+
+.ibox {
+    border: 1px solid var(--ly-border);
+    border-radius: var(--ly-radius);
+    box-shadow: var(--ly-shadow);
+    background: #fff;
+    transition: box-shadow .22s ease, transform .22s ease;
+}
+
+.ibox:hover {
+    box-shadow: var(--ly-shadow-hover);
+}
+
+.ibox-title {
+    background: #fff;
+    border: 0;
+    border-bottom: 1px solid var(--ly-border);
+    border-radius: var(--ly-radius) var(--ly-radius) 0 0;
+    padding: 14px 18px;
+    min-height: 46px;
+}
+
+.ibox-title h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ly-text);
+    letter-spacing: .01em;
+}
+
+.ibox-title .ibox-tools a {
+    color: var(--ly-text-muted);
+}
+
+.ibox-title .ibox-tools a:hover {
+    color: var(--ly-primary);
+}
+
+.ibox-content {
+    border: 0;
+    padding: 16px 18px;
+}
+
+.ibox-content.no-padding {
+    padding: 0;
+}
+
+.ibox-content .list-group-item {
+    border: 0;
+    border-bottom: 1px dashed var(--ly-border);
+    padding: 11px 18px;
+}
+
+.ibox-content .list-group-item:last-child {
+    border-bottom: 0;
+}
+
+.ibox-content .list-group-item strong {
+    font-weight: 500;
+}
+
+/* ---------------- KPI 卡片 ---------------- */
+
+.ly-kpi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 18px 16px;
+}
+
+.ly-kpi .ly-kpi-text h2 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--ly-text);
+}
+
+.ly-kpi .ly-kpi-text small {
+    color: var(--ly-text-muted);
+    font-size: 12px;
+}
+
+.ly-kpi .ly-kpi-icon {
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    color: #fff;
+    background: var(--ly-primary);
+    box-shadow: 0 6px 14px rgba(90, 141, 238, .32);
+}
+
+.ly-kpi .ly-kpi-icon.ly-tone-success {
+    background: var(--ly-success);
+    box-shadow: 0 6px 14px rgba(57, 218, 138, .32);
+}
+
+.ly-kpi .ly-kpi-icon.ly-tone-warning {
+    background: var(--ly-warning);
+    box-shadow: 0 6px 14px rgba(253, 172, 65, .34);
+}
+
+.ly-kpi .ly-kpi-icon.ly-tone-danger {
+    background: var(--ly-danger);
+    box-shadow: 0 6px 14px rgba(255, 91, 92, .32);
+}
+
+.ly-kpi .ly-kpi-icon.ly-tone-info {
+    background: var(--ly-info);
+    box-shadow: 0 6px 14px rgba(0, 207, 221, .32);
+}
+
+.ibox.ly-kpi-card {
+    border-top: 3px solid var(--ly-primary);
+}
+
+.ibox.ly-kpi-card.ly-tone-success {
+    border-top-color: var(--ly-success);
+}
+
+.ibox.ly-kpi-card.ly-tone-warning {
+    border-top-color: var(--ly-warning);
+}
+
+.ibox.ly-kpi-card.ly-tone-danger {
+    border-top-color: var(--ly-danger);
+}
+
+.ibox.ly-kpi-card.ly-tone-info {
+    border-top-color: var(--ly-info);
+}
+
+/* ---------------- 按钮 ---------------- */
+
+.btn {
+    border-radius: var(--ly-radius);
+    font-size: 13px;
+    font-weight: 500;
+    transition: background-color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn-primary,
+.btn-primary:focus {
+    background: var(--ly-primary);
+    border-color: var(--ly-primary);
+    box-shadow: 0 4px 10px rgba(90, 141, 238, .28);
+}
+
+.btn-primary:hover {
+    background: var(--ly-primary-dark);
+    border-color: var(--ly-primary-dark);
+}
+
+.btn-white {
+    border-color: var(--ly-border);
+    color: var(--ly-text);
+}
+
+.btn-white:hover {
+    border-color: var(--ly-primary);
+    color: var(--ly-primary);
+    background: #fff;
+}
+
+.btn-success {
+    background: var(--ly-success);
+    border-color: var(--ly-success);
+}
+
+.btn-warning {
+    background: var(--ly-warning);
+    border-color: var(--ly-warning);
+}
+
+.btn-danger {
+    background: var(--ly-danger);
+    border-color: var(--ly-danger);
+}
+
+.btn-info {
+    background: var(--ly-info);
+    border-color: var(--ly-info);
+}
+
+.btn-link {
+    box-shadow: none;
+}
+
+.label-primary {
+    background: var(--ly-primary);
+    border-radius: 4px;
+}
+
+/* ---------------- 表格 / 分页 ---------------- */
+
+.table > thead > tr > th {
+    background: #f7f9fc;
+    border-bottom: 1px solid var(--ly-border);
+    color: #55627a;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.table > tbody > tr > td {
+    border-top: 1px solid #f1f3f8;
+    color: var(--ly-text);
+    vertical-align: middle;
+}
+
+.table-hover > tbody > tr:hover > td,
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background: #f8faff;
+}
+
+.bootstrap-table .fixed-table-toolbar {
+    padding: 6px 18px 10px;
+}
+
+.bootstrap-table .fixed-table-toolbar .search input {
+    border-radius: var(--ly-radius);
+    border: 1px solid var(--ly-border);
+    box-shadow: none;
+    height: 32px;
+}
+
+.bootstrap-table .fixed-table-toolbar .search input:focus {
+    border-color: var(--ly-primary);
+    box-shadow: 0 0 0 3px var(--ly-primary-soft);
+}
+
+.bootstrap-table .fixed-table-pagination {
+    padding: 10px 18px;
+    border-top: 1px solid var(--ly-border);
+}
+
+.pagination > li > a,
+.pagination > li > span {
+    border-color: var(--ly-border);
+    color: var(--ly-text);
+    margin: 0 2px;
+    border-radius: var(--ly-radius) !important;
+}
+
+.pagination > .active > a,
+.pagination > .active > a:hover,
+.pagination > .active > span {
+    background: var(--ly-primary);
+    border-color: var(--ly-primary);
+    box-shadow: 0 4px 10px rgba(90, 141, 238, .3);
+}
+
+.pagination > li > a:hover {
+    color: var(--ly-primary);
+    border-color: var(--ly-primary);
+    background: var(--ly-primary-soft);
+}
+
+.dropdown-menu {
+    border: 1px solid var(--ly-border);
+    border-radius: var(--ly-radius);
+    box-shadow: var(--ly-shadow-hover);
+    padding: 6px 0;
+}
+
+.dropdown-menu > li > a {
+    padding: 7px 16px;
+    color: var(--ly-text);
+}
+
+.dropdown-menu > li > a:hover {
+    background: var(--ly-primary-soft);
+    color: var(--ly-primary);
+}
+
+/* ---------------- 表单 ---------------- */
+
+.form-control {
+    border-radius: var(--ly-radius);
+    border: 1px solid var(--ly-border);
+    box-shadow: none;
+    color: var(--ly-text);
+    height: 36px;
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+textarea.form-control {
+    height: auto;
+}
+
+.form-control:focus {
+    border-color: var(--ly-primary);
+    box-shadow: 0 0 0 3px var(--ly-primary-soft);
+}
+
+.form-control[disabled] {
+    background: #f7f9fc;
+}
+
+select.form-control {
+    height: 36px;
+}
+
+.help-block {
+    color: var(--ly-text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 6px;
+}
+
+.form-horizontal .control-label {
+    color: #55627a;
+    font-weight: 600;
+    font-size: 12px;
+    padding-top: 10px;
+}
+
+/* 卡片内表单统一为「标签在上 + 输入框整行」，避免 col-sm-2/col-sm-10 拼出横向滚动 */
+.ibox-content .form-horizontal {
+    margin: 0;
+}
+
+.ibox-content .form-horizontal .form-group {
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 16px;
+}
+
+.ibox-content .form-horizontal .form-group > label,
+.ibox-content .form-horizontal .form-group > .control-label {
+    float: none;
+    display: block;
+    width: 100% !important;
+    padding: 0 0 6px;
+    margin: 0;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: #55627a;
+}
+
+.ibox-content .form-horizontal .form-group > [class*="col-sm-"] {
+    float: none;
+    width: 100% !important;
+    padding: 0;
+    margin: 0;
+}
+
+.ibox-content .form-horizontal .form-group > [class*="col-sm-"] > .control-label {
+    text-align: left;
+}
+
+.ibox-content .form-horizontal .form-control:focus ~ label,
+.ibox-content .form-horizontal .form-group:focus-within > label,
+.ibox-content .form-horizontal .form-group:focus-within > .control-label {
+    color: var(--ly-primary);
+}
+
+.ibox-content .form-horizontal .hr-line-dashed {
+    margin: 20px 0;
+    border-top: 1px dashed var(--ly-border);
+}
+
+.ibox-content .form-horizontal .form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* 浮动标签输入框：占位符为空，标签在聚焦或有值时上浮 */
+.ly-field {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.ly-field > .form-control {
+    height: 44px;
+    padding: 16px 14px 4px;
+    background: #fff;
+}
+
+.ly-field > textarea.form-control {
+    padding-top: 20px;
+    min-height: 84px;
+}
+
+.ly-field > .ly-label {
+    position: absolute;
+    left: 14px;
+    top: 13px;
+    margin: 0;
+    color: var(--ly-text-muted);
+    font-size: 13px;
+    font-weight: 400;
+    pointer-events: none;
+    transition: transform .16s ease, font-size .16s ease, color .16s ease;
+    transform-origin: left top;
+}
+
+.ly-field > .form-control:focus + .ly-label,
+.ly-field > .form-control:not(:placeholder-shown) + .ly-label,
+.ly-field.ly-filled > .ly-label {
+    transform: translateY(-8px) scale(.82);
+    color: var(--ly-primary);
+}
+
+.ly-field > .form-control:focus + .ly-label {
+    color: var(--ly-primary);
+}
+
+/* ---------------- 提示 / 空态 ---------------- */
+
+.ly-callout {
+    border-left: 3px solid var(--ly-primary);
+    background: var(--ly-primary-soft);
+    border-radius: 0 var(--ly-radius) var(--ly-radius) 0;
+    padding: 10px 14px;
+    color: #445070;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+/* ---------------- 登录 / 注册页 ---------------- */
+
+.ly-login-body,
+body.ly-login-body {
+    background: linear-gradient(135deg, #1b2a47 0%, #2a3f6b 55%, #35508a 100%);
+    min-height: 100vh;
+}
+
+.ly-login-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 32px;
+    color: #fff;
+}
+
+.ly-login-topbar h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: #fff;
+}
+
+.ly-login-card {
+    max-width: 1000px;
+    margin: 24px auto 0;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(9, 18, 38, .34);
+    overflow: hidden;
+}
+
+.ly-login-card .ly-login-brand {
+    background: linear-gradient(160deg, var(--ly-primary) 0%, #3f6fd8 100%);
+    color: #fff;
+    padding: 40px 34px;
+    height: 100%;
+}
+
+.ly-login-card .ly-login-brand h3 {
+    margin: 0 0 14px;
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.ly-login-card .ly-login-brand ul {
+    padding-left: 0;
+    list-style: none;
+    margin: 0;
+}
+
+.ly-login-card .ly-login-brand ul li {
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, .92);
+}
+
+.ly-login-card .ly-login-brand ul li:before {
+    content: "\f00c";
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    position: absolute;
+    left: 0;
+    top: 1px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, .8);
+}
+
+.ly-login-card .ly-login-form {
+    padding: 40px 40px 32px;
+}
+
+.ly-login-card .ly-login-form h3 {
+    margin: 0 0 22px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ly-text);
+}
+
+.ly-login-card .btn-primary.block {
+    height: 44px;
+    font-size: 14px;
+    letter-spacing: .04em;
+}
+
+.ly-login-footer {
+    max-width: 1000px;
+    margin: 18px auto 28px;
+    color: rgba(255, 255, 255, .68);
+    font-size: 12px;
+}
+
+.ly-login-footer a {
+    color: rgba(255, 255, 255, .88);
+}
+
+@media (max-width: 991px) {
+    .ly-login-card {
+        margin: 12px 16px 0;
+    }
+
+    .ly-login-card .ly-login-form {
+        padding: 26px 22px 20px;
+    }
+
+    .ly-login-card .ly-login-brand {
+        padding: 26px 22px;
+    }
+
+    .ly-login-footer {
+        margin: 14px 16px 24px;
+    }
+}
+
+/* ---------------- 侧栏收起态适配 ---------------- */
+
+body.mini-navbar #wrapper .nav.metismenu > li > a {
+    margin: 2px 6px;
+    padding: 12px 0;
+    text-align: center;
+}
+
+body.mini-navbar #wrapper .nav.metismenu > li > a i {
+    margin-right: 0;
+}
+
+body.mini-navbar #wrapper .nav.metismenu > li.ly-nav-group > span.ly-nav-title,
+body.mini-navbar #wrapper .nav.metismenu > li.ly-nav-foot {
+    display: none;
+}
+
+body.body-small #page-wrapper {
+    margin: 0 0 0 70px;
+}
+
+/* ---------------- 列表页工具条 ---------------- */
+
+.ibox > .content {
+    padding: 12px 18px 0;
+}
+
+#toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 2px 0 12px;
+}
+
+#toolbar .btn {
+    padding: 6px 14px;
+}
+
+.bootstrap-table .fixed-table-toolbar .btn-default {
+    border-radius: var(--ly-radius);
+    border: 1px solid var(--ly-border);
+    color: var(--ly-text);
+    background: #fff;
+    box-shadow: none;
+}
+
+.bootstrap-table .fixed-table-toolbar .btn-default:hover,
+.bootstrap-table .fixed-table-toolbar .btn-default.active {
+    border-color: var(--ly-primary);
+    color: var(--ly-primary);
+    background: var(--ly-primary-soft);
+}
+
+.bootstrap-table .fixed-table-container {
+    border: 0;
+}
+
+.bootstrap-table .table {
+    margin-bottom: 0;
+}
+
+.bootstrap-table .detail-view td {
+    background: #fafbfe;
+}
+
+/* 页面标题区 */
+h3.ibox-title {
+    background: #fff;
+    border-bottom: 1px solid var(--ly-border);
+    border-radius: var(--ly-radius) var(--ly-radius) 0 0;
+    color: var(--ly-text);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px 18px;
+    margin: 0;
+}
+
+hr {
+    border-top-color: var(--ly-border);
+}

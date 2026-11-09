@@ -18,6 +18,13 @@ func (s *IndexController) Index() {
 	s.SetInfo("dashboard")
 	s.display("index/index")
 }
+
+// Status 仪表盘轮询接口：只返回数据，不渲染模板
+func (s *IndexController) Status() {
+	s.Data["json"] = server.GetDashboardData()
+	s.ServeJSON()
+	s.StopRun()
+}
 func (s *IndexController) Help() {
 	s.SetInfo("about")
 	s.display("index/help")
@@ -95,12 +102,18 @@ func (s *IndexController) Add() {
 		t := &file.Tunnel{
 			Port:      s.GetIntNoErr("port"),
 			ServerIp:  s.getEscapeString("server_ip"),
+			IpAcl:     s.getEscapeString("ip_acl"),
+			IpDeny:    s.getEscapeString("ip_deny"),
+			ConnRate:  s.GetIntNoErr("conn_rate"),
 			Mode:      s.getEscapeString("type"),
 			Target:    &file.Target{TargetStr: s.getEscapeString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
 			Id:        int(file.GetDb().JsonDb.GetTaskId()),
 			Status:    true,
 			Remark:    s.getEscapeString("remark"),
 			Password:  s.getEscapeString("password"),
+			AuthUser:  s.getEscapeString("auth_user"),
+			AuthPass:  s.getEscapeString("auth_pass"),
+			TlsEnable: s.GetBoolNoErr("tls"),
 			LocalPath: s.getEscapeString("local_path"),
 			StripPre:  s.getEscapeString("strip_pre"),
 			Flow:      &file.Flow{},
@@ -165,9 +178,15 @@ func (s *IndexController) Edit() {
 				t.Port = s.GetIntNoErr("port")
 			}
 			t.ServerIp = s.getEscapeString("server_ip")
+			t.IpAcl = s.getEscapeString("ip_acl")
+			t.IpDeny = s.getEscapeString("ip_deny")
+			t.ConnRate = s.GetIntNoErr("conn_rate")
 			t.Mode = s.getEscapeString("type")
 			t.Target = &file.Target{TargetStr: s.getEscapeString("target")}
 			t.Password = s.getEscapeString("password")
+			t.AuthUser = s.getEscapeString("auth_user")
+			t.AuthPass = s.getEscapeString("auth_pass")
+			t.TlsEnable = s.GetBoolNoErr("tls")
 			t.Id = id
 			t.LocalPath = s.getEscapeString("local_path")
 			t.StripPre = s.getEscapeString("strip_pre")

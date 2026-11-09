@@ -181,7 +181,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 	lk.Host = common.FormatAddress(lk.Host)
 	//if Conn type is http, read the request and log
 	if lk.ConnType == "http" {
-		if targetConn, err := net.DialTimeout(common.CONN_TCP, lk.Host, lk.Option.Timeout); err != nil {
+		if targetConn, err := common.DialTuned(common.CONN_TCP, lk.Host, lk.Option.Timeout); err != nil {
 			logs.Warn("connect to %s error %s", lk.Host, err.Error())
 			src.Close()
 		} else {
@@ -209,7 +209,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 		s.handleUdp(src)
 	}
 	//connect to target if conn type is tcp or udp
-	if targetConn, err := net.DialTimeout(lk.ConnType, lk.Host, lk.Option.Timeout); err != nil {
+	if targetConn, err := common.DialTuned(lk.ConnType, lk.Host, lk.Option.Timeout); err != nil {
 		logs.Warn("connect to %s error %s", lk.Host, err.Error())
 		src.Close()
 	} else {

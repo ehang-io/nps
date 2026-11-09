@@ -4,12 +4,16 @@ TEST_OPTIONS?=
 
 export PATH := ./bin:$(PATH)
 export GO111MODULE := on
-export GOPROXY := https://gocenter.io
+export GOPROXY := https://goproxy.cn,https://proxy.golang.org,direct
+
+# 去掉符号表与调试信息、并去掉构建路径，减小二进制并让构建可复现
+LDFLAGS ?= -s -w
+GOBUILD ?= CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)"
 
 # Build a beta version of goreleaser
 build:
-	go build cmd/nps/nps.go
-	go build cmd/npc/npc.go
+	$(GOBUILD) ./cmd/nps
+	$(GOBUILD) ./cmd/npc/npc.go
 .PHONY: build
 
 # Install all the build and lint dependencies

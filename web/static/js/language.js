@@ -157,7 +157,24 @@ function submitform(action, url, postdata) {
                 success: function (res) {
                     alert(langreply(res.msg));
                     if (res.status) {
-                        if (postsubmit) {document.location.reload();}else{history.back(-1);}
+                        if (postsubmit) {
+                            //列表页上的启动/停止/删除：就地刷新表格，保留分页与搜索
+                            if (typeof window.npsForceRefresh === 'function') {
+                                window.npsForceRefresh();
+                            } else {
+                                document.location.reload();
+                            }
+                        } else {
+                            //新增/编辑成功：列表页可能还停在浏览器后退缓存里（bfcache），
+                            //打上标记让列表页自行刷新一次
+                            try { window.sessionStorage.setItem('nps:needRefresh', '1'); } catch (ignore) {}
+                            if (document.referrer && document.referrer !== document.location.href) {
+                                //用 referrer 重新请求，避免 history.back 命中旧页面
+                                document.location.replace(document.referrer);
+                            } else {
+                                history.back(-1);
+                            }
+                        }
                     }
                 }
             });

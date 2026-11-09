@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ehang.io/nps/lib/common"
@@ -28,7 +29,7 @@ type Client struct {
 	signal    *conn.Conn
 	file      *nps_mux.Mux
 	Version   string
-	retryTime int // it will be add 1 when ping not ok until to 3 will close the client
+	retryTime int32 // it will be add 1 when ping not ok until to 3 will close the client
 }
 
 func NewClient(t, f *nps_mux.Mux, s *conn.Conn, vs string) *Client {
@@ -50,17 +51,17 @@ type Bridge struct {
 	CloseClient    chan int
 	SecretChan     chan *conn.Secret
 	ipVerify       bool
-	runList        sync.Map //map[int]interface{}
+	runList        *sync.Map //map[int]interface{}
 	disconnectTime int
 }
 
-func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList sync.Map, disconnectTime int) *Bridge {
+func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList *sync.Map, disconnectTime int) *Bridge {
 	return &Bridge{
 		TunnelPort:     tunnelPort,
 		tunnelType:     tunnelType,
 		OpenTask:       make(chan *file.Tunnel),
 		CloseTask:      make(chan *file.Tunnel),
-		CloseClient:    make(chan int),
+		CloseClient:    make(chan int, 100),
 		SecretChan:     make(chan *conn.Secret),
 		ipVerify:       ipVerify,
 		runList:        runList,
@@ -219,7 +220,12 @@ func (s *Bridge) DelClient(id int) {
 			return
 		}
 		if c, err := file.GetDb().GetClient(id); err == nil {
-			s.CloseClient <- c.Id
+			//非阻塞发送，避免调用方（ping 协程 / 连接协程）被卡在这里
+			select {
+			case s.CloseClient <- c.Id:
+			default:
+				logs.Warn("close client %d notify skipped, bridge task is busy", c.Id)
+			}
 		}
 	}
 }
@@ -368,8 +374,8 @@ func (s *Bridge) ping() {
 			s.Client.Range(func(key, value interface{}) bool {
 				v := value.(*Client)
 				if v.tunnel == nil || v.signal == nil {
-					v.retryTime += 1
-					if v.retryTime >= 3 {
+					//retryTime 会被 ping 协程和连接协程并发访问，必须原子操作
+					if atomic.AddInt32(&v.retryTime, 1) >= 3 {
 						arr = append(arr, key.(int))
 					}
 					return true
@@ -506,6 +512,11 @@ loop:
 					tl.NoStore = true
 					tl.Client = client
 					tl.Password = t.Password
+					tl.AuthUser = t.AuthUser
+					tl.AuthPass = t.AuthPass
+					tl.TlsEnable = t.TlsEnable
+					tl.TlsCertFile = t.TlsCertFile
+					tl.TlsKeyFile = t.TlsKeyFile
 					tl.LocalPath = t.LocalPath
 					tl.StripPre = t.StripPre
 					tl.MultiAccount = t.MultiAccount

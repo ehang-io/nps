@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ehang.io/nps/lib/common"
@@ -87,28 +89,63 @@ func GetTaskStatus(path string) {
 
 var errAdd = errors.New("The server returned an error, which port or host may have been occupied or not allowed to open.")
 
+// StartFromFile 从配置文件启动客户端。server_addr 支持配置多个服务端，
+// 客户端会与每个服务端建立独立的控制通道与隧道，实现多服务端穿透。
 func StartFromFile(path string) {
-	first := true
 	cnf, err := config.NewConfig(path)
 	if err != nil || cnf.CommonConfig == nil {
-		logs.Error("Config file %s loading error %s", path, err.Error())
-		os.Exit(0)
+		logs.Error("Config file %s loading error %v", path, err)
+		return
 	}
-	logs.Info("Loading configuration file %s successfully", path)
+	servers := cnf.CommonConfig.Servers
+	if len(servers) == 0 && cnf.CommonConfig.Server != "" {
+		servers = []string{cnf.CommonConfig.Server}
+	}
+	if len(servers) == 0 {
+		logs.Error("Config file %s has no server_addr", path)
+		return
+	}
+	logs.Info("Loading configuration file %s successfully, servers: %s", path, strings.Join(servers, ", "))
+	// conn_type=tls 时是否校验服务端证书由配置文件决定（自签部署默认不校验）
+	SetTlsVerify(cnf.CommonConfig.TlsVerify)
+	// secret / p2p 的本地监听端口与具体服务端无关，只启动一次
+	for _, v := range cnf.LocalServer {
+		go StartLocalServer(v, cnf.CommonConfig)
+	}
+	var wg sync.WaitGroup
+	for i, addr := range servers {
+		wg.Add(1)
+		go func(idx int, serverAddr string) {
+			defer wg.Done()
+			startFromServer(cnf, serverAddr, idx == 0)
+		}(i, addr)
+	}
+	wg.Wait()
+}
+
+// startFromServer 与单个服务端注册配置并维持控制通道，断线后按需重连
+func startFromServer(cnf *config.Config, serverAddr string, primary bool) {
+	first := true
+	var fileServers []*http.Server
+	defer func() {
+		for _, srv := range fileServers {
+			_ = srv.Close()
+		}
+	}()
 
 re:
 	if first || cnf.CommonConfig.AutoReconnection {
 		if !first {
-			logs.Info("Reconnecting...")
+			logs.Info("[%s] Reconnecting...", serverAddr)
 			time.Sleep(time.Second * 5)
 		}
 	} else {
 		return
 	}
 	first = false
-	c, err := NewConn(cnf.CommonConfig.Tp, cnf.CommonConfig.VKey, cnf.CommonConfig.Server, common.WORK_CONFIG, cnf.CommonConfig.ProxyUrl)
+	c, err := NewConn(cnf.CommonConfig.Tp, cnf.CommonConfig.VKey, serverAddr, common.WORK_CONFIG, cnf.CommonConfig.ProxyUrl)
 	if err != nil {
-		logs.Error(err)
+		logs.Error("[%s] %s", serverAddr, err.Error())
 		goto re
 	}
 	var isPub bool
@@ -134,7 +171,9 @@ re:
 		}
 		vkey = string(b)
 	}
-	ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(vkey), 0600)
+	if primary {
+		ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(vkey), 0600)
+	}
 
 	//send hosts to server
 	for _, v := range cnf.Hosts {
@@ -160,56 +199,87 @@ re:
 		}
 		if v.Mode == "file" {
 			//start local file server
-			go startLocalFileServer(cnf.CommonConfig, v, vkey)
+			if srv := startLocalFileServer(cnf.CommonConfig, v, vkey, serverAddr); srv != nil {
+				fileServers = append(fileServers, srv)
+			}
 		}
 	}
 
-	//create local server secret or p2p
-	for _, v := range cnf.LocalServer {
-		go StartLocalServer(v, cnf.CommonConfig)
-	}
-
 	c.Close()
-	if cnf.CommonConfig.Client.WebUserName == "" || cnf.CommonConfig.Client.WebPassword == "" {
-		logs.Notice("web access login username:user password:%s", vkey)
-	} else {
-		logs.Notice("web access login username:%s password:%s", cnf.CommonConfig.Client.WebUserName, cnf.CommonConfig.Client.WebPassword)
+	if primary {
+		if cnf.CommonConfig.Client.WebUserName == "" || cnf.CommonConfig.Client.WebPassword == "" {
+			logs.Notice("web access login username:user password:%s", vkey)
+		} else {
+			logs.Notice("web access login username:%s password:%s", cnf.CommonConfig.Client.WebUserName, cnf.CommonConfig.Client.WebPassword)
+		}
 	}
-	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf, cnf.CommonConfig.DisconnectTime).Start()
-	CloseLocalServer()
+	NewRPClient(serverAddr, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf, cnf.CommonConfig.DisconnectTime).Start()
+	for _, srv := range fileServers {
+		_ = srv.Close()
+	}
+	fileServers = nil
 	goto re
 }
 
 // Create a new connection with the server and verify it
+// tlsVerify 控制 tls 连接类型下是否校验服务端证书
+var tlsVerify bool
+
+// GetTlsVerify 返回客户端是否校验服务端证书（tls 连接类型）
+func GetTlsVerify() bool {
+	return tlsVerify
+}
+
+// SetTlsVerify 设置是否校验服务端证书。nps 默认使用自签证书，故默认为 false。
+func SetTlsVerify(v bool) {
+	tlsVerify = v
+}
+
+// dialBridge 建立到服务端的原始 TCP 连接，支持 socks5 / http 代理
+func dialBridge(proxyUrl, server string) (net.Conn, error) {
+	if proxyUrl == "" {
+		return net.Dial("tcp", server)
+	}
+	u, err := url.Parse(proxyUrl)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "socks5":
+		n, err := proxy.FromURL(u, nil)
+		if err != nil {
+			return nil, err
+		}
+		return n.Dial("tcp", server)
+	default:
+		return NewHttpProxyConn(u, server)
+	}
+}
+
 func NewConn(tp string, vkey string, server string, connType string, proxyUrl string) (*conn.Conn, error) {
 	var err error
 	var connection net.Conn
 	var sess *kcp.UDPSession
-	if tp == "tcp" {
-		if proxyUrl != "" {
-			u, er := url.Parse(proxyUrl)
-			if er != nil {
-				return nil, er
-			}
-			switch u.Scheme {
-			case "socks5":
-				n, er := proxy.FromURL(u, nil)
-				if er != nil {
-					return nil, er
-				}
-				connection, err = n.Dial("tcp", server)
-			default:
-				connection, err = NewHttpProxyConn(u, server)
-			}
-		} else {
-			connection, err = net.Dial("tcp", server)
-		}
-	} else {
+	switch tp {
+	case "kcp":
 		sess, err = kcp.DialWithOptions(server, nil, 10, 3)
 		if err == nil {
 			conn.SetUdpSession(sess)
 			connection = sess
 		}
+	case "tls":
+		var raw net.Conn
+		if raw, err = dialBridge(proxyUrl, server); err == nil {
+			tlsConn := tls.Client(raw, crypt.ClientTlsConfig(server, GetTlsVerify()))
+			if herr := tlsConn.Handshake(); herr != nil {
+				_ = raw.Close()
+				err = herr
+			} else {
+				connection = tlsConn
+			}
+		}
+	default:
+		connection, err = dialBridge(proxyUrl, server)
 	}
 	if err != nil {
 		return nil, err

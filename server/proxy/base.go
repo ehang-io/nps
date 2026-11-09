@@ -41,19 +41,15 @@ func NewBaseServer(bridge *bridge.Bridge, task *file.Tunnel) *BaseServer {
 }
 
 //add the flow
+//Flow.Add takes the lock of file.Flow itself, using a second lock here only
+//guarded some of the writers and left the counters racy against Flow.Add.
 func (s *BaseServer) FlowAdd(in, out int64) {
-	s.Lock()
-	defer s.Unlock()
-	s.task.Flow.ExportFlow += out
-	s.task.Flow.InletFlow += in
+	s.task.Flow.Add(in, out)
 }
 
 //change the flow
 func (s *BaseServer) FlowAddHost(host *file.Host, in, out int64) {
-	s.Lock()
-	defer s.Unlock()
-	host.Flow.ExportFlow += out
-	host.Flow.InletFlow += in
+	host.Flow.Add(in, out)
 }
 
 //write fail bytes to the connection

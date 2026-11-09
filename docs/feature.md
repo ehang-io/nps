@@ -125,6 +125,107 @@ time为有效小时数，例如time=2，在当前时间后的两小时内，本�
 
 
 **注意：** 本机公网ip并不是一成不变的，请自行注意有效期的设置，同时同一网络下，多人也可能是在公用同一个公网ip。
+
+## 穿透端口的来源白名单（推荐给 3389 等端口用）
+`ip_limit` 是“注册后才能连”的弱限制，端口本身仍然对全公网可达：扫描器只要能建 TCP 连接，
+就能把请求一路转给内网的 3389，Windows 的账户锁定策略会因此被爆破触发（连续失败若干次即锁定账号）。
+
+来源白名单在监听层就拦住非法来源：非白名单地址的连接在读取第一个字节前就关闭（并发送 RST），
+扫描器看不到真实服务的 banner，爆破请求根本到不了内网。
+
+**全局默认值（nps.conf，可被单个隧道覆盖）**
+
+```
+#单个 ip、CIDR、前缀通配，逗号分隔
+allow_ip=1.2.3.4,10.0.0.0/8,192.168.1.*
+deny_ip=8.8.8.8
+#每个来源 ip 每秒允许的新建连接数，超出后封禁 tunnel_ban_seconds 秒；不填表示不限速
+tunnel_conn_rate=10
+tunnel_conn_window=1
+tunnel_ban_seconds=600
+```
+
+**单个隧道**：web 新建/编辑隧道时填写“允许访问的 IP”“拒绝访问的 IP”“单 IP 连接速率”，
+优先级高于 nps.conf 的全局值。对 `tcp`、`socks5`、`udp`、`http正向代理` 生效。
+
+`deny_ip` 优先于 `allow_ip`；两者都留空表示不做来源限制（保持原有行为）。
+被拦截的连接只按 10 秒一条的摘要写入 debug 日志，不会刷爆日志文件。
+## TCP 隧道的 Basic 认证与 TLS（隧道级）
+来源白名单解决“谁能连”，这一节解决“连上的人能不能用”和“链路是否明文”。两者都作用在
+建立隧道之前，可以叠加使用。
+
+**隧道字段**
+
+```
+auth_user=visitor       # 留空表示不认证
+auth_pass=change-me
+tls=true                # 该端口只接受 TLS 连接
+tls_cert_file=conf/a.pem # 可选，缺省用 bridge_cert_file，再缺省用内建自签证书
+tls_key_file=conf/a.key
+```
+
+web 后台的 TCP 隧道新增/编辑页有同名字段，隧道级配置优先于全局。
+
+**处理顺序**（`server/proxy/tcp.go` 的 accept 回调）
+
+1. 来源守卫检查（`allow_ip` / `deny_ip` / 连接速率），不通过直接 RST；
+2. `tls=true` 时做 TLS 握手（10 秒超时），失败直接断开；
+3. `auth_user`/`auth_pass` 非空时做一次 Basic 认证（10 秒超时），失败按形态回 401 或 `AUTH FAILED`，
+   首包既不是 HTTP 也不是认证帧时静默 RST；
+4. 认证通过才占用客户端连接数并向内网发起转发，认证帧之外已读到的字节通过 `preReadConn`
+   回放给目标，不影响协议本身。
+
+**三种握手**
+
+- 行协议：`AUTH Basic <base64(user:pass)>`
+- HTTP CONNECT：`CONNECT host:port HTTP/1.1` + `Proxy-Authorization: Basic ...`，通过后回
+  `200 Connection established`，适合 stunnel / ncat --proxy
+- 普通 HTTP 请求：`Authorization: Basic ...`，认证头在转发前被剥离
+
+**桥接通道 TLS**
+
+`bridge_type=tls` 让客户端到服务端的控制通道也走 TLS，证书同样取
+`bridge_cert_file` / `bridge_key_file`（缺省内建自签，带 `localhost` / `127.0.0.1` SAN）。
+客户端用 `conn_type=tls`（或 `npc -type=tls`），默认不校验自签证书，`tls_verify=true` 可打开校验。
+`bridge_port` 与 web/https 端口复用时（pmux）不支持 tls 桥接，会直接报错，换独立端口即可。
+## 常见端口优化（3389 / 22 / 21 / 80 / 443）
+内网穿透 90% 的用途就是把 3389(RDP)、22(SSH)、21(FTP)、80/443(Web) 暴露到公网，
+它们的握手特征完全不同，一套参数硬套一定出问题。nps 内置了一张端口画像表
+（`lib/common/portprofile.go`），在建立隧道时自动套用：
+
+| 端口 | 协议特征 | 首字节守卫 | 失效连接回收 |
+| --- | --- | --- | --- |
+| 3389 / 22 / 23 | 客户端先说话 | 15s 内无数据即关闭 | TCP_USER_TIMEOUT 2 分钟 |
+| 80 / 443 / 8080 / 8443 | 客户端先发请求 | 同上 | 2 分钟 |
+| 5900 / 5901 | VNC，客户端先说话 | 同上 | 2 分钟 |
+| 21 / 20（FTP） | **服务端先发 220** | 跳过，绝不等待 | 5 分钟 |
+| 3306（MySQL） | **服务端先发握手包** | 跳过 | 5 分钟 |
+| 其他端口 | 未知 | 默认不等待 | 5 分钟 |
+
+**首字节守卫**：RDP/SSH/HTTP 都是客户端先发数据，端口扫描器连上之后往往什么都不发
+（只等 banner）。这类连接以前会一直挂着，既占用客户端连接数又暴露端口真实状态；
+现在会在建立隧道之前等一次首包，超时即关闭，而且**不会触达内网目标**。
+
+```
+# nps.conf，默认 15 秒，设为 0 关闭
+first_byte_timeout=15
+```
+
+判定顺序：先看公网端口，公网端口没命中画像表时回退看内网目标端口
+（例如公网 13389 → 内网 3389 同样生效）。FTP、MySQL 这类“服务端先说话”的协议自动跳过。
+
+**失效连接回收（Linux）**：RDP 客户端拔网线/切 Wi-Fi 后连接不会正常关闭，
+服务端会一直往不可达的对端重传，默认十几分钟才失败，期间协程与 fd 都占着。
+nps 在 Linux 上对每条隧道连接设置 `TCP_USER_TIMEOUT`（交互类 2 分钟），
+让失效会话尽快释放；Windows/macOS 没有等价选项，靠 KeepAlive（30 秒）处理。
+
+**其他配套**：公网侧与内网侧连接都开 `TCP_NODELAY`（小包即时下发）、`SO_KEEPALIVE`
+（NAT/安全组 5~10 分钟回收空闲条目的问题），半关闭（`CloseWrite`）保证
+“请求发完就 shutdown(SHUT_WR)”的客户端仍能收完响应（见 `lib/common/closewrite.go`）。
+
+> 提示：FTP 的被动模式（PASV）数据通道用的是另一段随机端口，需要在内网 FTP 上
+> 固定 PASV 端口范围（如 21000-21010），再为这段端口各建一条 tcp 隧道。
+
 ## 客户端最大连接数
 为防止恶意大量长连接，影响服务端程序的稳定性，可以在web或客户端配置文件中为每个客户端设置最大连接数。该功能针对`socks5`、`http正向代理`、`域名代理`、`tcp代理`、`udp代理`、`私密代理`生效,使用该功能需要在`nps.conf`中设置`allow_connection_num_limit=true`，默认是关闭的。
 
@@ -252,3 +353,44 @@ LevelInformational->6 LevelDebug->7
 也就是假如服务端设置为较低值，而客户端设置较高值，而此时服务端断开连接而客户端无法收到服务端的fin包，客户端也会继续等着直到触发客户端的超时设置。
 
 在`nps.conf`或`npc.conf`中设置`disconnect_timeout`即可，客户端还可附带`-disconnect_timeout=60`参数启动
+
+## 多服务端穿透
+
+同一个内网服务可以同时挂到多个 nps 服务端节点上，客户端会为每个服务端建立**独立的控制通道与隧道**，任何一个节点掉线都不影响其它节点，也不会中断已有的本地监听。
+
+在 `npc.conf` 的 `[common]` 中把 `server_addr` 写成多个地址即可，支持逗号、分号或空格分隔：
+
+```ini
+[common]
+server_addr=nps-a.example.com:8024,nps-b.example.com:8024
+conn_type=tcp
+vkey=123
+auto_reconnection=true
+```
+
+命令行方式同样支持：
+
+```bash
+./npc -server=10.0.0.1:8024,10.0.0.2:8024 -vkey=123 -type=tcp
+```
+
+行为说明：
+
+- `[common]` 下除 `server_addr` 外的配置，以及所有 host / tunnel 段，会分别注册到每个服务端；同一个 `server_port` 在不同机器上互不影响。
+- 每个服务端单独重连（间隔 5 秒），失败日志带 `[服务端地址]` 前缀，便于区分节点。
+- `secret` / `p2p` 的本地监听端口（`local_port`）只在客户端启动一次，不会因为节点数量而重复绑定。
+- `file` 模式的本地文件服务跟随各自的服务端建立独立隧道。
+- 公网模式（服务端返回临时 vkey）下，`npc_vkey.txt` 只记录第一个服务端的 vkey，用于 `npc status` 查询；其余服务端各自使用自己的 vkey 运行，互不覆盖。
+
+## 后台管理界面
+
+管理界面在保留原有功能与语言切换机制的前提下，引入了 Light-Year-Admin-Template v5 的视觉风格，样式集中在 `web/static/css/lightyear.css`，通过覆盖层实现，不改动既有 DOM 结构与脚本：
+
+- 深蓝渐变侧边栏，菜单按「概览 / 客户端与节点 / 穿透管理 / 帮助与支持」分组，当前页高亮为主色胶囊
+- 浅灰画布 + 白色圆角卡片 + 柔和阴影，卡片 hover 提升
+- 仪表盘 KPI 改为彩色图标卡片（连接端口 / 客户端总数 / 在线客户端 / TCP 连接）
+- 表格表头、行 hover、分页、搜索框、按钮统一为主题色
+- 输入框聚焦主色描边，登录页与注册页使用浮动标签（标签随聚焦 / 有值上浮，不再只是占位符）
+
+新增分组标题的词条位于 `web/static/page/languages.xml`（`word-group-overview`、`word-group-node`、`word-group-tunnel`、`word-group-support`），需要其它语言时按同样格式补充即可。
+

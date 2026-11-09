@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ehang.io/nps/bridge"
@@ -65,8 +66,6 @@ func DealBridgeTask() {
 					file.GetDb().DelClient(id)
 				}
 			}
-		case tunnel := <-Bridge.OpenTask:
-			StartTask(tunnel.Id)
 		case s := <-Bridge.SecretChan:
 			logs.Trace("New secret connection, addr", s.Conn.Conn.RemoteAddr())
 			if t := file.GetDb().GetTaskByMd5Password(s.Password); t != nil {
@@ -86,7 +85,9 @@ func DealBridgeTask() {
 
 //start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string, bridgeDisconnect int) {
-	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList, bridgeDisconnect)
+	//公网地址只认配置，不再向第三方站点探测（避免地址外泄与首次请求阻塞）
+	common.SetExternalIp(beego.AppConfig.DefaultString("external_ip", ""))
+	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), &RunList, bridgeDisconnect)
 	go func() {
 		if err := Bridge.StartTunnel(); err != nil {
 			logs.Error("start server bridge error", err)
@@ -100,6 +101,9 @@ func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string, bridgeD
 	}
 	go DealBridgeTask()
 	go dealClientFlow()
+	//流量落盘只启动一次；原来在 AddTask 里启动，每新增一个任务就多一条永不退出的 ticker 协程
+	startFlowStore()
+	startIOSampler()
 	if svr := NewMode(Bridge, cnf); svr != nil {
 		if err := svr.Start(); err != nil {
 			logs.Error(err)
@@ -193,9 +197,6 @@ func AddTask(t *file.Tunnel) error {
 		logs.Error("taskId %d start error port %d open failed", t.Id, t.Port)
 		return errors.New("the port open error")
 	}
-	if minute, err := beego.AppConfig.Int("flow_store_interval"); err == nil && minute > 0 {
-		go flowSession(time.Minute * time.Duration(minute))
-	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		logs.Info("tunnel task %s start mode：%s port %d", t.Remark, t.Mode, t.Port)
 		//RunList[t.Id] = svr
@@ -234,6 +235,8 @@ func DelTask(id int) error {
 			return err
 		}
 	}
+	//任务被删除后释放对应的访问守卫缓存，避免长期运行后缓存残留
+	proxy.DropGuardCache(id)
 	return file.GetDb().DelTask(id)
 }
 
@@ -241,7 +244,7 @@ func DelTask(id int) error {
 func GetTunnel(start, length int, typeVal string, clientId int, search string) ([]*file.Tunnel, int) {
 	list := make([]*file.Tunnel, 0)
 	var cnt int
-	keys := file.GetMapKeys(file.GetDb().JsonDb.Tasks, false, "", "")
+	keys := file.GetMapKeys(&file.GetDb().JsonDb.Tasks, false, "", "")
 	for _, key := range keys {
 		if value, ok := file.GetDb().JsonDb.Tasks.Load(key); ok {
 			v := value.(*file.Tunnel)
@@ -352,8 +355,8 @@ func DelClientConnect(clientId int) {
 func GetDashboardData() map[string]interface{} {
 	data := make(map[string]interface{})
 	data["version"] = version.VERSION
-	data["hostCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Hosts)
-	data["clientCount"] = common.GeSynctMapLen(file.GetDb().JsonDb.Clients)
+	data["hostCount"] = common.GeSynctMapLen(&file.GetDb().JsonDb.Hosts)
+	data["clientCount"] = common.GeSynctMapLen(&file.GetDb().JsonDb.Clients)
 	if beego.AppConfig.String("public_vkey") != "" { //remove public vkey
 		data["clientCount"] = data["clientCount"].(int) - 1
 	}
@@ -419,19 +422,20 @@ func GetDashboardData() map[string]interface{} {
 	}
 	loads, _ := load.Avg()
 	data["load"] = loads.String()
-	data["cpu"] = math.Round(cpuAll / float64(len(cpuPercet)))
+	if len(cpuPercet) > 0 {
+		data["cpu"] = math.Round(cpuAll / float64(len(cpuPercet)))
+	} else {
+		//首次采样可能返回空切片，避免除以 0 得到 NaN
+		data["cpu"] = float64(0)
+	}
 	swap, _ := mem.SwapMemory()
 	data["swap_mem"] = math.Round(swap.UsedPercent)
 	vir, _ := mem.VirtualMemory()
 	data["virtual_mem"] = math.Round(vir.UsedPercent)
 	conn, _ := net.ProtoCounters(nil)
-	io1, _ := net.IOCounters(false)
-	time.Sleep(time.Millisecond * 500)
-	io2, _ := net.IOCounters(false)
-	if len(io2) > 0 && len(io1) > 0 {
-		data["io_send"] = (io2[0].BytesSent - io1[0].BytesSent) * 2
-		data["io_recv"] = (io2[0].BytesRecv - io1[0].BytesRecv) * 2
-	}
+	//速率取自后台每秒采样，避免每个 dashboard 请求都 sleep 500ms
+	data["io_send"] = atomic.LoadInt64(&ioSendCache)
+	data["io_recv"] = atomic.LoadInt64(&ioRecvCache)
 	for _, v := range conn {
 		data[v.Protocol] = v.Stats["CurrEstab"]
 	}
@@ -446,6 +450,15 @@ func GetDashboardData() map[string]interface{} {
 	return data
 }
 
+//按配置间隔把内存里的数据落盘，进程内只启动一次
+func startFlowStore() {
+	minute, err := beego.AppConfig.Int("flow_store_interval")
+	if err != nil || minute <= 0 {
+		return
+	}
+	go flowSession(time.Minute * time.Duration(minute))
+}
+
 func flowSession(m time.Duration) {
 	ticker := time.NewTicker(m)
 	defer ticker.Stop()
@@ -457,4 +470,33 @@ func flowSession(m time.Duration) {
 			file.GetDb().JsonDb.StoreClientsToJsonFile()
 		}
 	}
+}
+
+var (
+	ioSamplerOnce sync.Once
+	ioSendCache   int64
+	ioRecvCache   int64
+)
+
+//后台每秒采样一次网卡速率，供 dashboard 直接读取
+func startIOSampler() {
+	ioSamplerOnce.Do(func() {
+		go func() {
+			last, err := net.IOCounters(false)
+			if err != nil || len(last) == 0 {
+				return
+			}
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				cur, err := net.IOCounters(false)
+				if err != nil || len(cur) == 0 {
+					continue
+				}
+				atomic.StoreInt64(&ioSendCache, int64(cur[0].BytesSent-last[0].BytesSent))
+				atomic.StoreInt64(&ioRecvCache, int64(cur[0].BytesRecv-last[0].BytesRecv))
+				last = cur
+			}
+		}()
+	})
 }

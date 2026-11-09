@@ -3,6 +3,7 @@ package conn
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"ehang.io/nps/lib/goroutine"
 	"encoding/binary"
 	"encoding/json"
@@ -57,14 +58,34 @@ func (s *Conn) readRequest(buf []byte) (n int, err error) {
 	}
 }
 
+//httpHeaderPool 复用 HTTP 请求头缓冲。原实现每个连接都在栈上开 32KB，
+//再叠加“没有读超时”，慢速连接可以同时占住 goroutine 和内存。
+var httpHeaderPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, maxHttpHeaderSize)
+	},
+}
+
+const (
+	maxHttpHeaderSize     = 32 * 1024
+	httpHeaderReadTimeout = 30 * time.Second
+)
+
 //get host 、connection type、method...from connection
 func (s *Conn) GetHost() (method, address string, rb []byte, err error, r *http.Request) {
-	var b [32 * 1024]byte
+	b := httpHeaderPool.Get().([]byte)
+	defer httpHeaderPool.Put(b)
+	//给请求头读取加超时：读完立刻清除，不影响之后的长连接转发
+	_ = s.Conn.SetReadDeadline(time.Now().Add(httpHeaderReadTimeout))
 	var n int
-	if n, err = s.readRequest(b[:]); err != nil {
+	n, err = s.readRequest(b)
+	_ = s.Conn.SetReadDeadline(time.Time{})
+	if err != nil {
 		return
 	}
-	rb = b[:n]
+	//缓冲要还回池里，返回给调用方的 rb 必须是独立副本
+	rb = make([]byte, n)
+	copy(rb, b[:n])
 	r, err = http.ReadRequest(bufio.NewReader(bytes.NewReader(rb)))
 	if err != nil {
 		return
@@ -120,9 +141,13 @@ func (s *Conn) ReadLen(cLen int, buf []byte) (int, error) {
 }
 
 func (s *Conn) GetLen() (int, error) {
-	var l int32
-	err := binary.Read(s, binary.LittleEndian, &l)
-	return int(l), err
+	// plain read + manual decode: binary.Read does reflection on every call and
+	// this sits on the hot path of every link/control message
+	var b [4]byte
+	if _, err := io.ReadFull(s, b[:]); err != nil {
+		return 0, err
+	}
+	return int(int32(binary.LittleEndian.Uint32(b[:]))), nil
 }
 
 func (s *Conn) WriteLenContent(buf []byte) (err error) {
@@ -136,7 +161,11 @@ func (s *Conn) WriteLenContent(buf []byte) (err error) {
 //read flag
 func (s *Conn) ReadFlag() (string, error) {
 	buf := make([]byte, 4)
-	return string(buf), binary.Read(s, binary.LittleEndian, &buf)
+	//必须先读取再转字符串：return 语句内多个表达式依赖副作用时的求值顺序不可依赖
+	if err := binary.Read(s, binary.LittleEndian, &buf); err != nil {
+		return "", err
+	}
+	return string(buf), nil
 }
 
 //set alive
@@ -144,6 +173,8 @@ func (s *Conn) SetAlive(tp string) {
 	switch s.Conn.(type) {
 	case *kcp.UDPSession:
 		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Time{})
+	case *tls.Conn:
+		_ = s.Conn.(*tls.Conn).SetReadDeadline(time.Time{})
 	case *net.TCPConn:
 		conn := s.Conn.(*net.TCPConn)
 		conn.SetReadDeadline(time.Time{})
@@ -159,6 +190,8 @@ func (s *Conn) SetReadDeadlineBySecond(t time.Duration) {
 	switch s.Conn.(type) {
 	case *kcp.UDPSession:
 		s.Conn.(*kcp.UDPSession).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
+	case *tls.Conn:
+		_ = s.Conn.(*tls.Conn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 	case *net.TCPConn:
 		s.Conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(time.Duration(t) * time.Second))
 	case *pmux.PortConn:
@@ -349,15 +382,11 @@ func (s *Conn) SetReadDeadline(t time.Time) error {
 
 //get the assembled amount data(len 4 and content)
 func GetLenBytes(buf []byte) (b []byte, err error) {
-	raw := bytes.NewBuffer([]byte{})
-	if err = binary.Write(raw, binary.LittleEndian, int32(len(buf))); err != nil {
-		return
-	}
-	if err = binary.Write(raw, binary.LittleEndian, buf); err != nil {
-		return
-	}
-	b = raw.Bytes()
-	return
+	// one allocation, no reflection: this runs for every framed packet
+	b = make([]byte, 4+len(buf))
+	binary.LittleEndian.PutUint32(b, uint32(len(buf)))
+	copy(b[4:], buf)
+	return b, nil
 }
 
 //udp connection setting

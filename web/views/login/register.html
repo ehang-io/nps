@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title langtag="title-register"></title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235a8dee'/%3E%3Ctext x='16' y='23' font-size='19' font-family='Helvetica,Arial' font-weight='bold' text-anchor='middle' fill='%23ffffff'%3EN%3C/text%3E%3C/svg%3E">
 
     <!-- Mainly scripts -->
     <!-- Latest compiled and minified CSS -->
@@ -14,6 +15,7 @@
     <link href="{{.web_base_url}}/static/css/solid.min.css" rel="stylesheet">
     <link href="{{.web_base_url}}/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{.web_base_url}}/static/css/style.css" rel="stylesheet">
+    <link href="{{.web_base_url}}/static/css/lightyear.css" rel="stylesheet">
 
     <!-- Latest compiled and minified JavaScript -->
     <script src="{{.web_base_url}}/static/js/jquery-3.4.1.min.js"></script>
@@ -23,41 +25,41 @@
 
 </head>
 
-<body class="gray-bg">
-    <div class="row border-bottom">
-        <nav class="navbar navbar-static-top navbar-right" role="navigation" style="margin: 20px 40px">
-            <div></div>
-            <span class="btn-group dropdown">
-                <button id="languagemenu" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fa fa-globe-asia fa-lg"></i><span></span></button>
-                <ul class="dropdown-menu"></ul>
-            </span>
-        </nav>
-    </div>
-    <div class="middle-box text-center loginscreen   animated fadeInDown">
-        <div>
-            <h1 class="logo-name" langtag="application"></h1>
-        </div>
+<body class="ly-login-body">
+<div class="ly-login-topbar">
+    <h1 langtag="application"></h1>
+    <span class="btn-group dropdown">
+        <button id="languagemenu" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fa fa-globe-asia fa-lg"></i><span></span></button>
+        <ul class="dropdown-menu dropdown-menu-right"></ul>
+    </span>
+</div>
+
+<div class="ly-login-card" style="max-width:460px">
+    <div class="ly-login-form">
         <h3 langtag="info-register"></h3>
-        <p langtag="info-createaccount"></p>
+        <p class="text-muted" style="margin:-10px 0 18px" langtag="info-createaccount"></p>
         <form class="m-t" role="form" onsubmit="return false">
-            <div class="form-group">
-                <input type="text" class="form-control" placeholder="username" name="username" required="" langtag="word-username">
+            <div class="ly-field">
+                <input type="text" class="form-control" placeholder=" " name="username" required="" autocomplete="username">
+                <label class="ly-label" langtag="word-username"></label>
             </div>
-            <div class="form-group">
-                <input type="password" class="form-control" placeholder="password" name="password" required="" langtag="word-password">
+            <div class="ly-field">
+                <input type="password" class="form-control" placeholder=" " name="password" required="" autocomplete="new-password">
+                <label class="ly-label" langtag="word-password"></label>
             </div>
             <button onclick="register()" type="submit" class="btn btn-primary block full-width m-b" langtag="word-register"></button>
             <p class="text-muted text-center"><small langtag="info-haveaccount"></small></p>
             <a class="btn btn-sm btn-white btn-block" href="{{.web_base_url}}/login/index" langtag="word-login"></a>
         </form>
     </div>
-    <hr/>
-    <div class="footer">
-        <div class="pull-right">
-            <span langtag="word-readmore"></span> <strong><a href="https://ehang.io/nps" langtag="word-go"></a></strong>
-        </div>
-        <div><strong langtag="word-copyright"></strong> <span langtag="application"></span> &copy; 2018-2019</div>
+</div>
+
+<div class="ly-login-footer" style="max-width:460px">
+    <div class="pull-right">
+        <span langtag="word-readmore"></span> <strong><a href="https://ehang.io/nps" langtag="word-go"></a></strong>
     </div>
+    <div><strong langtag="word-copyright"></strong> <span langtag="application"></span> &copy; 2018-2020</div>
+</div>
 <script>
     window.nps = { "web_base_url": {{.web_base_url}} }
     function register() {

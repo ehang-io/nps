@@ -125,9 +125,24 @@ func (s *Client) HasHost(h *Host) bool {
 }
 
 type Tunnel struct {
-	Id           int
-	Port         int
-	ServerIp     string
+	Id       int
+	Port     int
+	ServerIp string
+	//IpAcl 允许访问该端口的来源 IP/CIDR，逗号分隔；为空表示不限（可在 nps.conf 的 allow_ip 配置全局默认值）
+	IpAcl string
+	//IpDeny 拒绝访问的来源 IP/CIDR，优先级高于 IpAcl
+	IpDeny string
+	//ConnRate 每个来源 IP 在时间窗内允许的新建连接数，0 表示使用 nps.conf 的 tunnel_conn_rate
+	ConnRate int
+	//AuthUser / AuthPass 为该隧道端口的 Basic 认证凭据，为空表示不认证。
+	//认证在建立隧道、转发到内网目标之前完成，未通过认证的连接不会触达目标服务（如 3389）。
+	AuthUser string
+	AuthPass string
+	//TlsEnable 为 true 时隧道端口用 TLS 承载，访问者必须用 TLS 连接该端口。
+	//证书缺省取 nps.conf 的 bridge_cert_file / bridge_key_file，都为空时使用内建自签证书。
+	TlsEnable    bool
+	TlsCertFile  string
+	TlsKeyFile   string
 	Mode         string
 	Status       bool
 	RunStatus    bool
@@ -144,6 +159,16 @@ type Tunnel struct {
 	MultiAccount *MultiAccount
 	Health
 	sync.RWMutex
+}
+
+// AuthEnabled 返回该隧道是否开启了访问认证
+func (s *Tunnel) AuthEnabled() bool {
+	return strings.TrimSpace(s.AuthUser) != "" || strings.TrimSpace(s.AuthPass) != ""
+}
+
+// TlsEnabled 返回该隧道端口是否用 TLS 承载
+func (s *Tunnel) TlsEnabled() bool {
+	return s.TlsEnable
 }
 
 type Health struct {
@@ -191,17 +216,19 @@ type MultiAccount struct {
 }
 
 func (s *Target) GetRandomTarget() (string, error) {
+	// lock before the lazy init: concurrent first calls used to race on
+	// TargetArr and could hand out an empty slice
+	s.Lock()
+	defer s.Unlock()
 	if s.TargetArr == nil {
 		s.TargetArr = strings.Split(s.TargetStr, "\n")
-	}
-	if len(s.TargetArr) == 1 {
-		return s.TargetArr[0], nil
 	}
 	if len(s.TargetArr) == 0 {
 		return "", errors.New("all inward-bending targets are offline")
 	}
-	s.Lock()
-	defer s.Unlock()
+	if len(s.TargetArr) == 1 {
+		return s.TargetArr[0], nil
+	}
 	if s.nowIndex >= len(s.TargetArr)-1 {
 		s.nowIndex = -1
 	}

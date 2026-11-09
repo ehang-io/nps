@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ehang.io/nps/lib/common"
@@ -26,8 +27,20 @@ var (
 	fileServer    []*http.Server
 	p2pNetBridge  *p2pBridge
 	lock          sync.RWMutex
-	udpConnStatus bool
+	udpConnStatus int32 // 原子读写：1 表示 p2p udp 通道可用
 )
+
+func isUdpReady() bool {
+	return atomic.LoadInt32(&udpConnStatus) == 1
+}
+
+func setUdpReady(ok bool) {
+	var v int32
+	if ok {
+		v = 1
+	}
+	atomic.StoreInt32(&udpConnStatus, v)
+}
 
 type p2pBridge struct {
 }
@@ -47,34 +60,45 @@ func (p2pBridge *p2pBridge) SendLinkInfo(clientId int, link *conn.Link, t *file.
 		return nil, err
 	}
 	if _, err := conn.NewConn(nowConn).SendInfo(link, ""); err != nil {
-		udpConnStatus = false
+		setUdpReady(false)
 		return nil, err
 	}
 	return nowConn, nil
 }
 
 func CloseLocalServer() {
+	lock.Lock()
+	defer lock.Unlock()
 	for _, v := range LocalServer {
-		v.Close()
+		_ = v.Close()
 	}
 	for _, v := range fileServer {
-		v.Close()
+		_ = v.Close()
 	}
+	LocalServer = nil
+	fileServer = nil
 }
 
-func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey string) {
-	remoteConn, err := NewConn(config.Tp, vkey, config.Server, common.WORK_FILE, config.ProxyUrl)
+func startLocalFileServer(config *config.CommonConfig, t *file.Tunnel, vkey, serverAddr string) *http.Server {
+	if serverAddr == "" {
+		serverAddr = config.Server
+	}
+	remoteConn, err := NewConn(config.Tp, vkey, serverAddr, common.WORK_FILE, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
-		return
+		return nil
 	}
 	srv := &http.Server{
 		Handler: http.StripPrefix(t.StripPre, http.FileServer(http.Dir(t.LocalPath))),
 	}
-	logs.Info("start local file system, local path %s, strip prefix %s ,remote port %s ", t.LocalPath, t.StripPre, t.Ports)
-	fileServer = append(fileServer, srv)
+	logs.Info("start local file system, local path %s, strip prefix %s ,remote port %s ,server %s", t.LocalPath, t.StripPre, t.Ports, serverAddr)
 	listener := nps_mux.NewMux(remoteConn.Conn, common.CONN_TCP, config.DisconnectTime)
-	logs.Error(srv.Serve(listener))
+	go func() {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logs.Error(err)
+		}
+	}()
+	return srv
 }
 
 func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error {
@@ -106,7 +130,7 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 		logs.Info("successful start-up of local tcp trans monitoring, port", l.Port)
 		return proxy.NewTunnelModeServer(proxy.HandleTrans, p2pNetBridge, task).Start()
 	case "p2p", "secret":
-		listener, err := net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP("0.0.0.0"), l.Port, ""})
+		listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: l.Port})
 		if err != nil {
 			logs.Error("local listener startup failed port %d, error %s", l.Port, err.Error())
 			return err
@@ -126,27 +150,33 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 }
 
 func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
-	ticker := time.NewTicker(time.Second * 1)
-	defer ticker.Stop()
+	// 原先每秒固定尝试 10 次且每次失败都打 Error，通道长期不可用时会把日志和连接数刷爆。
+	// 改为每轮只尝试一次，失败按 1s→2s→4s…最多 30s 退避，成功后重置。
+	backoff := time.Second
 	for {
-		select {
-		case <-ticker.C:
-			if !udpConnStatus {
-				udpConn = nil
-				tmpConn, err := common.GetLocalUdpAddr()
-				if err != nil {
-					logs.Error(err)
-					return
-				}
-				for i := 0; i < 10; i++ {
-					logs.Notice("try to connect to the server", i+1)
-					newUdpConn(tmpConn.LocalAddr().String(), config, l)
-					if udpConn != nil {
-						udpConnStatus = true
-						break
-					}
-				}
-			}
+		if isUdpReady() {
+			time.Sleep(time.Second)
+			continue
+		}
+		lock.Lock()
+		udpConn = nil
+		lock.Unlock()
+		tmpConn, err := common.GetLocalUdpAddr()
+		if err != nil {
+			logs.Error(err)
+			time.Sleep(backoff)
+			continue
+		}
+		localAddr := tmpConn.LocalAddr().String()
+		newUdpConn(localAddr, config, l)
+		if isUdpReady() {
+			backoff = time.Second
+			continue
+		}
+		logs.Informational("p2p udp channel not ready, retry after %s", backoff)
+		time.Sleep(backoff)
+		if backoff < 30*time.Second {
+			backoff *= 2
 		}
 	}
 }
@@ -165,7 +195,10 @@ func handleSecret(localTcpConn net.Conn, config *config.CommonConfig, l *config.
 }
 
 func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *config.LocalServer) {
-	if udpConn == nil {
+	lock.RLock()
+	ready := udpConn != nil
+	lock.RUnlock()
+	if !ready {
 		logs.Notice("new conn, P2P can not penetrate successfully, traffic will be transferred through the server")
 		handleSecret(localTcpConn, config, l)
 		return
@@ -175,7 +208,7 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 	link := conn.NewLink(common.CONN_TCP, l.Target, false, config.Client.Cnf.Compress, localTcpConn.LocalAddr().String(), false)
 	if target, err := p2pNetBridge.SendLinkInfo(0, link, nil); err != nil {
 		logs.Error(err)
-		udpConnStatus = false
+		setUdpReady(false)
 		return
 	} else {
 		conn.CopyWaitGroup(target, localTcpConn, false, config.Client.Cnf.Compress, nil, nil, false, nil)
@@ -183,8 +216,7 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 }
 
 func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalServer) {
-	lock.Lock()
-	defer lock.Unlock()
+	// 连接建立涉及多次网络往返，不再持有全局锁，避免阻塞 p2p 转发路径上的读锁。
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_P2P, config.ProxyUrl)
 	if err != nil {
 		logs.Error("Local connection server failed ", err.Error())
@@ -213,7 +245,10 @@ func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalSe
 	}
 	logs.Trace("successful create a connection with server", remoteAddress)
 	conn.SetUdpSession(udpTunnel)
+	lock.Lock()
 	udpConn = udpTunnel
 	muxSession = nps_mux.NewMux(udpConn, "kcp", config.DisconnectTime)
 	p2pNetBridge = &p2pBridge{}
+	lock.Unlock()
+	setUdpReady(true)
 }

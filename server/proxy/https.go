@@ -1,10 +1,12 @@
 package proxy
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"ehang.io/nps/lib/cache"
 	"ehang.io/nps/lib/common"
@@ -158,21 +160,34 @@ func (httpsListener *HttpsListener) Addr() net.Addr {
 }
 
 // get server name from connection by read client hello bytes
+// it returns every byte it consumed so the caller can replay them to the
+// upstream, otherwise a fragmented or unexpected first record would corrupt
+// the tls handshake.
 func GetServerNameFromClientHello(c net.Conn) (string, []byte) {
-	buf := make([]byte, 4096)
-	data := make([]byte, 4096)
-	n, err := c.Read(buf)
-	if err != nil {
+	const maxRecord = 16 * 1024
+	_ = c.SetReadDeadline(time.Now().Add(clientHelloTimeout))
+	buf := make([]byte, maxRecord)
+	if _, err := io.ReadFull(c, buf[:5]); err != nil {
 		return "", nil
 	}
-	if n < 42 {
+	// only type 22 (handshake) carries a client hello
+	if buf[0] != 22 {
+		return "", buf[:5]
+	}
+	recordLen := int(buf[3])<<8 | int(buf[4])
+	if recordLen < 42-5 || recordLen+5 > maxRecord {
+		return "", buf[:5]
+	}
+	if _, err := io.ReadFull(c, buf[5:5+recordLen]); err != nil {
 		return "", nil
 	}
-	copy(data, buf[:n])
+	n := 5 + recordLen
 	clientHello := new(crypt.ClientHelloMsg)
-	clientHello.Unmarshal(data[5:n])
+	clientHello.Unmarshal(buf[5:n])
 	return clientHello.GetServerName(), buf[:n]
 }
+
+const clientHelloTimeout = 10 * time.Second
 
 // build https request
 func buildHttpsRequest(hostName string) *http.Request {

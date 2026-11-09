@@ -1,3 +1,4 @@
+<div class="wrapper wrapper-content animated fadeInRight">
 <div class="row tile">
     <div class="col-md-12 col-md-auto">
         <div class="ibox float-e-margins">
@@ -60,6 +61,25 @@
                                    langtag="info-suchasport">
                         </div>
                     </div>
+                    <div class="form-group" id="ip_acl">
+                        <label class="control-label font-bold">允许访问的 IP</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="ip_acl" placeholder="1.2.3.4,10.0.0.0/8,192.168.1.*；留空表示不限制">
+                            <span class="help-block m-b-none">非白名单来源在握手前就被关闭，扫描器拿不到服务指纹，也不会把爆破请求转给内网（如 3389 会锁账号）</span>
+                        </div>
+                    </div>
+                    <div class="form-group" id="ip_deny">
+                        <label class="control-label font-bold">拒绝访问的 IP</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="ip_deny" placeholder="优先级高于允许列表；留空表示不限制">
+                        </div>
+                    </div>
+                    <div class="form-group" id="conn_rate">
+                        <label class="control-label font-bold">单 IP 连接速率</label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="conn_rate" placeholder="每个 IP 每秒允许的新建连接数，0 表示用服务端配置">
+                        </div>
+                    </div>
 
                     {{if eq true .allow_local_proxy}}
                         <div class="form-group" id="local_proxy">
@@ -106,6 +126,30 @@
                             <span class="help-block m-b-none" langtag="info-identificationkey"></span>
                         </div>
                     </div>
+                    <div class="form-group" id="auth_user">
+                        <label class="control-label font-bold" langtag="word-authuser"></label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="text" name="auth_user" placeholder="">
+                            <span class="help-block m-b-none" langtag="info-authuser"></span>
+                        </div>
+                    </div>
+                    <div class="form-group" id="auth_pass">
+                        <label class="control-label font-bold" langtag="word-authpass"></label>
+                        <div class="col-sm-10">
+                            <input class="form-control" type="password" name="auth_pass" placeholder="" autocomplete="new-password">
+                            <span class="help-block m-b-none" langtag="info-authpass"></span>
+                        </div>
+                    </div>
+                    <div class="form-group" id="tls">
+                        <label class="control-label font-bold" langtag="word-tlsenable"></label>
+                        <div class="col-sm-10">
+                            <select class="form-control" name="tls">
+                                <option value="0" langtag="word-no"></option>
+                                <option value="1" langtag="word-yes"></option>
+                            </select>
+                            <span class="help-block m-b-none" langtag="info-tlsenable"></span>
+                        </div>
+                    </div>
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
@@ -123,11 +167,11 @@
 </div>
 <script>
     var arr = []
-    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy", "client_id", "server_ip"]
-    arr["tcp"] = ["port", "target", "local_proxy", "client_id", "server_ip"]
-    arr["udp"] = ["port", "target", "local_proxy", "client_id", "server_ip"]
-    arr["socks5"] = ["port", "client_id", "server_ip"]
-    arr["httpProxy"] = ["port", "client_id", "server_ip"]
+    arr["all"] = ["port", "target", "password", "local_path", "strip_pre", "local_proxy", "client_id", "server_ip", "ip_acl", "ip_deny", "conn_rate"]
+    arr["tcp"] = ["port", "target", "local_proxy", "client_id", "server_ip", "ip_acl", "ip_deny", "conn_rate", "auth_user", "auth_pass", "tls"]
+    arr["udp"] = ["port", "target", "local_proxy", "client_id", "server_ip", "ip_acl", "ip_deny", "conn_rate"]
+    arr["socks5"] = ["port", "client_id", "server_ip", "ip_acl", "ip_deny", "conn_rate"]
+    arr["httpProxy"] = ["port", "client_id", "server_ip", "ip_acl", "ip_deny", "conn_rate"]
     arr["secret"] = ["target", "password", "client_id", "server_ip"]
     arr["p2p"] = ["target", "password", "client_id", "server_ip"]
     arr["file"] = ["port", "local_path", "strip_pre", "client_id", "server_ip"]
@@ -153,3 +197,4 @@
         })
     })
 </script>
+</div>

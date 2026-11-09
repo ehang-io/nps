@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"sync"
 
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/conn"
@@ -49,6 +50,7 @@ const (
 type Sock5ModeServer struct {
 	BaseServer
 	listener net.Listener
+	guard    *common.AccessGuard
 }
 
 //req
@@ -154,18 +156,19 @@ func (s *Sock5ModeServer) handleConnect(c net.Conn) {
 // passive mode
 func (s *Sock5ModeServer) handleBind(c net.Conn) {
 }
-func (s *Sock5ModeServer) sendUdpReply(writeConn net.Conn, c net.Conn, rep uint8, serverIp string) {
+func (s *Sock5ModeServer) sendUdpReply(writeConn net.Conn, c net.Conn, rep uint8) {
 	reply := []byte{
 		5,
 		rep,
 		0,
 		1,
 	}
-	localHost, localPort, _ := net.SplitHostPort(c.LocalAddr().String())
-	localHost = serverIp
-	ipBytes := net.ParseIP(localHost).To4()
+	//回 0.0.0.0 而不是本机公网 IP。原实现要向 myexternalip.com 查询再把服务端
+	//出口地址写给客户端，既是地址外泄又多一次外部依赖；按 RFC1928，客户端收到
+	//0.0.0.0 时直接复用控制连接的目的地址即可
+	_, localPort, _ := net.SplitHostPort(c.LocalAddr().String())
+	reply = append(reply, 0, 0, 0, 0)
 	nPort, _ := strconv.Atoi(localPort)
-	reply = append(reply, ipBytes...)
 	portBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(portBytes, uint16(nPort))
 	reply = append(reply, portBytes...)
@@ -200,7 +203,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	//读取端口
 	var port uint16
 	binary.Read(c, binary.BigEndian, &port)
-	logs.Warn(host, string(port))
+	logs.Debug("socks5 udp associate, host %s, port %d", host, port)
 	replyAddr, err := net.ResolveUDPAddr("udp", s.task.ServerIp+":0")
 	if err != nil {
 		logs.Error("build local reply addr error", err)
@@ -213,7 +216,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 		return
 	}
 	// reply the local addr
-	s.sendUdpReply(c, reply, succeeded, common.GetServerIpByClientIp(c.RemoteAddr().(*net.TCPAddr).IP))
+	s.sendUdpReply(c, reply, succeeded)
 	defer reply.Close()
 	// new a tunnel to client
 	link := conn.NewLink("udp5", "", s.task.Client.Cnf.Crypt, s.task.Client.Cnf.Compress, c.RemoteAddr().String(), false)
@@ -223,7 +226,10 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 		return
 	}
 
-	var clientAddr net.Addr
+	var (
+		addrMu     sync.Mutex
+		clientAddr net.Addr
+	)
 	// copy buffer
 	go func() {
 		b := common.BufPoolUdp.Get().([]byte)
@@ -236,9 +242,11 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 				logs.Error("read data from %s err %s", reply.LocalAddr().String(), err.Error())
 				return
 			}
+			addrMu.Lock()
 			if clientAddr == nil {
 				clientAddr = laddr
 			}
+			addrMu.Unlock()
 			if _, err := target.Write(b[:n]); err != nil {
 				logs.Error("write data to client error", err.Error())
 				return
@@ -252,16 +260,28 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 		defer common.BufPoolUdp.Put(b)
 		defer c.Close()
 		for {
-			if err := binary.Read(target, binary.LittleEndian, &l); err != nil || l >= common.PoolSizeUdp || l <= 0 {
+			if err := binary.Read(target, binary.LittleEndian, &l); err != nil {
 				logs.Warn("read len bytes error", err.Error())
 				return
 			}
-			binary.Read(target, binary.LittleEndian, b[:l])
-			if err != nil {
+			// a bad length must not fall through: the old code dereferenced a
+			// nil error and could panic the server
+			if l <= 0 || int(l) > len(b) {
+				logs.Warn("read len bytes error, invalid length %d", l)
+				return
+			}
+			if _, err := io.ReadFull(target, b[:l]); err != nil {
 				logs.Warn("read data form client error", err.Error())
 				return
 			}
-			if _, err := reply.WriteTo(b[:l], clientAddr); err != nil {
+			addrMu.Lock()
+			raddr := clientAddr
+			addrMu.Unlock()
+			if raddr == nil {
+				logs.Warn("write data to user, no client addr yet")
+				continue
+			}
+			if _, err := reply.WriteTo(b[:l], raddr); err != nil {
 				logs.Warn("write data to user ", err.Error())
 				return
 			}
@@ -369,7 +389,19 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 
 //start
 func (s *Sock5ModeServer) Start() error {
+	s.guard = TaskGuard(s.task)
+	if s.guard != nil && !s.guard.Disabled() {
+		logs.Info(guardDescription(s.guard, s.task.Port))
+	}
 	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+		//交互式协议走小包，关掉 Nagle 并开启保活
+		c = common.TuneConn(c)
+		//先做来源校验，避免公网扫描到 socks5 端口后无限尝试账号
+		if ok, reason := s.guard.Check(c.RemoteAddr()); !ok {
+			logReject(c.RemoteAddr(), reason)
+			rejectConn(c)
+			return
+		}
 		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
 			logs.Warn("client id %d, task id %d, error %s, when socks5 connection", s.task.Client.Id, s.task.Id, err.Error())
 			c.Close()
