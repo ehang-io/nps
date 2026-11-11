@@ -833,3 +833,18 @@ h3.ibox-title {
 hr {
     border-top-color: var(--ly-border);
 }
+
+/* 代码 / 示例块：设置页里的 curl 与签名地址 */
+.ly-code {
+    background: #f5f7fb;
+    border: 1px solid var(--ly-border);
+    border-radius: 6px;
+    color: #2f3a4a;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+}
+

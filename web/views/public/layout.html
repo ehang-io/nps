@@ -101,6 +101,12 @@
                     <span class="nav-label" langtag="scheme-file"></span></a>
                 </li>
                 <li class="ly-nav-group"><span class="ly-nav-title" langtag="word-group-support"></span></li>
+                {{if eq true .isAdmin}}
+                <li class="{{if eq "setting" .menu}}active{{end}}">
+                    <a href="{{.web_base_url}}/setting/index"><i class="fa fa-key fa-lg"></i>
+                    <span class="nav-label" langtag="word-setting"></span></a>
+                </li>
+                {{end}}
                 <li class="{{if eq "help" .menu}}active{{end}}">
                     <a href="https://ehang.io/nps/documents" target="_blank"><i class="fa fa-lightbulb fa-lg"></i>
                     <span class="nav-label" langtag="word-help"></span></a>

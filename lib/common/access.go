@@ -92,6 +92,20 @@ func (g *AccessGuard) Filter(addr net.Addr) (bool, string) {
 	return true, DenyReasonNone
 }
 
+// IsDenied 只判断来源是否命中黑名单，不检查白名单与速率。
+// 用于「辅助通道的连接方与主通道来源本就不同」的场景（例如 FTP 主动模式的数据
+// 连接由内网服务发起）：既拦掉明确封禁的来源，又不会误伤合法传输。
+func (g *AccessGuard) IsDenied(addr net.Addr) bool {
+	if g == nil || g.DenyList() == "" {
+		return false
+	}
+	ip := IPFromAddr(addr)
+	if ip == nil {
+		return false
+	}
+	return g.deny.Contains(ip)
+}
+
 // Check 做完整校验（白/黑名单 + 连接速率 + 封禁），返回是否放行以及拒绝原因
 func (g *AccessGuard) Check(addr net.Addr) (bool, string) {
 	if ok, reason := g.Filter(addr); !ok {

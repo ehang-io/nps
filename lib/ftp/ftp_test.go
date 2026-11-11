@@ -138,3 +138,54 @@ func TestParsePortsSpec(t *testing.T) {
 		t.Fatalf("oversized range should be truncated, got %d ports", len(got))
 	}
 }
+
+// 多行响应的续行首行用 '-' 分隔（ProFTPD 一类服务会这么回），
+// 必须同样识别成 227，否则里面的地址不会被改写、直接泄漏给公网客户端
+func TestVerbMultilineReply(t *testing.T) {
+	cases := map[string]string{
+		"227-Entering Passive Mode (10,0,0,1,1,2)\r\n": "227",
+		"229-Entering Extended Passive Mode\r\n":       "229",
+		"220-fake ftp ready\r\n":                       "220",
+		"227 Entering Passive Mode":                    "227",
+		"PORT 10,0,0,1,10,10\r\n":                      "PORT",
+		"PASV\r\n":                                     "PASV",
+		"200":                                          "200",
+	}
+	for in, want := range cases {
+		if got := Verb(in); got != want {
+			t.Errorf("Verb(%q) = %q, want %q", in, got, want)
+		}
+	}
+	// 命令名不以三位数字开头，不能被当成响应码
+	if got := Verb("210 STAT\r\n"); got != "210" {
+		t.Errorf("Verb(210 STAT) = %q, want 210", got)
+	}
+	if got := Verb("2001 space odyssey\r\n"); got != "2001" {
+		t.Errorf("Verb should not truncate non-reply codes, got %q", got)
+	}
+}
+
+// 少数 FTP 服务在 227 里不给括号，直接跟六段数字
+func TestParseSetPasvWithoutParens(t *testing.T) {
+	line := "227 Entering Passive Mode 10,0,0,1,5,6\r\n"
+	host, port, ok := ParsePasv(line)
+	if !ok || host != "10.0.0.1" || port != 5<<8|6 {
+		t.Fatalf("ParsePasv without parens = %q,%d,%v", host, port, ok)
+	}
+	out, ok := SetPasv(line, "203.0.113.7", 40001)
+	if !ok {
+		t.Fatal("SetPasv without parens failed")
+	}
+	if want := "227 Entering Passive Mode 203,0,113,7,156,65\r\n"; out != want {
+		t.Fatalf("SetPasv = %q, want %q", out, want)
+	}
+	// 行尾没有换行时不能凭空补一个
+	out, ok = SetPasv("227 Passive 10,0,0,1,5,6", "203.0.113.7", 40001)
+	if !ok || out != "227 Passive 203,0,113,7,156,65" {
+		t.Fatalf("SetPasv without eol = %q,%v", out, ok)
+	}
+	// 前面的无关数字不能被误认成地址
+	if _, _, ok := ParsePasv("227 Passive 1 10,0,0,1,5,6\r\n"); !ok {
+		t.Fatal("address after unrelated digits should still parse")
+	}
+}

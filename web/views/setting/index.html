@@ -1,0 +1,108 @@
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="ibox float-e-margins">
+                <h3 class="ibox-title" langtag="word-authkey"></h3>
+                <div class="ibox-content">
+                    <form method="post" action="{{.web_base_url}}/setting/index">
+                        {{if eq true .saved}}
+                        <div class="alert alert-success" langtag="word-saved"></div>
+                        {{end}}
+                        {{if .err}}
+                        <div class="alert alert-danger">{{.err}}</div>
+                        {{end}}
+                        <div class="form-group">
+                            <label class="control-label font-bold" langtag="word-authkey"></label>
+                            <div class="input-group">
+                                <input class="form-control" type="text" id="auth_key" name="auth_key"
+                                       value="{{.auth_key}}" autocomplete="off"
+                                       placeholder="{{.key_min}}-{{.key_max}}">
+                                <span class="input-group-btn">
+                                    <button class="btn btn-white" type="button"
+                                            onclick="lyGenKey('auth_key')" langtag="word-generate"></button>
+                                    <button class="btn btn-white" type="button"
+                                            onclick="lyCopy('auth_key')" langtag="word-copy"></button>
+                                </span>
+                            </div>
+                            <span class="help-block m-b-none" langtag="info-authkey"></span>
+                        </div>
+                        <div class="hr-line-dashed"></div>
+                        <div class="form-group">
+                            <label class="control-label font-bold" langtag="word-apikey"></label>
+                            <div class="input-group">
+                                <input class="form-control" type="text" id="api_key" name="api_key"
+                                       value="{{.api_key}}" autocomplete="off"
+                                       placeholder="{{.key_min}}-{{.key_max}}">
+                                <span class="input-group-btn">
+                                    <button class="btn btn-white" type="button"
+                                            onclick="lyGenKey('api_key')" langtag="word-generate"></button>
+                                    <button class="btn btn-white" type="button"
+                                            onclick="lyCopy('api_key')" langtag="word-copy"></button>
+                                </span>
+                            </div>
+                            <span class="help-block m-b-none" langtag="info-apikey"></span>
+                        </div>
+                        <div class="hr-line-dashed"></div>
+                        <div class="form-group">
+                            <button class="btn btn-success" type="submit">
+                                <i class="fa fa-fw fa-lg fa-check-circle"></i> <span langtag="word-save"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="ibox float-e-margins">
+                <h3 class="ibox-title" langtag="word-apicall"></h3>
+                <div class="ibox-content">
+                    {{if .api_key_set}}
+                    <p class="m-b-xs" langtag="info-curl"></p>
+                    <pre class="ly-code" id="curl_box">{{.curl_example}}</pre>
+                    {{else}}
+                    <div class="alert alert-warning" langtag="info-apidisabled"></div>
+                    {{end}}
+
+                    {{if .auth_key_set}}
+                    <p class="m-t-md m-b-xs" langtag="info-signedurl"></p>
+                    <pre class="ly-code" id="url_box">{{.signed_url}}</pre>
+                    <p class="help-block small" langtag="info-signedttl"></p>
+                    {{end}}
+
+                    <p class="m-t-md m-b-xs" langtag="info-apilimits"></p>
+                    <ul class="list-unstyled small">
+                        <li>api_allow_ip: <code>{{if .api_allow_ip}}{{.api_allow_ip}}{{else}}-{{end}}</code></li>
+                        <li>api_read_only: <code>{{.api_read_only}}</code></li>
+                        <li>api_rate_limit: <code>{{.api_rate_limit}}</code></li>
+                        <li>conf: <code>{{.conf_file}}</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    function lyGenKey(id) {
+        $.getJSON("{{.web_base_url}}/setting/generate", function (res) {
+            if (res && res.status === 1) {
+                document.getElementById(id).value = res.key;
+            } else {
+                alert((res && res.msg) || "error");
+            }
+        });
+    }
+
+    function lyCopy(id) {
+        var el = document.getElementById(id);
+        if (!el || !el.value) {
+            return;
+        }
+        el.select();
+        el.setSelectionRange(0, el.value.length);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(el.value);
+        } else {
+            document.execCommand("copy");
+        }
+    }
+</script>

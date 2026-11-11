@@ -3,6 +3,7 @@ package proxy
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -23,9 +24,11 @@ const (
 	// ftpRelayDefaultIdle 单个中继端口等待数据连接的时间：
 	// PASV 之后客户端通常在一秒内就连上来，60 秒足够，且不会让端口长期被占
 	ftpRelayDefaultIdle = 60 * time.Second
-	// ftpMaxRelayPerSess 单条控制连接同时保留的中继端口上限，
-	// 超过时关掉最早的那个（FTP 客户端每次传输都会重新协商端口）
-	ftpMaxRelayPerSess = 8
+	// ftpDefaultMaxRelay 单条控制连接同时保留的中继端口上限，
+	// 超过时关掉最早的那个（FTP 客户端每次传输都会重新协商端口）。
+	// 多线程下载（lftp 默认 5 条、FileZilla 可配到 10 条）会同时占多个中继端口，
+	// 上限过小会把还在等数据连接的中继端口回收掉，并发传输随机失败。
+	ftpDefaultMaxRelay = 32
 	// ftpDataDialTimeout 数据通道建立隧道的超时
 	ftpDataDialTimeout = 10 * time.Second
 )
@@ -92,6 +95,8 @@ type ftpSession struct {
 	remote     io.ReadWriteCloser
 	targetHost string
 	publicIP   string
+	// peerIP 是控制连接的来源地址，被动模式的数据连接正常情况下与它同源
+	peerIP string
 
 	mu       sync.Mutex
 	relays   []net.Listener
@@ -114,6 +119,7 @@ func newFtpSession(srv *TunnelModeServer, control *conn.Conn, remote io.ReadWrit
 		remote:     remote,
 		targetHost: strings.Trim(host, "[]"),
 		publicIP:   ftpPublicIPv4(control),
+		peerIP:     ftpPeerIP(control),
 	}
 	if s.publicIP == "" {
 		logs.Warn("ftp port %d: no usable public ip (set ftp_public_ip or external_ip in nps.conf),"+
@@ -300,7 +306,7 @@ func (s *ftpSession) rewriteCommand(line []byte) ([]byte, bool) {
 		if !ok {
 			return line, false
 		}
-		port, err := s.openRelay(ftpActivePortSpec(), func() string { return addr })
+		port, err := s.openRelay(ftpActivePortSpec(), true, true, func() string { return addr })
 		if err != nil {
 			logs.Warn("ftp port %d: relay for PORT failed: %s", s.srv.task.Port, err.Error())
 			return line, false
@@ -314,7 +320,7 @@ func (s *ftpSession) rewriteCommand(line []byte) ([]byte, bool) {
 		if !ok {
 			return line, false
 		}
-		port, err := s.openRelay(ftpActivePortSpec(), func() string { return addr })
+		port, err := s.openRelay(ftpActivePortSpec(), true, true, func() string { return addr })
 		if err != nil {
 			logs.Warn("ftp port %d: relay for EPRT failed: %s", s.srv.task.Port, err.Error())
 			return line, false
@@ -336,7 +342,7 @@ func (s *ftpSession) rewriteResponse(line []byte) ([]byte, bool) {
 		if !ok {
 			return line, false
 		}
-		relay, err := s.openRelay(ftpPasvPortSpec(), func() string { return s.passiveTarget(port) })
+		relay, err := s.openRelay(ftpPasvPortSpec(), true, false, func() string { return s.passiveTarget(port) })
 		if err != nil {
 			logs.Warn("ftp port %d: relay for PASV failed: %s", s.srv.task.Port, err.Error())
 			return line, false
@@ -350,7 +356,9 @@ func (s *ftpSession) rewriteResponse(line []byte) ([]byte, bool) {
 		if !ok {
 			return line, false
 		}
-		relay, err := s.openRelay(ftpPasvPortSpec(), func() string { return s.passiveTarget(port) })
+		//EPSV 只通告端口不带地址，因此即使服务端没有可用的公网 IPv4（纯 IPv6 或
+		//多层 NAT 环境）也能用，不必像 PASV 那样要求 publicIP
+		relay, err := s.openRelay(ftpPasvPortSpec(), false, false, func() string { return s.passiveTarget(port) })
 		if err != nil {
 			logs.Warn("ftp port %d: relay for EPSV failed: %s", s.srv.task.Port, err.Error())
 			return line, false
@@ -374,9 +382,12 @@ func (s *ftpSession) passiveTarget(port int) string {
 }
 
 // openRelay 在指定端口范围内开一个一次性中继端口，返回对外的端口号。
+//
+// needIP 表示这次协商必须通告公网 IPv4（PASV/PORT/EPRT 都带地址，EPSV 只带端口）；
+// active 表示中继服务于主动模式，连接方是内网 FTP 服务而不是公网客户端。
 // target 在真正有数据连接进来时才求值，避免被动模式下端口还没确定就先算地址。
-func (s *ftpSession) openRelay(spec string, target func() string) (int, error) {
-	if s.publicIP == "" {
+func (s *ftpSession) openRelay(spec string, needIP, active bool, target func() string) (int, error) {
+	if needIP && s.publicIP == "" {
 		return 0, errors.New("no public ip to advertise")
 	}
 	ln, err := listenFtpRelay(spec)
@@ -391,18 +402,20 @@ func (s *ftpSession) openRelay(spec string, target func() string) (int, error) {
 	}
 	s.relays = append(s.relays, ln)
 	// 超出上限时关掉最早的中继端口（FTP 客户端每次传输都会重新协商）
-	for len(s.relays) > ftpMaxRelayPerSess {
+	for len(s.relays) > ftpMaxRelay() {
 		old := s.relays[0]
 		s.relays = s.relays[1:]
 		_ = old.Close()
 	}
 	s.mu.Unlock()
-	go s.serveRelay(ln, target)
+	//中继超时在调用方（持有配置读取的 goroutine）算好再传进去，
+	//避免每条中继连接都在自己的 goroutine 里读一次全局配置
+	go s.serveRelay(ln, active, ftpRelayIdle(), target)
 	return ln.Addr().(*net.TCPAddr).Port, nil
 }
 
 // serveRelay 等一条数据连接进来，交给隧道的内网一侧，然后关掉这个中继端口
-func (s *ftpSession) serveRelay(ln net.Listener, target func() string) {
+func (s *ftpSession) serveRelay(ln net.Listener, active bool, idle time.Duration, target func() string) {
 	defer func() {
 		_ = ln.Close()
 		s.dropRelay(ln)
@@ -410,13 +423,21 @@ func (s *ftpSession) serveRelay(ln net.Listener, target func() string) {
 	tcpLn, ok := ln.(*net.TCPListener)
 	if ok {
 		// 没人连进来就把端口收回，避免临时端口被长期占用
-		_ = tcpLn.SetDeadline(time.Now().Add(ftpRelayIdle()))
+		_ = tcpLn.SetDeadline(time.Now().Add(idle))
 	}
 	dc, err := ln.Accept()
 	if ok {
 		_ = tcpLn.SetDeadline(time.Time{})
 	}
 	if err != nil {
+		return
+	}
+	//监听器上的 deadline 不应延续到已建立的数据连接，显式清一次
+	_ = dc.SetDeadline(time.Time{})
+	//中继端口是公网可达的裸端口，必须和控制通道用同一套来源策略：
+	//否则扫描器可以跳过白名单直接连数据端口
+	if !s.dataSourceAllowed(dc, active) {
+		rejectConn(dc)
 		return
 	}
 	addr := target()
@@ -426,6 +447,33 @@ func (s *ftpSession) serveRelay(ln net.Listener, target func() string) {
 		return
 	}
 	s.forwardData(dc, addr)
+}
+
+// dataSourceAllowed 校验连到中继端口的数据连接来源。
+//   - 被动模式（active=false）：连接方是公网 FTP 客户端，与控制通道同源，
+//     来源 IP 与控制连接一致时直接放行，其余按隧道的白/黑名单过滤；
+//   - 主动模式（active=true）：连接方是内网 FTP 服务的出口地址，与控制连接来源
+//     本就不同，只判黑名单，避免把正常传输挡掉。
+func (s *ftpSession) dataSourceAllowed(dc net.Conn, active bool) bool {
+	g := s.srv.guard
+	if g == nil || g.Disabled() {
+		return true
+	}
+	if active {
+		if g.IsDenied(dc.RemoteAddr()) {
+			logReject(dc.RemoteAddr(), "ftp data channel from denied ip")
+			return false
+		}
+		return true
+	}
+	if ip := common.IPFromAddr(dc.RemoteAddr()); ip != nil && s.peerIP != "" && ip.String() == s.peerIP {
+		return true
+	}
+	ok, reason := g.Filter(dc.RemoteAddr())
+	if !ok {
+		logReject(dc.RemoteAddr(), "ftp data channel: "+reason)
+	}
+	return ok
 }
 
 func (s *ftpSession) dropRelay(ln net.Listener) {
@@ -461,14 +509,40 @@ func (s *ftpSession) forwardData(dc net.Conn, addr string) {
 	conn.CopyWaitGroup(target, dc, link.Crypt, link.Compress, client.Rate, s.srv.task.Flow, true, nil)
 }
 
-// listenFtpRelay 按端口范围配置监听一个中继端口，范围内都被占用或未配置时退回随机端口
+// listenFtpRelay 按端口范围配置监听一个中继端口。
+//
+// 配置了范围却一个都拿不到时直接返回错误，不再退回随机端口：随机高位端口几乎
+// 不可能在云安全组里放行，悄悄降级只会让客户端连上去然后一直卡在 150。
+// 未配置范围时仍用随机端口（本机/内网环境可用），但只提示一次。
 func listenFtpRelay(spec string) (net.Listener, error) {
-	for _, p := range ftp.ParsePortsSpec(spec) {
-		if ln, err := net.Listen("tcp", ":"+strconv.Itoa(p)); err == nil {
+	ports := ftp.ParsePortsSpec(spec)
+	if len(ports) == 0 {
+		warnRandomRelayPortOnce()
+		return net.Listen("tcp", ":0")
+	}
+	var lastErr error
+	for _, p := range ports {
+		ln, err := net.Listen("tcp", ":"+strconv.Itoa(p))
+		if err == nil {
 			return ln, nil
 		}
+		lastErr = err
 	}
-	return net.Listen("tcp", ":0")
+	if lastErr == nil {
+		lastErr = errors.New("no usable port")
+	}
+	return nil, fmt.Errorf("no free ftp relay port in %q: %w", spec, lastErr)
+}
+
+var warnRelayOnce sync.Once
+
+// warnRandomRelayPortOnce 提示一次「被动模式正在使用随机端口」，
+// 这是云主机上 FTP 能登录却传不了文件最常见的原因
+func warnRandomRelayPortOnce() {
+	warnRelayOnce.Do(func() {
+		logs.Warn("ftp: ftp_pasv_ports is not configured, passive data channel will use random high ports;" +
+			" cloud security groups almost never allow those, configure ftp_pasv_ports and open the range")
+	})
 }
 
 func ftpRelayIdle() time.Duration {
@@ -477,6 +551,27 @@ func ftpRelayIdle() time.Duration {
 		return ftpRelayDefaultIdle
 	}
 	return time.Duration(sec) * time.Second
+}
+
+// ftpMaxRelay 单条控制连接允许同时保留的中继端口数
+func ftpMaxRelay() int {
+	n := beego.AppConfig.DefaultInt("ftp_max_relay", ftpDefaultMaxRelay)
+	if n <= 0 {
+		return ftpDefaultMaxRelay
+	}
+	return n
+}
+
+// ftpPeerIP 返回控制连接的来源 IP，用于判断数据连接是否与控制通道同源。
+// control 可能是类型化的 nil（*conn.Conn 为 nil 但接口非 nil），必须按指针判空。
+func ftpPeerIP(c *conn.Conn) string {
+	if c == nil {
+		return ""
+	}
+	if ip := common.IPFromAddr(c.RemoteAddr()); ip != nil {
+		return ip.String()
+	}
+	return ""
 }
 
 func ftpPasvPortSpec() string {

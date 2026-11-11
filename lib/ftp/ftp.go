@@ -14,6 +14,7 @@ package ftp
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -23,15 +24,42 @@ import (
 const MaxLine = 8 * 1024
 
 // Verb 返回命令/响应的动词（大写）。响应如 "227 Entering..." 返回 "227"。
+//
+// 多行响应的续行首位形如 "227-Entering Passive Mode (...)"，用 '-' 而不是空格
+// 分隔，这里同样归一成三位响应码，否则 ProFTPD 一类服务的多行 227 会被漏掉，
+// 数据通道地址就原样泄漏给公网客户端。
 func Verb(line string) string {
 	s := strings.Trim(strings.TrimRight(line, "\r\n"), " \t")
 	if s == "" {
 		return ""
 	}
+	if isReplyCode(s) {
+		return s[:3]
+	}
 	if i := strings.IndexAny(s, " \t"); i > 0 {
 		return strings.ToUpper(s[:i])
 	}
 	return strings.ToUpper(s)
+}
+
+// isReplyCode 判断整行是否以三位响应码开头（"227"、"227 ..."、"227-..."）
+func isReplyCode(s string) bool {
+	if len(s) < 3 {
+		return false
+	}
+	for i := 0; i < 3; i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	if len(s) == 3 {
+		return true
+	}
+	switch s[3] {
+	case ' ', '\t', '-':
+		return true
+	}
+	return false
 }
 
 // args 返回动词之后的参数部分（已去掉行尾）
@@ -93,6 +121,30 @@ func parseSix(s string) (host string, port int, ok bool) {
 	return fmt.Sprintf("%d.%d.%d.%d", nums[0], nums[1], nums[2], nums[3]), port, true
 }
 
+// pasvRegexp 匹配不带括号的 "a,b,c,d,p1,p2"。
+// 少数 FTP 服务（多为嵌入式实现）在 227 响应里直接给出六段数字而不加括号。
+var pasvRegexp = regexp.MustCompile(`(?:\d{1,3},\s*){5}\d{1,3}`)
+
+// pasvSpan 定位 227 响应里数据通道地址所占的区间。标准带括号形式优先，
+// 其次是不带括号的数字序列；改写时只替换这段区间，前缀文本与行尾保持不变。
+func pasvSpan(line string) (start, end int, host string, port int, ok bool) {
+	body := strings.TrimRight(line, "\r\n")
+	if inside, found := parenContent(body); found {
+		if h, p, ok2 := parseSix(inside); ok2 {
+			i := strings.LastIndex(body, "(")
+			return i + 1, i + 1 + len(inside), h, p, true
+		}
+	}
+	locs := pasvRegexp.FindAllStringIndex(body, -1)
+	// 从右往左取，避免前面出现别的数字（例如 "227 Passive mode a=1 1,2,3,4,5,6"）
+	for i := len(locs) - 1; i >= 0; i-- {
+		if h, p, ok2 := parseSix(body[locs[i][0]:locs[i][1]]); ok2 {
+			return locs[i][0], locs[i][1], h, p, true
+		}
+	}
+	return 0, 0, "", 0, false
+}
+
 // ParsePasv 解析 227 响应里通告的数据通道地址，例如：
 //
 //	227 Entering Passive Mode (192,168,1,5,19,136).
@@ -100,11 +152,8 @@ func ParsePasv(line string) (host string, port int, ok bool) {
 	if Verb(line) != "227" {
 		return "", 0, false
 	}
-	inside, ok := parenContent(strings.TrimRight(line, "\r\n"))
-	if !ok {
-		return "", 0, false
-	}
-	return parseSix(inside)
+	_, _, host, port, ok = pasvSpan(line)
+	return host, port, ok
 }
 
 // SetPasv 把 227 响应里的地址替换为 host:port，其余文本与行尾保持不动
@@ -116,14 +165,16 @@ func SetPasv(line, host string, port int) (string, bool) {
 	if !ok {
 		return line, false
 	}
+	start, end, _, _, ok := pasvSpan(line)
+	if !ok {
+		return line, false
+	}
 	body := strings.TrimRight(line, "\r\n")
-	i := strings.LastIndex(body, "(")
-	j := strings.LastIndex(body, ")")
-	if i < 0 || j <= i {
+	if start < 0 || end > len(body) || start >= end {
 		return line, false
 	}
 	inside := fmt.Sprintf("%s,%d,%d", nums, port>>8, port&0xff)
-	return body[:i+1] + inside + body[j:] + eol(line), true
+	return body[:start] + inside + body[end:] + eol(line), true
 }
 
 // ParseEpsv 解析 229 响应里通告的数据端口，例如：

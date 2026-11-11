@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/conn"
 	"ehang.io/nps/lib/file"
 	"ehang.io/nps/lib/ftp"
@@ -425,4 +426,99 @@ func TestFtpAlgForTunnel(t *testing.T) {
 		t.Fatal("ftp_alg=off must disable the automatic rewrite")
 	}
 	_ = beego.AppConfig.Set("ftp_alg", "auto")
+}
+
+// 端口范围被占满时必须报错，而不是悄悄换成随机高位端口：
+// 随机端口几乎不可能在云安全组放行，客户端只会连上去然后一直卡在 150
+func TestListenFtpRelayExhaustedRange(t *testing.T) {
+	busy, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("listen busy port: %v", err)
+	}
+	defer busy.Close()
+	port := busy.Addr().(*net.TCPAddr).Port
+
+	if ln, err := listenFtpRelay(strconv.Itoa(port)); err == nil {
+		_ = ln.Close()
+		t.Fatalf("expected error when the only relay port %d is taken, got listener", port)
+	}
+	// 范围里还有空位时要用配置的端口，而不是随机端口
+	free, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("listen temp: %v", err)
+	}
+	freePort := free.Addr().(*net.TCPAddr).Port
+	_ = free.Close()
+	ln, err := listenFtpRelay(strconv.Itoa(freePort))
+	if err != nil {
+		t.Fatalf("listen relay on %d: %v", freePort, err)
+	}
+	defer ln.Close()
+	if got := ln.Addr().(*net.TCPAddr).Port; got != freePort {
+		t.Fatalf("relay should use configured port %d, got %d", freePort, got)
+	}
+}
+
+// PASV/PORT/EPRT 必须在报文里带地址，没有公网 IPv4 时只能放弃；
+// EPSV 只带端口，纯 IPv6 或多层 NAT 环境下照样能用
+func TestFtpRelayNeedsPublicIPOnlyForAddressModes(t *testing.T) {
+	task := &file.Tunnel{Id: 1, Port: 21021}
+	s := NewTunnelModeServer(ProcessFtp, directBridge{}, task)
+	sess := newFtpSession(s, nil, nil, "10.0.0.8:21")
+	sess.publicIP = ""
+
+	if _, err := sess.openRelay("", true, false, func() string { return "" }); err == nil {
+		t.Fatal("relay that advertises an address must fail without a public ip")
+	}
+	port, err := sess.openRelay("", false, false, func() string { return "" })
+	if err != nil || port <= 0 {
+		t.Fatalf("EPSV relay must work without a public ip, port=%d err=%v", port, err)
+	}
+	sess.shutdown()
+}
+
+// 中继端口是公网可达的裸端口，必须跟控制通道用同一套来源策略，
+// 否则扫描器可以绕过白名单直接连数据端口
+func TestFtpDataChannelHonoursSourceGuard(t *testing.T) {
+	task := &file.Tunnel{Id: 1, Port: 21021}
+	s := NewTunnelModeServer(ProcessFtp, directBridge{}, task)
+	s.guard = common.NewAccessGuard("127.0.0.1", "203.0.113.9", 0, time.Second, time.Minute)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	dc, err := net.DialTimeout("tcp", ln.Addr().String(), 2*time.Second)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer dc.Close()
+
+	sess := &ftpSession{srv: s, peerIP: "127.0.0.1"}
+	if !sess.dataSourceAllowed(dc, false) {
+		t.Fatal("passive data channel from the control source must pass")
+	}
+	if !sess.dataSourceAllowed(dc, true) {
+		t.Fatal("active data channel is opened by the intranet server, allow-list must not block it")
+	}
+	// 控制连接来源变了以后，来自 127.0.0.1 的数据连接不再被视为同源，
+	// 命中白名单以外的地址就要拒绝
+	sess.peerIP = "198.51.100.7"
+	if !sess.dataSourceAllowed(dc, false) {
+		t.Fatal("127.0.0.1 is still inside the allow list, must pass")
+	}
+	// 白名单里没有 127.0.0.1 时，非同源的数据连接必须拒绝
+	s.guard = common.NewAccessGuard("198.51.100.7", "", 0, time.Second, time.Minute)
+	if sess.dataSourceAllowed(dc, false) {
+		t.Fatal("data channel from an address outside the allow list must be rejected")
+	}
+	// 主动模式由内网 FTP 服务发起，只判黑名单，不套白名单
+	if !sess.dataSourceAllowed(dc, true) {
+		t.Fatal("active data channel must not be blocked by the allow list")
+	}
+	s.guard = common.NewAccessGuard("", "127.0.0.1", 0, time.Second, time.Minute)
+	if sess.dataSourceAllowed(dc, true) {
+		t.Fatal("active data channel from a denied address must be rejected")
+	}
 }

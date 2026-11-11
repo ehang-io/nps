@@ -265,6 +265,62 @@
 		<zh-CN>帮助与支持</zh-CN>
 		<en-US>Help &amp; support</en-US>
 	</lang>
+	<lang id="word-setting">
+		<zh-CN>鉴权与 API</zh-CN>
+		<en-US>Auth &amp; API</en-US>
+	</lang>
+	<lang id="word-authkey">
+		<zh-CN>后台签名密钥 auth_key</zh-CN>
+		<en-US>Admin sign key (auth_key)</en-US>
+	</lang>
+	<lang id="word-apikey">
+		<zh-CN>REST API 密钥 api_key</zh-CN>
+		<en-US>REST API key (api_key)</en-US>
+	</lang>
+	<lang id="word-generate">
+		<zh-CN>随机生成</zh-CN>
+		<en-US>Generate</en-US>
+	</lang>
+	<lang id="word-copy">
+		<zh-CN>复制</zh-CN>
+		<en-US>Copy</en-US>
+	</lang>
+	<lang id="word-saved">
+		<zh-CN>已保存到 nps.conf，立即生效</zh-CN>
+		<en-US>Saved to nps.conf and applied immediately</en-US>
+	</lang>
+	<lang id="word-apicall">
+		<zh-CN>调用示例</zh-CN>
+		<en-US>Call examples</en-US>
+	</lang>
+	<lang id="info-authkey">
+		<zh-CN>配合 timestamp 与 md5 签名可免登录访问后台；留空表示关闭该方式。只能使用字母、数字、- 和 _。</zh-CN>
+		<en-US>With timestamp and an md5 signature this grants admin access without a session; leave empty to disable. Letters, digits, - and _ only.</en-US>
+	</lang>
+	<lang id="info-apikey">
+		<zh-CN>/api/v1 的调用凭据，留空表示关闭 REST API。保存后无需重启。</zh-CN>
+		<en-US>Credential for /api/v1; leave empty to disable the REST API. No restart needed.</en-US>
+	</lang>
+	<lang id="info-curl">
+		<zh-CN>直接复制执行：</zh-CN>
+		<en-US>Copy and run:</en-US>
+	</lang>
+	<lang id="info-apidisabled">
+		<zh-CN>还没有配置 api_key，REST API 当前是关闭的。</zh-CN>
+		<en-US>api_key is not set, the REST API is disabled.</en-US>
+	</lang>
+	<lang id="info-signedurl">
+		<zh-CN>一次性免登录地址（生成时签出，20 秒内有效）：</zh-CN>
+		<en-US>One-shot login URL (valid for 20 seconds):</en-US>
+	</lang>
+	<lang id="info-signedttl">
+		<zh-CN>过期后刷新本页即可得到新的签名地址。</zh-CN>
+		<en-US>Reload the page to mint a new signed URL after it expires.</en-US>
+	</lang>
+	<lang id="info-apilimits">
+		<zh-CN>当前生效的 API 限制（在 nps.conf 里调整）：</zh-CN>
+		<en-US>Active API limits (configured in nps.conf):</en-US>
+	</lang>
 	<lang id="word-go">
 		<zh-CN>进入</zh-CN>
 		<en-US>go</en-US>
