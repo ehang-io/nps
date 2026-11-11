@@ -126,6 +126,18 @@ vkey=123
 `/api/v1` 提供隧道、客户端、域名与状态的接口，默认关闭：先在 `nps.conf` 配置 `api_key`
 并重启，请求头带 `Authorization: Bearer <key>`。完整字段与错误码见 `docs/restapi.md`。
 
+### p2p 模式
+p2p 需要服务端同时配 `p2p_ip`（公网地址）与 `p2p_port`（起始端口，占用 `p2p_port ~ p2p_port+2` 三个 UDP 端口）：
+
+```ini
+# nps.conf
+p2p_ip=公网地址
+p2p_port=6000
+```
+
+未配置时服务端不会开启 p2p，客户端日志会给出 `p2p is not enabled on this server, set p2p_port (and p2p_ip) in nps.conf`，此时走服务端中转，隧道本身仍可用。
+`p2p_ip` 留空会依次回退到 `public_ip`、`external_ip`；两者也都为空才会报错。
+
 ### 配置
 - 客户端连接后，在web中配置对应穿透服务即可
 - 更多高级用法见[完整文档](https://ehang-io.github.io/nps/)

@@ -321,7 +321,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	return c, nil
 }
 
-//http proxy connection
+// http proxy connection
 func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	req, err := http.NewRequest("CONNECT", "http://"+remoteAddr, nil)
 	if err != nil {
@@ -348,7 +348,7 @@ func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	return proxyConn, nil
 }
 
-//get a basic auth string
+// get a basic auth string
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
@@ -357,7 +357,8 @@ func basicAuth(username, password string) string {
 func getRemoteAddressFromServer(rAddr string, localConn *net.UDPConn, md5Password, role string, add int) error {
 	rAddr, err := getNextAddr(rAddr, add)
 	if err != nil {
-		logs.Error(err)
+		// 这里不再单独打日志：同一个错误会在 handleP2PUdp 的调用方再打一次，
+		// 之前一次打洞失败会刷出 4 条一模一样的 `strconv.Atoi: parsing ""`。
 		return err
 	}
 	addr, err := net.ResolveUDPAddr("udp", rAddr)
@@ -370,30 +371,46 @@ func getRemoteAddressFromServer(rAddr string, localConn *net.UDPConn, md5Passwor
 	return nil
 }
 
+// p2pCollectTimeout 等待服务端回传三个公网映射地址的上限。
+// 旧实现没有超时，服务端 UDP 不通时会永久阻塞在这个循环里（goroutine 与本地端口都不释放）。
+const p2pCollectTimeout = 15 * time.Second
+
 func handleP2PUdp(localAddr, rAddr, md5Password, role string) (remoteAddress string, c net.PacketConn, err error) {
+	// 先把服务端下发的地址校验并规范化：服务端没开 p2p 时会下发空地址，
+	// 旧代码会一路走到 strconv.Atoi 并报出与实际原因无关的解析错误。
+	host, port, err := splitP2PAddr(rAddr)
+	if err != nil {
+		return "", nil, err
+	}
+	rAddr = net.JoinHostPort(host, strconv.Itoa(port))
 	localConn, err := newUdpConnByAddr(localAddr)
 	if err != nil {
 		return
 	}
+	// 失败路径必须释放这个临时 socket，否则每轮重试都会漏一个 FD
+	defer func() { _ = localConn.Close() }()
 	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 0)
 	if err != nil {
-		logs.Error(err)
 		return
 	}
 	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 1)
 	if err != nil {
-		logs.Error(err)
 		return
 	}
 	err = getRemoteAddressFromServer(rAddr, localConn, md5Password, role, 2)
 	if err != nil {
-		logs.Error(err)
 		return
 	}
 	var remoteAddr1, remoteAddr2, remoteAddr3 string
+	// 服务端 UDP 不可达时旧实现会永久阻塞在这个循环里；这里加超时并给出可读原因
+	_ = localConn.SetReadDeadline(time.Now().Add(p2pCollectTimeout))
 	for {
 		buf := make([]byte, 1024)
 		if n, addr, er := localConn.ReadFromUDP(buf); er != nil {
+			if ne, ok := er.(net.Error); ok && ne.Timeout() {
+				err = fmt.Errorf("p2p: no reply from %s within %s, check that udp port %d-%d is reachable", rAddr, p2pCollectTimeout, port, port+2)
+				return
+			}
 			err = er
 			return
 		} else {
@@ -532,40 +549,60 @@ func newUdpConnByAddr(addr string) (*net.UDPConn, error) {
 	return udpConn, nil
 }
 
+// errP2PAddrInvalid 表示服务端下发的 p2p 地址不可用。
+// 最常见的原因是服务端 nps.conf 里 p2p_ip / p2p_port 没配置：旧代码把两者直接拼接，
+// 得到 ":" 这样的地址，再被 strings.Split 切成两个空串，最后抛出
+// `strconv.Atoi: parsing "": invalid syntax`——从错误信息完全看不出跟 p2p 有关。
+// 这类错误重试不会自愈，调用方应降频提示而不是持续刷日志。
+var errP2PAddrInvalid = errors.New("invalid p2p address from server")
+
+// splitP2PAddr 解析服务端下发的 "host:port"。
+// 用 net.SplitHostPort 而不是 strings.Split(":")：后者会把 `[::1]:6000` 切成多段，
+// 把合法的 IPv6 地址误判成格式错误。
+func splitP2PAddr(addr string) (string, int, error) {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return "", 0, fmt.Errorf("%w: server sent an empty address, enable p2p by setting p2p_ip and p2p_port in the server nps.conf", errP2PAddrInvalid)
+	}
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, fmt.Errorf("%w: %q, expected host:port", errP2PAddrInvalid, addr)
+	}
+	if host == "" {
+		return "", 0, fmt.Errorf("%w: %q has no host, set p2p_ip in the server nps.conf", errP2PAddrInvalid, addr)
+	}
+	if strings.TrimSpace(portStr) == "" {
+		return "", 0, fmt.Errorf("%w: %q has no port, set p2p_port in the server nps.conf", errP2PAddrInvalid, addr)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 || port > 65535 {
+		return "", 0, fmt.Errorf("%w: %q has an invalid port", errP2PAddrInvalid, addr)
+	}
+	return host, port, nil
+}
+
 func getNextAddr(addr string, n int) (string, error) {
-	arr := strings.Split(addr, ":")
-	if len(arr) != 2 {
-		return "", errors.New(fmt.Sprintf("the format of %s incorrect", addr))
-	}
-	if p, err := strconv.Atoi(arr[1]); err != nil {
+	host, port, err := splitP2PAddr(addr)
+	if err != nil {
 		return "", err
-	} else {
-		return arr[0] + ":" + strconv.Itoa(p+n), nil
 	}
+	next := port + n
+	if next <= 0 || next > 65535 {
+		return "", fmt.Errorf("%w: port %d out of range after offset %d", errP2PAddrInvalid, next, n)
+	}
+	return net.JoinHostPort(host, strconv.Itoa(next)), nil
 }
 
 func getAddrInterval(addr1, addr2, addr3 string) (int, error) {
-	arr1 := strings.Split(addr1, ":")
-	if len(arr1) != 2 {
-		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr1))
-	}
-	arr2 := strings.Split(addr2, ":")
-	if len(arr2) != 2 {
-		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr2))
-	}
-	arr3 := strings.Split(addr3, ":")
-	if len(arr3) != 2 {
-		return 0, errors.New(fmt.Sprintf("the format of %s incorrect", addr3))
-	}
-	p1, err := strconv.Atoi(arr1[1])
+	_, p1, err := splitP2PAddr(addr1)
 	if err != nil {
 		return 0, err
 	}
-	p2, err := strconv.Atoi(arr2[1])
+	_, p2, err := splitP2PAddr(addr2)
 	if err != nil {
 		return 0, err
 	}
-	p3, err := strconv.Atoi(arr3[1])
+	_, p3, err := splitP2PAddr(addr3)
 	if err != nil {
 		return 0, err
 	}

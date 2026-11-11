@@ -117,6 +117,8 @@ docker run -d --name nps --net=host -v /opt/nps/conf:/conf ffdfgdfg/nps
 | `https_proxy_port` | 443 | HTTPS 代理穿透入口 |
 | `p2p_port` | 6000 | P2P 模式（用 p2p 才需要） |
 
+启用 p2p 必须同时配 `p2p_ip`（本机公网地址）和 `p2p_port`，并在防火墙放行 `p2p_port ~ p2p_port+2` 三个 UDP 端口。两项都缺时服务端不会开启 p2p，客户端会明确报 `p2p is not enabled on this server, set p2p_port (and p2p_ip) in nps.conf`；`p2p_ip` 留空时依次回退 `public_ip`、`external_ip`。
+
 上线前至少改这三处：`public_vkey`、`web_username`、`web_password`；`runmode` 保持 `pro` 以外还要注意 `web_host` 只影响访问域名，不填也能登录。
 
 `bridge_type` 决定客户端到服务端的控制通道：`tcp`（默认，明文）、`kcp`（UDP 加速）、`tls`（控制通道 TLS，证书取 `bridge_cert_file` / `bridge_key_file`，未配置用内建自签）。切到 `tls` 后客户端必须用 `-type=tls` / `conn_type=tls`，两端不一致会直接连不上。

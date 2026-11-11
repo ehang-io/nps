@@ -3,6 +3,7 @@ package client
 import (
 	"ehang.io/nps-mux"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"runtime"
@@ -151,11 +152,21 @@ func StartLocalServer(l *config.LocalServer, config *config.CommonConfig) error 
 
 func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
 	// 原先每秒固定尝试 10 次且每次失败都打 Error，通道长期不可用时会把日志和连接数刷爆。
-	// 改为每轮只尝试一次，失败按 1s→2s→4s…最多 30s 退避，成功后重置。
+	// 现在每轮只尝试一次，按 1s→2s→4s…退避，同一个错误只提示一次。
 	backoff := time.Second
+	var lastErr string
+	report := func(format string, args ...interface{}) {
+		msg := fmt.Sprintf(format, args...)
+		if msg == lastErr {
+			return
+		}
+		lastErr = msg
+		logs.Error("%s", msg)
+	}
 	for {
 		if isUdpReady() {
 			time.Sleep(time.Second)
+			lastErr = ""
 			continue
 		}
 		lock.Lock()
@@ -163,17 +174,30 @@ func handleUdpMonitor(config *config.CommonConfig, l *config.LocalServer) {
 		lock.Unlock()
 		tmpConn, err := common.GetLocalUdpAddr()
 		if err != nil {
-			logs.Error(err)
+			report("p2p: allocate local udp address failed: %s", err.Error())
 			time.Sleep(backoff)
 			continue
 		}
 		localAddr := tmpConn.LocalAddr().String()
-		newUdpConn(localAddr, config, l)
-		if isUdpReady() {
+		// 只借这个 socket 取一个空闲端口，取完立刻释放，否则每轮重试都漏一个 FD
+		_ = tmpConn.Close()
+		if err = newUdpConn(localAddr, config, l); err == nil && isUdpReady() {
 			backoff = time.Second
+			lastErr = ""
 			continue
 		}
-		logs.Informational("p2p udp channel not ready, retry after %s", backoff)
+		if errors.Is(err, errP2PAddrInvalid) {
+			// 服务端没启用 p2p 时重试不会自愈：退到 60s 且只提示一次，
+			// 具体要改哪些配置已写在错误信息里
+			report("p2p disabled on server, traffic falls back through the server: %s", err.Error())
+			time.Sleep(time.Minute)
+			continue
+		}
+		if err != nil {
+			report("p2p udp channel setup failed: %s", err.Error())
+		} else {
+			report("p2p udp channel not ready after setup")
+		}
 		time.Sleep(backoff)
 		if backoff < 30*time.Second {
 			backoff *= 2
@@ -215,33 +239,33 @@ func handleP2PVisitor(localTcpConn net.Conn, config *config.CommonConfig, l *con
 	}
 }
 
-func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalServer) {
+func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalServer) error {
 	// 连接建立涉及多次网络往返，不再持有全局锁，避免阻塞 p2p 转发路径上的读锁。
 	remoteConn, err := NewConn(config.Tp, config.VKey, config.Server, common.WORK_P2P, config.ProxyUrl)
 	if err != nil {
-		logs.Error("Local connection server failed ", err.Error())
-		return
+		return fmt.Errorf("connect to server %s: %w", config.Server, err)
 	}
+	// 失败路径必须关掉这条控制连接，否则每轮重试都漏一条 TCP 连接
+	defer func() { _ = remoteConn.Close() }()
 	if _, err := remoteConn.Write([]byte(crypt.Md5(l.Password))); err != nil {
-		logs.Error("Local connection server failed ", err.Error())
-		return
+		return fmt.Errorf("send p2p secret to %s: %w", config.Server, err)
 	}
 	var rAddr []byte
 	//读取服务端地址、密钥 继续做处理
 	if rAddr, err = remoteConn.GetShortLenContent(); err != nil {
-		logs.Error(err)
-		return
+		return fmt.Errorf("read p2p address from %s: %w", config.Server, err)
 	}
 	var localConn net.PacketConn
 	var remoteAddress string
 	if remoteAddress, localConn, err = handleP2PUdp(localAddr, string(rAddr), crypt.Md5(l.Password), common.WORK_P2P_VISITOR); err != nil {
-		logs.Error(err)
-		return
+		return err
 	}
 	udpTunnel, err := kcp.NewConn(remoteAddress, nil, 150, 3, localConn)
-	if err != nil || udpTunnel == nil {
-		logs.Warn(err)
-		return
+	if err != nil {
+		return fmt.Errorf("create kcp connection to %s: %w", remoteAddress, err)
+	}
+	if udpTunnel == nil {
+		return fmt.Errorf("create kcp connection to %s: no session", remoteAddress)
 	}
 	logs.Trace("successful create a connection with server", remoteAddress)
 	conn.SetUdpSession(udpTunnel)
@@ -251,4 +275,5 @@ func newUdpConn(localAddr string, config *config.CommonConfig, l *config.LocalSe
 	p2pNetBridge = &p2pBridge{}
 	lock.Unlock()
 	setUdpReady(true)
+	return nil
 }

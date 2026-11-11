@@ -90,7 +90,7 @@ func (s *Bridge) StartTunnel() error {
 	return nil
 }
 
-//get health information form client
+// get health information form client
 func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 	for {
 		if info, status, err := c.GetHealthInfo(); err != nil {
@@ -155,7 +155,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 	s.DelClient(id)
 }
 
-//验证失败，返回错误验证flag，并且关闭连接
+// 验证失败，返回错误验证flag，并且关闭连接
 func (s *Bridge) verifyError(c *conn.Conn) {
 	c.Write([]byte(common.VERIFY_EER))
 }
@@ -230,7 +230,7 @@ func (s *Bridge) DelClient(id int) {
 	}
 }
 
-//use different
+// use different
 func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 	isPub := file.GetDb().IsPubClient(id)
 	switch typeVal {
@@ -287,29 +287,58 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 			logs.Error("p2p error,", err.Error())
 		} else if t := file.GetDb().GetTaskByMd5Password(string(b)); t == nil {
 			logs.Error("p2p error, failed to match the key successfully")
+		} else if svrAddr, err := p2pServerAddr(); err != nil {
+			// 未启用 p2p 时不能把 ":" 这样的地址下发出去：客户端会一路走到
+			// strconv.Atoi 并报出与 p2p 毫无关系的解析错误
+			logs.Error("p2p error, %s", err.Error())
+			c.Close()
+			return
+		} else if v, ok := s.Client.Load(t.Client.Id); !ok {
+			logs.Warn("p2p error, client %d is not connected", t.Client.Id)
 		} else {
-			if v, ok := s.Client.Load(t.Client.Id); !ok {
-				return
-			} else {
-				//向密钥对应的客户端发送与服务端udp建立连接信息，地址，密钥
-				v.(*Client).signal.Write([]byte(common.NEW_UDP_CONN))
-				svrAddr := beego.AppConfig.String("p2p_ip") + ":" + beego.AppConfig.String("p2p_port")
-				if err != nil {
-					logs.Warn("get local udp addr error")
-					return
-				}
-				v.(*Client).signal.WriteLenContent([]byte(svrAddr))
-				v.(*Client).signal.WriteLenContent(b)
-				//向该请求者发送建立连接请求,服务器地址
-				c.WriteLenContent([]byte(svrAddr))
-			}
+			//向密钥对应的客户端发送与服务端udp建立连接信息，地址，密钥
+			v.(*Client).signal.Write([]byte(common.NEW_UDP_CONN))
+			v.(*Client).signal.WriteLenContent([]byte(svrAddr))
+			v.(*Client).signal.WriteLenContent(b)
+			//向该请求者发送建立连接请求,服务器地址
+			c.WriteLenContent([]byte(svrAddr))
 		}
 	}
 	c.SetAlive(s.tunnelType)
 	return
 }
 
-//register ip
+// p2pServerAddr 返回下发给客户端的 p2p 服务端地址（host:port）。
+// p2p 依赖服务端在 p2p_port 起的三个 UDP 监听（见 server.StartNewServer），
+// 所以没配置时必须直接失败：旧实现把 p2p_ip 与 p2p_port 直接拼成 ":",
+// 客户端拿到后在 strconv.Atoi 处崩成 `parsing "": invalid syntax`。
+func p2pServerAddr() (string, error) {
+	portStr := strings.TrimSpace(beego.AppConfig.String("p2p_port"))
+	if portStr == "" {
+		return "", errors.New("p2p is not enabled on this server, set p2p_port (and p2p_ip) in nps.conf")
+	}
+	port, err := strconv.Atoi(portStr)
+	// 需要 p2p_port ~ p2p_port+2 三个连续端口
+	if err != nil || port <= 0 || port > 65533 {
+		return "", fmt.Errorf("invalid p2p_port %q in nps.conf, expected an integer in 1-65533", portStr)
+	}
+	ip := strings.TrimSpace(beego.AppConfig.String("p2p_ip"))
+	if ip == "" {
+		// p2p_ip 没配时按公网地址回退，避免下发 ":6000" 这种客户端无法解析的地址
+		for _, key := range []string{"public_ip", "external_ip"} {
+			if v := strings.TrimSpace(beego.AppConfig.String(key)); v != "" {
+				ip = v
+				break
+			}
+		}
+	}
+	if ip == "" {
+		return "", errors.New("p2p_ip is empty, set p2p_ip to this server's public address in nps.conf")
+	}
+	return net.JoinHostPort(ip, strconv.Itoa(port)), nil
+}
+
+// register ip
 func (s *Bridge) register(c *conn.Conn) {
 	var hour int32
 	if err := binary.Read(c, binary.LittleEndian, &hour); err == nil {
@@ -393,7 +422,7 @@ func (s *Bridge) ping() {
 	}
 }
 
-//get config and add task from client config
+// get config and add task from client config
 func (s *Bridge) getConfig(c *conn.Conn, isPub bool, client *file.Client) {
 	var fail bool
 loop:
