@@ -49,7 +49,7 @@ var (
 // 认证帧会在建立隧道之前被消费掉，剩余字节通过 preReadConn 回放给内网目标，
 // 因此未通过认证的连接既拿不到服务指纹，也不会被转发到内网。
 func wrapTunnelConn(c net.Conn, task *file.Tunnel) (net.Conn, error) {
-	if task == nil || task.Mode != "tcp" {
+	if task == nil || (task.Mode != "tcp" && task.Mode != "ftp") {
 		return c, nil
 	}
 	if task.TlsEnabled() {

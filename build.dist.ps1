@@ -10,14 +10,14 @@
 #
 # Usage:
 #   pwsh -File build.dist.ps1
-#   pwsh -File build.dist.ps1 -Version 0.26.12
+#   pwsh -File build.dist.ps1 -Version 0.26.13
 #   pwsh -File build.dist.ps1 -Only linux/amd64,windows/amd64 -ServerOnly
 #   pwsh -File build.dist.ps1 -NoArchive        # binaries + staged trees only
 
 [CmdletBinding()]
 param(
     [string]$OutDir = 'dist',
-    [string]$Version = '0.26.12',
+    [string]$Version = '0.26.13',
     [string[]]$Only = @(),
     [switch]$ServerOnly,
     [switch]$ClientOnly,

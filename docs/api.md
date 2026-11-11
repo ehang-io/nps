@@ -1,5 +1,8 @@
 # web api
 
+> 新接入建议使用 `/api/v1` 的 REST 接口：JSON 请求体、标准 HTTP 方法、固定错误码，见 [REST API](restapi.md)。
+> 下面这套表单式接口继续保留，供旧脚本使用。
+
 需要开启请先去掉`nps.conf`中`auth_key`的注释并配置一个合适的密钥
 ## webAPI验证说明
 - 采用auth_key的验证方式

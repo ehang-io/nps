@@ -42,6 +42,13 @@ func (s *IndexController) Udp() {
 	s.display("index/list")
 }
 
+// Ftp 列出 FTP 隧道：数据通道由服务端中继，被动/主动模式都能用
+func (s *IndexController) Ftp() {
+	s.SetInfo("ftp")
+	s.SetType("ftp")
+	s.display("index/list")
+}
+
 func (s *IndexController) Socks5() {
 	s.SetInfo("socks5")
 	s.SetType("socks5")

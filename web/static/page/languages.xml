@@ -43,6 +43,10 @@
 		<zh-CN>SOCKS 代理</zh-CN>
 		<en-US>SOCKS 5</en-US>
 	</lang>
+	<lang id="scheme-ftp">
+		<zh-CN>FTP 隧道</zh-CN>
+		<en-US>FTP</en-US>
+	</lang>
 	<lang id="scheme-secret">
 		<zh-CN>私密代理</zh-CN>
 		<en-US>Secret</en-US>
@@ -577,6 +581,10 @@
 	<lang id="info-casehttpproxy">
 		<zh-CN>将公网服务器1.1.1.1的8004端口作为HTTP代理，访问内网网站。</zh-CN>
 		<en-US>Use port 8004 of public server 1.1.1.1 as HTTP proxy to visit intranet site.</en-US>
+	</lang>
+	<lang id="info-caseftp">
+		<zh-CN>把内网 FTP 的 21 端口映射到公网，服务端会自动改写 PASV/EPSV 与 PORT/EPRT 里的地址和端口，被动模式和主动模式都能正常传输文件。</zh-CN>
+		<en-US>Expose the intranet FTP (port 21) to the public network. The server rewrites the address and port inside PASV/EPSV and PORT/EPRT, so both passive and active data channels work.</en-US>
 	</lang>
 	<lang id="info-casep2p">
 		<zh-CN>流量不经过公网服务器，受nat类型影响较大，不能保证100%成功，支持大部分nat类型。</zh-CN>

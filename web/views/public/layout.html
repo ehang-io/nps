@@ -72,6 +72,10 @@
                     <a href="{{.web_base_url}}/index/tcp"><i class="fa fa-retweet fa-lg"></i>
                     <span class="nav-label" langtag="scheme-tcp"></span></a>
                 </li>
+                <li class="{{if eq "ftp" .menu}}active{{end}}">
+                    <a href="{{.web_base_url}}/index/ftp"><i class="fa fa-folder-open fa-lg"></i>
+                    <span class="nav-label" langtag="scheme-ftp"></span></a>
+                </li>
                 <li class="{{if eq "udp" .menu}}active{{end}}">
                     <a href="{{.web_base_url}}/index/udp"><i class="fa fa-random fa-lg"></i>
                     <span class="nav-label" langtag="scheme-udp"></span></a>

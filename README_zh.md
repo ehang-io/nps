@@ -34,6 +34,7 @@ nps是一款轻量级、高性能、功能强大的**内网穿透**代理服务�
 - 服务端支持多用户和用户注册功能
 - TCP 隧道支持 Basic 认证与 TLS 加密（认证在建立隧道前完成，可配合来源白名单防 3389 被爆破）
 - 支持多服务端穿透，控制通道可选 tcp / kcp / tls
+- FTP 隧道自动改写 PASV/EPSV 与 PORT/EPRT，被动模式与主动模式都能正常传文件
 
 **没找到你想要的功能？不要紧，点击[进入文档](https://ehang-io.github.io/nps)查找吧**
 ## 快速开始
@@ -80,6 +81,50 @@ nps默认配置文件使用了80，443，8080，8024端口
 - 执行启动命令，linux直接执行即可，windows将./npc换成npc.exe用cmd执行
 
 如果需要注册到系统服务可查看[注册到系统服务](https://ehang-io.github.io/nps/#/use?id=注册到系统服务)
+
+### FTP 隧道（被动模式 + 主动模式）
+FTP 的文件数据走另一条临时协商出来的数据连接，只转发控制通道只能登录、不能传文件。
+`mode=ftp`（内网目标端口是 21 的 tcp 隧道也会自动按这个处理）会把 PASV/EPSV 与
+PORT/EPRT 报文里的地址改写成「服务端公网地址 + 中继端口」，数据连接再经隧道回到真正的对端：
+
+```ini
+# nps.conf
+ftp_public_ip=203.0.113.7      # 对外通告的地址，留空取 external_ip
+ftp_pasv_ports=40000-40050      # 被动模式中继端口，记得在安全组整段放行
+ftp_active_ports=40100-40150    # 主动模式中继端口，留空则复用上面那段
+ftp_relay_timeout=60            # 中继端口等不到数据连接就释放（秒）
+ftp_alg=auto                    # off 表示只改写 mode=ftp 的隧道
+```
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/api/v1/tunnels \
+  -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+  -d '{"client_id":2,"mode":"ftp","port":21,"target":"10.0.0.8:21"}'
+```
+
+客户端执行 `AUTH TLS`（显式 FTPS）后控制通道加密，这条会话会自动停止改写并记一条日志；
+需要加密时用隧道级 TLS（`tls_enable`）承载控制通道。细节见 `docs/feature.md`「FTP 数据通道」。
+
+### 多服务端穿透
+同一个内网服务可以同时挂到多个 nps 节点，每个节点独立建链、独立重连：
+
+```bash
+./npc -server=nps-a.example.com:8024,nps-b.example.com:8024 -vkey=123 -type=tcp
+```
+
+```ini
+# npc.conf
+[common]
+server_addr=nps-a.example.com:8024,nps-b.example.com:8024
+conn_type=tcp
+vkey=123
+```
+
+各节点需使用相同的 `public_vkey`；第一个地址是主节点，`npc status` 只查询它。
+
+### REST API
+`/api/v1` 提供隧道、客户端、域名与状态的接口，默认关闭：先在 `nps.conf` 配置 `api_key`
+并重启，请求头带 `Authorization: Bearer <key>`。完整字段与错误码见 `docs/restapi.md`。
 
 ### 配置
 - 客户端连接后，在web中配置对应穿透服务即可

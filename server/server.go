@@ -39,8 +39,9 @@ func InitFromCsv() {
 	if vkey := beego.AppConfig.String("public_vkey"); vkey != "" {
 		c := file.NewClient(vkey, true, true)
 		file.GetDb().NewClient(c)
-		RunList.Store(c.Id, nil)
-		//RunList[c.Id] = nil
+		// 这里原来还会执行 RunList.Store(c.Id, nil)，把客户端 id 塞进“任务运行表”。
+		// 客户端 id 与任务 id 是两个独立的序列，第一个任务很容易撞上公共客户端的 id，
+		// 于是一个刚创建、根本没监听的隧道会被判定成“运行中”。运行状态只登记任务。
 	}
 	//Initialize services in server-side files
 	file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
@@ -131,7 +132,15 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 	var service proxy.Service
 	switch c.Mode {
 	case "tcp", "file":
-		service = proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
+		// 端口 21（或目标端口 21）的 tcp 隧道自动按 FTP 处理数据通道改写，
+		// 老的 tcp 隧道不需要改配置就能用上被动/主动模式修复
+		if proxy.FtpAlgForTunnel(c) {
+			service = proxy.NewTunnelModeServer(proxy.ProcessFtp, Bridge, c)
+		} else {
+			service = proxy.NewTunnelModeServer(proxy.ProcessTunnel, Bridge, c)
+		}
+	case "ftp":
+		service = proxy.NewTunnelModeServer(proxy.ProcessFtp, Bridge, c)
 	case "socks5":
 		service = proxy.NewSock5ModeServer(Bridge, c)
 	case "httpProxy":
@@ -248,7 +257,11 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string) (
 	for _, key := range keys {
 		if value, ok := file.GetDb().JsonDb.Tasks.Load(key); ok {
 			v := value.(*file.Tunnel)
-			if (typeVal != "" && v.Mode != typeVal || (clientId != 0 && v.Client.Id != clientId)) || (typeVal == "" && clientId != v.Client.Id) {
+			//按类型与客户端过滤；两者都为空时返回全部（“全部隧道”页面依赖这一点）
+			if typeVal != "" && v.Mode != typeVal {
+				continue
+			}
+			if clientId != 0 && (v.Client == nil || v.Client.Id != clientId) {
 				continue
 			}
 			if search != "" && !(v.Id == common.GetIntNoErrByStr(search) || v.Port == common.GetIntNoErrByStr(search) || strings.Contains(v.Password, search) || strings.Contains(v.Remark, search)) {

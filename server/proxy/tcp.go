@@ -38,7 +38,7 @@ func (s *TunnelModeServer) Start() error {
 	if s.guard != nil && !s.guard.Disabled() {
 		logs.Info(guardDescription(s.guard, s.task.Port))
 	}
-	if s.task.Mode == "tcp" && (s.task.TlsEnabled() || s.task.AuthEnabled()) {
+	if (s.task.Mode == "tcp" || s.task.Mode == "ftp") && (s.task.TlsEnabled() || s.task.AuthEnabled()) {
 		logs.Info("port %d tcp tunnel protection enabled, tls=%v auth_user=%q", s.task.Port, s.task.TlsEnabled(), s.task.AuthUser)
 	}
 	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
@@ -67,7 +67,8 @@ func (s *TunnelModeServer) Start() error {
 		//首包守卫：RDP/SSH/HTTP 都是客户端先说话，连上却一直不发数据的连接是扫描器，
 		//在建立隧道之前就关掉，既省资源也不把端口状态暴露给探测脚本。
 		//已在上面完成 TLS/认证握手的连接无需再等（握手本身已经消费了首包）。
-		if !s.task.TlsEnabled() && !s.task.AuthEnabled() {
+		//FTP 是服务端先发 220 欢迎语，等客户端首包只会把正常用户挡在门外，所以一律跳过。
+		if !s.task.TlsEnabled() && !s.task.AuthEnabled() && !FtpAlgForTunnel(s.task) {
 			guarded, gerr := common.AwaitFirstByte(wrapped, FirstByteGuardTimeout(s.task))
 			if gerr != nil {
 				logReject(c.RemoteAddr(), "no application data after connect")

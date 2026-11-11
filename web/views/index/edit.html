@@ -14,6 +14,7 @@
                                 <span id="casetcp" langtag="info-casetcp"></span>
                                 <span id="caseudp" langtag="info-caseudp"></span>
                                 <span id="casehttpProxy" langtag="info-casehttpproxy"></span>
+                                <span id="caseftp" langtag="info-caseftp"></span>
                                 <span id="casesocks5" langtag="info-casesocks5"></span>
                                 <span id="casesecret" langtag="info-casesecret"></span>
                                 <span id="casep2p" langtag="info-casep2p"></span>
@@ -23,6 +24,7 @@
                                 <option value="tcp" langtag="scheme-tcp"></option>
                                 <option value="udp" langtag="scheme-udp"></option>
                                 <option value="httpProxy" langtag="scheme-httpProxy"></option>
+                                <option value="ftp" langtag="scheme-ftp"></option>
                                 <option value="socks5" langtag="scheme-socks5"></option>
                                 <option value="secret" langtag="scheme-secret"></option>
                                 <option value="p2p" langtag="scheme-p2p"></option>
@@ -163,6 +165,7 @@
     arr["udp"] = ["client_id", "port", "target", "local_proxy", "ip_acl", "ip_deny", "conn_rate"]
     arr["socks5"] = ["client_id", "port", "ip_acl", "ip_deny", "conn_rate"]
     arr["httpProxy"] = ["client_id", "port", "ip_acl", "ip_deny", "conn_rate"]
+    arr["ftp"] = ["client_id", "port", "target", "local_proxy", "ip_acl", "ip_deny", "conn_rate", "auth_user", "auth_pass", "tls"]
     arr["secret"] = ["client_id", "target", "password"]
     arr["p2p"] = ["client_id", "target", "password"]
     arr["file"] = ["client_id", "port", "local_path", "strip_pre"]
